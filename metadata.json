@@ -1,0 +1,6 @@
+{
+  "name": "HydroMines",
+  "description": "Smart industrial platform for underground mining operations: production tracking, equipment management, AI-driven insights, and safety monitoring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

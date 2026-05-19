@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAtSite(siteId) {
+      let userData = getUserData();
+      return userData.role in ['admin', 'direction'] || (siteId in userData.siteIds);
+    }
+
+    function hasRole(roles) {
+      return getUserData().role in roles;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Entity Validations ---
+    
+    function isValidUser(data) {
+      return data.email is string && data.email.size() < 256 &&
+             data.role in ['secretary', 'responsible', 'chief', 'direction', 'admin'];
+    }
+
+    function isValidProduction(data) {
+      return data.date is string && 
+             data.siteId is string && 
+             data.meterage is number && data.meterage >= 0 &&
+             data.fuelConsumption is number && data.fuelConsumption >= 0 &&
+             data.operatorId == request.auth.uid;
+    }
+
+    // --- Match Blocks ---
+
+    // Sites
+    match /sites/{siteId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && hasRole(['admin']);
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || hasRole(['admin', 'direction']));
+      allow create: if isSignedIn() && (request.auth.uid == userId || hasRole(['admin']));
+      allow update: if isSignedIn() && hasRole(['admin']); // Only admins change roles/sites
+    }
+
+    // Production
+    match /production/{prodId} {
+      allow read: if isSignedIn() && isAtSite(existing().siteId);
+      allow create: if isSignedIn() && isAtSite(incoming().siteId) && isValidProduction(incoming()) && incoming().status == 'draft';
+      allow update: if isSignedIn() && isAtSite(existing().siteId) && (
+        // Action: Secretary Edit (only if draft)
+        (existing().status == 'draft' && hasRole(['secretary']) && incoming().diff(existing()).affectedKeys().hasOnly(['meterage', 'rounds', 'fuelConsumption', 'remarks', 'status'])) ||
+        // Action: Validation Loop
+        (hasRole(['responsible', 'chief', 'admin']) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'validatedBy']))
+      );
+      allow delete: if isSignedIn() && hasRole(['admin']);
+    }
+
+    // Chantiers
+    match /chantiers/{cId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief']);
+    }
+
+    // Engines
+    match /engines/{engineId} {
+      allow read: if isSignedIn() && isAtSite(existing().siteId);
+      allow write: if isSignedIn() && hasRole(['admin', 'chief', 'responsible']);
+    }
+
+    // Maintenance
+    match /maintenance/{mId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && hasRole(['admin', 'chief']);
+    }
+
+    // Stocks
+    match /stocks/{sId} {
+      allow read: if isSignedIn() && isAtSite(resource.data.siteId);
+      allow write: if isSignedIn() && hasRole(['admin', 'chief']);
+    }
+
+    // Logs
+    match /logs/{logId} {
+      allow read: if isSignedIn() && hasRole(['admin', 'direction']);
+      allow create: if isSignedIn(); // System writes logs
+      allow update, delete: if false; // Append only
+    }
+  }
+}

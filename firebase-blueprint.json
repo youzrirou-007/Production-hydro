@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "Site": {
+      "title": "Site",
+      "description": "Mining site definition",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "managerId": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Platform user with roles and site access",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["secretary", "responsible", "chief", "direction", "admin"] },
+        "siteIds": { "type": "array", "items": { "type": "string" } },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["email", "role"]
+    },
+    "Production": {
+      "title": "Production",
+      "description": "Daily production record for a chantier",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "siteId": { "type": "string" },
+        "sector": { "type": "string" },
+        "chantierId": { "type": "string" },
+        "operatorId": { "type": "string" },
+        "drillModel": { "type": "string" },
+        "barLength": { "type": "number" },
+        "gallerySize": { "type": "number" },
+        "meterage": { "type": "number" },
+        "rounds": { "type": "number" },
+        "fuelConsumption": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "pending_validation", "validated"] },
+        "validatedBy": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["date", "siteId", "chantierId", "meterage"]
+    },
+    "Chantier": {
+      "title": "Chantier",
+      "description": "Specific mining advancement area",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "siteId": { "type": "string" },
+        "sector": { "type": "string" },
+        "managerName": { "type": "string" },
+        "galleryType": { "type": "string", "enum": ["9m2", "12m2"] },
+        "targetMeterage": { "type": "number" }
+      },
+      "required": ["name", "siteId"]
+    },
+    "Engine": {
+      "title": "Engine",
+      "description": "Mining equipment/machinery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["perforateur", "camion", "pelle", "autre"] },
+        "siteId": { "type": "string" },
+        "status": { "type": "string", "enum": ["operational", "maintenance", "broken"] },
+        "engineHours": { "type": "number" },
+        "fuelLevel": { "type": "number" },
+        "lastMaintenanceDate": { "type": "string" }
+      },
+      "required": ["id", "name", "type"]
+    },
+    "MaintenanceOrder": {
+      "title": "MaintenanceOrder",
+      "description": "Service record for engines",
+      "type": "object",
+      "properties": {
+        "engineId": { "type": "string" },
+        "date": { "type": "string" },
+        "type": { "type": "string", "enum": ["preventive", "corrective"] },
+        "description": { "type": "string" },
+        "cost": { "type": "number" },
+        "technicianId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "in_progress", "completed"] }
+      },
+      "required": ["engineId", "date", "type"]
+    },
+    "Stock": {
+      "title": "Stock",
+      "description": "Consumables inventory per site",
+      "type": "object",
+      "properties": {
+        "siteId": { "type": "string" },
+        "itemName": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "minThreshold": { "type": "number" }
+      },
+      "required": ["siteId", "itemName", "quantity"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Traceability log for all sensitive actions",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string" },
+        "userId": { "type": "string" },
+        "action": { "type": "string" },
+        "targetId": { "type": "string" },
+        "details": { "type": "object" },
+        "geo": { "type": "object" }
+      },
+      "required": ["timestamp", "userId", "action"]
+    }
+  },
+  "firestore": {
+    "/sites": { "schema": "Site", "description": "Mining sites" },
+    "/users": { "schema": "User", "description": "System users" },
+    "/production": { "schema": "Production", "description": "Production logs" },
+    "/chantiers": { "schema": "Chantier", "description": "Chantier registry" },
+    "/engines": { "schema": "Engine", "description": "Equipment registry" },
+    "/maintenance": { "schema": "MaintenanceOrder", "description": "Maintenance history" },
+    "/stocks": { "schema": "Stock", "description": "Inventory management" },
+    "/logs": { "schema": "AuditLog", "description": "Security and audit trail" }
+  }
+}
