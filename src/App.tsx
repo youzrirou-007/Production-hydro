@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
-import { Dashboard } from './pages/Dashboard';
 import { Production } from './pages/Production';
-import { Audit } from './pages/Audit';
-import { AssistantIA } from './pages/AssistantIA';
+import { Admin } from './pages/Admin';
+import { DailyReport } from './pages/DailyReport';
+import { Chantiers } from './pages/Chantiers';
+import { Planning } from './pages/Planning';
 import { Factory, ShieldCheck, Mail, LogIn, HardHat } from 'lucide-react';
 
 const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
@@ -17,7 +18,7 @@ const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
 
 const AppContent: React.FC = () => {
   const { user, profile, loading, signIn } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('production');
 
   if (loading) {
     return (
@@ -61,17 +62,12 @@ const AppContent: React.FC = () => {
   // Route Rendering
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <Dashboard />;
       case 'production': return <Production />;
-      case 'audit': return <Audit />;
-      case 'assistant': return <AssistantIA />;
-      case 'engines': return <PlaceholderContent title="Module Engins" />;
-      case 'performance': return <PlaceholderContent title="Indice de Performance" />;
-      case 'maintenance': return <PlaceholderContent title="Gestion Maintenance" />;
-      case 'safety': return <PlaceholderContent title="Sécurité & Incidents" />;
-      case 'stocks': return <PlaceholderContent title="Gestion Stocks" />;
-      case 'admin': return <PlaceholderContent title="Administration" />;
-      default: return <Dashboard />;
+      case 'daily_report': return <DailyReport />;
+      case 'chantiers': return <Chantiers />;
+      case 'planning': return <Planning />;
+      case 'admin': return <Admin />;
+      default: return <Production />;
     }
   };
 

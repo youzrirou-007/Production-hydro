@@ -31,20 +31,34 @@
       "properties": {
         "date": { "type": "string", "format": "date" },
         "siteId": { "type": "string" },
+        "post": { "type": "string", "enum": ["Poste 1", "Poste 2", "Poste 3"] },
         "sector": { "type": "string" },
         "chantierId": { "type": "string" },
         "operatorId": { "type": "string" },
+        "chiefName": { "type": "string" },
+        "minerName": { "type": "string" },
+        "assistantName": { "type": "string" },
         "drillModel": { "type": "string" },
         "barLength": { "type": "number" },
         "gallerySize": { "type": "number" },
+        "holeCount": { "type": "number" },
         "meterage": { "type": "number" },
+        "meteragePlanned": { "type": "number" },
         "rounds": { "type": "number" },
+        "explosives": {
+          "type": "object",
+          "properties": {
+            "anfo": { "type": "number" },
+            "tovex": { "type": "number" },
+            "ammorces": { "type": "number" }
+          }
+        },
         "fuelConsumption": { "type": "number" },
         "status": { "type": "string", "enum": ["draft", "pending_validation", "validated"] },
         "validatedBy": { "type": "array", "items": { "type": "string" } },
         "timestamp": { "type": "string" }
       },
-      "required": ["date", "siteId", "chantierId", "meterage"]
+      "required": ["date", "siteId", "chantierId", "post", "meterage"]
     },
     "Chantier": {
       "title": "Chantier",
@@ -57,9 +71,10 @@
         "sector": { "type": "string" },
         "managerName": { "type": "string" },
         "galleryType": { "type": "string", "enum": ["9m2", "12m2"] },
+        "status": { "type": "string", "enum": ["ouvert", "fermé"] },
         "targetMeterage": { "type": "number" }
       },
-      "required": ["name", "siteId"]
+      "required": ["name", "siteId", "status"]
     },
     "Engine": {
       "title": "Engine",
@@ -105,6 +120,20 @@
       },
       "required": ["siteId", "itemName", "quantity"]
     },
+    "Personnel": {
+      "title": "Personnel",
+      "description": "Mining staff database",
+      "type": "object",
+      "properties": {
+        "matricule": { "type": "string" },
+        "nom": { "type": "string" },
+        "prenom": { "type": "string" },
+        "fonction": { "type": "string" },
+        "siteId": { "type": "string" },
+        "status": { "type": "string", "enum": ["actif", "inactif"] }
+      },
+      "required": ["matricule", "nom", "prenom", "fonction"]
+    },
     "AuditLog": {
       "title": "AuditLog",
       "description": "Traceability log for all sensitive actions",
@@ -118,6 +147,58 @@
         "geo": { "type": "object" }
       },
       "required": ["timestamp", "userId", "action"]
+    },
+    "DailyPlanningSheet": {
+      "title": "DailyPlanningSheet",
+      "description": "Sheet status representing a plan for a given day and post",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "post": { "type": "string" },
+        "status": { "type": "string" },
+        "chiefName": { "type": "string" },
+        "lastSavedBy": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["date", "post"]
+    },
+    "Planning": {
+      "title": "Planning",
+      "description": "Individual assignment item inside a planning list",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "post": { "type": "string" },
+        "chantierId": { "type": "string" },
+        "engineCode": { "type": "string" },
+        "minerMatricule": { "type": "string" },
+        "assistantMatricule": { "type": "string" }
+      },
+      "required": ["date", "post", "chantierId"]
+    },
+    "DailyExcelSheet": {
+      "title": "DailyExcelSheet",
+      "description": "Dynamic daily spreadsheet logs saves",
+      "type": "object",
+      "properties": {
+        "minageRows": { "type": "array" },
+        "deblayageRows": { "type": "array" },
+        "extractionRows": { "type": "array" },
+        "maintenanceRows": { "type": "array" },
+        "pressionReseau": { "type": "string" },
+        "tensionLigne": { "type": "string" },
+        "qualiteAire": { "type": "string" }
+      }
+    },
+    "ProductionHistory": {
+      "title": "ProductionHistory",
+      "description": "Internal logs tracking sheet validations and locks",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -128,6 +209,11 @@
     "/engines": { "schema": "Engine", "description": "Equipment registry" },
     "/maintenance": { "schema": "MaintenanceOrder", "description": "Maintenance history" },
     "/stocks": { "schema": "Stock", "description": "Inventory management" },
-    "/logs": { "schema": "AuditLog", "description": "Security and audit trail" }
+    "/logs": { "schema": "AuditLog", "description": "Security and audit trail" },
+    "/personnel": { "schema": "Personnel", "description": "Employee database" },
+    "/daily_planning_sheets": { "schema": "DailyPlanningSheet", "description": "Daily planning sheet records" },
+    "/planning": { "schema": "Planning", "description": "Planning assignments" },
+    "/daily_excel_sheets": { "schema": "DailyExcelSheet", "description": "Consolidated spreadsheet saves" },
+    "/production_history": { "schema": "ProductionHistory", "description": "Workbook validation and action logs" }
   }
 }

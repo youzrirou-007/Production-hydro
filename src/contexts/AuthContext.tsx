@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 interface UserProfile {
   role: 'secretary' | 'responsible' | 'chief' | 'direction' | 'admin';
@@ -38,13 +38,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (user) {
-      const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-        if (doc.exists()) {
-          setProfile(doc.data() as UserProfile);
+      const unsubProfile = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
+        if (docSnap.exists()) {
+          setProfile(docSnap.data() as UserProfile);
+          setLoading(false);
         } else {
-          setProfile(null);
+          // Auto bootstrap default profile as admin
+          try {
+            await setDoc(doc(db, 'users', user.uid), {
+              role: 'admin',
+              siteIds: ['SMI'],
+              name: user.displayName || user.email?.split('@')[0] || 'Utilisateur'
+            });
+          } catch (err) {
+            console.error("Bootstrapping profile failed", err);
+            setProfile(null);
+            setLoading(false);
+          }
         }
-        setLoading(false);
       });
       return () => unsubProfile();
     }
