@@ -107,9 +107,35 @@
         "prenom": { "type": "string" },
         "fonction": { "type": "string" },
         "siteId": { "type": "string" },
-        "status": { "type": "string", "enum": ["actif", "inactif"] }
+        "status": { "type": "string", "enum": ["actif", "inactif"] },
+        "sector": { "type": "string" },
+        "currentPost": { "type": "string", "enum": ["Poste 1", "Poste 2", "Poste 3"] },
+        "rotationGroup": { "type": "string" }
       },
       "required": ["matricule", "nom", "prenom", "fonction"]
+    },
+    "RotationHistory": {
+      "title": "RotationHistory",
+      "description": "Log of weekly post rotations",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "appliedBy": { "type": "string" },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "employeeId": { "type": "string" },
+              "matricule": { "type": "string" },
+              "name": { "type": "string" },
+              "fromPost": { "type": "string" },
+              "toPost": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["date", "appliedBy", "changes"]
     },
     "AuditLog": {
       "title": "AuditLog",
@@ -173,6 +199,7 @@
     "/stocks": { "schema": "Stock", "description": "Inventory management" },
     "/logs": { "schema": "AuditLog", "description": "Security and audit trail" },
     "/personnel": { "schema": "Personnel", "description": "Employee database" },
+    "/rotations_history": { "schema": "RotationHistory", "description": "Weekly rotation logs" },
     "/daily_planning_sheets": { "schema": "DailyPlanningSheet", "description": "Daily planning sheet records" },
     "/planning": { "schema": "Planning", "description": "Planning assignments" },
     "/production_history": { "schema": "ProductionHistory", "description": "Workbook validation and action logs" }

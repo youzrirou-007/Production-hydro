@@ -29,7 +29,9 @@ interface Employee {
   prenom: string;
   fonction: string;
   status: 'actif' | 'inactif';
-  sector: string; // imiter 1, imiter 2, imiter est, parc
+  sector: string; // "Imiter 1" | "Imiter 2" | "Imiter Est" | "Imiter Est Bure" | "Atelier / Surface" | "Non assigné"
+  currentPost: 'Poste 1' | 'Poste 2' | 'Poste 3';
+  rotationGroup?: string;
 }
 
 // Hierarchy-perfect definition representing literal roles of interest
@@ -53,7 +55,9 @@ const SECTORS = [
   { id: 'Imiter 1', label: 'Imiter 1' },
   { id: 'Imiter 2', label: 'Imiter 2' },
   { id: 'Imiter Est', label: 'Imiter Est' },
-  { id: 'Parc', label: 'Parc (Mécanique, Ménage, Support...)' }
+  { id: 'Imiter Est Bure', label: 'Imiter Est Bure' },
+  { id: 'Atelier / Surface', label: 'Atelier / Surface' },
+  { id: 'Non assigné', label: 'Non assigné' }
 ];
 
 export const Admin: React.FC = () => {
@@ -70,7 +74,7 @@ export const Admin: React.FC = () => {
     engines: string[];
     oils: string[];
   }>({
-    sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est'],
+    sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Atelier / Surface', 'Non assigné'],
     engines: ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
     oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression']
   });
@@ -84,7 +88,7 @@ export const Admin: React.FC = () => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setPlatformSettings({
-          sectors: data.sectors || ['Imiter 1', 'Imiter 2', 'Imiter Est'],
+          sectors: data.sectors || ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Atelier / Surface', 'Non assigné'],
           engines: data.engines || ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
           oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression']
         });
@@ -102,8 +106,10 @@ export const Admin: React.FC = () => {
     nom: '',
     prenom: '',
     fonction: 'MINEUR',
-    sector: 'Imiter 1',
-    status: 'actif' as 'actif' | 'inactif'
+    sector: 'Non assigné',
+    status: 'actif' as 'actif' | 'inactif',
+    currentPost: 'Poste 1' as 'Poste 1' | 'Poste 2' | 'Poste 3',
+    rotationGroup: 'default'
   });
 
   // RH Form init
@@ -112,8 +118,10 @@ export const Admin: React.FC = () => {
     nom: '',
     prenom: '',
     fonction: 'MINEUR',
-    sector: 'Imiter 1',
-    status: 'actif' as 'actif' | 'inactif'
+    sector: 'Non assigné',
+    status: 'actif' as 'actif' | 'inactif',
+    currentPost: 'Poste 1' as 'Poste 1' | 'Poste 2' | 'Poste 3',
+    rotationGroup: 'default'
   });
 
   useEffect(() => {
@@ -128,7 +136,9 @@ export const Admin: React.FC = () => {
           prenom: data.prenom || '',
           fonction: data.fonction || 'MINEUR',
           status: data.status || 'actif',
-          sector: data.sector || 'Parc' // default fallback
+          sector: data.sector || 'Non assigné',
+          currentPost: data.currentPost || 'Poste 1',
+          rotationGroup: data.rotationGroup || 'default'
         } as Employee;
       }));
     });
@@ -146,8 +156,10 @@ export const Admin: React.FC = () => {
         nom: formData.nom.trim().toUpperCase(),
         prenom: formData.prenom.trim(),
         fonction: formData.fonction,
-        sector: formData.sector,
-        status: formData.status
+        sector: formData.sector || 'Non assigné',
+        status: formData.status,
+        currentPost: formData.currentPost || 'Poste 1',
+        rotationGroup: formData.rotationGroup || 'default'
       });
       setShowAdd(false);
       setFormData({
@@ -155,8 +167,10 @@ export const Admin: React.FC = () => {
         nom: '',
         prenom: '',
         fonction: 'MINEUR',
-        sector: 'Imiter 1',
-        status: 'actif'
+        sector: 'Non assigné',
+        status: 'actif',
+        currentPost: 'Poste 1',
+        rotationGroup: 'default'
       });
     } catch (err) {
       console.error("Error adding employee: ", err);
@@ -172,8 +186,10 @@ export const Admin: React.FC = () => {
       nom: emp.nom,
       prenom: emp.prenom,
       fonction: emp.fonction,
-      sector: emp.sector || 'Imiter 1',
-      status: emp.status
+      sector: emp.sector || 'Non assigné',
+      status: emp.status,
+      currentPost: emp.currentPost || 'Poste 1',
+      rotationGroup: emp.rotationGroup || 'default'
     });
   };
 
@@ -185,11 +201,23 @@ export const Admin: React.FC = () => {
         prenom: editForm.prenom.trim(),
         fonction: editForm.fonction,
         sector: editForm.sector,
-        status: editForm.status
+        status: editForm.status,
+        currentPost: editForm.currentPost,
+        rotationGroup: editForm.rotationGroup
       });
       setEditingId(null);
     } catch (err) {
       console.error("Error updating employee: ", err);
+    }
+  };
+
+  const handleQuickUpdate = async (empId: string, field: 'sector' | 'currentPost', value: string) => {
+    try {
+      await updateDoc(doc(db, 'personnel', empId), {
+        [field]: value
+      });
+    } catch (err) {
+      console.error(`Error quick updating employee ${field}:`, err);
     }
   };
 
@@ -364,7 +392,7 @@ export const Admin: React.FC = () => {
               <span className="text-[9.5px] font-black uppercase text-slate-400 mr-2 tracking-wider flex items-center gap-1">
                 <Filter className="w-3.5 h-3.5" /> Secteur d'affectation :
               </span>
-              {['Tous', 'Imiter 1', 'Imiter 2', 'Imiter Est', 'Parc'].map(sect => {
+              {['Tous', 'Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Atelier / Surface', 'Non assigné'].map(sect => {
                 const isSel = selectedSectorFilter === sect;
                 return (
                   <button
@@ -393,6 +421,7 @@ export const Admin: React.FC = () => {
                     <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider border-r border-slate-100">Collaborateur</th>
                     <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider border-r border-slate-100">Hiérarchie / Fonction</th>
                     <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider border-r border-slate-100">Secteur / Rattachement</th>
+                    <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider border-r border-slate-100">Poste actuel</th>
                     <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider border-r border-slate-100 text-center">Statut (Shift)</th>
                     <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-right">Actions</th>
                   </tr>
@@ -451,6 +480,17 @@ export const Admin: React.FC = () => {
                               ))}
                             </select>
                           </td>
+                          <td className="px-4 py-2 border-r border-slate-100">
+                            <select
+                              value={editForm.currentPost}
+                              onChange={e => setEditForm({ ...editForm, currentPost: e.target.value as any })}
+                              className="bg-slate-50 border border-slate-300 px-2 py-1 font-bold text-[10px] uppercase text-slate-850 focus:border-[#8B0000] outline-none"
+                            >
+                              <option value="Poste 1">Poste 1</option>
+                              <option value="Poste 2">Poste 2</option>
+                              <option value="Poste 3">Poste 3</option>
+                            </select>
+                          </td>
                           <td className="px-4 py-2 border-r border-slate-100 text-center">
                             <select
                               value={editForm.status}
@@ -492,13 +532,27 @@ export const Admin: React.FC = () => {
                               {getRoleLabel(emp.fonction)}
                             </span>
                           </td>
-                          <td className="px-5 py-3 border-r border-slate-100">
-                            <div className="flex items-center gap-1.5">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="text-slate-700 font-bold uppercase tracking-tight text-[10px]">
-                                {emp.sector || 'Parc'}
-                              </span>
-                            </div>
+                          <td className="px-4 py-2 border-r border-slate-100">
+                            <select
+                              value={emp.sector || 'Non assigné'}
+                              onChange={e => handleQuickUpdate(emp.id, 'sector', e.target.value)}
+                              className="bg-slate-50 border border-slate-200 px-2 py-1 font-bold text-[10.5px] uppercase text-slate-700 outline-none focus:border-[#8B0000] hover:bg-slate-100 transition-colors cursor-pointer"
+                            >
+                              {SECTORS.map(s => (
+                                <option key={s.id} value={s.id}>{s.label}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-2 border-r border-slate-100">
+                            <select
+                              value={emp.currentPost || 'Poste 1'}
+                              onChange={e => handleQuickUpdate(emp.id, 'currentPost', e.target.value)}
+                              className="bg-slate-50 border border-slate-200 px-2 py-1 font-bold text-[10.5px] uppercase text-slate-700 outline-none focus:border-[#8B0000] hover:bg-slate-100 transition-colors cursor-pointer"
+                            >
+                              <option value="Poste 1">Poste 1</option>
+                              <option value="Poste 2">Poste 2</option>
+                              <option value="Poste 3">Poste 3</option>
+                            </select>
                           </td>
                           <td className="px-5 py-3 border-r border-slate-100 text-center">
                             <span className={`inline-flex items-center gap-1 text-[9.5px] font-black uppercase ${
@@ -1135,6 +1189,20 @@ export const Admin: React.FC = () => {
                     {SECTORS.map(sec => (
                       <option key={sec.id} value={sec.id}>{sec.label}</option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Poste actuel */}
+                <div className="space-y-1">
+                  <label className="text-[9.5px] font-black uppercase tracking-wider text-slate-500 block">Poste actuel *</label>
+                  <select 
+                    value={formData.currentPost} 
+                    onChange={e => setFormData({...formData, currentPost: e.target.value as any})} 
+                    className="w-full bg-slate-50 border border-slate-300 px-3 py-2 text-xs text-slate-850 outline-none focus:border-[#8B0000] font-bold"
+                  >
+                    <option value="Poste 1">Poste 1</option>
+                    <option value="Poste 2">Poste 2</option>
+                    <option value="Poste 3">Poste 3</option>
                   </select>
                 </div>
 

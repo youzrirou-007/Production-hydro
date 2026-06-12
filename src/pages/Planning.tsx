@@ -29,6 +29,7 @@ import { collection, query, onSnapshot, setDoc, doc, getDocs, deleteDoc, where, 
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, addDays } from 'date-fns';
+import { MatriculeAutocomplete } from '../components/MatriculeAutocomplete';
 
 // Excel interface structures matching Production schema for full planning alignment
 interface ExcelMinage {
@@ -374,6 +375,125 @@ export const Planning: React.FC = () => {
     setMaintenanceRows(clone);
   };
 
+  const duplicatePreviousWeek = async () => {
+    setLoading(true);
+    try {
+      const parts = selectedDate.split('-');
+      if (parts.length !== 3) {
+        alert("Date non valide.");
+        setLoading(false);
+        return;
+      }
+      const sourceDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const targetDateObj = addDays(sourceDateObj, -7);
+      const previousWeekDateStr = format(targetDateObj, 'yyyy-MM-dd');
+
+      const docRef = doc(db, 'daily_planning_sheets', previousWeekDateStr);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        alert(`Aucune planification trouvée pour la semaine précédente (J-7 : ${previousWeekDateStr}).`);
+        setLoading(false);
+        return;
+      }
+
+      const docData = docSnap.data();
+      const pKeySource = selectedPost === 'Poste 1' ? 'poste3' : selectedPost === 'Poste 2' ? 'poste1' : 'poste2';
+      const sourcePostData = docData.postes?.[pKeySource];
+
+      if (!sourcePostData) {
+        alert(`Aucune planification d'équipe n'a été saisie pour le ${previousWeekDateStr} au ${pKeySource === 'poste1' ? 'Poste 1' : pKeySource === 'poste2' ? 'Poste 2' : 'Poste 3'}.`);
+        setLoading(false);
+        return;
+      }
+
+      // Dupliquer avec rotation intelligente
+      // 1. Minage
+      if (sourcePostData.minage && sourcePostData.minage.length > 0) {
+        const clonedMinage = sourcePostData.minage.map((row: ExcelMinage) => {
+          const finalRow = { ...row };
+          if (row.chiefMatricule) {
+            const emp = employees.find(e => e.matricule?.toUpperCase() === row.chiefMatricule.toUpperCase());
+            finalRow.chiefName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+          }
+          if (row.minerMatricule) {
+            const emp = employees.find(e => e.matricule?.toUpperCase() === row.minerMatricule.toUpperCase());
+            finalRow.minerName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+          }
+          if (row.assistantMatricule) {
+            const emp = employees.find(e => e.matricule?.toUpperCase() === row.assistantMatricule.toUpperCase());
+            finalRow.assistantName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+          }
+          return finalRow;
+        });
+        setMinageRows(clonedMinage);
+      }
+
+      // 2. Deblayage
+      if (sourcePostData.deblayage && sourcePostData.deblayage.length > 0) {
+        const clonedDeblayage = sourcePostData.deblayage.map((row: ExcelDeblayage) => {
+          const finalRow = { ...row };
+          if (row.driverMatricule) {
+            const emp = employees.find(e => e.matricule?.toUpperCase() === row.driverMatricule.toUpperCase());
+            finalRow.driverName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+          }
+          return finalRow;
+        });
+        setDeblayageRows(clonedDeblayage);
+      }
+
+      // 3. Extraction
+      if (sourcePostData.extraction && sourcePostData.extraction.length > 0) {
+        setExtractionRows(sanitizeExtractionRows(sourcePostData.extraction));
+      }
+
+      // 4. Maintenance
+      if (sourcePostData.maintenance && sourcePostData.maintenance.length > 0) {
+        const clonedMaintenance = sourcePostData.maintenance.map((row: ExcelMaintenance) => {
+          const finalRow = { ...row };
+          if (row.agentMatricule) {
+            const emp = employees.find(e => e.matricule?.toUpperCase() === row.agentMatricule.toUpperCase());
+            finalRow.agentName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+          }
+          return finalRow;
+        });
+        setMaintenanceRows(clonedMaintenance);
+      }
+
+      alert(`Planification du ${previousWeekDateStr} (${pKeySource === 'poste1' ? 'Poste 1' : pKeySource === 'poste2' ? 'Poste 2' : 'Poste 3'}) dupliquée et adaptée avec succès pour aujourd'hui (${selectedPost}) ! N'oubliez pas de sauvegarder.`);
+    } catch (err) {
+      console.error("Erreur de duplication : ", err);
+      alert("Une erreur est survenue lors de la duplication des données.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyTeamToEntireSector = (currentIndex: number, sectorName: string) => {
+    const sourceRow = minageRows[currentIndex];
+    if (!sourceRow) return;
+
+    const updatedRows = minageRows.map((row, idx) => {
+      if (idx === currentIndex) return row;
+      
+      const rowChantier = chantiers.find(c => c.id === row.chantierId);
+      if (rowChantier?.sector === sectorName) {
+        return {
+          ...row,
+          chiefMatricule: sourceRow.chiefMatricule,
+          chiefName: sourceRow.chiefName,
+          minerMatricule: sourceRow.minerMatricule,
+          minerName: sourceRow.minerName,
+          assistantMatricule: sourceRow.assistantMatricule,
+          assistantName: sourceRow.assistantName
+        };
+      }
+      return row;
+    });
+
+    setMinageRows(updatedRows);
+  };
+
   // Master Workbook Persistence and Sync to granular discrete planning collection
   const savePlanningWorkbook = async () => {
     setSaveStatus('saving');
@@ -553,6 +673,13 @@ export const Planning: React.FC = () => {
         {viewMode === 'sheet' && (
           <div className="flex items-center gap-2">
             <button
+              onClick={duplicatePreviousWeek}
+              className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 text-[9px] font-bold uppercase transition-all flex items-center gap-1.5"
+              title="Importer et adapter la planification de la semaine passée J-7"
+            >
+              <Copy className="w-3 h-3 text-[#00BFFF]" /> Dupliquer J-7 (Intelligent)
+            </button>
+            <button
               onClick={loadPlanningWorkbook}
               className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 text-[9px] font-bold uppercase transition-all flex items-center gap-1.5"
               title="Réinitialiser ou recharger depuis le cloud"
@@ -642,9 +769,19 @@ export const Planning: React.FC = () => {
 
                             <div className="flex flex-wrap gap-1.5 pt-1 select-none">
                               {chantierObj?.sector && (
-                                <span className="inline-block text-[8px] font-black uppercase bg-[#00BFFF] text-white px-1.5 py-0.5">
-                                  {chantierObj.sector}
-                                </span>
+                                <>
+                                  <span className="inline-block text-[8px] font-black uppercase bg-[#00BFFF] text-white px-1.5 py-0.5">
+                                    {chantierObj.sector}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => applyTeamToEntireSector(idx, chantierObj.sector)}
+                                    className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase bg-[#8B0000] text-white px-2 py-0.5 hover:bg-[#8B0000]/85 tracking-wide transition-all cursor-pointer active:scale-95"
+                                    title="Affecter cette équipe (Chef, Mineur, Assistant) à toutes les cartes de ce secteur"
+                                  >
+                                    <Copy className="w-2.5 h-2.5" /> Appliquer à tout le secteur
+                                  </button>
+                                </>
                               )}
                               <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase bg-slate-200 text-slate-800 px-1.5 py-0.5">
                                 <Lock className="w-2.5 h-2.5" /> Planification
@@ -681,13 +818,14 @@ export const Planning: React.FC = () => {
                               {/* Chef de Section */}
                               <tr className="border-b border-[#141414]/30 bg-white/40">
                                 <td className="p-1 border-r border-[#141414]/30">
-                                  <input
-                                    type="text"
-                                    placeholder="Chef (M-...)"
+                                  <MatriculeAutocomplete
                                     value={row.chiefMatricule}
-                                    onChange={e => updateMinageCell(idx, 'chiefMatricule', e.target.value.toUpperCase())}
-                                    onKeyDown={handleKeyDown}
-                                    className="w-full bg-transparent border-none outline-none font-mono text-[10px] uppercase font-bold"
+                                    onChange={(matricule) => updateMinageCell(idx, 'chiefMatricule', matricule)}
+                                    employees={employees}
+                                    sector={chantierObj?.sector}
+                                    fonctions={['CHEF']}
+                                    post={selectedPost}
+                                    placeholder="Chef (M-...)"
                                   />
                                 </td>
                                 <td className="p-1 border-r border-[#141414]/30 text-slate-600 block max-w-[120px] truncate" title={chefValidName || 'Non Assigné'}>
@@ -723,13 +861,14 @@ export const Planning: React.FC = () => {
                               {/* Mineur */}
                               <tr className="border-b border-[#141414]/30 bg-white/40">
                                 <td className="p-1 border-r border-[#141414]/30">
-                                  <input
-                                    type="text"
-                                    placeholder="Mineur"
+                                  <MatriculeAutocomplete
                                     value={row.minerMatricule}
-                                    onChange={e => updateMinageCell(idx, 'minerMatricule', e.target.value.toUpperCase())}
-                                    onKeyDown={handleKeyDown}
-                                    className="w-full bg-transparent border-none outline-none font-mono text-[10px] uppercase font-bold"
+                                    onChange={(matricule) => updateMinageCell(idx, 'minerMatricule', matricule)}
+                                    employees={employees}
+                                    sector={chantierObj?.sector}
+                                    fonctions={['MINEUR']}
+                                    post={selectedPost}
+                                    placeholder="Mineur"
                                   />
                                 </td>
                                 <td className="p-1 border-r border-[#141414]/30 text-slate-600 block max-w-[120px] truncate" title={minerValidName || 'Non Assigné'}>
@@ -739,13 +878,14 @@ export const Planning: React.FC = () => {
                               {/* Aide Mineur */}
                               <tr className="bg-white/40">
                                 <td className="p-1 border-r border-[#141414]/30">
-                                  <input
-                                    type="text"
-                                    placeholder="Assistant"
+                                  <MatriculeAutocomplete
                                     value={row.assistantMatricule}
-                                    onChange={e => updateMinageCell(idx, 'assistantMatricule', e.target.value.toUpperCase())}
-                                    onKeyDown={handleKeyDown}
-                                    className="w-full bg-transparent border-none outline-none font-mono text-[10px] uppercase font-bold"
+                                    onChange={(matricule) => updateMinageCell(idx, 'assistantMatricule', matricule)}
+                                    employees={employees}
+                                    sector={chantierObj?.sector}
+                                    fonctions={['AIDE_MINEUR']}
+                                    post={selectedPost}
+                                    placeholder="Assistant"
                                   />
                                 </td>
                                 <td className="p-1 border-r border-[#141414]/30 text-slate-600 block max-w-[120px] truncate" title={assistantValidName || 'Non Assigné'}>
@@ -853,13 +993,14 @@ export const Planning: React.FC = () => {
                                 {/* driver matricule */}
                                 <td className="p-1 border-r border-[#141414]/30">
                                   <div className="flex flex-col gap-1">
-                                    <input
-                                      type="text"
-                                      placeholder="M-..."
+                                    <MatriculeAutocomplete
                                       value={row.driverMatricule}
-                                      onChange={e => updateDeblayageCell(idx, 'driverMatricule', e.target.value.toUpperCase())}
-                                      onKeyDown={handleKeyDown}
-                                      className="w-full bg-transparent border-b border-dashed border-[#141414]/25 outline-none font-mono text-[10px] uppercase font-bold"
+                                      onChange={(matricule) => updateDeblayageCell(idx, 'driverMatricule', matricule)}
+                                      employees={employees}
+                                      sector={chantierObj?.sector}
+                                      fonctions={['CONDUCTEUR_ENGIN']}
+                                      post={selectedPost}
+                                      placeholder="M-..."
                                     />
                                     <span className="text-[7px] text-gray-500 truncate block max-w-[80px]" title={condValidName || 'Non Assigné'}>
                                       {condValidName ? condValidName.split(' (')[0] : 'Conducteur...'}
@@ -994,13 +1135,13 @@ export const Planning: React.FC = () => {
                           <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
                             Treuilliste Prévu
                           </label>
-                          <input
-                            type="text"
-                            placeholder="Saisir matricule..."
+                          <MatriculeAutocomplete
                             value={row.treuilliste || ''}
-                            onKeyDown={handleKeyDown}
-                            onChange={e => updateExtractionCell(idx, 'treuilliste', e.target.value.toUpperCase())}
-                            className="w-full text-sm font-mono text-slate-850 font-bold outline-none bg-transparent"
+                            onChange={(matricule) => updateExtractionCell(idx, 'treuilliste', matricule)}
+                            employees={employees}
+                            fonctions={['TREUILLISTE']}
+                            post={selectedPost}
+                            placeholder="Saisir matricule..."
                           />
                           <span className="text-[10px] text-sky-700 block truncate max-w-full font-bold mt-1">
                             {tName || '❌ Aucun treuilliste affecté (Libre)'}
@@ -1013,13 +1154,13 @@ export const Planning: React.FC = () => {
                             <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
                               Équipier Prévu 1
                             </label>
-                            <input
-                              type="text"
-                              placeholder="Matricule..."
+                            <MatriculeAutocomplete
                               value={row.equipier1 || ''}
-                              onKeyDown={handleKeyDown}
-                              onChange={e => updateExtractionCell(idx, 'equipier1', e.target.value.toUpperCase())}
-                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                              onChange={(matricule) => updateExtractionCell(idx, 'equipier1', matricule)}
+                              employees={employees}
+                              fonctions={['OUVRIER']}
+                              post={selectedPost}
+                              placeholder="Matricule..."
                             />
                             <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
                               {eq1Name || '(Vide)'}
@@ -1030,13 +1171,13 @@ export const Planning: React.FC = () => {
                             <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
                               Équipier Prévu 2
                             </label>
-                            <input
-                              type="text"
-                              placeholder="Matricule..."
+                            <MatriculeAutocomplete
                               value={row.equipier2 || ''}
-                              onKeyDown={handleKeyDown}
-                              onChange={e => updateExtractionCell(idx, 'equipier2', e.target.value.toUpperCase())}
-                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                              onChange={(matricule) => updateExtractionCell(idx, 'equipier2', matricule)}
+                              employees={employees}
+                              fonctions={['OUVRIER']}
+                              post={selectedPost}
+                              placeholder="Matricule..."
                             />
                             <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
                               {eq2Name || '(Vide)'}
@@ -1047,13 +1188,13 @@ export const Planning: React.FC = () => {
                             <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
                               Équipier Prévu 3
                             </label>
-                            <input
-                              type="text"
-                              placeholder="Matricule..."
+                            <MatriculeAutocomplete
                               value={row.equipier3 || ''}
-                              onKeyDown={handleKeyDown}
-                              onChange={e => updateExtractionCell(idx, 'equipier3', e.target.value.toUpperCase())}
-                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                              onChange={(matricule) => updateExtractionCell(idx, 'equipier3', matricule)}
+                              employees={employees}
+                              fonctions={['OUVRIER']}
+                              post={selectedPost}
+                              placeholder="Matricule..."
                             />
                             <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
                               {eq3Name || '(Vide)'}
@@ -1064,13 +1205,13 @@ export const Planning: React.FC = () => {
                             <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
                               Équipier Prévu 4
                             </label>
-                            <input
-                              type="text"
-                              placeholder="Matricule..."
+                            <MatriculeAutocomplete
                               value={row.equipier4 || ''}
-                              onKeyDown={handleKeyDown}
-                              onChange={e => updateExtractionCell(idx, 'equipier4', e.target.value.toUpperCase())}
-                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                              onChange={(matricule) => updateExtractionCell(idx, 'equipier4', matricule)}
+                              employees={employees}
+                              fonctions={['OUVRIER']}
+                              post={selectedPost}
+                              placeholder="Matricule..."
                             />
                             <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
                               {eq4Name || '(Vide)'}
@@ -1204,12 +1345,12 @@ export const Planning: React.FC = () => {
                           <td className="p-1 text-[9px] font-mono text-gray-400 text-center bg-gray-50 border-r border-gray-200">{idx + 1}</td>
                           <td className="p-1 border-r border-gray-200 font-black uppercase text-purple-700 bg-[#A020F0]/5">{row.roleLabel}</td>
                           <td className="p-1 border-r border-gray-200">
-                            <input
-                              type="text"
-                              placeholder="M-..."
+                            <MatriculeAutocomplete
                               value={row.agentMatricule}
-                              onChange={e => updateMaintenanceCell(idx, 'agentMatricule', e.target.value.toUpperCase())}
-                              className="w-full text-[10px] font-mono border border-transparent hover:border-gray-300 focus:border-[#A020F0] outline-none bg-transparent p-0.5"
+                              onChange={(matricule) => updateMaintenanceCell(idx, 'agentMatricule', matricule)}
+                              employees={employees}
+                              fonctions={['MECANICIEN', 'CHAUDRONNIER', 'ELECTRICIEN']}
+                              placeholder="M-..."
                             />
                           </td>
                           <td className="p-1 border-r border-gray-200 text-[10px] font-semibold text-gray-500 bg-gray-50">
