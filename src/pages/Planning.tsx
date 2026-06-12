@@ -64,16 +64,57 @@ interface ExcelDeblayage {
 }
 
 interface ExcelExtraction {
-  chantierName: string; // "Bure Imiter Est", "Bure Ouest", "Rampe Principale"
-  treuilliste1: string;
-  treuilliste2: string;
-  treuilliste3: string;
-  ouvriersCount: number;
+  chantierName: string; // "Extraction Bure N340 Imiter Est"
+  treuilliste: string;
+  equipier1: string;
+  equipier2: string;
+  equipier3: string;
+  equipier4: string;
   wagonsTarget: number;
-  wagonsActual: number; // Not useful in planning but kept for structural synchronization with Production.tsx
+  wagonsActual: number; // Not useful in planning but kept for structural synchronization
   sterileBureImiterEst: number;
+  startTime: string; // Heure début
+  endTime: string; // Heure finit
   remarks: string;
+  treuilliste1?: string;
+  treuilliste2?: string;
+  treuilliste3?: string;
+  ouvriersCount?: number;
 }
+
+const sanitizeExtractionRows = (rows: any[] | undefined): ExcelExtraction[] => {
+  if (!rows || rows.length === 0) {
+    return [{
+      chantierName: 'Extraction Bure N340 Imiter Est',
+      treuilliste: '',
+      equipier1: '',
+      equipier2: '',
+      equipier3: '',
+      equipier4: '',
+      wagonsTarget: 48,
+      wagonsActual: 0,
+      sterileBureImiterEst: 0,
+      startTime: '08:00',
+      endTime: '13:30',
+      remarks: ''
+    }];
+  }
+  const first = rows[0] || {};
+  return [{
+    chantierName: 'Extraction Bure N340 Imiter Est',
+    treuilliste: first.treuilliste || first.treuilliste1 || '',
+    equipier1: first.equipier1 || '',
+    equipier2: first.equipier2 || '',
+    equipier3: first.equipier3 || '',
+    equipier4: first.equipier4 || '',
+    wagonsTarget: first.wagonsTarget !== undefined ? first.wagonsTarget : 48,
+    wagonsActual: first.wagonsActual || 0,
+    sterileBureImiterEst: first.sterileBureImiterEst || 0,
+    startTime: first.startTime || '08:00',
+    endTime: first.endTime || '13:30',
+    remarks: first.remarks || ''
+  }];
+};
 
 interface ExcelMaintenance {
   roleLabel: string; // MÉCANICIEN 1, etc.
@@ -187,7 +228,7 @@ export const Planning: React.FC = () => {
         if (posteData) {
           setMinageRows(posteData.minage || []);
           setDeblayageRows(posteData.deblayage || []);
-          setExtractionRows(posteData.extraction || []);
+          setExtractionRows(sanitizeExtractionRows(posteData.extraction));
           setMaintenanceRows(posteData.maintenance || []);
           setLoading(false);
           return;
@@ -207,9 +248,20 @@ export const Planning: React.FC = () => {
         }));
 
         const initialExtraction: ExcelExtraction[] = [
-          { chantierName: 'Bure Imiter Est', treuilliste1: '', treuilliste2: '', treuilliste3: '', ouvriersCount: 4, wagonsTarget: 48, wagonsActual: 0, sterileBureImiterEst: 0, remarks: '' },
-          { chantierName: 'Bure Ouest', treuilliste1: '', treuilliste2: '', treuilliste3: '', ouvriersCount: 4, wagonsTarget: 48, wagonsActual: 0, sterileBureImiterEst: 0, remarks: '' },
-          { chantierName: 'Rampe Principale', treuilliste1: '', treuilliste2: '', treuilliste3: '', ouvriersCount: 4, wagonsTarget: 48, wagonsActual: 0, sterileBureImiterEst: 0, remarks: '' }
+          {
+            chantierName: 'Extraction Bure N340 Imiter Est',
+            treuilliste: '',
+            equipier1: '',
+            equipier2: '',
+            equipier3: '',
+            equipier4: '',
+            wagonsTarget: 48,
+            wagonsActual: 0,
+            sterileBureImiterEst: 0,
+            startTime: '08:00',
+            endTime: '13:30',
+            remarks: ''
+          }
         ];
 
         const initialMaintenance: ExcelMaintenance[] = [
@@ -884,161 +936,249 @@ export const Planning: React.FC = () => {
               </div>
             )}
 
-            {/* SHEET 3: WINCH EXTRACTION CARDS */}
-            {activeSheetTab === 'extraction' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {extractionRows.map((row, idx) => {
-                  const t1Name = getEmployeeName(row.treuilliste1);
-                  const t2Name = getEmployeeName(row.treuilliste2);
-                  const t3Name = getEmployeeName(row.treuilliste3);
-                  const avgMin = row.wagonsTarget > 0 ? (360 / row.wagonsTarget) : 0;
+            {/* SHEET 3: SINGLE FIXED CARD FOR EXTRACTION */}
+            {activeSheetTab === 'extraction' && (() => {
+              const row = extractionRows[0] || {
+                chantierName: 'Extraction Bure N340 Imiter Est',
+                treuilliste: '',
+                equipier1: '',
+                equipier2: '',
+                equipier3: '',
+                equipier4: '',
+                wagonsTarget: 48,
+                sterileBureImiterEst: 0,
+                startTime: '08:00',
+                endTime: '13:30',
+                remarks: ''
+              };
+              const idx = 0;
+              const tName = getEmployeeName(row.treuilliste);
+              const eq1Name = getEmployeeName(row.equipier1);
+              const eq2Name = getEmployeeName(row.equipier2);
+              const eq3Name = getEmployeeName(row.equipier3);
+              const eq4Name = getEmployeeName(row.equipier4);
+              const avgMin = row.wagonsTarget > 0 ? (360 / row.wagonsTarget) : 0;
 
-                  return (
-                    <div 
-                      key={idx} 
-                      data-card-container="true"
-                      className="bg-[#F5F5F0] border-2 border-[#141414] p-4 shadow-[4px_4px_0px_0px_#141414] hover:shadow-[6px_6px_0px_0px_#141414] transition-all duration-150 flex flex-col justify-between space-y-3"
-                    >
+              return (
+                <div className="max-w-4xl mx-auto">
+                  <div 
+                    data-card-container="true"
+                    className="bg-[#F5F5F0] border-2 border-[#141414] p-6 shadow-[4px_4px_0px_0px_#141414] hover:shadow-[6px_6px_0px_0px_#141414] transition-all duration-150 space-y-6"
+                  >
+                    {/* Title Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[#141414] pb-4">
                       <div>
-                        {/* Header: Station info */}
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 border-b border-[#141414]/30 pb-2">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase bg-[#141414] text-white px-2 py-0.5 select-none animate-pulse">
-                                WINCH #{idx + 1}
-                              </span>
-                              <span className="text-xs font-black uppercase text-[#141414] leading-none">
-                                {row.chantierName || "Secteur d'extraction"}
-                              </span>
-                            </div>
+                        <span className="text-[10px] font-black uppercase bg-[#8B0000] text-white px-2 py-1 font-mono tracking-wider">
+                          Poste de Treuil Unique
+                        </span>
+                        <h3 className="text-lg font-black uppercase text-[#141414] mt-1">
+                          Extraction Bure N340 Imiter Est
+                        </h3>
+                      </div>
+                      <span className="inline-flex items-center gap-1 text-xs font-black uppercase bg-[#00BFFF] text-white px-3 py-1 border border-[#141414]">
+                        📅 Planification du Poste
+                      </span>
+                    </div>
 
-                            <div className="flex flex-wrap gap-1.5 pt-1 select-none">
-                              <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase bg-slate-200 text-slate-800 px-1.5 py-0.5">
-                                <Lock className="w-2.5 h-2.5" /> Planification
-                              </span>
-                            </div>
-                          </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Left Block: Personnel Assignations */}
+                      <div className="space-y-4">
+                        <div className="border-b border-[#141414]/20 pb-1">
+                          <h4 className="text-[11px] font-black uppercase text-[#8B0000] tracking-wider select-none">
+                            Assignations de l'équipe
+                          </h4>
                         </div>
 
-                        {/* Crew details form */}
-                        <div className="mt-3 space-y-2 select-all text-xs font-bold">
-                          <h6 className="text-[9px] font-black uppercase text-gray-500 tracking-wider">Affectations de l'équipe</h6>
-                          <div className="grid grid-cols-3 gap-2">
-                            {/* Treuilliste 1 */}
-                            <div className="bg-white border border-[#141414] p-1.5 shadow-sm rounded-sm">
-                              <span className="block text-[8px] font-black text-slate-500 uppercase leading-none mb-1">Treuilliste 1</span>
-                              <input
-                                type="text"
-                                placeholder="M-..."
-                                value={row.treuilliste1 || ''}
-                                onKeyDown={handleKeyDown}
-                                onChange={e => updateExtractionCell(idx, 'treuilliste1', e.target.value.toUpperCase())}
-                                className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
-                              />
-                              <span className="text-[7.5px] text-gray-500 block truncate max-w-full font-black mt-0.5" title={t1Name || 'Libre'}>
-                                {t1Name ? t1Name.split(' (')[0] : '(Vide)'}
-                              </span>
-                            </div>
-
-                            {/* Treuilliste 2 */}
-                            <div className="bg-white border border-[#141414] p-1.5 shadow-sm rounded-sm">
-                              <span className="block text-[8px] font-black text-slate-500 uppercase leading-none mb-1">Treuilliste 2</span>
-                              <input
-                                type="text"
-                                placeholder="M-..."
-                                value={row.treuilliste2 || ''}
-                                onKeyDown={handleKeyDown}
-                                onChange={e => updateExtractionCell(idx, 'treuilliste2', e.target.value.toUpperCase())}
-                                className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
-                              />
-                              <span className="text-[7.5px] text-gray-500 block truncate max-w-full font-black mt-0.5" title={t2Name || 'Libre'}>
-                                {t2Name ? t2Name.split(' (')[0] : '(Vide)'}
-                              </span>
-                            </div>
-
-                            {/* Treuilliste 3 */}
-                            <div className="bg-white border border-[#141414] p-1.5 shadow-sm rounded-sm">
-                              <span className="block text-[8px] font-black text-slate-500 uppercase leading-none mb-1">Treuilliste 3</span>
-                              <input
-                                type="text"
-                                placeholder="M-..."
-                                value={row.treuilliste3 || ''}
-                                onKeyDown={handleKeyDown}
-                                onChange={e => updateExtractionCell(idx, 'treuilliste3', e.target.value.toUpperCase())}
-                                className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
-                              />
-                              <span className="text-[7.5px] text-gray-500 block truncate max-w-full font-black mt-0.5" title={t3Name || 'Libre'}>
-                                {t3Name ? t3Name.split(' (')[0] : '(Vide)'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Quantitative Metrics section */}
-                        <div className="grid grid-cols-3 gap-2 mt-3 select-none text-[9px] font-black uppercase text-slate-700">
-                          <div className="bg-white border border-[#141414] p-1.5 rounded-sm shadow-sm">
-                            <span className="block text-gray-400 mb-0.5 leading-none">Ouvriers Appui</span>
-                            <input
-                              type="number"
-                              value={row.ouvriersCount || 0}
-                              onKeyDown={handleKeyDown}
-                              onChange={e => updateExtractionCell(idx, 'ouvriersCount', Number(e.target.value))}
-                              className="w-full text-xs font-black text-center text-slate-850 outline-none bg-transparent font-mono"
-                            />
-                          </div>
-
-                          <div className="bg-emerald-50 border border-[#141414] p-1.5 rounded-sm shadow-sm">
-                            <span className="block text-emerald-800 mb-0.5 leading-none">Cible Wagons</span>
-                            <input
-                              type="number"
-                              value={row.wagonsTarget || 0}
-                              onKeyDown={handleKeyDown}
-                              onChange={e => updateExtractionCell(idx, 'wagonsTarget', Number(e.target.value))}
-                              className="w-full text-xs font-black text-center text-emerald-990 outline-none bg-transparent font-mono"
-                            />
-                          </div>
-
-                          <div className="bg-[#F5F5F0] border border-[#141414] p-1.5 rounded-sm shadow-sm">
-                            <span className="block text-gray-400 mb-0.5 leading-none">Stérile prévu</span>
-                            <input
-                              type="number"
-                              value={row.sterileBureImiterEst || 0}
-                              onKeyDown={handleKeyDown}
-                              onChange={e => updateExtractionCell(idx, 'sterileBureImiterEst', Number(e.target.value))}
-                              className="w-full text-xs font-black text-center text-slate-750 outline-none bg-transparent font-mono"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Consignes spéciales */}
-                        <div className="mt-3 bg-white border border-[#141414] p-2 rounded-sm shadow-sm select-all">
-                          <span className="block text-[8px] font-black uppercase text-gray-500 leading-none mb-1">Consignes spéciales</span>
+                        {/* Treuilliste */}
+                        <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
+                          <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
+                            Treuilliste Prévu
+                          </label>
                           <input
                             type="text"
-                            placeholder="Instructions d'évacuation, entretien treuils..."
+                            placeholder="Saisir matricule..."
+                            value={row.treuilliste || ''}
+                            onKeyDown={handleKeyDown}
+                            onChange={e => updateExtractionCell(idx, 'treuilliste', e.target.value.toUpperCase())}
+                            className="w-full text-sm font-mono text-slate-850 font-bold outline-none bg-transparent"
+                          />
+                          <span className="text-[10px] text-sky-700 block truncate max-w-full font-bold mt-1">
+                            {tName || '❌ Aucun treuilliste affecté (Libre)'}
+                          </span>
+                        </div>
+
+                        {/* Crew grid */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
+                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
+                              Équipier Prévu 1
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Matricule..."
+                              value={row.equipier1 || ''}
+                              onKeyDown={handleKeyDown}
+                              onChange={e => updateExtractionCell(idx, 'equipier1', e.target.value.toUpperCase())}
+                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                            />
+                            <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
+                              {eq1Name || '(Vide)'}
+                            </span>
+                          </div>
+
+                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
+                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
+                              Équipier Prévu 2
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Matricule..."
+                              value={row.equipier2 || ''}
+                              onKeyDown={handleKeyDown}
+                              onChange={e => updateExtractionCell(idx, 'equipier2', e.target.value.toUpperCase())}
+                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                            />
+                            <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
+                              {eq2Name || '(Vide)'}
+                            </span>
+                          </div>
+
+                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
+                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
+                              Équipier Prévu 3
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Matricule..."
+                              value={row.equipier3 || ''}
+                              onKeyDown={handleKeyDown}
+                              onChange={e => updateExtractionCell(idx, 'equipier3', e.target.value.toUpperCase())}
+                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                            />
+                            <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
+                              {eq3Name || '(Vide)'}
+                            </span>
+                          </div>
+
+                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
+                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
+                              Équipier Prévu 4
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Matricule..."
+                              value={row.equipier4 || ''}
+                              onKeyDown={handleKeyDown}
+                              onChange={e => updateExtractionCell(idx, 'equipier4', e.target.value.toUpperCase())}
+                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                            />
+                            <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
+                              {eq4Name || '(Vide)'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Block: Metrics & Schedule */}
+                      <div className="space-y-4">
+                        <div className="border-b border-[#141414]/20 pb-1">
+                          <h4 className="text-[11px] font-black uppercase text-[#8B0000] tracking-wider select-none">
+                            Objectifs & Horaires
+                          </h4>
+                        </div>
+
+                        {/* Hours */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
+                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
+                              Heure Début Prévue
+                            </label>
+                            <input
+                              type="time"
+                              value={row.startTime || '08:00'}
+                              onChange={e => updateExtractionCell(idx, 'startTime', e.target.value)}
+                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                            />
+                          </div>
+
+                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
+                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
+                              Heure Fin Prévue
+                            </label>
+                            <input
+                              type="time"
+                              value={row.endTime || '13:30'}
+                              onChange={e => updateExtractionCell(idx, 'endTime', e.target.value)}
+                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Target numbers */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-emerald-50 border border-[#141414] p-3 shadow-sm rounded-sm">
+                            <label className="block text-[9px] font-black text-emerald-800 uppercase leading-none mb-1.5">
+                              Cible Wagons (Target)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={row.wagonsTarget}
+                              onKeyDown={handleKeyDown}
+                              onChange={e => updateExtractionCell(idx, 'wagonsTarget', Number(e.target.value))}
+                              className="w-full text-sm font-black text-emerald-950 font-mono outline-none bg-transparent"
+                            />
+                          </div>
+
+                          <div className="bg-slate-100 border border-[#141414] p-3 shadow-sm rounded-sm">
+                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
+                              Stérile Prévu (Wg)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={row.sterileBureImiterEst}
+                              onKeyDown={handleKeyDown}
+                              onChange={e => updateExtractionCell(idx, 'sterileBureImiterEst', Number(e.target.value))}
+                              className="w-full text-sm font-black text-slate-800 font-mono outline-none bg-transparent"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Special instructions / Consignes */}
+                        <div className="bg-white border border-[#141414] p-3 rounded-sm shadow-sm">
+                          <label className="block text-[9px] font-black uppercase text-gray-500 leading-none mb-1.5">
+                            Consignes spéciales
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex : Priorité évacuation Bure N340..."
                             value={row.remarks || ''}
                             onKeyDown={handleKeyDown}
                             onChange={e => updateExtractionCell(idx, 'remarks', e.target.value)}
-                            className="w-full text-[10px] font-bold text-slate-800 bg-transparent outline-none border-b border-transparent hover:border-gray-300 focus:border-[#00BFFF]"
+                            className="w-full text-xs font-bold text-slate-800 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-[#00BFFF]"
                           />
                         </div>
                       </div>
-
-                      {/* Card Footer with calculated average minutes/wagon */}
-                      <div className="border-t border-[#141414]/15 pt-2 flex items-center justify-between gap-1 select-none text-[10px] font-mono font-black uppercase">
-                        <div className="flex items-center gap-1.5 text-indigo-700">
-                          <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>Intervalle ciblé :</span>
-                          <strong className="text-xs text-indigo-900 bg-indigo-50 px-1.5 py-0.5 rounded shadow-sm border border-indigo-200">
-                            {row.wagonsTarget > 0 ? `${avgMin.toFixed(1)} mins / wagon` : '-- mins'}
-                          </strong>
-                        </div>
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+
+                    {/* Footer analysis info */}
+                    <div className="border-t border-[#141414]/15 pt-3 flex flex-wrap items-center justify-between gap-4 select-none text-[10px] font-mono font-black uppercase">
+                      <div className="flex items-center gap-1.5 text-indigo-700">
+                        <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Intervalle ciblé :</span>
+                        <strong className="text-xs text-indigo-900 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded shadow-sm">
+                          {row.wagonsTarget > 0 ? `${avgMin.toFixed(1)} mins / wagon` : '-- mins'}
+                        </strong>
+                      </div>
+                      <span className="text-slate-500 text-[9px]">
+                        Bure N340 Imiter Est • SMI HydroMines
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* SHEET 4: BRIGADE MAINTENANCE SUPPORT */}
             {activeSheetTab === 'maintenance' && (

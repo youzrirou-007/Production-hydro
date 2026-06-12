@@ -114,6 +114,7 @@ interface ExcelExtraction {
   sterileBureImiterEst: number; // stérile wagons
   startTime: string; // Heure début
   endTime: string; // Heure finit
+  chantierName?: string; // Optional site title
 }
 
 interface ExcelMaintenance {
@@ -341,7 +342,7 @@ export const Production: React.FC = () => {
   // Excel grids state for Poste 1
   const [p1MinageRows, setP1MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
   const [p1DeblayageRows, setP1DeblayageRows] = useState<ExcelRow<ExcelDeblayage>[]>([]);
-  const [p1ExtractionRows, setP1ExtractionRows] = useState<ExcelRow<ExcelExtraction>[]>([]);
+  const [p1ExtractionRowsRaw, setP1ExtractionRowsRaw] = useState<ExcelRow<ExcelExtraction>[]>([]);
   const [p1MaintenanceRows, setP1MaintenanceRows] = useState<ExcelRow<ExcelMaintenance>[]>([]);
   const [p1ChiefMatricule, setP1ChiefMatricule] = useState<string>('');
   const [p1ChiefName, setP1ChiefName] = useState<string>('');
@@ -357,7 +358,7 @@ export const Production: React.FC = () => {
   // Excel grids state for Poste 2
   const [p2MinageRows, setP2MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
   const [p2DeblayageRows, setP2DeblayageRows] = useState<ExcelRow<ExcelDeblayage>[]>([]);
-  const [p2ExtractionRows, setP2ExtractionRows] = useState<ExcelRow<ExcelExtraction>[]>([]);
+  const [p2ExtractionRowsRaw, setP2ExtractionRowsRaw] = useState<ExcelRow<ExcelExtraction>[]>([]);
   const [p2MaintenanceRows, setP2MaintenanceRows] = useState<ExcelRow<ExcelMaintenance>[]>([]);
   const [p2ChiefMatricule, setP2ChiefMatricule] = useState<string>('');
   const [p2ChiefName, setP2ChiefName] = useState<string>('');
@@ -373,7 +374,7 @@ export const Production: React.FC = () => {
   // Excel grids state for Poste 3
   const [p3MinageRows, setP3MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
   const [p3DeblayageRows, setP3DeblayageRows] = useState<ExcelRow<ExcelDeblayage>[]>([]);
-  const [p3ExtractionRows, setP3ExtractionRows] = useState<ExcelRow<ExcelExtraction>[]>([]);
+  const [p3ExtractionRowsRaw, setP3ExtractionRowsRaw] = useState<ExcelRow<ExcelExtraction>[]>([]);
   const [p3MaintenanceRows, setP3MaintenanceRows] = useState<ExcelRow<ExcelMaintenance>[]>([]);
   const [p3ChiefMatricule, setP3ChiefMatricule] = useState<string>('');
   const [p3ChiefName, setP3ChiefName] = useState<string>('');
@@ -505,7 +506,8 @@ export const Production: React.FC = () => {
     wagonsTarget: 48,
     sterileBureImiterEst: 0,
     startTime: start,
-    endTime: end
+    endTime: end,
+    chantierName: 'Extraction Bure N340 Imiter Est'
   });
 
   const createEmptyMaintenance = (): ExcelMaintenance => ({
@@ -517,6 +519,64 @@ export const Production: React.FC = () => {
     hoursSpent: 0,
     workDescription: ''
   });
+
+  const normalizeLoadedExtraction = (rows: ExcelRow<ExcelExtraction>[]): ExcelRow<ExcelExtraction>[] => {
+    if (!rows || rows.length === 0) {
+      const empty = createEmptyExtraction();
+      return [{
+        rowId: 'extraction_single_fixed',
+        plan: empty,
+        reel: empty
+      }];
+    }
+    const first = rows[0];
+    const plan = { ...createEmptyExtraction(), ...first.plan };
+    const reel = { ...createEmptyExtraction(), ...first.reel };
+    
+    plan.chantierName = 'Extraction Bure N340 Imiter Est';
+    reel.chantierName = 'Extraction Bure N340 Imiter Est';
+
+    const planTreuilliste = plan.treuilliste || (plan as any).treuilliste1 || '';
+    const reelTreuilliste = reel.treuilliste || (reel as any).treuilliste1 || '';
+
+    plan.treuilliste = planTreuilliste;
+    reel.treuilliste = reelTreuilliste;
+
+    if (!plan.wagonsTarget) plan.wagonsTarget = 48;
+    if (!reel.wagonsTarget) reel.wagonsTarget = plan.wagonsTarget || 48;
+
+    return [{
+      rowId: first.rowId || 'extraction_single_fixed',
+      plan,
+      reel
+    }];
+  };
+
+  const p1ExtractionRows = normalizeLoadedExtraction(p1ExtractionRowsRaw);
+  const p2ExtractionRows = normalizeLoadedExtraction(p2ExtractionRowsRaw);
+  const p3ExtractionRows = normalizeLoadedExtraction(p3ExtractionRowsRaw);
+
+  const setP1ExtractionRows = (val: any) => {
+    if (typeof val === 'function') {
+      setP1ExtractionRowsRaw(prev => val(normalizeLoadedExtraction(prev)));
+    } else {
+      setP1ExtractionRowsRaw(normalizeLoadedExtraction(val));
+    }
+  };
+  const setP2ExtractionRows = (val: any) => {
+    if (typeof val === 'function') {
+      setP2ExtractionRowsRaw(prev => val(normalizeLoadedExtraction(prev)));
+    } else {
+      setP2ExtractionRowsRaw(normalizeLoadedExtraction(val));
+    }
+  };
+  const setP3ExtractionRows = (val: any) => {
+    if (typeof val === 'function') {
+      setP3ExtractionRowsRaw(prev => val(normalizeLoadedExtraction(prev)));
+    } else {
+      setP3ExtractionRowsRaw(normalizeLoadedExtraction(val));
+    }
+  };
 
   const mapToExcelRowArray = <T,>(arr: any[], defaultCreatorWithSector: (sec: string) => T): ExcelRow<T>[] => {
     if (!Array.isArray(arr)) return [];
@@ -3443,19 +3503,32 @@ export const Production: React.FC = () => {
                         );
                       })()}
 
-                      {/* Extraction details card grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {extractionRows.map((rowWrapper, idx) => {
+                      {/* Extraction single details card */}
+                      <div className="max-w-4xl mx-auto">
+                        {(() => {
+                          const rowWrapper = extractionRows[0];
+                          if (!rowWrapper) return null;
                           const row = rowWrapper.reel;
                           const plan = rowWrapper.plan;
+                          const idx = 0;
+                          
                           const freqMin = row.wagonsActual > 0 ? (360 / row.wagonsActual).toFixed(1) + ' min' : '0 min';
                           const pct = ((row.wagonsActual / (row.wagonsTarget || 48)) * 100).toFixed(0);
 
-                          const treuillistName = getEmployeeName(row.treuilliste);
-                          const eq1Name = getEmployeeName(row.equipier1);
-                          const eq2Name = getEmployeeName(row.equipier2);
-                          const eq3Name = getEmployeeName(row.equipier3);
-                          const eq4Name = getEmployeeName(row.equipier4);
+                          const pTreuillisteName = getEmployeeName(plan.treuilliste);
+                          const rTreuillisteName = getEmployeeName(row.treuilliste);
+
+                          const pEq1Name = getEmployeeName(plan.equipier1);
+                          const rEq1Name = getEmployeeName(row.equipier1);
+
+                          const pEq2Name = getEmployeeName(plan.equipier2);
+                          const rEq2Name = getEmployeeName(row.equipier2);
+
+                          const pEq3Name = getEmployeeName(plan.equipier3);
+                          const rEq3Name = getEmployeeName(row.equipier3);
+
+                          const pEq4Name = getEmployeeName(plan.equipier4);
+                          const rEq4Name = getEmployeeName(row.equipier4);
 
                           const treuillisteMismatch = !!(row.treuilliste && plan.treuilliste && row.treuilliste.trim().toUpperCase() !== plan.treuilliste.trim().toUpperCase());
                           const eq1Mismatch = !!(row.equipier1 && plan.equipier1 && row.equipier1.trim().toUpperCase() !== plan.equipier1.trim().toUpperCase());
@@ -3466,7 +3539,6 @@ export const Production: React.FC = () => {
 
                           const wagonsTarget = row.wagonsTarget || 48;
                           const realWagons = row.wagonsActual || 0;
-                          const pctRealisation = wagonsTarget > 0 ? (realWagons / wagonsTarget) * 105 : 0; // matching scaling if any
                           const realPct = wagonsTarget > 0 ? (realWagons / wagonsTarget) * 100 : 0;
 
                           const getHoursBetween = (start: string, end: string) => {
@@ -3482,228 +3554,281 @@ export const Production: React.FC = () => {
 
                           return (
                             <div 
-                              key={idx} 
                               data-card-container="true"
-                              className="bg-[#F5F5F0] border-2 border-[#141414] p-4 shadow-[4px_4px_0px_0px_#141414] hover:shadow-[6px_6px_0px_0px_#141414] transition-all duration-150 flex flex-col justify-between space-y-4"
+                              className="bg-[#F5F5F0] border-2 border-[#141414] p-6 shadow-[4px_4px_0px_0px_#141414] hover:shadow-[6px_6px_0px_0px_#141414] transition-all duration-150 flex flex-col space-y-6"
                             >
-                              <div>
-                                {/* Header: Station Title and badges */}
-                                <div className="border-b border-[#141414]/20 pb-2">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="space-y-1">
-                                      <h5 className="text-[10px] font-black uppercase text-gray-500 tracking-wider">
-                                        EXTRACTION STATION #{idx + 1}
-                                      </h5>
-                                      <h4 className="text-sm font-black uppercase text-slate-900 tracking-wide">
-                                        {row.chantierName || "Bure de déchargement"}
-                                      </h4>
-                                    </div>
+                              {/* Header */}
+                              <div className="border-b-2 border-[#141414] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                  <span className="text-[10px] font-black uppercase bg-[#8B0000] text-white px-2 py-1 font-mono tracking-wider">
+                                    Poste Unique Consolidé
+                                  </span>
+                                  <h3 className="text-lg font-black uppercase text-slate-900 mt-1">
+                                    Extraction Bure N340 Imiter Est
+                                  </h3>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {hasMismatch && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 rounded leading-none select-none animate-pulse" title="La composition réelle diffère de la planification">
+                                      ⚠️ Équipe ≠ Plan
+                                    </span>
+                                  )}
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black bg-emerald-600 text-white px-3 py-1 uppercase border border-[#141414]">
+                                    <Layers className="w-3.5 h-3.5 text-white" /> Treuils
+                                  </span>
+                                </div>
+                              </div>
 
-                                    <div className="flex flex-col items-end gap-1.5 select-none">
-                                      {hasMismatch && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 rounded leading-none select-none max-w-full truncate animate-pulse" title="La composition réelle diffère de la planification">
-                                          ⚠️ Équipe ≠ Plan
-                                        </span>
-                                      )}
-                                      <span className="inline-flex items-center gap-1 text-[8px] font-black bg-emerald-600 text-white px-2 py-0.5 uppercase">
-                                        <Layers className="w-2.5 h-2.5 text-white" /> Treuils
+                              {/* Three column Swiss architecture: Plan, Real, Deviations */}
+                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                                {/* Section 1: PLAN */}
+                                <div className="space-y-4 bg-slate-200/50 p-4 border border-[#141414]/30 rounded">
+                                  <div className="flex items-center gap-1.5 border-b border-[#141414]/25 pb-1">
+                                    <Lock className="w-4 h-4 text-slate-500" />
+                                    <h4 className="text-xs font-black uppercase text-slate-700 tracking-wider">
+                                      1. Planification
+                                    </h4>
+                                  </div>
+
+                                  <div className="space-y-3 text-[11px] font-bold text-slate-600">
+                                    <div>
+                                      <span className="block text-[8px] font-black text-slate-500 uppercase leading-none">Treuilliste Prévu</span>
+                                      <span className="font-mono text-slate-800 text-xs block truncate mt-0.5" title={pTreuillisteName}>
+                                        {plan.treuilliste ? `${plan.treuilliste} - ${pTreuillisteName.split(' (')[0]}` : '(Aucun)'}
                                       </span>
                                     </div>
+
+                                    <div>
+                                      <span className="block text-[8px] font-black text-slate-500 uppercase leading-none">Équipe Prévue</span>
+                                      <ul className="space-y-1 mt-1 font-mono text-slate-800">
+                                        <li className="truncate" title={pEq1Name}>{plan.equipier1 ? `• ${plan.equipier1} - ${pEq1Name.split(' (')[0]}` : '• Éq 1: (Vide)'}</li>
+                                        <li className="truncate" title={pEq2Name}>{plan.equipier2 ? `• ${plan.equipier2} - ${pEq2Name.split(' (')[0]}` : '• Éq 2: (Vide)'}</li>
+                                        <li className="truncate" title={pEq3Name}>{plan.equipier3 ? `• ${plan.equipier3} - ${pEq3Name.split(' (')[0]}` : '• Éq 3: (Vide)'}</li>
+                                        <li className="truncate" title={pEq4Name}>{plan.equipier4 ? `• ${plan.equipier4} - ${pEq4Name.split(' (')[0]}` : '• Éq 4: (Vide)'}</li>
+                                      </ul>
+                                    </div>
+
+                                    <div className="pt-2 border-t border-[#141414]/10 grid grid-cols-2 gap-2">
+                                      <div>
+                                        <span className="block text-[8px] font-black text-slate-500 uppercase leading-none">Cible Wagons</span>
+                                        <span className="font-mono text-slate-900 text-xs font-black">{plan.wagonsTarget || 48} Wg</span>
+                                      </div>
+                                      <div>
+                                        <span className="block text-[8px] font-black text-slate-500 uppercase leading-none">Shift Prévu</span>
+                                        <span className="font-mono text-slate-900 text-xs font-black">{plan.startTime || '08:00'} - {plan.endTime || '13:30'}</span>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Custom target progress gauge */}
-                                <div className="space-y-1 py-2 border-b border-[#141414]/15 select-none text-[9px] font-black uppercase">
-                                  <div className="flex justify-between text-gray-500">
-                                    <span>Taux de Réalisation</span>
-                                    <span className="font-mono text-slate-900 font-extrabold">{realWagons} / {wagonsTarget} Wg ({realPct.toFixed(1)}%)</span>
+                                {/* Section 2: REEL */}
+                                <div className="space-y-4 bg-white p-4 border-2 border-[#141414] rounded shadow-sm">
+                                  <div className="flex items-center gap-1.5 border-b border-[#141414]/25 pb-1">
+                                    <Pencil className="w-4 h-4 text-[#00BFFF]" />
+                                    <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                                      2. Réalisé (Saisie)
+                                    </h4>
                                   </div>
-                                  <div className="w-full bg-slate-200 h-1 border border-[#141414]/10 rounded-sm overflow-hidden">
-                                    <div 
-                                      className={`h-full transition-all duration-300 ${realPct >= 100 ? 'bg-emerald-600' : realPct >= 50 ? 'bg-[#00BFFF]' : 'bg-[#8B0000]'}`} 
-                                      style={{ width: `${Math.min(100, realPct)}%` }}
-                                    ></div>
-                                  </div>
-                                </div>
 
-                                {/* Plan vs Reel mini-table */}
-                                <div className="mt-3 overflow-x-auto select-all">
-                                  <table className="w-full text-left border-collapse border border-[#141414] text-[9px]">
-                                    <thead>
-                                      <tr className="bg-[#141414] text-white font-black uppercase tracking-wider text-[8px]">
-                                        <th className="p-1 border-r border-white/20 w-10 text-center">MODE</th>
-                                        <th className="p-1 border-r border-white/20">Treuilliste</th>
-                                        <th className="p-1 border-r border-white/20">Equipier 1</th>
-                                        <th className="p-1 border-r border-white/20">Equipier 2</th>
-                                        <th className="p-1 border-r border-white/20">Equipier 3</th>
-                                        <th className="p-1">Equipier 4</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {/* Row Plan (locked, gray background) */}
-                                      <tr className="bg-slate-200 text-slate-600 border-b border-[#141414]">
-                                        <td className="p-1 border-r border-[#141414] text-center font-black flex items-center justify-center gap-0.5 pt-2">
-                                          <Lock className="w-2.5 h-2.5" /> PLAN
-                                        </td>
-                                        <td className="p-1 border-r border-[#141414] font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.treuilliste)}>
-                                          {plan.treuilliste || '(Vide)'}
-                                        </td>
-                                        <td className="p-1 border-r border-[#141414] font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.equipier1)}>
-                                          {plan.equipier1 || '(Vide)'}
-                                        </td>
-                                        <td className="p-1 border-r border-[#141414] font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.equipier2)}>
-                                          {plan.equipier2 || '(Vide)'}
-                                        </td>
-                                        <td className="p-1 border-r border-[#141414] font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.equipier3)}>
-                                          {plan.equipier3 || '(Vide)'}
-                                        </td>
-                                        <td className="p-1 font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.equipier4)}>
-                                          {plan.equipier4 || '(Vide)'}
-                                        </td>
-                                      </tr>
+                                  <div className="space-y-3 text-[11px]">
+                                    {/* Treuilliste */}
+                                    <div>
+                                      <label className="block text-[8px] font-black text-slate-500 uppercase leading-none mb-1">
+                                        Treuilliste Réel
+                                      </label>
+                                      <EmployeeCell
+                                        matricule={row.treuilliste || ''}
+                                        name={rTreuillisteName}
+                                        onChange={(mat) => updateExtractionCell(shiftName, idx, 'treuilliste', mat)}
+                                        employees={activeEmployees}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder="T..."
+                                      />
+                                      {treuillisteMismatch && (
+                                        <span className="text-[8px] font-black text-amber-600 block mt-0.5 animate-pulse">
+                                          ⚠️ Diffère du plan (Plan : {plan.treuilliste || '(Vide)'})
+                                        </span>
+                                      )}
+                                    </div>
 
-                                      {/* Row Reel (white background, editable) */}
-                                      <tr className="bg-white border-b border-[#141414] font-semibold text-slate-800">
-                                        <td className="p-1 border-r border-[#141414] text-center font-black text-slate-900 bg-slate-50 flex items-center justify-center gap-0.5 pt-2">
-                                          <Pencil className="w-2.5 h-2.5 text-[#00BFFF]" /> RÉEL
-                                        </td>
-                                        <td className="p-1 border-r border-[#141414]">
-                                          <EmployeeCell
-                                            matricule={row.treuilliste || ''}
-                                            name={treuillistName}
-                                            onChange={(mat) => updateExtractionCell(shiftName, idx, 'treuilliste', mat)}
-                                            employees={activeEmployees}
-                                            onKeyDown={handleKeyDown}
-                                            placeholder="T..."
-                                          />
-                                        </td>
-                                        <td className="p-1 border-r border-[#141414]">
+                                    {/* Equipiers */}
+                                    <div>
+                                      <label className="block text-[8px] font-black text-slate-500 uppercase leading-none mb-1">
+                                        Équipiers Réels (4 Personnes)
+                                      </label>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
                                           <EmployeeCell
                                             matricule={row.equipier1 || ''}
-                                            name={eq1Name}
+                                            name={rEq1Name}
                                             onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier1', mat)}
                                             onKeyDown={handleKeyDown}
                                             employees={activeEmployees}
                                             placeholder="Eq1..."
                                           />
-                                        </td>
-                                        <td className="p-1 border-r border-[#141414]">
+                                          {eq1Mismatch && (
+                                            <span className="text-[7px] font-black text-amber-600 block truncate" title={`Plan : ${plan.equipier1 || '(Vide)'}`}>
+                                              ⚠️ Plan : {plan.equipier1 || 'Vide'}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <div>
                                           <EmployeeCell
                                             matricule={row.equipier2 || ''}
-                                            name={eq2Name}
+                                            name={rEq2Name}
                                             onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier2', mat)}
                                             onKeyDown={handleKeyDown}
                                             employees={activeEmployees}
                                             placeholder="Eq2..."
                                           />
-                                        </td>
-                                        <td className="p-1 border-r border-[#141414]">
+                                          {eq2Mismatch && (
+                                            <span className="text-[7px] font-black text-amber-600 block truncate" title={`Plan : ${plan.equipier2 || '(Vide)'}`}>
+                                              ⚠️ Plan : {plan.equipier2 || 'Vide'}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <div>
                                           <EmployeeCell
                                             matricule={row.equipier3 || ''}
-                                            name={eq3Name}
+                                            name={rEq3Name}
                                             onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier3', mat)}
                                             onKeyDown={handleKeyDown}
                                             employees={activeEmployees}
                                             placeholder="Eq3..."
                                           />
-                                        </td>
-                                        <td className="p-1">
+                                          {eq3Mismatch && (
+                                            <span className="text-[7px] font-black text-amber-600 block truncate" title={`Plan : ${plan.equipier3 || '(Vide)'}`}>
+                                              ⚠️ Plan : {plan.equipier3 || 'Vide'}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <div>
                                           <EmployeeCell
                                             matricule={row.equipier4 || ''}
-                                            name={eq4Name}
+                                            name={rEq4Name}
                                             onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier4', mat)}
                                             onKeyDown={handleKeyDown}
                                             employees={activeEmployees}
                                             placeholder="Eq4..."
                                           />
-                                        </td>
-                                      </tr>
-                                    </tbody>
-                                  </table>
-                                </div>
-
-                                {/* Custom input form for quantitative metrics */}
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3 select-none text-[9px] font-black uppercase text-slate-700">
-                                  <div className="bg-white border border-[#141414] p-1.5 rounded-sm">
-                                    <span className="block text-gray-500 mb-0.5 leading-none">Wagons Réels</span>
-                                    <input
-                                      type="number"
-                                      value={row.wagonsActual === 0 ? '' : row.wagonsActual}
-                                      placeholder="0"
-                                      onKeyDown={handleKeyDown}
-                                      onChange={e => updateExtractionCell(shiftName, idx, 'wagonsActual', Number(e.target.value))}
-                                      className="w-full text-xs font-black text-center text-emerald-950 font-mono outline-none bg-transparent"
-                                    />
-                                  </div>
-
-                                  <div className="bg-white border border-[#141414] p-1.5 rounded-sm">
-                                    <span className="block text-gray-500 mb-0.5 leading-none">Stérile (Wg)</span>
-                                    <input
-                                      type="number"
-                                      value={row.sterileBureImiterEst === 0 ? '' : row.sterileBureImiterEst}
-                                      placeholder="0"
-                                      onKeyDown={handleKeyDown}
-                                      onChange={e => updateExtractionCell(shiftName, idx, 'sterileBureImiterEst', Number(e.target.value))}
-                                      className="w-full text-xs font-black text-center text-slate-800 font-mono outline-none bg-transparent"
-                                    />
-                                  </div>
-
-                                  <div className="bg-white border border-[#141414] p-1.5 rounded-sm">
-                                    <span className="block text-gray-500 mb-0.5 leading-none">Début Work</span>
-                                    {renderTimeSelect(row.startTime || '', (val) => updateExtractionCell(shiftName, idx, 'startTime', val))}
-                                  </div>
-
-                                  <div className="bg-white border border-[#141414] p-1.5 rounded-sm">
-                                    <span className="block text-gray-500 mb-0.5 leading-none">Fin Work</span>
-                                    {renderTimeSelect(row.endTime || '', (val) => updateExtractionCell(shiftName, idx, 'endTime', val))}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Footer content: calculated deviations (cadence) and actions */}
-                              <div className="border-t border-[#141414]/15 pt-3 flex items-center justify-between gap-1 mt-auto">
-                                <div className="text-[10px] font-mono leading-normal flex-1">
-                                  <div className="flex flex-wrap gap-x-3 gap-y-1 select-none">
-                                    <div>
-                                      <span className="text-[8px] font-black text-slate-500 uppercase">Cadence : </span>
-                                      <strong className="text-slate-900 font-black">{cadence.toFixed(2)} Wg/h</strong>
+                                          {eq4Mismatch && (
+                                            <span className="text-[7px] font-black text-amber-600 block truncate" title={`Plan : ${plan.equipier4 || '(Vide)'}`}>
+                                              ⚠️ Plan : {plan.equipier4 || 'Vide'}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <span className="text-[8px] font-black text-slate-500 uppercase">Fréquence : </span>
-                                      <strong className="text-slate-900 font-black">{freqMin}</strong>
+
+                                    {/* Wagons actual & Sterile actual */}
+                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#141414]/10">
+                                      <div className="bg-slate-50 border border-slate-200 p-1.5 rounded">
+                                        <span className="block text-[8px] font-black text-slate-500 uppercase leading-none">Wagons Réels</span>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={row.wagonsActual === 0 ? '' : row.wagonsActual}
+                                          placeholder="0"
+                                          onKeyDown={handleKeyDown}
+                                          onChange={e => updateExtractionCell(shiftName, idx, 'wagonsActual', Number(e.target.value))}
+                                          className="w-full text-xs font-black text-center text-emerald-950 font-mono outline-none bg-transparent"
+                                        />
+                                      </div>
+                                      <div className="bg-slate-50 border border-slate-200 p-1.5 rounded">
+                                        <span className="block text-[8px] font-black text-slate-500 uppercase leading-none">Stérile (Wg)</span>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={row.sterileBureImiterEst === 0 ? '' : row.sterileBureImiterEst}
+                                          placeholder="0"
+                                          onKeyDown={handleKeyDown}
+                                          onChange={e => updateExtractionCell(shiftName, idx, 'sterileBureImiterEst', Number(e.target.value))}
+                                          className="w-full text-xs font-black text-center text-slate-800 font-mono outline-none bg-transparent"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* Hours real */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="bg-slate-50 border border-slate-200 p-1.5 rounded">
+                                        <span className="block text-[8px] font-black text-slate-500 uppercase leading-none">Début Réel</span>
+                                        {renderTimeSelect(row.startTime || '', (val) => updateExtractionCell(shiftName, idx, 'startTime', val))}
+                                      </div>
+                                      <div className="bg-slate-50 border border-slate-200 p-1.5 rounded">
+                                        <span className="block text-[8px] font-black text-slate-500 uppercase leading-none">Fin Réelle</span>
+                                        {renderTimeSelect(row.endTime || '', (val) => updateExtractionCell(shiftName, idx, 'endTime', val))}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => copyExtractionPlanToReel(shiftName, idx)}
-                                    className="px-2.5 py-1 text-[9px] font-black uppercase bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 rounded flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                                    title="Copier les structures d'affection de planification vers le réel"
-                                  >
-                                    <Copy className="w-2.5 h-2.5 text-amber-600 font-bold" /> Copier
-                                  </button>
+                                {/* Section 3: ECARTS / GAUGES */}
+                                <div className="space-y-4 bg-[#141414] text-white p-4 border border-[#141414] rounded shadow-md flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex items-center gap-1.5 border-b border-white/20 pb-1 mb-3">
+                                      <Gauge className="w-4 h-4 text-[#00BFFF]" />
+                                      <h4 className="text-xs font-black uppercase text-sky-400 tracking-wider">
+                                        3. Écarts & Cadence
+                                      </h4>
+                                    </div>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteExtractionRow(shiftName, idx)}
-                                    className="p-1 border border-transparent hover:border-red-200 text-slate-400 hover:text-red-700 transition-all rounded"
-                                    title="Supprimer la ligne"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                    <div className="space-y-4 text-[11px] font-mono select-none">
+                                      {/* Taux de réalisation gauge */}
+                                      <div className="space-y-1.5 font-bold">
+                                        <div className="flex justify-between text-slate-300">
+                                          <span className="text-[8px] font-black uppercase">Réalisation Objectif</span>
+                                          <span className="font-mono text-white font-extrabold">{realWagons} / {wagonsTarget} Wg ({realPct.toFixed(1)}%)</span>
+                                        </div>
+                                        <div className="w-full bg-slate-800 h-2 border border-white/10 rounded overflow-hidden">
+                                          <div 
+                                            className={`h-full transition-all duration-300 ${realPct >= 100 ? 'bg-emerald-500' : realPct >= 50 ? 'bg-[#00BFFF]' : 'bg-[#8B0000]'}`} 
+                                            style={{ width: `${Math.min(100, realPct)}%` }}
+                                          ></div>
+                                        </div>
+                                      </div>
+
+                                      {/* Cadence / Fréquence metrics */}
+                                      <div className="grid grid-cols-2 gap-3 pt-2 text-slate-200 font-bold">
+                                        <div className="bg-white/5 p-2 rounded border border-white/10">
+                                          <span className="block text-[8.5px] font-black text-slate-500 uppercase">Cadence</span>
+                                          <strong className="text-white text-xs font-black font-mono block mt-0.5">{cadence.toFixed(2)} Wg/h</strong>
+                                        </div>
+                                        <div className="bg-white/5 p-2 rounded border border-white/10">
+                                          <span className="block text-[8.5px] font-black text-slate-500 uppercase">Fréquence</span>
+                                          <strong className="text-white text-xs font-black font-mono block mt-0.5">{freqMin}</strong>
+                                        </div>
+                                      </div>
+
+                                      {/* Warning indicators for mismatch */}
+                                      {hasMismatch && (
+                                        <div className="bg-amber-950/40 border border-amber-500/30 text-amber-200 p-2 rounded text-[9.5px] leading-relaxed">
+                                          <strong>Notice :</strong> Des changements d'affectation ont été détectés par rapport à la planification théorique de cette équipe.
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Copy action btn */}
+                                  <div className="pt-4 border-t border-white/10 flex items-center justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => copyExtractionPlanToReel(shiftName, idx)}
+                                      className="px-3 py-1.5 text-[10px] font-black uppercase bg-[#00BFFF] hover:bg-[#00BFFF]/90 text-[#141414] border border-black rounded flex items-center gap-1.5 shadow-sm transition-all cursor-pointer font-sans"
+                                      title="Copier les structures d'affection de planification vers le réel"
+                                    >
+                                      <Copy className="w-3 h-3 text-[#141414]" /> Copier Plan ➔ Réel
+                                    </button>
+                                  </div>
                                 </div>
+
                               </div>
                             </div>
                           );
-                        })}
-
-                        {extractionRows.length === 0 && (
-                          <div className="col-span-full text-center p-8 text-slate-400 font-bold bg-slate-50 border-2 border-dashed border-slate-200 rounded uppercase">
-                            Aucune ligne active. Veuillez cliquer sur "Ajouter une ligne" pour commencer.
-                          </div>
-                        )}
+                        })()}
                       </div>
                     </div>
                   );
@@ -3740,9 +3865,9 @@ export const Production: React.FC = () => {
                           ];
 
                           const stats = shiftsList.map(s => {
-                            const wagons = s.rows.reduce((sum, r) => sum + (Number(r.wagonsActual) || 0), 0);
-                            const target = s.rows.reduce((sum, r) => sum + (Number(r.wagonsTarget) || 48), 0);
-                            const sterile = s.rows.reduce((sum, r) => sum + (Number(r.sterileBureImiterEst) || 0), 0);
+                            const wagons = s.rows.reduce((sum, r) => sum + (Number(r.reel.wagonsActual) || 0), 0);
+                            const target = s.rows.reduce((sum, r) => sum + (Number(r.reel.wagonsTarget) || 48), 0);
+                            const sterile = s.rows.reduce((sum, r) => sum + (Number(r.reel.sterileBureImiterEst) || 0), 0);
                             const totalWag = wagons + sterile;
                             const pct = target > 0 ? ((wagons / target) * 105).toFixed(1) : '0'; // Adjust target ratio calculation
                             const sterilePct = totalWag > 0 ? ((sterile / totalWag) * 100).toFixed(1) : '0';
