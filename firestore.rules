@@ -36,7 +36,9 @@ service cloud.firestore {
     // Production
     match /production/{prodId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+      allow write: if isSignedIn() 
+        && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary'])
+        && request.resource.data.date == prodId;
     }
 
     // Chantiers
@@ -78,17 +80,13 @@ service cloud.firestore {
     // Daily Planning Sheets
     match /daily_planning_sheets/{sheetId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+      allow write: if isSignedIn() 
+        && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary'])
+        && request.resource.data.date == sheetId;
     }
 
     // Planning
     match /planning/{planId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
-    }
-
-    // Daily Excel Sheets
-    match /daily_excel_sheets/{sheetId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
     }

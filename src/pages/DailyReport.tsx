@@ -20,16 +20,61 @@ export const DailyReport: React.FC = () => {
     });
 
     // Load Production Data
-    const qProd = query(collection(db, 'production'), orderBy('timestamp', 'desc'));
+    const qProd = query(collection(db, 'production'));
     const unsubProd = onSnapshot(qProd, (snap) => {
-      setData(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const allRows: any[] = [];
+      snap.docs.forEach(docSnap => {
+        const docData = docSnap.data();
+        const date = docData.date || docSnap.id;
+        if (docData.postes) {
+          Object.entries(docData.postes).forEach(([pKey, pVal]: [string, any]) => {
+            const postName = pKey === 'poste1' ? 'Poste 1' : pKey === 'poste2' ? 'Poste 2' : 'Poste 3';
+            if (pVal.minage && Array.isArray(pVal.minage)) {
+              pVal.minage.forEach((row: any) => {
+                if (row.chantierId) {
+                  allRows.push({
+                    id: `${docSnap.id}_${pKey}_minage_${row.chantierId}`,
+                    date,
+                    post: postName,
+                    chantierId: row.chantierId,
+                    chantierName: row.chantierName || 'Slick',
+                    chiefName: row.chiefName || pVal.chiefName || '',
+                    minerName: row.minerName || '',
+                    assistantName: row.assistantName || '',
+                    gallerySize: row.gallerySize || 12,
+                    holeCount: row.realHoles || 0,
+                    rounds: row.realRounds || 0,
+                    meterage: row.realMeterage || 0,
+                    meteragePlanned: row.meterage || 0,
+                    explosives: row.explosives || { anfo: 0, tovex: 0, ammorces: 0 },
+                    timestamp: docData.timestamp || ''
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+      // Sort all rows by date desc, then shift asc
+      allRows.sort((a, b) => {
+        const dCompare = b.date.localeCompare(a.date);
+        if (dCompare !== 0) return dCompare;
+        return a.post.localeCompare(b.post);
+      });
+      setData(allRows);
       setLoading(false);
     });
 
     return () => { unsubChan(); unsubProd(); };
   }, []);
 
-  const filteredData = data.filter(r => {
+  const filteredData = data.map(item => {
+    const matchedChan = chantiers.find(c => c.id === item.chantierId);
+    return {
+      ...item,
+      chantierName: matchedChan ? matchedChan.name : item.chantierName
+    };
+  }).filter(r => {
     const matchesChantier = filterChantier === 'all' || r.chantierId === filterChantier;
     const matchesDate = !filterDate || r.date === filterDate;
     return matchesChantier && matchesDate;

@@ -27,7 +27,10 @@ import {
   Trash2,
   Map,
   Clock3,
-  UserCheck
+  UserCheck,
+  Copy,
+  Lock,
+  Pencil
 } from 'lucide-react';
 import { collection, query, onSnapshot, setDoc, doc, arrayUnion, orderBy, where, getDocs, deleteDoc, getDoc, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -123,6 +126,12 @@ interface ExcelMaintenance {
   workDescription: string;
 }
 
+interface ExcelRow<T> {
+  rowId: string;
+  plan: T;
+  reel: T;
+}
+
 // ----------------------------------------------------
 // SMART REUSABLE COMPONENT FOR EMPLOYEE SELECTION & ALERTS
 // ----------------------------------------------------
@@ -133,9 +142,10 @@ interface EmployeeCellProps {
   employees: any[];
   placeholder?: string;
   hideNameLabel?: boolean;
+  onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }
 
-const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, employees, placeholder = "Matricule...", hideNameLabel = false }) => {
+const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, employees, placeholder = "Matricule...", hideNameLabel = false, onKeyDown }) => {
   const [typed, setTyped] = React.useState(matricule || '');
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -167,6 +177,7 @@ const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, 
           type="text"
           placeholder={placeholder}
           value={typed}
+          onKeyDown={onKeyDown}
           onChange={(e) => {
             const val = e.target.value;
             setTyped(val);
@@ -267,6 +278,33 @@ const renderTimeSelect = (value: string, onChange: (val: string) => void) => {
 
 export const Production: React.FC = () => {
   const { user } = useAuth();
+
+  // Helper for Enter/Tab keyboard navigation between inputs/selects on cards
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const cardElement = e.currentTarget.closest('[data-card-container]');
+      if (cardElement) {
+        const focusables = Array.from(cardElement.querySelectorAll('input, select, button')) as HTMLElement[];
+        const currentIndex = focusables.indexOf(e.currentTarget);
+        if (currentIndex !== -1 && currentIndex < focusables.length - 1) {
+          let nextIndex = currentIndex + 1;
+          while (nextIndex < focusables.length) {
+            const nextEl = focusables[nextIndex];
+            if ((nextEl.tagName === 'INPUT' || nextEl.tagName === 'SELECT') && 
+                !(nextEl as any).disabled && !(nextEl as any).readOnly) {
+              nextEl.focus();
+              if (nextEl.tagName === 'INPUT') {
+                (nextEl as HTMLInputElement).select?.();
+              }
+              break;
+            }
+            nextIndex++;
+          }
+        }
+      }
+    }
+  };
   
   // App views: 'sheet' (Excel Mode) or 'history' (Consolidated list)
   const [viewMode, setViewMode] = useState<'sheet' | 'history'>('sheet');
@@ -298,36 +336,310 @@ export const Production: React.FC = () => {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'no_data' | 'error'>('idle');
   const [isTemplateLoaded, setIsTemplateLoaded] = useState(false);
   const [templateDateHint, setTemplateDateHint] = useState('');
+  const [noPlanFound, setNoPlanFound] = useState(false);
 
   // Excel grids state for Poste 1
-  const [p1MinageRows, setP1MinageRows] = useState<ExcelMinage[]>([]);
-  const [p1DeblayageRows, setP1DeblayageRows] = useState<ExcelDeblayage[]>([]);
-  const [p1ExtractionRows, setP1ExtractionRows] = useState<ExcelExtraction[]>([]);
-  const [p1MaintenanceRows, setP1MaintenanceRows] = useState<ExcelMaintenance[]>([]);
+  const [p1MinageRows, setP1MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
+  const [p1DeblayageRows, setP1DeblayageRows] = useState<ExcelRow<ExcelDeblayage>[]>([]);
+  const [p1ExtractionRows, setP1ExtractionRows] = useState<ExcelRow<ExcelExtraction>[]>([]);
+  const [p1MaintenanceRows, setP1MaintenanceRows] = useState<ExcelRow<ExcelMaintenance>[]>([]);
   const [p1ChiefMatricule, setP1ChiefMatricule] = useState<string>('');
   const [p1ChiefName, setP1ChiefName] = useState<string>('');
   const [p1SecondChiefMatricule, setP1SecondChiefMatricule] = useState<string>('');
   const [p1SecondChiefName, setP1SecondChiefName] = useState<string>('');
+  const [p1SectorChefs, setP1SectorChefs] = useState<{ [key: string]: { chiefMatricule: string; chiefName: string; secondChiefMatricule: string; secondChiefName: string; } }>({
+    'Imiter 2': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' },
+    'Imiter 1': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' },
+    'Imiter Est': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' },
+    'Autres / Non Classés': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' }
+  });
 
   // Excel grids state for Poste 2
-  const [p2MinageRows, setP2MinageRows] = useState<ExcelMinage[]>([]);
-  const [p2DeblayageRows, setP2DeblayageRows] = useState<ExcelDeblayage[]>([]);
-  const [p2ExtractionRows, setP2ExtractionRows] = useState<ExcelExtraction[]>([]);
-  const [p2MaintenanceRows, setP2MaintenanceRows] = useState<ExcelMaintenance[]>([]);
+  const [p2MinageRows, setP2MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
+  const [p2DeblayageRows, setP2DeblayageRows] = useState<ExcelRow<ExcelDeblayage>[]>([]);
+  const [p2ExtractionRows, setP2ExtractionRows] = useState<ExcelRow<ExcelExtraction>[]>([]);
+  const [p2MaintenanceRows, setP2MaintenanceRows] = useState<ExcelRow<ExcelMaintenance>[]>([]);
   const [p2ChiefMatricule, setP2ChiefMatricule] = useState<string>('');
   const [p2ChiefName, setP2ChiefName] = useState<string>('');
   const [p2SecondChiefMatricule, setP2SecondChiefMatricule] = useState<string>('');
   const [p2SecondChiefName, setP2SecondChiefName] = useState<string>('');
+  const [p2SectorChefs, setP2SectorChefs] = useState<{ [key: string]: { chiefMatricule: string; chiefName: string; secondChiefMatricule: string; secondChiefName: string; } }>({
+    'Imiter 2': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' },
+    'Imiter 1': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' },
+    'Imiter Est': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' },
+    'Autres / Non Classés': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' }
+  });
 
   // Excel grids state for Poste 3
-  const [p3MinageRows, setP3MinageRows] = useState<ExcelMinage[]>([]);
-  const [p3DeblayageRows, setP3DeblayageRows] = useState<ExcelDeblayage[]>([]);
-  const [p3ExtractionRows, setP3ExtractionRows] = useState<ExcelExtraction[]>([]);
-  const [p3MaintenanceRows, setP3MaintenanceRows] = useState<ExcelMaintenance[]>([]);
+  const [p3MinageRows, setP3MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
+  const [p3DeblayageRows, setP3DeblayageRows] = useState<ExcelRow<ExcelDeblayage>[]>([]);
+  const [p3ExtractionRows, setP3ExtractionRows] = useState<ExcelRow<ExcelExtraction>[]>([]);
+  const [p3MaintenanceRows, setP3MaintenanceRows] = useState<ExcelRow<ExcelMaintenance>[]>([]);
   const [p3ChiefMatricule, setP3ChiefMatricule] = useState<string>('');
   const [p3ChiefName, setP3ChiefName] = useState<string>('');
   const [p3SecondChiefMatricule, setP3SecondChiefMatricule] = useState<string>('');
   const [p3SecondChiefName, setP3SecondChiefName] = useState<string>('');
+  const [p3SectorChefs, setP3SectorChefs] = useState<{ [key: string]: { chiefMatricule: string; chiefName: string; secondChiefMatricule: string; secondChiefName: string; } }>({
+    'Imiter 2': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' },
+    'Imiter 1': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' },
+    'Imiter Est': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' },
+    'Autres / Non Classés': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' }
+  });
+
+  // Helper to build default main sector-level chiefs
+  const buildDefaultSectorChefs = (pName: string, yesterdayStr: string) => {
+    const activeChefs = (employees.length > 0 ? employees : DEFAULT_EMPLOYEES).filter(e => e.fonction === 'CHEF' && e.status === 'actif');
+    const shiftPlans = plannings.filter(p => p.date === yesterdayStr && p.post === pName);
+
+    const getSectorChefDefault = (sec: string) => {
+      const planSec = shiftPlans.find(
+        p => p.type === 'minage' && 
+        (p.sector || '').toLowerCase() === sec.toLowerCase() && 
+        p.chiefMatricule
+      );
+      if (planSec) {
+        return {
+          matricule: planSec.chiefMatricule,
+          name: planSec.chiefName || ''
+        };
+      }
+      const chf = activeChefs.find(e => (e.sector || '').toLowerCase() === sec.toLowerCase());
+      return chf ? { matricule: chf.matricule || '', name: `${chf.nom || ''} ${chf.prenom || ''}`.trim() } : { matricule: '', name: '' };
+    };
+
+    return {
+      'Imiter 2': { chiefMatricule: getSectorChefDefault('Imiter 2').matricule, chiefName: getSectorChefDefault('Imiter 2').name, secondChiefMatricule: '', secondChiefName: '' },
+      'Imiter 1': { chiefMatricule: getSectorChefDefault('Imiter 1').matricule, chiefName: getSectorChefDefault('Imiter 1').name, secondChiefMatricule: '', secondChiefName: '' },
+      'Imiter Est': { chiefMatricule: getSectorChefDefault('Imiter Est').matricule, chiefName: getSectorChefDefault('Imiter Est').name, secondChiefMatricule: '', secondChiefName: '' },
+      'Autres / Non Classés': { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' }
+    };
+  };
+
+  // Helper to recover sector chiefs from Firestore or fallback
+  const getSectorChefsFromDocOrDefaults = (docData: any, pName: string, yesterdayStr: string, rows: ExcelMinage[]) => {
+    const defaultChefs = buildDefaultSectorChefs(pName, yesterdayStr);
+    const result = { ...defaultChefs };
+
+    if (docData && docData.sectorChefs) {
+      return {
+        ...result,
+        ...docData.sectorChefs
+      };
+    }
+
+    const sectorsList = ['Imiter 2', 'Imiter 1', 'Imiter Est', 'Autres / Non Classés'];
+    for (const sec of sectorsList) {
+      const matching = rows.find(r => (r.sector || '').trim().toLowerCase() === sec.toLowerCase() && r.chiefMatricule);
+      if (matching) {
+        const parts = matching.chiefName.split(' / ');
+        result[sec] = {
+          chiefMatricule: matching.chiefMatricule,
+          chiefName: parts[0] || '',
+          secondChiefMatricule: '',
+          secondChiefName: parts[1] || ''
+        };
+      }
+    }
+
+    if (docData && docData.chiefMatricule) {
+      for (const sec of sectorsList) {
+        if (!result[sec].chiefMatricule) {
+          result[sec].chiefMatricule = docData.chiefMatricule;
+          result[sec].chiefName = docData.chiefName || '';
+          result[sec].secondChiefMatricule = docData.secondChiefMatricule || '';
+          result[sec].secondChiefName = docData.secondChiefName || '';
+        }
+      }
+    }
+
+    return result;
+  };
+
+  const createEmptyMinage = (sector: string = ''): ExcelMinage => ({
+    sector,
+    chantierId: '',
+    chiefMatricule: '',
+    chiefName: '',
+    minerMatricule: '',
+    minerName: '',
+    assistantMatricule: '',
+    assistantName: '',
+    gallerySize: 12,
+    plannedHoles: 32,
+    realHoles: 0,
+    plannedRounds: 1,
+    realRounds: 0,
+    meterage: 0,
+    realMeterage: 0,
+    anfo: 0,
+    tovex: 0,
+    ammorces: 0
+  });
+
+  const createEmptyDeblayage = (sector: string = '', start: string = '07:00', end: string = '14:00'): ExcelDeblayage => ({
+    sector,
+    chantierId: '',
+    driverMatricule: '',
+    driverName: '',
+    engineId: '',
+    engineCode: '',
+    godets: 0,
+    volumeEstimated: 0,
+    gasoil: 0,
+    lubrifiant1: '',
+    lubrifiant1Qty: 0,
+    lubrifiant2: '',
+    lubrifiant2Qty: 0,
+    startTime: start,
+    endTime: end,
+    remarks: ''
+  });
+
+  const createEmptyExtraction = (start: string = '08:00', end: string = '13:30'): ExcelExtraction => ({
+    treuilliste: '',
+    equipier1: '',
+    equipier2: '',
+    equipier3: '',
+    equipier4: '',
+    wagonsActual: 0,
+    wagonsTarget: 48,
+    sterileBureImiterEst: 0,
+    startTime: start,
+    endTime: end
+  });
+
+  const createEmptyMaintenance = (): ExcelMaintenance => ({
+    roleLabel: '',
+    agentMatricule: '',
+    agentName: '',
+    engineId: '',
+    engineCode: '',
+    hoursSpent: 0,
+    workDescription: ''
+  });
+
+  const mapToExcelRowArray = <T,>(arr: any[], defaultCreatorWithSector: (sec: string) => T): ExcelRow<T>[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr.map((item, idx) => {
+      if (item && 'rowId' in item && 'plan' in item && 'reel' in item) {
+        return item as ExcelRow<T>;
+      }
+      const sector = item?.sector || item?.reel?.sector || item?.plan?.sector || '';
+      return {
+        rowId: item?.rowId || `row_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+        plan: item?.plan || item || defaultCreatorWithSector(sector),
+        reel: item?.reel || item || defaultCreatorWithSector(sector),
+      };
+    });
+  };
+
+  const generateFromPlan = <T,>(plannedList: T[], defaultCreatorWithSector: (sec: string) => T, postName: string, typeName: string): ExcelRow<T>[] => {
+    if (!plannedList || plannedList.length === 0) {
+      return [];
+    }
+    return plannedList.map((plannedItem: any, idx) => {
+      const sector = plannedItem?.sector || '';
+      const planValue = { ...plannedItem };
+      const reelValue: any = {
+        ...defaultCreatorWithSector(sector),
+        chantierId: plannedItem?.chantierId || '',
+        sector: sector,
+      };
+      
+      if (typeName === 'minage') {
+        const gSize = plannedItem?.gallerySize || (plannedItem?.galleryType === '9m2' ? 9 : 12);
+        reelValue.gallerySize = gSize;
+        reelValue.minerMatricule = '';
+        reelValue.minerName = '';
+        reelValue.assistantMatricule = '';
+        reelValue.assistantName = '';
+      } else if (typeName === 'deblayage') {
+        reelValue.driverMatricule = '';
+        reelValue.driverName = '';
+        reelValue.engineId = plannedItem?.engineId || '';
+        reelValue.engineCode = plannedItem?.engineCode || '';
+      } else if (typeName === 'maintenance') {
+        reelValue.agentMatricule = '';
+        reelValue.agentName = '';
+        reelValue.roleLabel = plannedItem?.roleLabel || '';
+      }
+      
+      return {
+        rowId: `${typeName}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+        plan: planValue,
+        reel: reelValue as unknown as T
+      };
+    });
+  };
+
+  const filterRealPlannedRows = <T,>(arr: T[], type: string): T[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((item: any) => {
+      if (!item) return false;
+      if (type === 'minage') {
+        return !!item.chantierId;
+      }
+      if (type === 'deblayage') {
+        return !!item.chantierId;
+      }
+      if (type === 'extraction') {
+        // Safe check for planning fields
+        return !!(item.treuilliste1 || item.treuilliste || item.chantierName || item.wagonsTarget > 0);
+      }
+      if (type === 'maintenance') {
+        return !!(item.agentMatricule || item.roleLabel);
+      }
+      return true;
+    });
+  };
+
+  const generateSaisieLibreDefaults = (postName: string) => {
+    let start = '07:00';
+    let end = '14:00';
+    if (postName === 'Poste 1') { start = '07:00'; end = '14:00'; }
+    else if (postName === 'Poste 2') { start = '15:00'; end = '22:00'; }
+    else if (postName === 'Poste 3') { start = '23:00'; end = '06:00'; }
+
+    const minageSectors = ['Imiter 2', 'Imiter 1', 'Imiter Est'];
+    const minage: ExcelRow<ExcelMinage>[] = [];
+    minageSectors.forEach(sec => {
+      const count = (postName === 'Poste 1' && sec !== 'Imiter Est') ? 1 : 2;
+      for (let i = 0; i < count; i++) {
+        minage.push({
+          rowId: `minage_saisie_${sec}_${i}_${Math.random().toString(36).substr(2, 9)}`,
+          plan: createEmptyMinage(sec),
+          reel: createEmptyMinage(sec)
+        });
+      }
+    });
+
+    const deblayageSectors = ['Imiter 2', 'Imiter 1', 'Imiter Est'];
+    const deblayage: ExcelRow<ExcelDeblayage>[] = [];
+    deblayageSectors.forEach(sec => {
+      const count = sec === 'Imiter Est' ? 3 : sec === 'Imiter 2' ? 2 : 1;
+      for (let i = 0; i < count; i++) {
+        deblayage.push({
+          rowId: `deblayage_saisie_${sec}_${i}_${Math.random().toString(36).substr(2, 9)}`,
+          plan: createEmptyDeblayage(sec, start, end),
+          reel: createEmptyDeblayage(sec, start, end)
+        });
+      }
+    });
+
+    const extraction: ExcelRow<ExcelExtraction>[] = Array.from({ length: 1 }, (_, i) => ({
+      rowId: `extraction_saisie_${i}_${Math.random().toString(36).substr(2, 9)}`,
+      plan: createEmptyExtraction(start, end),
+      reel: createEmptyExtraction(start, end)
+    }));
+
+    const maintenance: ExcelRow<ExcelMaintenance>[] = Array.from({ length: 4 }, (_, i) => ({
+      rowId: `maintenance_saisie_${i}_${Math.random().toString(36).substr(2, 9)}`,
+      plan: createEmptyMaintenance(),
+      reel: createEmptyMaintenance()
+    }));
+
+    return { minage, deblayage, extraction, maintenance };
+  };
 
   // Local draft state to prevent losing inputted data
   const [draftAvailable, setDraftAvailable] = useState<boolean>(false);
@@ -410,10 +722,13 @@ export const Production: React.FC = () => {
     const draftPayload = {
       p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
       p1ChiefMatricule, p1ChiefName, p1SecondChiefMatricule, p1SecondChiefName,
+      p1SectorChefs,
       p2MinageRows, p2DeblayageRows, p2ExtractionRows, p2MaintenanceRows,
       p2ChiefMatricule, p2ChiefName, p2SecondChiefMatricule, p2SecondChiefName,
+      p2SectorChefs,
       p3MinageRows, p3DeblayageRows, p3ExtractionRows, p3MaintenanceRows,
       p3ChiefMatricule, p3ChiefName, p3SecondChiefMatricule, p3SecondChiefName,
+      p3SectorChefs,
     };
     
     // Check if there is some modified rows to justify saving a draft
@@ -430,10 +745,13 @@ export const Production: React.FC = () => {
     selectedDate, loading,
     p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
     p1ChiefMatricule, p1ChiefName, p1SecondChiefMatricule, p1SecondChiefName,
+    p1SectorChefs,
     p2MinageRows, p2DeblayageRows, p2ExtractionRows, p2MaintenanceRows,
     p2ChiefMatricule, p2ChiefName, p2SecondChiefMatricule, p2SecondChiefName,
+    p2SectorChefs,
     p3MinageRows, p3DeblayageRows, p3ExtractionRows, p3MaintenanceRows,
     p3ChiefMatricule, p3ChiefName, p3SecondChiefMatricule, p3SecondChiefName,
+    p3SectorChefs,
   ]);
 
   // Prevent closing the tab with unsaved modifications
@@ -463,6 +781,7 @@ export const Production: React.FC = () => {
         if (d.p1ChiefName !== undefined) setP1ChiefName(d.p1ChiefName);
         if (d.p1SecondChiefMatricule !== undefined) setP1SecondChiefMatricule(d.p1SecondChiefMatricule);
         if (d.p1SecondChiefName !== undefined) setP1SecondChiefName(d.p1SecondChiefName);
+        if (d.p1SectorChefs) setP1SectorChefs(d.p1SectorChefs);
 
         if (d.p2MinageRows) setP2MinageRows(d.p2MinageRows);
         if (d.p2DeblayageRows) setP2DeblayageRows(d.p2DeblayageRows);
@@ -472,6 +791,7 @@ export const Production: React.FC = () => {
         if (d.p2ChiefName !== undefined) setP2ChiefName(d.p2ChiefName);
         if (d.p2SecondChiefMatricule !== undefined) setP2SecondChiefMatricule(d.p2SecondChiefMatricule);
         if (d.p2SecondChiefName !== undefined) setP2SecondChiefName(d.p2SecondChiefName);
+        if (d.p2SectorChefs) setP2SectorChefs(d.p2SectorChefs);
 
         if (d.p3MinageRows) setP3MinageRows(d.p3MinageRows);
         if (d.p3DeblayageRows) setP3DeblayageRows(d.p3DeblayageRows);
@@ -481,6 +801,7 @@ export const Production: React.FC = () => {
         if (d.p3ChiefName !== undefined) setP3ChiefName(d.p3ChiefName);
         if (d.p3SecondChiefMatricule !== undefined) setP3SecondChiefMatricule(d.p3SecondChiefMatricule);
         if (d.p3SecondChiefName !== undefined) setP3SecondChiefName(d.p3SecondChiefName);
+        if (d.p3SectorChefs) setP3SectorChefs(d.p3SectorChefs);
 
         setDraftAvailable(false);
         setSaveStatus('saved');
@@ -743,92 +1064,199 @@ export const Production: React.FC = () => {
       }
     }
     setLoading(true);
+    setNoPlanFound(false);
     try {
       const yesterdayDateObj = subDays(new Date(selectedDate + "T12:00:00"), 1);
       const yesterdayDateStr = format(yesterdayDateObj, 'yyyy-MM-dd');
 
-      // Fetch references for all 3 posts in parallel
-      const doc1Ref = doc(db, 'daily_excel_sheets', `${selectedDate}_Poste_1`);
-      const doc2Ref = doc(db, 'daily_excel_sheets', `${selectedDate}_Poste_2`);
-      const doc3Ref = doc(db, 'daily_excel_sheets', `${selectedDate}_Poste_3`);
+      // Fetch consolidated production document for the selected date
+      const docRef = doc(db, 'production', selectedDate);
+      const snap = await getDoc(docRef);
 
-      const [snap1, snap2, snap3] = await Promise.all([
-        getDoc(doc1Ref),
-        getDoc(doc2Ref),
-        getDoc(doc3Ref)
-      ]);
+      if (snap.exists()) {
+        const docData = snap.data();
+        setIsTemplateLoaded(false);
 
-      // Post 1
-      if (snap1.exists()) {
-        const d = snap1.data();
-        setP1MinageRows(d.minageRows || []);
-        setP1DeblayageRows(d.deblayageRows || []);
-        setP1ExtractionRows(d.extractionRows || []);
-        setP1MaintenanceRows(d.maintenanceRows || []);
-        setP1ChiefMatricule(d.chiefMatricule || '');
-        setP1ChiefName(d.chiefName || '');
-        setP1SecondChiefMatricule(d.secondChiefMatricule || '');
-        setP1SecondChiefName(d.secondChiefName || '');
+        // Post 1
+        const p1Data = docData?.postes?.poste1;
+        if (p1Data) {
+          setP1MinageRows(mapToExcelRowArray(p1Data.minage || [], createEmptyMinage));
+          setP1DeblayageRows(mapToExcelRowArray(p1Data.deblayage || [], createEmptyDeblayage));
+          setP1ExtractionRows(mapToExcelRowArray(p1Data.extraction || [], createEmptyExtraction));
+          setP1MaintenanceRows(mapToExcelRowArray(p1Data.maintenance || [], createEmptyMaintenance));
+          setP1ChiefMatricule(p1Data.chiefMatricule || '');
+          setP1ChiefName(p1Data.chiefName || '');
+          setP1SecondChiefMatricule(p1Data.secondChiefMatricule || '');
+          setP1SecondChiefName(p1Data.secondChiefName || '');
+          setP1SectorChefs(p1Data.sectorChefs || buildDefaultSectorChefs('Poste 1', yesterdayDateStr));
+        } else {
+          const defaults = generateSaisieLibreDefaults('Poste 1');
+          setP1MinageRows(defaults.minage);
+          setP1DeblayageRows(defaults.deblayage);
+          setP1ExtractionRows(defaults.extraction);
+          setP1MaintenanceRows(defaults.maintenance);
+          setP1ChiefMatricule(''); setP1ChiefName('');
+          setP1SecondChiefMatricule(''); setP1SecondChiefName('');
+          setP1SectorChefs(buildDefaultSectorChefs('Poste 1', yesterdayDateStr));
+        }
+
+        // Post 2
+        const p2Data = docData?.postes?.poste2;
+        if (p2Data) {
+          setP2MinageRows(mapToExcelRowArray(p2Data.minage || [], createEmptyMinage));
+          setP2DeblayageRows(mapToExcelRowArray(p2Data.deblayage || [], createEmptyDeblayage));
+          setP2ExtractionRows(mapToExcelRowArray(p2Data.extraction || [], createEmptyExtraction));
+          setP2MaintenanceRows(mapToExcelRowArray(p2Data.maintenance || [], createEmptyMaintenance));
+          setP2ChiefMatricule(p2Data.chiefMatricule || '');
+          setP2ChiefName(p2Data.chiefName || '');
+          setP2SecondChiefMatricule(p2Data.secondChiefMatricule || '');
+          setP2SecondChiefName(p2Data.secondChiefName || '');
+          setP2SectorChefs(p2Data.sectorChefs || buildDefaultSectorChefs('Poste 2', yesterdayDateStr));
+        } else {
+          const defaults = generateSaisieLibreDefaults('Poste 2');
+          setP2MinageRows(defaults.minage);
+          setP2DeblayageRows(defaults.deblayage);
+          setP2ExtractionRows(defaults.extraction);
+          setP2MaintenanceRows(defaults.maintenance);
+          setP2ChiefMatricule(''); setP2ChiefName('');
+          setP2SecondChiefMatricule(''); setP2SecondChiefName('');
+          setP2SectorChefs(buildDefaultSectorChefs('Poste 2', yesterdayDateStr));
+        }
+
+        // Post 3
+        const p3Data = docData?.postes?.poste3;
+        if (p3Data) {
+          setP3MinageRows(mapToExcelRowArray(p3Data.minage || [], createEmptyMinage));
+          setP3DeblayageRows(mapToExcelRowArray(p3Data.deblayage || [], createEmptyDeblayage));
+          setP3ExtractionRows(mapToExcelRowArray(p3Data.extraction || [], createEmptyExtraction));
+          setP3MaintenanceRows(mapToExcelRowArray(p3Data.maintenance || [], createEmptyMaintenance));
+          setP3ChiefMatricule(p3Data.chiefMatricule || '');
+          setP3ChiefName(p3Data.chiefName || '');
+          setP3SecondChiefMatricule(p3Data.secondChiefMatricule || '');
+          setP3SecondChiefName(p3Data.secondChiefName || '');
+          setP3SectorChefs(p3Data.sectorChefs || buildDefaultSectorChefs('Poste 3', yesterdayDateStr));
+        } else {
+          const defaults = generateSaisieLibreDefaults('Poste 3');
+          setP3MinageRows(defaults.minage);
+          setP3DeblayageRows(defaults.deblayage);
+          setP3ExtractionRows(defaults.extraction);
+          setP3MaintenanceRows(defaults.maintenance);
+          setP3ChiefMatricule(''); setP3ChiefName('');
+          setP3SecondChiefMatricule(''); setP3SecondChiefName('');
+          setP3SectorChefs(buildDefaultSectorChefs('Poste 3', yesterdayDateStr));
+        }
+
       } else {
-        const t = buildTemplateForPost('Poste 1', yesterdayDateStr);
-        setP1MinageRows(t.minageRows);
-        setP1DeblayageRows(t.deblayageRows);
-        setP1ExtractionRows(t.extractionRows);
-        setP1MaintenanceRows(t.maintenanceRows);
-        setP1ChiefMatricule(t.chiefMatricule);
-        setP1ChiefName(t.chiefName);
-        setP1SecondChiefMatricule(t.secondChiefMatricule);
-        setP1SecondChiefName(t.secondChiefName);
-      }
+        // No production, try loaded daily_planning_sheets
+        const planDocRef = doc(db, 'daily_planning_sheets', selectedDate);
+        const planSnap = await getDoc(planDocRef);
 
-      // Post 2
-      if (snap2.exists()) {
-        const d = snap2.data();
-        setP2MinageRows(d.minageRows || []);
-        setP2DeblayageRows(d.deblayageRows || []);
-        setP2ExtractionRows(d.extractionRows || []);
-        setP2MaintenanceRows(d.maintenanceRows || []);
-        setP2ChiefMatricule(d.chiefMatricule || '');
-        setP2ChiefName(d.chiefName || '');
-        setP2SecondChiefMatricule(d.secondChiefMatricule || '');
-        setP2SecondChiefName(d.secondChiefName || '');
-      } else {
-        const t = buildTemplateForPost('Poste 2', yesterdayDateStr);
-        setP2MinageRows(t.minageRows);
-        setP2DeblayageRows(t.deblayageRows);
-        setP2ExtractionRows(t.extractionRows);
-        setP2MaintenanceRows(t.maintenanceRows);
-        setP2ChiefMatricule(t.chiefMatricule);
-        setP2ChiefName(t.chiefName);
-        setP2SecondChiefMatricule(t.secondChiefMatricule);
-        setP2SecondChiefName(t.secondChiefName);
-      }
+        if (planSnap.exists()) {
+          const planData = planSnap.data();
+          setIsTemplateLoaded(true);
 
-      // Post 3
-      if (snap3.exists()) {
-        const d = snap3.data();
-        setP3MinageRows(d.minageRows || []);
-        setP3DeblayageRows(d.deblayageRows || []);
-        setP3ExtractionRows(d.extractionRows || []);
-        setP3MaintenanceRows(d.maintenanceRows || []);
-        setP3ChiefMatricule(d.chiefMatricule || '');
-        setP3ChiefName(d.chiefName || '');
-        setP3SecondChiefMatricule(d.secondChiefMatricule || '');
-        setP3SecondChiefName(d.secondChiefName || '');
-      } else {
-        const t = buildTemplateForPost('Poste 3', yesterdayDateStr);
-        setP3MinageRows(t.minageRows);
-        setP3DeblayageRows(t.deblayageRows);
-        setP3ExtractionRows(t.extractionRows);
-        setP3MaintenanceRows(t.maintenanceRows);
-        setP3ChiefMatricule(t.chiefMatricule);
-        setP3ChiefName(t.chiefName);
-        setP3SecondChiefMatricule(t.secondChiefMatricule);
-        setP3SecondChiefName(t.secondChiefName);
-      }
+          // Post 1
+          const p1Plan = planData?.postes?.poste1;
+          if (p1Plan) {
+            setP1MinageRows(generateFromPlan(filterRealPlannedRows(p1Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 1', 'minage'));
+            setP1DeblayageRows(generateFromPlan(filterRealPlannedRows(p1Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 1', 'deblayage'));
+            setP1ExtractionRows(generateFromPlan(filterRealPlannedRows(p1Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 1', 'extraction'));
+            setP1MaintenanceRows(generateFromPlan(filterRealPlannedRows(p1Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 1', 'maintenance'));
+            setP1ChiefMatricule(p1Plan.chiefMatricule || '');
+            setP1ChiefName(p1Plan.chiefName || '');
+            setP1SecondChiefMatricule(p1Plan.secondChiefMatricule || '');
+            setP1SecondChiefName(p1Plan.secondChiefName || '');
+            setP1SectorChefs(buildDefaultSectorChefs('Poste 1', yesterdayDateStr));
+          } else {
+            const defaults = generateSaisieLibreDefaults('Poste 1');
+            setP1MinageRows(defaults.minage);
+            setP1DeblayageRows(defaults.deblayage);
+            setP1ExtractionRows(defaults.extraction);
+            setP1MaintenanceRows(defaults.maintenance);
+            setP1ChiefMatricule(''); setP1ChiefName('');
+            setP1SecondChiefMatricule(''); setP1SecondChiefName('');
+            setP1SectorChefs(buildDefaultSectorChefs('Poste 1', yesterdayDateStr));
+          }
 
-      const isNew = !snap1.exists() || !snap2.exists() || !snap3.exists();
-      setIsTemplateLoaded(isNew);
+          // Post 2
+          const p2Plan = planData?.postes?.poste2;
+          if (p2Plan) {
+            setP2MinageRows(generateFromPlan(filterRealPlannedRows(p2Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 2', 'minage'));
+            setP2DeblayageRows(generateFromPlan(filterRealPlannedRows(p2Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 2', 'deblayage'));
+            setP2ExtractionRows(generateFromPlan(filterRealPlannedRows(p2Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 2', 'extraction'));
+            setP2MaintenanceRows(generateFromPlan(filterRealPlannedRows(p2Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 2', 'maintenance'));
+            setP2ChiefMatricule(p2Plan.chiefMatricule || '');
+            setP2ChiefName(p2Plan.chiefName || '');
+            setP2SecondChiefMatricule(p2Plan.secondChiefMatricule || '');
+            setP2SecondChiefName(p2Plan.secondChiefName || '');
+            setP2SectorChefs(buildDefaultSectorChefs('Poste 2', yesterdayDateStr));
+          } else {
+            const defaults = generateSaisieLibreDefaults('Poste 2');
+            setP2MinageRows(defaults.minage);
+            setP2DeblayageRows(defaults.deblayage);
+            setP2ExtractionRows(defaults.extraction);
+            setP2MaintenanceRows(defaults.maintenance);
+            setP2ChiefMatricule(''); setP2ChiefName('');
+            setP2SecondChiefMatricule(''); setP2SecondChiefName('');
+            setP2SectorChefs(buildDefaultSectorChefs('Poste 2', yesterdayDateStr));
+          }
+
+          // Post 3
+          const p3Plan = planData?.postes?.poste3;
+          if (p3Plan) {
+            setP3MinageRows(generateFromPlan(filterRealPlannedRows(p3Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 3', 'minage'));
+            setP3DeblayageRows(generateFromPlan(filterRealPlannedRows(p3Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 3', 'deblayage'));
+            setP3ExtractionRows(generateFromPlan(filterRealPlannedRows(p3Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 3', 'extraction'));
+            setP3MaintenanceRows(generateFromPlan(filterRealPlannedRows(p3Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 3', 'maintenance'));
+            setP3ChiefMatricule(p3Plan.chiefMatricule || '');
+            setP3ChiefName(p3Plan.chiefName || '');
+            setP3SecondChiefMatricule(p3Plan.secondChiefMatricule || '');
+            setP3SecondChiefName(p3Plan.secondChiefName || '');
+            setP3SectorChefs(buildDefaultSectorChefs('Poste 3', yesterdayDateStr));
+          } else {
+            const defaults = generateSaisieLibreDefaults('Poste 3');
+            setP3MinageRows(defaults.minage);
+            setP3DeblayageRows(defaults.deblayage);
+            setP3ExtractionRows(defaults.extraction);
+            setP3MaintenanceRows(defaults.maintenance);
+            setP3ChiefMatricule(''); setP3ChiefName('');
+            setP3SecondChiefMatricule(''); setP3SecondChiefName('');
+            setP3SectorChefs(buildDefaultSectorChefs('Poste 3', yesterdayDateStr));
+          }
+
+        } else {
+          // Both do not exist -> Free Entry
+          setNoPlanFound(true);
+          setIsTemplateLoaded(false);
+
+          const default1 = generateSaisieLibreDefaults('Poste 1');
+          setP1MinageRows(default1.minage);
+          setP1DeblayageRows(default1.deblayage);
+          setP1ExtractionRows(default1.extraction);
+          setP1MaintenanceRows(default1.maintenance);
+          setP1ChiefMatricule(''); setP1ChiefName('');
+          setP1SecondChiefMatricule(''); setP1SecondChiefName('');
+          setP1SectorChefs(buildDefaultSectorChefs('Poste 1', yesterdayDateStr));
+
+          const default2 = generateSaisieLibreDefaults('Poste 2');
+          setP2MinageRows(default2.minage);
+          setP2DeblayageRows(default2.deblayage);
+          setP2ExtractionRows(default2.extraction);
+          setP2MaintenanceRows(default2.maintenance);
+          setP2ChiefMatricule(''); setP2ChiefName('');
+          setP2SecondChiefMatricule(''); setP2SecondChiefName('');
+          setP2SectorChefs(buildDefaultSectorChefs('Poste 2', yesterdayDateStr));
+
+          const default3 = generateSaisieLibreDefaults('Poste 3');
+          setP3MinageRows(default3.minage);
+          setP3DeblayageRows(default3.deblayage);
+          setP3ExtractionRows(default3.extraction);
+          setP3MaintenanceRows(default3.maintenance);
+          setP3ChiefMatricule(''); setP3ChiefName('');
+          setP3SecondChiefMatricule(''); setP3SecondChiefName('');
+          setP3SectorChefs(buildDefaultSectorChefs('Poste 3', yesterdayDateStr));
+        }
+      }
       setTemplateDateHint(format(yesterdayDateObj, 'dd/MM/yyyy'));
     } catch (err) {
       console.error("Erreur de chargement du classeur : ", err);
@@ -853,7 +1281,8 @@ export const Production: React.FC = () => {
         chiefMatricule: p1ChiefMatricule, setChiefMatricule: setP1ChiefMatricule,
         chiefName: p1ChiefName, setChiefName: setP1ChiefName,
         secondChiefMatricule: p1SecondChiefMatricule, setSecondChiefMatricule: setP1SecondChiefMatricule,
-        secondChiefName: p1SecondChiefName, setSecondChiefName: setP1SecondChiefName
+        secondChiefName: p1SecondChiefName, setSecondChiefName: setP1SecondChiefName,
+        sectorChefs: p1SectorChefs, setSectorChefs: setP1SectorChefs
       };
     } else if (post === 'Poste 2') {
       return {
@@ -864,7 +1293,8 @@ export const Production: React.FC = () => {
         chiefMatricule: p2ChiefMatricule, setChiefMatricule: setP2ChiefMatricule,
         chiefName: p2ChiefName, setChiefName: setP2ChiefName,
         secondChiefMatricule: p2SecondChiefMatricule, setSecondChiefMatricule: setP2SecondChiefMatricule,
-        secondChiefName: p2SecondChiefName, setSecondChiefName: setP2SecondChiefName
+        secondChiefName: p2SecondChiefName, setSecondChiefName: setP2SecondChiefName,
+        sectorChefs: p2SectorChefs, setSectorChefs: setP2SectorChefs
       };
     } else {
       return {
@@ -875,8 +1305,243 @@ export const Production: React.FC = () => {
         chiefMatricule: p3ChiefMatricule, setChiefMatricule: setP3ChiefMatricule,
         chiefName: p3ChiefName, setChiefName: setP3ChiefName,
         secondChiefMatricule: p3SecondChiefMatricule, setSecondChiefMatricule: setP3SecondChiefMatricule,
-        secondChiefName: p3SecondChiefName, setSecondChiefName: setP3SecondChiefName
+        secondChiefName: p3SecondChiefName, setSecondChiefName: setP3SecondChiefName,
+        sectorChefs: p3SectorChefs, setSectorChefs: setP3SectorChefs
       };
+    }
+  };
+
+  // State-wide Plan to Reel Copying Helpers
+  const isMinageReelFilled = (reel: any) => {
+    return !!(
+      reel.chantierId ||
+      reel.minerMatricule ||
+      reel.assistantMatricule ||
+      reel.realHoles > 0 ||
+      reel.realRounds > 0 ||
+      reel.realMeterage > 0 ||
+      reel.anfo > 0 ||
+      reel.tovex > 0 ||
+      reel.ammorces > 0
+    );
+  };
+
+  const copyMinagePlanToReel = (postName: string, originalIndex: number) => {
+    const { setMinageRows, minageRows } = getPostState(postName);
+    const clone = [...minageRows];
+    const row = clone[originalIndex];
+    if (!row) return;
+
+    const performCopy = () => {
+      const updatedReel = {
+        ...row.reel,
+        chantierId: row.plan.chantierId || row.reel.chantierId || '',
+        minerMatricule: row.plan.minerMatricule || row.reel.minerMatricule || '',
+        minerName: row.plan.minerName || row.reel.minerName || '',
+        assistantMatricule: row.plan.assistantMatricule || row.reel.assistantMatricule || '',
+        assistantName: row.plan.assistantName || row.reel.assistantName || '',
+        gallerySize: row.plan.gallerySize || row.reel.gallerySize || 12,
+        realHoles: row.plan.plannedHoles || row.reel.realHoles || 0,
+        realRounds: row.plan.plannedRounds || row.reel.realRounds || 0,
+        realMeterage: row.plan.plannedRounds ? (row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
+        meterage: row.plan.plannedRounds ? (row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
+      };
+      clone[originalIndex] = { ...row, reel: updatedReel };
+      setMinageRows(clone);
+    };
+
+    if (isMinageReelFilled(row.reel)) {
+      if (window.confirm("La ligne de minage réelle possède déjà des données. Voulez-vous écraser avec le plan ?")) {
+        performCopy();
+      }
+    } else {
+      performCopy();
+    }
+  };
+
+  const copyAllMinagePlanToReel = (postName: string) => {
+    const { setMinageRows, minageRows } = getPostState(postName);
+    const hasFilled = minageRows.some(row => isMinageReelFilled(row.reel));
+    const performCopy = () => {
+      const updated = minageRows.map(row => {
+        const updatedReel = {
+          ...row.reel,
+          chantierId: row.plan.chantierId || row.reel.chantierId || '',
+          minerMatricule: row.plan.minerMatricule || row.reel.minerMatricule || '',
+          minerName: row.plan.minerName || row.reel.minerName || '',
+          assistantMatricule: row.plan.assistantMatricule || row.reel.assistantMatricule || '',
+          assistantName: row.plan.assistantName || row.reel.assistantName || '',
+          gallerySize: row.plan.gallerySize || row.reel.gallerySize || 12,
+          realHoles: row.plan.plannedHoles || row.reel.realHoles || 0,
+          realRounds: row.plan.plannedRounds || row.reel.realRounds || 0,
+          realMeterage: row.plan.plannedRounds ? (row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
+          meterage: row.plan.plannedRounds ? (row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
+        };
+        return { ...row, reel: updatedReel };
+      });
+      setMinageRows(updated);
+    };
+
+    if (hasFilled) {
+      if (window.confirm("Certaines lignes de minage réelles possèdent déjà des données. Voulez-vous tout écraser avec le plan ?")) {
+        performCopy();
+      }
+    } else {
+      performCopy();
+    }
+  };
+
+  const isDeblayageReelFilled = (reel: any) => {
+    return !!(
+      reel.chantierId ||
+      reel.driverMatricule ||
+      reel.engineId ||
+      reel.godets > 0 ||
+      reel.volumeEstimated > 0 ||
+      reel.gasoil > 0 ||
+      reel.remarks
+    );
+  };
+
+  const copyDeblayagePlanToReel = (postName: string, originalIndex: number) => {
+    const { setDeblayageRows, deblayageRows } = getPostState(postName);
+    const clone = [...deblayageRows];
+    const row = clone[originalIndex];
+    if (!row) return;
+
+    const performCopy = () => {
+      const updatedReel = {
+        ...row.reel,
+        chantierId: row.plan.chantierId || row.reel.chantierId || '',
+        driverMatricule: row.plan.driverMatricule || row.reel.driverMatricule || '',
+        driverName: row.plan.driverName || row.reel.driverName || '',
+        engineId: row.plan.engineId || row.reel.engineId || '',
+        engineCode: row.plan.engineCode || row.reel.engineCode || '',
+        godets: row.plan.godets || row.reel.godets || 0,
+        volumeEstimated: row.plan.volumeEstimated || row.reel.volumeEstimated || 0,
+        gasoil: row.plan.gasoil || row.reel.gasoil || 0,
+        startTime: row.plan.startTime || row.reel.startTime,
+        endTime: row.plan.endTime || row.reel.endTime,
+      };
+      clone[originalIndex] = { ...row, reel: updatedReel };
+      setDeblayageRows(clone);
+    };
+
+    if (isDeblayageReelFilled(row.reel)) {
+      if (window.confirm("La ligne de déblayage réelle possède déjà des données. Écraser ?")) {
+        performCopy();
+      }
+    } else {
+      performCopy();
+    }
+  };
+
+  const copyAllDeblayagePlanToReel = (postName: string) => {
+    const { setDeblayageRows, deblayageRows } = getPostState(postName);
+    const hasFilled = deblayageRows.some(row => isDeblayageReelFilled(row.reel));
+    const performCopy = () => {
+      const updated = deblayageRows.map(row => {
+        const updatedReel = {
+          ...row.reel,
+          chantierId: row.plan.chantierId || row.reel.chantierId || '',
+          driverMatricule: row.plan.driverMatricule || row.reel.driverMatricule || '',
+          driverName: row.plan.driverName || row.reel.driverName || '',
+          engineId: row.plan.engineId || row.reel.engineId || '',
+          engineCode: row.plan.engineCode || row.reel.engineCode || '',
+          godets: row.plan.godets || row.reel.godets || 0,
+          volumeEstimated: row.plan.volumeEstimated || row.reel.volumeEstimated || 0,
+          gasoil: row.plan.gasoil || row.reel.gasoil || 0,
+          startTime: row.plan.startTime || row.reel.startTime,
+          endTime: row.plan.endTime || row.reel.endTime,
+        };
+        return { ...row, reel: updatedReel };
+      });
+      setDeblayageRows(updated);
+    };
+
+    if (hasFilled) {
+      if (window.confirm("Certaines lignes de déblayage réelles possèdent déjà des données. Écraser tout ?")) {
+        performCopy();
+      }
+    } else {
+      performCopy();
+    }
+  };
+
+  const isExtractionReelFilled = (reel: any) => {
+    return !!(
+      reel.treuilliste ||
+      reel.equipier1 ||
+      reel.equipier2 ||
+      reel.equipier3 ||
+      reel.equipier4 ||
+      reel.wagonsActual > 0 ||
+      reel.sterileBureImiterEst > 0
+    );
+  };
+
+  const copyExtractionPlanToReel = (postName: string, originalIndex: number) => {
+    const { setExtractionRows, extractionRows } = getPostState(postName);
+    const clone = [...extractionRows];
+    const row = clone[originalIndex];
+    if (!row) return;
+
+    const performCopy = () => {
+      const updatedReel = {
+        ...row.reel,
+        treuilliste: row.plan.treuilliste || row.reel.treuilliste || '',
+        equipier1: row.plan.equipier1 || row.reel.equipier1 || '',
+        equipier2: row.plan.equipier2 || row.reel.equipier2 || '',
+        equipier3: row.plan.equipier3 || row.reel.equipier3 || '',
+        equipier4: row.plan.equipier4 || row.reel.equipier4 || '',
+        wagonsActual: row.plan.wagonsActual || row.reel.wagonsActual || 0,
+        wagonsTarget: row.plan.wagonsTarget || row.reel.wagonsTarget || 48,
+        sterileBureImiterEst: row.plan.sterileBureImiterEst || row.reel.sterileBureImiterEst || 0,
+        startTime: row.plan.startTime || row.reel.startTime,
+        endTime: row.plan.endTime || row.reel.endTime,
+      };
+      clone[originalIndex] = { ...row, reel: updatedReel };
+      setExtractionRows(clone);
+    };
+
+    if (isExtractionReelFilled(row.reel)) {
+      if (window.confirm("La ligne d'extraction réelle possède déjà des données. Écraser ?")) {
+        performCopy();
+      }
+    } else {
+      performCopy();
+    }
+  };
+
+  const copyAllExtractionPlanToReel = (postName: string) => {
+    const { setExtractionRows, extractionRows } = getPostState(postName);
+    const hasFilled = extractionRows.some(row => isExtractionReelFilled(row.reel));
+    const performCopy = () => {
+      const updated = extractionRows.map(row => {
+        const updatedReel = {
+          ...row.reel,
+          treuilliste: row.plan.treuilliste || row.reel.treuilliste || '',
+          equipier1: row.plan.equipier1 || row.reel.equipier1 || '',
+          equipier2: row.plan.equipier2 || row.reel.equipier2 || '',
+          equipier3: row.plan.equipier3 || row.reel.equipier3 || '',
+          equipier4: row.plan.equipier4 || row.reel.equipier4 || '',
+          wagonsActual: row.plan.wagonsActual || row.reel.wagonsActual || 0,
+          wagonsTarget: row.plan.wagonsTarget || row.reel.wagonsTarget || 48,
+          sterileBureImiterEst: row.plan.sterileBureImiterEst || row.reel.sterileBureImiterEst || 0,
+          startTime: row.plan.startTime || row.reel.startTime,
+          endTime: row.plan.endTime || row.reel.endTime,
+        };
+        return { ...row, reel: updatedReel };
+      });
+      setExtractionRows(updated);
+    };
+
+    if (hasFilled) {
+      if (window.confirm("Certaines lignes d'extraction réelles possèdent déjà des données. Écraser tout ?")) {
+        performCopy();
+      }
+    } else {
+      performCopy();
     }
   };
 
@@ -886,16 +1551,61 @@ export const Production: React.FC = () => {
     setMinageRows([
       ...minageRows,
       {
-        sector: sector,
-        chantierId: '',
-        chiefMatricule: '',
-        chiefName: '',
-        minerMatricule: '', minerName: '',
-        assistantMatricule: '', assistantName: '',
-        gallerySize: 12, plannedHoles: 32, realHoles: 32,
-        plannedRounds: 1, realRounds: 1, meterage: 1.7, realMeterage: 1.7, anfo: 50, tovex: 12, ammorces: 12
+        rowId: `minage_add_${Math.random().toString(36).substr(2, 9)}`,
+        plan: createEmptyMinage(sector),
+        reel: createEmptyMinage(sector)
       }
     ]);
+  };
+
+  const updateSectorChief = (
+    postName: string,
+    sectorName: string,
+    type: 'chief' | 'second',
+    matricule: string,
+    name: string
+  ) => {
+    const state = getPostState(postName);
+    const sectorChefs = state.sectorChefs || {};
+    
+    const updated = {
+      ...sectorChefs,
+      [sectorName]: {
+        ...(sectorChefs[sectorName] || { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' }),
+        ...(type === 'chief'
+          ? { chiefMatricule: matricule, chiefName: name }
+          : { secondChiefMatricule: matricule, secondChiefName: name })
+      }
+    };
+    
+    state.setSectorChefs(updated);
+
+    // Sync overall post chief details for backwards compatibility / overall report view.
+    const activeSectorsWithChefs = Object.keys(updated)
+      .map(s => updated[s])
+      .filter(sc => sc.chiefMatricule);
+      
+    if (activeSectorsWithChefs.length > 0) {
+      const primary = activeSectorsWithChefs[0];
+      state.setChiefMatricule(primary.chiefMatricule);
+      state.setChiefName(primary.chiefName);
+      
+      const seconds = activeSectorsWithChefs
+        .filter(sc => sc.secondChiefMatricule)
+        .map(sc => sc.secondChiefName);
+      if (seconds.length > 0) {
+        state.setSecondChiefMatricule(activeSectorsWithChefs[0].secondChiefMatricule || '');
+        state.setSecondChiefName(seconds[0]);
+      } else {
+        state.setSecondChiefMatricule('');
+        state.setSecondChiefName('');
+      }
+    } else {
+      state.setChiefMatricule('');
+      state.setChiefName('');
+      state.setSecondChiefMatricule('');
+      state.setSecondChiefName('');
+    }
   };
 
   const deleteMinageRow = (postName: string, index: number) => {
@@ -906,25 +1616,26 @@ export const Production: React.FC = () => {
   const updateMinageCell = (postName: string, index: number, field: keyof ExcelMinage, value: any) => {
     const { setMinageRows, minageRows } = getPostState(postName);
     const clone = [...minageRows];
-    clone[index] = { ...clone[index], [field]: value };
+    const rowWrapper = clone[index];
+    const updatedReel = { ...rowWrapper.reel, [field]: value };
     
     if (field === 'minerMatricule') {
       const emp = activeEmployees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
-      clone[index].minerName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+      updatedReel.minerName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
     }
     if (field === 'assistantMatricule') {
       const emp = activeEmployees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
-      clone[index].assistantName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+      updatedReel.assistantName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
     }
     if (field === 'realRounds') {
       const computed = Number(value) * 1.7;
-      clone[index].meterage = computed;
-      clone[index].realMeterage = computed;
+      updatedReel.meterage = computed;
+      updatedReel.realMeterage = computed;
     }
     if (field === 'chantierId') {
       const foundChan = chantiers.find(c => c.id === value);
       if (foundChan && foundChan.sector) {
-        clone[index].sector = foundChan.sector;
+        updatedReel.sector = foundChan.sector;
         
         // Auto-propose sector chef if not set
         const state = getPostState(postName);
@@ -938,6 +1649,7 @@ export const Production: React.FC = () => {
         }
       }
     }
+    clone[index] = { ...rowWrapper, reel: updatedReel };
     setMinageRows(clone);
   };
 
@@ -952,9 +1664,9 @@ export const Production: React.FC = () => {
     setDeblayageRows([
       ...deblayageRows,
       {
-        chantierId: 'Imiter 1', driverMatricule: '', driverName: '', engineId: '', engineCode: '',
-        godets: 0, volumeEstimated: 0, gasoil: 0, lubrifiant1: '', lubrifiant1Qty: 0, lubrifiant2: '', lubrifiant2Qty: 0,
-        startTime: start, endTime: end, remarks: ''
+        rowId: `deblayage_add_${Math.random().toString(36).substr(2, 9)}`,
+        plan: createEmptyDeblayage('Imiter 1', start, end),
+        reel: createEmptyDeblayage('Imiter 1', start, end)
       }
     ]);
   };
@@ -967,18 +1679,20 @@ export const Production: React.FC = () => {
   const updateDeblayageCell = (postName: string, index: number, field: keyof ExcelDeblayage, value: any) => {
     const { setDeblayageRows, deblayageRows } = getPostState(postName);
     const clone = [...deblayageRows];
-    clone[index] = { ...clone[index], [field]: value };
+    const rowWrapper = clone[index];
+    const updatedReel = { ...rowWrapper.reel, [field]: value };
 
     if (field === 'driverMatricule') {
       const emp = activeEmployees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
-      clone[index].driverName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+      updatedReel.driverName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
     }
     if (field === 'engineId') {
-      clone[index].engineCode = String(value);
+      updatedReel.engineCode = String(value);
     }
     if (field === 'godets') {
-      clone[index].volumeEstimated = Number(value) * 1.5;
+      updatedReel.volumeEstimated = Number(value) * 1.5;
     }
+    clone[index] = { ...rowWrapper, reel: updatedReel };
     setDeblayageRows(clone);
   };
 
@@ -987,8 +1701,9 @@ export const Production: React.FC = () => {
     setExtractionRows([
       ...extractionRows,
       {
-        treuilliste: '', equipier1: '', equipier2: '', equipier3: '', equipier4: '',
-        wagonsActual: 0, wagonsTarget: 48, sterileBureImiterEst: 0, startTime: '', endTime: ''
+        rowId: `extraction_add_${Math.random().toString(36).substr(2, 9)}`,
+        plan: createEmptyExtraction(),
+        reel: createEmptyExtraction()
       }
     ]);
   };
@@ -1001,7 +1716,9 @@ export const Production: React.FC = () => {
   const updateExtractionCell = (postName: string, index: number, field: keyof ExcelExtraction, value: any) => {
     const { setExtractionRows, extractionRows } = getPostState(postName);
     const clone = [...extractionRows];
-    clone[index] = { ...clone[index], [field]: value };
+    const rowWrapper = clone[index];
+    const updatedReel = { ...rowWrapper.reel, [field]: value };
+    clone[index] = { ...rowWrapper, reel: updatedReel };
     setExtractionRows(clone);
   };
 
@@ -1009,7 +1726,11 @@ export const Production: React.FC = () => {
     const { setMaintenanceRows, maintenanceRows } = getPostState(postName);
     setMaintenanceRows([
       ...maintenanceRows,
-      { roleLabel: '', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: 6, workDescription: '' }
+      {
+        rowId: `maintenance_add_${Math.random().toString(36).substr(2, 9)}`,
+        plan: createEmptyMaintenance(),
+        reel: createEmptyMaintenance()
+      }
     ]);
   };
 
@@ -1021,15 +1742,17 @@ export const Production: React.FC = () => {
   const updateMaintenanceCell = (postName: string, index: number, field: keyof ExcelMaintenance, value: any) => {
     const { setMaintenanceRows, maintenanceRows } = getPostState(postName);
     const clone = [...maintenanceRows];
-    clone[index] = { ...clone[index], [field]: value };
+    const rowWrapper = clone[index];
+    const updatedReel = { ...rowWrapper.reel, [field]: value };
 
     if (field === 'agentMatricule') {
       const emp = activeEmployees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
-      clone[index].agentName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+      updatedReel.agentName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
     }
     if (field === 'engineId') {
-      clone[index].engineCode = String(value);
+      updatedReel.engineCode = String(value);
     }
+    clone[index] = { ...rowWrapper, reel: updatedReel };
     setMaintenanceRows(clone);
   };
 
@@ -1038,89 +1761,56 @@ export const Production: React.FC = () => {
     setSaveStatus('saving');
     try {
       const postsList = ['Poste 1', 'Poste 2', 'Poste 3'];
+      const postesObj: any = {};
 
       for (const pName of postsList) {
+        const pKey = pName === 'Poste 1' ? 'poste1' : pName === 'Poste 2' ? 'poste2' : 'poste3';
         const {
           minageRows, deblayageRows, extractionRows, maintenanceRows,
-          chiefMatricule, chiefName, secondChiefMatricule, secondChiefName
+          chiefMatricule, chiefName, secondChiefMatricule, secondChiefName,
+          sectorChefs
         } = getPostState(pName);
 
-        // Inject the global shift chef(s) into each individual minage row for compatibility
+        // Inject the sector-specific chef(s) into each individual minage row for compatibility
         const finalMinageRows = minageRows.map(row => {
-          const finalChiefMatricule = chiefMatricule;
-          const finalChiefName = secondChiefName ? `${chiefName} / ${secondChiefName}` : chiefName;
+          const rowSecName = row.reel.sector || 'Autres / Non Classés';
+          const secChief = sectorChefs[rowSecName] || { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' };
+          const finalChiefMatricule = secChief.chiefMatricule;
+          const finalChiefName = secChief.secondChiefName ? `${secChief.chiefName} / ${secChief.secondChiefName}` : secChief.chiefName;
           return {
             ...row,
-            chiefMatricule: finalChiefMatricule,
-            chiefName: finalChiefName
+            reel: {
+              ...row.reel,
+              chiefMatricule: finalChiefMatricule,
+              chiefName: finalChiefName
+            }
           };
         });
 
-        const docId = `${selectedDate}_${pName.replace(/\s+/g, '_')}`;
-
-        const payload = {
-          date: selectedDate,
-          post: pName,
-          operator: user?.email || 'Secrétaire de Direction SMI',
-          timestamp: new Date().toISOString(),
-          minageRows: finalMinageRows,
-          deblayageRows: deblayageRows,
-          extractionRows: extractionRows,
-          maintenanceRows: maintenanceRows,
-          chiefMatricule,
-          chiefName,
-          secondChiefMatricule,
-          secondChiefName
+        postesObj[pKey] = {
+          chiefMatricule: chiefMatricule || '',
+          chiefName: chiefName || '',
+          secondChiefMatricule: secondChiefMatricule || '',
+          secondChiefName: secondChiefName || '',
+          status: 'scelle',
+          minage: finalMinageRows,
+          deblayage: deblayageRows,
+          extraction: extractionRows,
+          maintenance: maintenanceRows,
+          sectorChefs: sectorChefs || {}
         };
-
-        // 1. Save Excel Workbook Document
-        await setDoc(doc(db, 'daily_excel_sheets', docId), payload);
-
-        // 2. Save Production History Summary
-        await setDoc(doc(db, 'production_history', docId), {
-          date: selectedDate,
-          post: pName,
-          lastUpdated: new Date().toISOString(),
-          timestamp: new Date().toISOString(),
-          totalBlasts: minageRows.filter(r => r.chantierId !== '').length,
-          totalMeterage: minageRows.reduce((acc, r) => acc + (r.chantierId ? r.meterage : 0), 0),
-          totalWagons: extractionRows.reduce((acc, r) => acc + (r.wagonsActual || 0), 0),
-          status: 'validated'
-        });
-
-        // 3. Sync to Consolidated Production collection for DailyReport
-        const prodColl = collection(db, 'production');
-        const qExist = query(prodColl, where('date', '==', selectedDate), where('post', '==', pName));
-        const existSnap = await getDocs(qExist);
-        for (const md of existSnap.docs) {
-          await deleteDoc(doc(db, 'production', md.id));
-        }
-
-        // Add active minage rows to consolidated production
-        for (const row of finalMinageRows.filter(r => r.chantierId !== '')) {
-          const chantierObj = chantiers.find(c => c.id === row.chantierId);
-          await addDoc(prodColl, {
-            date: selectedDate,
-            post: pName,
-            chantierId: row.chantierId,
-            chantierName: chantierObj?.name || 'Slick',
-            chiefName: secondChiefName ? `${chiefName} / ${secondChiefName}` : chiefName,
-            minerName: row.minerName,
-            assistantName: row.assistantName,
-            gallerySize: row.gallerySize === 9 ? '9m2' : '12m2',
-            holeCount: row.realHoles,
-            rounds: row.realRounds,
-            meterage: row.realMeterage,
-            meteragePlanned: row.meterage,
-            explosives: {
-              anfo: row.anfo,
-              tovex: row.tovex,
-              ammorces: row.ammorces
-            },
-            timestamp: new Date().toISOString()
-          });
-        }
       }
+
+      const payload = {
+        date: selectedDate,
+        status: 'scelle',
+        operator: user?.email || 'Secrétaire de Direction SMI',
+        timestamp: new Date().toISOString(),
+        postes: postesObj
+      };
+
+      // Save to production under a single daily document with merging enabled
+      await setDoc(doc(db, 'production', selectedDate), payload, { merge: true });
 
       // Clear draft on successful save
       localStorage.removeItem(`draft_production_${selectedDate}`);
@@ -1145,8 +1835,8 @@ export const Production: React.FC = () => {
 
     const { setDeblayageRows, setExtractionRows } = getPostState(postName);
 
-    setDeblayageRows(prev => prev.map(row => ({ ...row, startTime: start, endTime: end })));
-    setExtractionRows(prev => prev.map(row => ({ ...row, startTime: start, endTime: end })));
+    setDeblayageRows(prev => prev.map(row => ({ ...row, reel: { ...row.reel, startTime: start, endTime: end } })));
+    setExtractionRows(prev => prev.map(row => ({ ...row, reel: { ...row.reel, startTime: start, endTime: end } })));
   };
 
   const copyYesterdayShiftTeam = async (postName: string) => {
@@ -1155,95 +1845,124 @@ export const Production: React.FC = () => {
       const parsedDate = new Date(selectedDate + "T12:00:00");
       const yesterday = subDays(parsedDate, 1);
       const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
-      const yesterdayDocId = `${yesterdayStr}_${postName.replace(/\s+/g, '_')}`;
 
-      // Use target getDoc for high performance and reliability
-      const yesterdayDocSnap = await getDoc(doc(db, 'daily_excel_sheets', yesterdayDocId));
+      // Fetch unified yesterday production document
+      const yesterdayDocSnap = await getDoc(doc(db, 'production', yesterdayStr));
 
       if (yesterdayDocSnap.exists()) {
-        const data = yesterdayDocSnap.data();
-        const {
-          setMinageRows, setDeblayageRows, setExtractionRows, setMaintenanceRows,
-          setChiefMatricule, setChiefName, setSecondChiefMatricule, setSecondChiefName
-        } = getPostState(postName);
+        const docData = yesterdayDocSnap.data();
+        const pKey = postName === 'Poste 1' ? 'poste1' : postName === 'Poste 2' ? 'poste2' : 'poste3';
+        const data = docData.postes?.[pKey];
 
-        // Copy high-level chief info
-        if (data.chiefMatricule) {
-          setChiefMatricule(data.chiefMatricule);
-          setChiefName(data.chiefName || '');
-        }
-        if (data.secondChiefMatricule) {
-          setSecondChiefMatricule(data.secondChiefMatricule);
-          setSecondChiefName(data.secondChiefName || '');
-        }
+        if (data) {
+          const {
+            setMinageRows, setDeblayageRows, setExtractionRows, setMaintenanceRows,
+            setChiefMatricule, setChiefName, setSecondChiefMatricule, setSecondChiefName
+          } = getPostState(postName);
 
-        // 1. Minage rows copy miners & assistant
-        if (data.minageRows && data.minageRows.length > 0) {
-          setMinageRows(prev => prev.map((row, idx) => {
-            const yRow = data.minageRows[idx];
-            if (yRow) {
-              return {
-                ...row,
-                minerMatricule: yRow.minerMatricule || '',
-                minerName: yRow.minerName || '',
-                assistantMatricule: yRow.assistantMatricule || '',
-                assistantName: yRow.assistantName || '',
-              };
-            }
-            return row;
-          }));
-        }
+          // Copy high-level chief info
+          if (data.chiefMatricule) {
+            setChiefMatricule(data.chiefMatricule);
+            setChiefName(data.chiefName || '');
+          }
+          if (data.secondChiefMatricule) {
+            setSecondChiefMatricule(data.secondChiefMatricule);
+            setSecondChiefName(data.secondChiefName || '');
+          }
 
-        // 2. Deblayage rows
-        if (data.deblayageRows && data.deblayageRows.length > 0) {
-          setDeblayageRows(prev => prev.map((row, idx) => {
-            const yRow = data.deblayageRows[idx];
-            if (yRow) {
-              return {
-                ...row,
-                driverMatricule: yRow.driverMatricule || '',
-                driverName: yRow.driverName || '',
-              };
-            }
-            return row;
-          }));
-        }
+          // Copy sector chief details
+          if (data.sectorChefs) {
+            const { setSectorChefs } = getPostState(postName);
+            setSectorChefs(data.sectorChefs);
+          }
 
-        // 3. Extraction rows
-        if (data.extractionRows && data.extractionRows.length > 0) {
-          setExtractionRows(prev => prev.map((row, idx) => {
-            const yRow = data.extractionRows[idx];
-            if (yRow) {
-              return {
-                ...row,
-                treuilliste: yRow.treuilliste || '',
-                equipier1: yRow.equipier1 || '',
-                equipier2: yRow.equipier2 || '',
-                equipier3: yRow.equipier3 || '',
-                equipier4: yRow.equipier4 || '',
-              };
-            }
-            return row;
-          }));
-        }
+          // 1. Minage rows copy miners & assistant
+          if (data.minage && data.minage.length > 0) {
+            setMinageRows(prev => prev.map((row, idx) => {
+              const yRow = data.minage[idx];
+              if (yRow) {
+                const yReel = yRow.reel || yRow;
+                return {
+                  ...row,
+                  reel: {
+                    ...row.reel,
+                    minerMatricule: yReel.minerMatricule || '',
+                    minerName: yReel.minerName || '',
+                    assistantMatricule: yReel.assistantMatricule || '',
+                    assistantName: yReel.assistantName || '',
+                  }
+                };
+              }
+              return row;
+            }));
+          }
 
-        // 4. Maintenance rows
-        if (data.maintenanceRows && data.maintenanceRows.length > 0) {
-          setMaintenanceRows(prev => prev.map((row, idx) => {
-            const yRow = data.maintenanceRows[idx];
-            if (yRow) {
-              return {
-                ...row,
-                agentMatricule: yRow.agentMatricule || '',
-                agentName: yRow.agentName || '',
-              };
-            }
-            return row;
-          }));
-        }
+          // 2. Deblayage rows
+          if (data.deblayage && data.deblayage.length > 0) {
+            setDeblayageRows(prev => prev.map((row, idx) => {
+              const yRow = data.deblayage[idx];
+              if (yRow) {
+                const yReel = yRow.reel || yRow;
+                return {
+                  ...row,
+                  reel: {
+                    ...row.reel,
+                    driverMatricule: yReel.driverMatricule || '',
+                    driverName: yReel.driverName || '',
+                  }
+                };
+              }
+              return row;
+            }));
+          }
 
-        setCopyStatus('copied');
-        setTimeout(() => setCopyStatus('idle'), 2500);
+          // 3. Extraction rows
+          if (data.extraction && data.extraction.length > 0) {
+            setExtractionRows(prev => prev.map((row, idx) => {
+              const yRow = data.extraction[idx];
+              if (yRow) {
+                const yReel = yRow.reel || yRow;
+                return {
+                  ...row,
+                  reel: {
+                    ...row.reel,
+                    treuilliste: yReel.treuilliste || '',
+                    equipier1: yReel.equipier1 || '',
+                    equipier2: yReel.equipier2 || '',
+                    equipier3: yReel.equipier3 || '',
+                    equipier4: yReel.equipier4 || '',
+                  }
+                };
+              }
+              return row;
+            }));
+          }
+
+          // 4. Maintenance rows
+          if (data.maintenance && data.maintenance.length > 0) {
+            setMaintenanceRows(prev => prev.map((row, idx) => {
+              const yRow = data.maintenance[idx];
+              if (yRow) {
+                const yReel = yRow.reel || yRow;
+                return {
+                  ...row,
+                  reel: {
+                    ...row.reel,
+                    agentMatricule: yReel.agentMatricule || '',
+                    agentName: yReel.agentName || '',
+                  }
+                };
+              }
+              return row;
+            }));
+          }
+
+          setCopyStatus('copied');
+          setTimeout(() => setCopyStatus('idle'), 2500);
+        } else {
+          setCopyStatus('no_data');
+          setTimeout(() => setCopyStatus('idle'), 2500);
+        }
       } else {
         setCopyStatus('no_data');
         setTimeout(() => setCopyStatus('idle'), 2500);
@@ -1265,40 +1984,53 @@ export const Production: React.FC = () => {
 
     shifts.forEach(shiftName => {
       const state = getPostState(shiftName);
-      const { minageRows, deblayageRows, extractionRows, chiefMatricule, chiefName, secondChiefMatricule, secondChiefName } = state;
+      const { minageRows: minageWrappers, deblayageRows: deblayageWrappers, extractionRows: extractionWrappers, sectorChefs } = state;
+      const minageRows = minageWrappers.map(w => w.reel);
+      const deblayageRows = deblayageWrappers.map(w => w.reel);
+      const extractionRows = extractionWrappers.map(w => w.reel);
 
-      // 1. Missing chief when activity present
-      const hasActivity = minageRows.some(r => r.chantierId) || deblayageRows.length > 0 || extractionRows.length > 0;
-      if (hasActivity && !chiefMatricule) {
-        logs.push({
-          level: 'danger',
-          msg: `⚠️ Encadrement requis sur le ${shiftName} : Des activités de production ont été saisies mais aucun Chef de Poste Principal n'est spécifié.`
-        });
-      }
-
-      // 2. Double chief within same post
-      if (chiefMatricule && secondChiefMatricule && chiefMatricule.trim().toUpperCase() === secondChiefMatricule.trim().toUpperCase()) {
-        logs.push({
-          level: 'danger',
-          msg: `⚠️ Doublon d'encadrement sur le ${shiftName} : Le chef principal et le deuxième chef possèdent le même matricule (${chiefMatricule}).`
-        });
-      }
-
-      // Track chef assignments
-      if (chiefMatricule) {
-        const key = chiefMatricule.trim().toUpperCase();
-        if (!chefShifts[key]) {
-          chefShifts[key] = { name: chiefName || chiefMatricule, shifts: [] };
+      // Check missing chief / double chief within each sector
+      const sectors = ['Imiter 2', 'Imiter 1', 'Imiter Est', 'Autres / Non Classés'];
+      sectors.forEach(secName => {
+        const sectorRows = minageRows.filter(r => (r.sector || '').trim().toLowerCase() === secName.trim().toLowerCase() && r.chantierId);
+        const secChief = (sectorChefs || {})[secName] || { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' };
+        
+        // Missing sector chief when active (Shift 3 is optional as per user criteria: "parfois comme la 3eme poste on a pas un chef et c'est pas grave")
+        if (sectorRows.length > 0 && !secChief.chiefMatricule && shiftName !== 'Poste 3') {
+          logs.push({
+            level: 'danger',
+            msg: `⚠️ Encadrement requis pour ${secName} (${shiftName}) : Des activités de minage sont saisies mais aucun Chef de Poste n'est spécifié pour ce secteur.`
+          });
         }
-        chefShifts[key].shifts.push(shiftName);
-      }
-      if (secondChiefMatricule) {
-        const key = secondChiefMatricule.trim().toUpperCase();
-        if (!chefShifts[key]) {
-          chefShifts[key] = { name: secondChiefName || secondChiefMatricule, shifts: [] };
+
+        // Double chief within same sector
+        if (secChief.chiefMatricule && secChief.secondChiefMatricule && secChief.chiefMatricule.trim().toUpperCase() === secChief.secondChiefMatricule.trim().toUpperCase()) {
+          logs.push({
+            level: 'danger',
+            msg: `⚠️ Doublon d'encadrement sur le secteur ${secName} du ${shiftName} : Le chef principal et le deuxième chef possèdent le même matricule (${secChief.chiefMatricule}).`
+          });
         }
-        chefShifts[key].shifts.push(shiftName);
-      }
+
+        // Track chef assignments across shifts
+        if (secChief.chiefMatricule) {
+          const key = secChief.chiefMatricule.trim().toUpperCase();
+          if (!chefShifts[key]) {
+            chefShifts[key] = { name: secChief.chiefName || secChief.chiefMatricule, shifts: [] };
+          }
+          if (!chefShifts[key].shifts.includes(shiftName)) {
+            chefShifts[key].shifts.push(shiftName);
+          }
+        }
+        if (secChief.secondChiefMatricule) {
+          const key = secChief.secondChiefMatricule.trim().toUpperCase();
+          if (!chefShifts[key]) {
+            chefShifts[key] = { name: secChief.secondChiefName || secChief.secondChiefMatricule, shifts: [] };
+          }
+          if (!chefShifts[key].shifts.includes(shiftName)) {
+            chefShifts[key].shifts.push(shiftName);
+          }
+        }
+      });
 
       // 3. Extraction productivity cadence warning
       extractionRows.forEach(row => {
@@ -1350,179 +2082,333 @@ export const Production: React.FC = () => {
     return logs;
   };
 
-  const renderSectorRows = (postName: string, sectorName: string, accentBgHeader: string, textColorAccent: string, stripBgAccent: string) => {
-    const { minageRows } = getPostState(postName);
+  const renderSectorCards = (postName: string, sectorName: string, borderColorAccent: string, textColorAccent: string, stripBgAccent: string) => {
+    const { minageRows, sectorChefs } = getPostState(postName);
+    
     // Filter matching rows
     const rows = minageRows
       .map((row, idx) => ({ row, idx }))
       .filter(item => {
-        const rowSec = (item.row.sector || '').trim().toLowerCase();
+        const rowSec = (item.row.reel.sector || item.row.plan.sector || '').trim().toLowerCase();
         const targetSec = sectorName.trim().toLowerCase();
         return rowSec === targetSec;
       });
 
     return (
-      <>
-        {/* Header Band */}
-        <tr className={`${accentBgHeader} border-y border-slate-250 select-none`}>
-          <td colSpan={13} className="p-2 text-[10.5px] font-black uppercase tracking-wider">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 inline-block ${stripBgAccent}`}></span>
-                <span className={`${textColorAccent}`}>Secteur : <strong className="font-extrabold">{sectorName}</strong></span>
+      <div className="space-y-3">
+        {/* Sector Control Band */}
+        <div className={`p-3 bg-slate-100 rounded-lg border-l-4 ${borderColorAccent} flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs`}>
+          <div className="flex items-center gap-3">
+            <span className={`w-3 h-3 ${stripBgAccent} rounded-sm shrink-0`}></span>
+            <span className={`${textColorAccent} text-sm font-black uppercase tracking-wider`}>
+              Secteur : <strong>{sectorName}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => addMinageRowForSector(postName, sectorName)}
+              className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[9px] uppercase px-3 py-1.5 flex items-center gap-1 transition-all rounded shadow-sm cursor-pointer shrink-0"
+            >
+              <Plus className="w-3 h-3 text-[#00BFFF]" /> Ajouter Ligne
+            </button>
+          </div>
+
+          {/* Encadrement de secteur */}
+          <div className="flex items-center gap-3 flex-wrap bg-white p-1.5 rounded-md border border-slate-200/80 max-w-4xl">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-slate-800 font-extrabold uppercase shrink-0">Chef de Secteur :</span>
+              <div className="w-40 shrink-0">
+                <EmployeeCell
+                  matricule={(sectorChefs || {})[sectorName]?.chiefMatricule || ''}
+                  name={(sectorChefs || {})[sectorName]?.chiefName || ''}
+                  onChange={(mat, resName) => updateSectorChief(postName, sectorName, 'chief', mat, resName)}
+                  employees={activeEmployees}
+                  placeholder="Chef..."
+                />
               </div>
-              <button
-                type="button"
-                onClick={() => addMinageRowForSector(postName, sectorName)}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[9px] uppercase px-3 py-1 flex items-center gap-1 transition-all rounded shadow-sm cursor-pointer"
-              >
-                <Plus className="w-3 h-3 text-[#00BFFF]" /> Ajouter Ligne ({sectorName})
-              </button>
             </div>
-          </td>
-        </tr>
 
-        {/* Rows list */}
-        {rows.map(({ row, idx }) => {
-          return (
-            <tr key={idx} className="hover:bg-slate-50 transition-colors">
-              <td className="p-2 font-mono text-slate-400 bg-slate-50/50 text-center font-bold border-r border-slate-200">{idx + 1}</td>
-              
-              {/* Dynamically filtered Chantier list according to selected Sector */}
-              <td className="p-2 border-r border-slate-200">
-                <select
-                  value={row.chantierId}
-                  onChange={e => updateMinageCell(postName, idx, 'chantierId', e.target.value)}
-                  className="w-full text-slate-800 border border-slate-200 p-1 focus:border-[#8B0000] focus:ring-1 focus:ring-[#8B0000] outline-none font-bold"
-                >
-                  <option value="">(Sélectionner Chantier)</option>
-                  {(() => {
-                    const rowSec = (row.sector || 'Imiter 1').trim().toLowerCase();
-                    const filteredChan = chantiers.filter(c => {
-                      const cSec = (c.sector || '').trim().toLowerCase();
-                      return cSec === rowSec || cSec.includes(rowSec) || rowSec.includes(cSec);
-                    });
-                    const displayedList = filteredChan.length > 0 ? filteredChan : chantiers;
-                    return displayedList.map(c => (
-                      <option key={c.id} value={c.id}>{c.name || c.id}</option>
-                    ));
-                  })()}
-                </select>
-              </td>
-
-              <td className="p-2 border-r border-slate-200">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-slate-500 font-bold uppercase shrink-0">Adjoint :</span>
+              <div className="w-40 shrink-0">
                 <EmployeeCell
-                  matricule={row.minerMatricule}
-                  name={row.minerName}
-                  onChange={(mat) => updateMinageCell(postName, idx, 'minerMatricule', mat)}
+                  matricule={(sectorChefs || {})[sectorName]?.secondChiefMatricule || ''}
+                  name={(sectorChefs || {})[sectorName]?.secondChiefName || ''}
+                  onChange={(mat, resName) => updateSectorChief(postName, sectorName, 'second', mat, resName)}
                   employees={activeEmployees}
-                  placeholder="Matr. Mineur..."
+                  placeholder="Adjoint..."
                 />
-              </td>
-              <td className="p-2 border-r border-slate-200">
-                <EmployeeCell
-                  matricule={row.assistantMatricule}
-                  name={row.assistantName}
-                  onChange={(mat) => updateMinageCell(postName, idx, 'assistantMatricule', mat)}
-                  employees={activeEmployees}
-                  placeholder="Matr. Assistant..."
-                />
-              </td>
-              <td className="p-2 border-r border-slate-200 text-center">
-                <select
-                  value={row.gallerySize}
-                  onChange={e => updateMinageCell(postName, idx, 'gallerySize', Number(e.target.value))}
-                  className="border border-slate-200 p-1 w-full text-center font-bold"
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card Grid */}
+        {rows.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {rows.map(({ row: rowWrapper, idx }) => {
+              const row = rowWrapper.reel;
+              const plan = rowWrapper.plan;
+
+              const minerMismatch = !!(row.minerMatricule && plan.minerMatricule && row.minerMatricule.trim().toUpperCase() !== plan.minerMatricule.trim().toUpperCase());
+              const assistantMismatch = !!(row.assistantMatricule && plan.assistantMatricule && row.assistantMatricule.trim().toUpperCase() !== plan.assistantMatricule.trim().toUpperCase());
+              const hasMismatch = minerMismatch || assistantMismatch;
+
+              const realMeterageVal = row.realMeterage === undefined ? row.meterage : row.realMeterage;
+              const rendement = row.realRounds > 0 ? (realMeterageVal / row.realRounds) : 0;
+              const plannedMeterageVal = plan.meterage || 0;
+              const diffMeteragePct = plannedMeterageVal > 0 ? ((realMeterageVal - plannedMeterageVal) / plannedMeterageVal) * 100 : 0;
+
+              const chantierObj = chantiers.find(c => c.id === row.chantierId);
+              const plannedTotalMeterage = chantierObj?.plannedTotalMeterage || 100;
+              const currentMeterage = chantierObj?.currentMeterage || 0;
+              const progressPct = plannedTotalMeterage > 0 ? Math.min(100, (currentMeterage / plannedTotalMeterage) * 100) : 0;
+
+              return (
+                <div 
+                  key={idx} 
+                  data-card-container="true"
+                  className="bg-white border border-slate-300 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow relative space-y-3 flex flex-col justify-between"
                 >
-                  <option value={9}>9m</option>
-                  <option value={12}>12m</option>
-                </select>
-              </td>
-              <td className="p-2 border-r border-slate-200 text-center">
-                <input
-                  type="number"
-                  value={row.realHoles}
-                  onChange={e => updateMinageCell(postName, idx, 'realHoles', Number(e.target.value))}
-                  className="w-full font-mono text-center border border-slate-200 p-1"
-                />
-              </td>
-              <td className="p-2 border-r border-slate-200 text-center">
-                <input
-                  type="number"
-                  value={row.realRounds}
-                  onChange={e => updateMinageCell(postName, idx, 'realRounds', Number(e.target.value))}
-                  className="w-full font-mono text-center border border-slate-200 p-1 font-bold"
-                />
-              </td>
-              <td className="p-2 border-r border-slate-200 text-center text-[#8B0000] bg-[#8B0000]/5 font-bold">
-                {row.meterage.toFixed(1)}m
-              </td>
-              
-              {/* Métrage Arraché Column */}
-              <td className="p-2 border-r border-slate-200 text-center bg-teal-50 text-teal-900">
-                <input
-                  type="number"
-                  step="0.1"
-                  value={row.realMeterage === undefined ? row.meterage : row.realMeterage}
-                  onChange={e => updateMinageCell(postName, idx, 'realMeterage', Number(e.target.value))}
-                  className="w-full font-mono text-center font-black select-all"
-                />
-              </td>
+                  <div>
+                    {/* Header: Nom Chantier, Badge Secteur, Gallery size badge, Progress Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                      <div className="space-y-1 select-none">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] uppercase font-black px-1.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded">
+                            #{idx + 1}
+                          </span>
+                          <select
+                            value={row.chantierId}
+                            onChange={e => updateMinageCell(postName, idx, 'chantierId', e.target.value)}
+                            className="text-xs font-black uppercase text-slate-850 border-b border-dashed border-slate-300 focus:border-[#8B0000] focus:ring-0 outline-none pr-6 bg-transparent cursor-pointer"
+                          >
+                            <option value="">(Choisir Chantier)</option>
+                            {(() => {
+                              const rowSec = (row.sector || 'Imiter 1').trim().toLowerCase();
+                              const filteredChan = chantiers.filter(c => {
+                                const cSec = (c.sector || '').trim().toLowerCase();
+                                return cSec === rowSec || cSec.includes(rowSec) || rowSec.includes(cSec);
+                              });
+                              const displayedList = filteredChan.length > 0 ? filteredChan : chantiers;
+                              return displayedList.map(c => (
+                                <option key={c.id} value={c.id}>{c.name || c.id}</option>
+                              ));
+                            })()}
+                          </select>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          <span className="inline-block text-[8px] font-black uppercase tracking-wider text-[#8B0000] bg-red-50 border border-red-200/50 px-1.5 py-0.5 rounded">
+                            {sectorName}
+                          </span>
+                          <span className="inline-block text-[8px] font-black uppercase tracking-wider text-teal-850 bg-teal-50 border border-teal-200/50 px-1.5 py-0.5 rounded">
+                            Section: {row.gallerySize || 12} m²
+                          </span>
+                          {hasMismatch && (
+                            <span className="inline-block text-[8px] font-black uppercase tracking-wider text-amber-900 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded animate-pulse" title="Mineur ou Assistant réel ≠ Planifié">
+                              ⚠️ Équipe ≠ Plan
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-              {/* ANFO Column */}
-              <td className="p-2 border-r border-slate-200 text-center bg-slate-50/50">
-                <input
-                  type="number"
-                  value={row.anfo === 0 || row.anfo === undefined ? '' : row.anfo}
-                  placeholder="0"
-                  onChange={e => updateMinageCell(postName, idx, 'anfo', Number(e.target.value))}
-                  className="w-14 text-center font-mono border border-slate-200 p-0.5 rounded select-all font-bold"
-                />
-              </td>
+                      {/* Header Actions */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => copyMinagePlanToReel(postName, idx)}
+                          className="px-2 py-1 text-[9px] font-black uppercase bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 rounded tracking-wider cursor-pointer transition-all inline-flex items-center gap-1 shadow-sm select-none"
+                          title="Copier les valeurs de planification de ce chantier vers le réel"
+                        >
+                          <Copy className="w-2.5 h-2.5 text-amber-600" /> Copier
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteMinageRow(postName, idx)}
+                          className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer select-none"
+                          title="Supprimer ce chantier"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
 
-              {/* TOVEX Column */}
-              <td className="p-2 border-r border-slate-200 text-center bg-slate-50/50">
-                <input
-                  type="number"
-                  value={row.tovex === 0 || row.tovex === undefined ? '' : row.tovex}
-                  placeholder="0"
-                  onChange={e => updateMinageCell(postName, idx, 'tovex', Number(e.target.value))}
-                  className="w-14 text-center font-mono border border-slate-200 p-0.5 rounded select-all font-bold"
-                />
-              </td>
+                    {/* Progress gauge */}
+                    <div className="w-full space-y-1 py-1 border-b border-slate-100">
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase text-slate-500">
+                        <span>Progression Chantier</span>
+                        <span className="font-mono">{currentMeterage.toFixed(1)} / {plannedTotalMeterage.toFixed(1)} m ({progressPct.toFixed(0)}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-150 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-[#00BFFF] h-full transition-all duration-300" style={{ width: `${progressPct}%` }}></div>
+                      </div>
+                    </div>
 
-              {/* Amorces Column */}
-              <td className="p-2 border-r border-slate-200 text-center bg-slate-50/50">
-                <input
-                  type="number"
-                  value={row.ammorces === 0 || row.ammorces === undefined ? '' : row.ammorces}
-                  placeholder="0"
-                  onChange={e => updateMinageCell(postName, idx, 'ammorces', Number(e.target.value))}
-                  className="w-14 text-center font-mono border border-slate-200 p-0.5 rounded select-all font-bold"
-                />
-              </td>
+                    {/* Mini-table content wrapper */}
+                    <div className="overflow-x-auto mt-2">
+                      <table className="w-full text-left border-collapse border border-slate-200 text-[10px]">
+                        <thead>
+                          <tr className="bg-slate-50 text-[8px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                            <th className="p-1 px-1.5 border-r border-slate-200 w-14 text-center">Type</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200">Mineur</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200">Assistant</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-12">Sect</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-12">Trous</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-12">Vol</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-14 text-red-900">Métrage</th>
+                            <th className="p-1 px-1.5 text-center">ANFO/TOV/Am</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Plan Row */}
+                          <tr className="bg-slate-105 text-slate-500 font-bold border-b border-slate-200">
+                            <td className="p-1.5 border-r border-slate-200 text-[8px] font-black uppercase text-center bg-slate-150 flex items-center justify-center gap-1 select-none">
+                              <Lock className="w-2.5 h-2.5 text-slate-400" /> Plan
+                            </td>
+                            <td className="p-1 px-1.5 border-r border-slate-200 font-mono text-[9px]">{plan.minerMatricule || '(Aucun)'}</td>
+                            <td className="p-1 px-1.5 border-r border-slate-200 font-mono text-[9px]">{plan.assistantMatricule || '(Aucun)'}</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono">{plan.gallerySize || 12}m²</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono">{plan.plannedHoles || 32}</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono">{plan.plannedRounds || 1}</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono text-red-900">{plan.meterage?.toFixed(1) || '0.0'}m</td>
+                            <td className="p-1 text-center font-mono text-[9px]">-</td>
+                          </tr>
+                          {/* Real Row */}
+                          <tr className="bg-white text-slate-900 font-bold">
+                            <td className="p-1 border-r border-slate-200 text-[8px] font-black uppercase text-center bg-slate-50/50 flex items-center justify-center gap-1 select-none">
+                              <Pencil className="w-2.5 h-2.5 text-red-700" /> Réel
+                            </td>
+                            <td className="p-1 border-r border-slate-200">
+                              <EmployeeCell
+                                matricule={row.minerMatricule}
+                                name={row.minerName}
+                                onChange={(mat) => updateMinageCell(postName, idx, 'minerMatricule', mat)}
+                                employees={activeEmployees}
+                                placeholder="Mineur..."
+                                hideNameLabel={true}
+                                onKeyDown={handleKeyDown}
+                              />
+                              {minerMismatch && (
+                                <div className="text-[7.5px] font-black uppercase text-amber-700 leading-none mt-0.5 select-none" title={`Planifié : ${plan.minerMatricule}`}>
+                                  ⚠️ ≠ Plan ({plan.minerMatricule})
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-1 border-r border-slate-200">
+                              <EmployeeCell
+                                matricule={row.assistantMatricule}
+                                name={row.assistantName}
+                                onChange={(mat) => updateMinageCell(postName, idx, 'assistantMatricule', mat)}
+                                employees={activeEmployees}
+                                placeholder="Assistant..."
+                                hideNameLabel={true}
+                                onKeyDown={handleKeyDown}
+                              />
+                              {assistantMismatch && (
+                                <div className="text-[7.5px] font-black uppercase text-amber-700 leading-none mt-0.5 select-none" title={`Planifié : ${plan.assistantMatricule}`}>
+                                  ⚠️ ≠ Plan ({plan.assistantMatricule})
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-1 border-r border-slate-200 text-center">
+                              <select
+                                value={row.gallerySize}
+                                onChange={e => updateMinageCell(postName, idx, 'gallerySize', Number(e.target.value))}
+                                onKeyDown={handleKeyDown}
+                                className="border border-slate-200 p-0.5 text-center font-bold font-mono bg-transparent"
+                              >
+                                <option value={9}>9</option>
+                                <option value={12}>12</option>
+                              </select>
+                            </td>
+                            <td className="p-1 border-r border-slate-200 text-center">
+                              <input
+                                type="number"
+                                value={row.realHoles}
+                                onChange={e => updateMinageCell(postName, idx, 'realHoles', Number(e.target.value))}
+                                onKeyDown={handleKeyDown}
+                                className="w-full font-mono text-center border border-slate-200 p-0.5"
+                              />
+                            </td>
+                            <td className="p-1 border-r border-slate-200 text-center">
+                              <input
+                                type="number"
+                                value={row.realRounds}
+                                onChange={e => updateMinageCell(postName, idx, 'realRounds', Number(e.target.value))}
+                                onKeyDown={handleKeyDown}
+                                className="w-full font-mono text-center border border-slate-200 p-0.5 font-bold"
+                              />
+                            </td>
+                            <td className="p-1 border-r border-slate-200 text-center bg-teal-50/30">
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={row.realMeterage === undefined ? row.meterage : row.realMeterage}
+                                onChange={e => updateMinageCell(postName, idx, 'realMeterage', Number(e.target.value))}
+                                onKeyDown={handleKeyDown}
+                                className="w-full font-mono text-center font-black select-all"
+                              />
+                            </td>
+                            <td className="p-1 text-center font-mono">
+                              <div className="flex items-center gap-0.5 justify-center">
+                                <input
+                                  type="number"
+                                  value={row.anfo === 0 || row.anfo === undefined ? '' : row.anfo}
+                                  placeholder="AN"
+                                  onChange={e => updateMinageCell(postName, idx, 'anfo', Number(e.target.value))}
+                                  onKeyDown={handleKeyDown}
+                                  className="w-8 text-[9px] text-center font-mono border border-slate-200 p-0.5 rounded-sm select-all font-bold"
+                                  title="ANFO (kg)"
+                                />
+                                <input
+                                  type="number"
+                                  value={row.tovex === 0 || row.tovex === undefined ? '' : row.tovex}
+                                  placeholder="TV"
+                                  onChange={e => updateMinageCell(postName, idx, 'tovex', Number(e.target.value))}
+                                  onKeyDown={handleKeyDown}
+                                  className="w-8 text-[9px] text-center font-mono border border-slate-200 p-0.5 rounded-sm select-all font-bold"
+                                  title="TOVEX (kg)"
+                                />
+                                <input
+                                  type="number"
+                                  value={row.ammorces === 0 || row.ammorces === undefined ? '' : row.ammorces}
+                                  placeholder="AM"
+                                  onChange={e => updateMinageCell(postName, idx, 'ammorces', Number(e.target.value))}
+                                  onKeyDown={handleKeyDown}
+                                  className="w-8 text-[9px] text-center font-mono border border-slate-200 p-0.5 rounded-sm select-all font-bold"
+                                  title="Amorces"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
 
-              <td className="p-1 text-center">
-                <button
-                  type="button"
-                  onClick={() => deleteMinageRow(postName, idx)}
-                  className="p-1 text-slate-400 hover:text-red-600 transition-colors"
-                  title="Supprimer la ligne"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </td>
-            </tr>
-          );
-        })}
-        {rows.length === 0 && (
-          <tr>
-            <td colSpan={13} className="p-4 text-center text-slate-400 font-semibold italic text-[10px]">
-              Aucune ligne pour ce secteur. Cliquez sur "+ Ajouter Ligne" pour en insérer une.
-            </td>
-          </tr>
+                  {/* Deviations / Calculations and short text metrics */}
+                  <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-[10px] text-slate-600">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Rendement : <strong className="text-slate-800 text-xs">{rendement.toFixed(2)} m/volée</strong></span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Écart Métrage : <strong className={diffMeteragePct === 0 ? "text-slate-600" : diffMeteragePct > 0 ? "text-emerald-700 bg-emerald-50 px-1 rounded font-bold" : "text-rose-700 bg-rose-50 px-1 rounded font-bold"}>
+                        {diffMeteragePct > 0 ? '+' : ''}{diffMeteragePct.toFixed(1)}% vs. Obj
+                      </strong></span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-[10px] text-slate-400 font-bold italic p-3 bg-slate-50 rounded border border-dashed border-slate-200/60 font-black uppercase tracking-wider text-center">
+            Aucun chantier pour ce secteur.
+          </div>
         )}
-      </>
+      </div>
     );
   };
 
@@ -1537,222 +2423,339 @@ export const Production: React.FC = () => {
     setDeblayageRows([
       ...deblayageRows,
       {
-        sector: sector,
-        chantierId: '',
-        driverMatricule: '',
-        driverName: '',
-        engineId: '',
-        engineCode: '',
-        godets: 0,
-        volumeEstimated: 0,
-        gasoil: 0,
-        lubrifiant1: '',
-        lubrifiant1Qty: 0,
-        lubrifiant2: '',
-        lubrifiant2Qty: 0,
-        startTime: start,
-        endTime: end,
-        remarks: ''
+        rowId: `deblayage_add_${Math.random().toString(36).substr(2, 9)}`,
+        plan: createEmptyDeblayage(sector, start, end),
+        reel: createEmptyDeblayage(sector, start, end)
       }
     ]);
   };
 
-  const renderDeblayageSectorRows = (postName: string, sectorName: string, accentBgHeader: string, textColorAccent: string, stripBgAccent: string) => {
+  const renderDeblayageSectorCards = (postName: string, sectorName: string, borderColorAccent: string, textColorAccent: string, stripBgAccent: string) => {
     const { deblayageRows } = getPostState(postName);
     
     // Filter rows belonging to the sectorName
     const rows = deblayageRows
       .map((row, idx) => ({ row, idx }))
       .filter(item => {
-        const rowSec = (item.row.sector || '').trim().toLowerCase();
+        const rowSec = (item.row.reel.sector || item.row.plan.sector || '').trim().toLowerCase();
         const targetSec = sectorName.trim().toLowerCase();
         return rowSec === targetSec;
       });
 
     return (
-      <>
-        {/* Header Band */}
-        <tr className={`${accentBgHeader} border-y border-slate-250 select-none`}>
-          <td colSpan={16} className="p-2 text-[10.5px] font-black uppercase tracking-wider">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 inline-block ${stripBgAccent}`}></span>
-                <span className={`${textColorAccent}`}>Secteur : <strong className="font-extrabold">{sectorName}</strong></span>
-              </div>
-              <button
-                type="button"
-                onClick={() => addDeblayageRowForSector(postName, sectorName)}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[9px] uppercase px-3 py-1 flex items-center gap-1 transition-all rounded shadow-sm cursor-pointer"
-              >
-                <Plus className="w-3 h-3 text-[#00BFFF]" /> Ajouter Ligne ({sectorName})
-              </button>
-            </div>
-          </td>
-        </tr>
+      <div className="space-y-3">
+        {/* Sector Control Band */}
+        <div className={`p-3 bg-slate-100 rounded-lg border-l-4 ${borderColorAccent} flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs`}>
+          <div className="flex items-center gap-3">
+            <span className={`w-3 h-3 ${stripBgAccent} rounded-sm shrink-0`}></span>
+            <span className={`${textColorAccent} text-sm font-black uppercase tracking-wider`}>
+              Secteur : <strong>{sectorName}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => addDeblayageRowForSector(postName, sectorName)}
+              className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[9px] uppercase px-3 py-1 flex items-center gap-1 transition-all rounded shadow-sm cursor-pointer shrink-0"
+            >
+              <Plus className="w-3 h-3 text-[#00BFFF]" /> Ajouter Ligne
+            </button>
+          </div>
+        </div>
 
-        {/* Rows list */}
-        {rows.map(({ row, idx }) => {
-          const driverValName = getEmployeeName(row.driverMatricule);
-          return (
-            <tr key={idx} className="hover:bg-slate-50 transition-colors">
-              <td className="p-2 font-mono text-slate-400 bg-slate-50/50 text-center font-bold border-r border-slate-200">{idx + 1}</td>
-              
-              {/* Dynamically filtered Chantier list according to selected Sector */}
-              <td className="p-2 border-r border-slate-200">
-                <select
-                  value={row.chantierId}
-                  onChange={e => updateDeblayageCell(postName, idx, 'chantierId', e.target.value)}
-                  className="w-full text-slate-805 border border-slate-200 p-1 focus:border-[#8B0000] focus:ring-1 focus:ring-[#8B0000] outline-none font-bold"
+        {/* Card Grid */}
+        {rows.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {rows.map(({ row: rowWrapper, idx }) => {
+              const row = rowWrapper.reel;
+              const plan = rowWrapper.plan;
+              const driverValName = getEmployeeName(row.driverMatricule);
+
+              const driverMismatch = !!(row.driverMatricule && plan.driverMatricule && row.driverMatricule.trim().toUpperCase() !== plan.driverMatricule.trim().toUpperCase());
+              const realEngine = (row.engineId || row.engineCode || '').trim().toUpperCase();
+              const planEngine = (plan.engineId || plan.engineCode || '').trim().toUpperCase();
+              const engineMismatch = !!(realEngine && planEngine && realEngine !== planEngine);
+              const hasMismatch = driverMismatch || engineMismatch;
+
+              const targetVol = plan.volumeEstimated || 0;
+              const realVol = row.volumeEstimated || 0;
+              const diffVolAbs = realVol - targetVol;
+              const diffVolPct = targetVol > 0 ? (diffVolAbs / targetVol) * 100 : 0;
+
+              const gasoil = row.gasoil || 0;
+              const godets = row.godets || 0;
+              const ratioGasoilGodet = godets > 0 ? (gasoil / godets) : 0;
+
+              const chantierObj = chantiers.find(c => c.id === row.chantierId);
+              const plannedTotalMeterage = chantierObj?.plannedTotalMeterage || 100;
+              const currentMeterage = chantierObj?.currentMeterage || 0;
+              const progressPct = plannedTotalMeterage > 0 ? Math.min(100, (currentMeterage / plannedTotalMeterage) * 100) : 0;
+
+              return (
+                <div 
+                  key={idx} 
+                  data-card-container="true"
+                  className="bg-white border border-slate-300 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow relative space-y-3 flex flex-col justify-between"
                 >
-                  <option value="">(Sélectionner Chantier)</option>
-                  {(() => {
-                    const rowSec = (row.sector || 'Imiter 1').trim().toLowerCase();
-                    const filteredChan = chantiers.filter(c => {
-                      const cSec = (c.sector || '').trim().toLowerCase();
-                      return cSec === rowSec || cSec.includes(rowSec) || rowSec.includes(cSec);
-                    });
-                    const displayedList = filteredChan.length > 0 ? filteredChan : chantiers;
-                    return displayedList.map(c => (
-                      <option key={c.id} value={c.id}>{c.name || c.id}</option>
-                    ));
-                  })()}
-                </select>
-              </td>
+                  <div>
+                    {/* Header: Nom Chantier, Badge Secteur, Gallery size badge, Progress Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                      <div className="space-y-1 select-none">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] uppercase font-black px-1.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded">
+                            #{idx + 1}
+                          </span>
+                          <select
+                            value={row.chantierId}
+                            onChange={e => updateDeblayageCell(postName, idx, 'chantierId', e.target.value)}
+                            className="text-xs font-black uppercase text-slate-850 border-b border-dashed border-slate-300 focus:border-[#8B0000] focus:ring-0 outline-none pr-6 bg-transparent cursor-pointer"
+                          >
+                            <option value="">(Choisir Chantier)</option>
+                            {(() => {
+                              const rowSec = (row.sector || 'Imiter 1').trim().toLowerCase();
+                              const filteredChan = chantiers.filter(c => {
+                                const cSec = (c.sector || '').trim().toLowerCase();
+                                return cSec === rowSec || cSec.includes(rowSec) || rowSec.includes(cSec);
+                              });
+                              const displayedList = filteredChan.length > 0 ? filteredChan : chantiers;
+                              return displayedList.map(c => (
+                                <option key={c.id} value={c.id}>{c.name || c.id}</option>
+                              ));
+                            })()}
+                          </select>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          <span className="inline-block text-[8px] font-black uppercase tracking-wider text-[#00BFFF] bg-sky-50 border border-sky-250 px-1.5 py-0.5 rounded">
+                            {sectorName}
+                          </span>
+                          {chantierObj?.galleryType && (
+                            <span className="inline-block text-[8px] font-black uppercase tracking-wider text-teal-850 bg-teal-50 border border-teal-200/50 px-1.5 py-0.5 rounded">
+                              Section: {chantierObj.galleryType === '9m2' ? '9m²' : '12m²'}
+                            </span>
+                          )}
+                          {hasMismatch && (
+                            <span className="inline-block text-[8px] font-black uppercase tracking-wider text-amber-900 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded animate-pulse" title="Conducteur ou engin différent du plan">
+                              ⚠️ Équipe/Engin ≠ Plan
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-              <td className="p-2 border-r border-slate-200">
-                <EmployeeCell
-                  matricule={row.driverMatricule}
-                  name={row.driverName}
-                  onChange={(mat) => updateDeblayageCell(postName, idx, 'driverMatricule', mat)}
-                  employees={activeEmployees}
-                  placeholder="Matr. Conducteur..."
-                  hideNameLabel={true}
-                />
-              </td>
-              <td className="p-2 border-r border-slate-200 text-xs font-semibold text-slate-500 bg-slate-50/20">
-                {driverValName || 'Inconnu'}
-              </td>
+                      {/* Header Actions */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => copyDeblayagePlanToReel(postName, idx)}
+                          className="px-2 py-1 text-[9px] font-black uppercase bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 rounded tracking-wider cursor-pointer transition-all inline-flex items-center gap-1 shadow-sm select-none"
+                          title="Copier les valeurs de planification de ce chantier vers le réel"
+                        >
+                          <Copy className="w-2.5 h-2.5 text-amber-600" /> Copier
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteDeblayageRow(postName, idx)}
+                          className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer select-none"
+                          title="Supprimer ce chantier"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
 
-              {/* LHD Engines dropdown */}
-              <td className="p-2 border-r border-slate-200 font-bold">
-                <select
-                  value={row.engineId || row.engineCode || ''}
-                  onChange={e => updateDeblayageCell(postName, idx, 'engineId', e.target.value)}
-                  className="w-full border border-slate-200 p-1 font-mono text-xs font-bold"
-                >
-                  <option value="">-- Sélectionner LHD --</option>
-                  {platformSettings.engines.map(eng => <option key={eng} value={eng}>{eng}</option>)}
-                </select>
-              </td>
+                    {/* Progress gauge */}
+                    <div className="w-full space-y-1 py-1 border-b border-slate-100">
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase text-slate-500">
+                        <span>Progression Chantier</span>
+                        <span className="font-mono">{currentMeterage.toFixed(1)} / {plannedTotalMeterage.toFixed(1)} m ({progressPct.toFixed(0)}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-150 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-[#00BFFF] h-full transition-all duration-300" style={{ width: `${progressPct}%` }}></div>
+                      </div>
+                    </div>
 
-              <td className="p-2 border-r border-slate-200 text-center bg-[#00BFFF]/5 font-black text-blue-900">
-                <input
-                  type="number"
-                  value={row.godets === 0 || row.godets === undefined ? '' : row.godets}
-                  placeholder="0"
-                  onChange={e => updateDeblayageCell(postName, idx, 'godets', Number(e.target.value))}
-                  className="w-16 text-center bg-transparent border border-dashed border-slate-300 outline-none select-all font-black text-xs"
-                />
-              </td>
-              <td className="p-2 border-r border-slate-200 text-center font-bold font-mono text-emerald-800 bg-slate-50">
-                {row.volumeEstimated.toFixed(1)} m³
-              </td>
+                    {/* Mini-table content wrapper */}
+                    <div className="overflow-x-auto mt-2">
+                      <table className="w-full text-left border-collapse border border-slate-200 text-[10px]">
+                        <thead>
+                          <tr className="bg-slate-50 text-[8px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                            <th className="p-1 px-1.5 border-r border-slate-200 w-14 text-center">Type</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200">Conducteur</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200">Engin Assigné</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-12 font-black">Godets</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-14">Vol (m³)</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-24">Heures / Horaires</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-12 text-blue-900 bg-blue-50/20 font-bold">Gasoil</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center">Lubrifiant 1</th>
+                            <th className="p-1 px-1.5 text-center">Lubrifiant 2</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Plan Row */}
+                          <tr className="bg-slate-105 text-slate-500 font-bold border-b border-slate-200">
+                            <td className="p-1.5 border-r border-slate-200 text-[8px] font-black uppercase text-center bg-slate-150 flex items-center justify-center gap-1 select-none">
+                              <Lock className="w-2.5 h-2.5 text-slate-400" /> Plan
+                            </td>
+                            <td className="p-1 px-1.5 border-r border-slate-200 font-mono text-[9px]" colSpan={2}>
+                              {plan.driverMatricule ? `${plan.driverMatricule} - ${plan.driverName || ''}` : '(Aucun)'} 
+                              {plan.engineId || plan.engineCode ? ` [${plan.engineId || plan.engineCode}]` : ''}
+                            </td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono">{plan.godets || 0}</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono font-bold">{(plan.volumeEstimated || 0).toFixed(1)} m³</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono">{(plan.hoursWorked || 6).toFixed(1)}h prév.</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono">-</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono">-</td>
+                            <td className="p-1 text-center font-mono">-</td>
+                          </tr>
+                          {/* Real Row */}
+                          <tr className="bg-white text-slate-900 font-bold">
+                            <td className="p-1 border-r border-slate-200 text-[8px] font-black uppercase text-center bg-slate-50/50 flex items-center justify-center gap-1 select-none">
+                              <Pencil className="w-2.5 h-2.5 text-red-700" /> Réel
+                            </td>
+                            <td className="p-1 border-r border-slate-200">
+                              <EmployeeCell
+                                matricule={row.driverMatricule}
+                                name={row.driverName}
+                                onChange={(mat) => updateDeblayageCell(postName, idx, 'driverMatricule', mat)}
+                                employees={activeEmployees}
+                                placeholder="Cond..."
+                                hideNameLabel={true}
+                                onKeyDown={handleKeyDown}
+                              />
+                              {driverMismatch && (
+                                <div className="text-[7.5px] font-black uppercase text-amber-700 leading-none mt-0.5 select-none" title={`Planifié : ${plan.driverMatricule}`}>
+                                  ⚠️ ≠ Plan ({plan.driverMatricule})
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-1 border-r border-slate-200">
+                              <select
+                                value={row.engineId || row.engineCode || ''}
+                                onChange={e => updateDeblayageCell(postName, idx, 'engineId', e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                className="w-full border border-slate-200 p-0.5 font-mono text-[10px] font-bold"
+                              >
+                                <option value="">-- LHD --</option>
+                                {platformSettings.engines.map(eng => <option key={eng} value={eng}>{eng}</option>)}
+                              </select>
+                              {engineMismatch && (
+                                <div className="text-[7.5px] font-black uppercase text-amber-700 leading-none mt-0.5 select-none">
+                                  ⚠️ ≠ Plan ({plan.engineId || plan.engineCode || ''})
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-1 border-r border-slate-200 text-center">
+                              <input
+                                type="number"
+                                value={row.godets === 0 || row.godets === undefined ? '' : row.godets}
+                                placeholder="0"
+                                onChange={e => updateDeblayageCell(postName, idx, 'godets', Number(e.target.value))}
+                                onKeyDown={handleKeyDown}
+                                className="w-full text-center bg-transparent border border-dashed border-slate-300 outline-none select-all font-black text-[11px]"
+                              />
+                            </td>
+                            <td className="p-1 border-r border-slate-200 text-center font-bold font-mono text-emerald-800 bg-slate-50/10">
+                              {row.volumeEstimated.toFixed(1)}
+                            </td>
+                            <td className="p-1 border-r border-slate-200 text-center">
+                              <div className="flex items-center gap-0.5 justify-center">
+                                {renderTimeSelect(row.startTime || '', (val) => updateDeblayageCell(postName, idx, 'startTime', val))}
+                                <span className="text-[9px] text-slate-400 font-bold select-none">→</span>
+                                {renderTimeSelect(row.endTime || '', (val) => updateDeblayageCell(postName, idx, 'endTime', val))}
+                              </div>
+                            </td>
+                            <td className="p-1 border-r border-slate-200 text-center bg-blue-50/20">
+                              <input
+                                type="number"
+                                placeholder="0"
+                                value={row.gasoil === 0 || row.gasoil === undefined ? '' : row.gasoil}
+                                onChange={e => updateDeblayageCell(postName, idx, 'gasoil', Number(e.target.value))}
+                                onKeyDown={handleKeyDown}
+                                className="w-12 font-mono font-black text-center text-blue-950 border border-slate-200 p-0.5 rounded-sm select-all"
+                              />
+                            </td>
+                            <td className="p-1 border-r border-slate-200">
+                              <div className="flex flex-col gap-0.5 min-w-[70px]">
+                                <select
+                                  value={row.lubrifiant1 || ''}
+                                  onChange={e => updateDeblayageCell(postName, idx, 'lubrifiant1', e.target.value)}
+                                  onKeyDown={handleKeyDown}
+                                  className="w-full border border-slate-200 p-0.5 text-[9px]"
+                                >
+                                  <option value="">-- Aucun --</option>
+                                  {platformSettings.oils.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                                <input
+                                  type="number"
+                                  placeholder="0 L"
+                                  value={row.lubrifiant1Qty === 0 || row.lubrifiant1Qty === undefined ? '' : row.lubrifiant1Qty}
+                                  onChange={e => updateDeblayageCell(postName, idx, 'lubrifiant1Qty', Number(e.target.value))}
+                                  onKeyDown={handleKeyDown}
+                                  className="w-full text-center font-mono text-[9px] border border-slate-200 p-0.5"
+                                />
+                              </div>
+                            </td>
+                            <td className="p-1">
+                              <div className="flex flex-col gap-0.5 min-w-[70px]">
+                                <select
+                                  value={row.lubrifiant2 || ''}
+                                  onChange={e => updateDeblayageCell(postName, idx, 'lubrifiant2', e.target.value)}
+                                  onKeyDown={handleKeyDown}
+                                  className="w-full border border-slate-200 p-0.5 text-[9px]"
+                                >
+                                  <option value="">-- Aucun --</option>
+                                  {platformSettings.oils.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                                <input
+                                  type="number"
+                                  placeholder="0 L"
+                                  value={row.lubrifiant2Qty === 0 || row.lubrifiant2Qty === undefined ? '' : row.lubrifiant2Qty}
+                                  onChange={e => updateDeblayageCell(postName, idx, 'lubrifiant2Qty', Number(e.target.value))}
+                                  onKeyDown={handleKeyDown}
+                                  className="w-full text-center font-mono text-[9px] border border-slate-200 p-0.5"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
 
-              {/* Heure Début */}
-              <td className="p-2 border-r border-slate-200 text-center">
-                {renderTimeSelect(row.startTime || '', (val) => updateDeblayageCell(postName, idx, 'startTime', val))}
-              </td>
+                    {/* Fait de rotation - remarks inline */}
+                    <div className="mt-2 bg-slate-50/50 p-1.5 rounded border border-slate-150 flex items-center gap-1">
+                      <span className="text-[8px] font-black uppercase text-slate-500 select-none">Remarques :</span>
+                      <input
+                        type="text"
+                        value={row.remarks || ''}
+                        placeholder="Fait de rotation..."
+                        onChange={e => updateDeblayageCell(postName, idx, 'remarks', e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="flex-1 bg-transparent border-none outline-none text-[10px] p-0 font-medium text-slate-800"
+                      />
+                    </div>
+                  </div>
 
-              {/* Heure Finition */}
-              <td className="p-2 border-r border-slate-200 text-center">
-                {renderTimeSelect(row.endTime || '', (val) => updateDeblayageCell(postName, idx, 'endTime', val))}
-              </td>
+                  {/* Calculations and Deviations */}
+                  <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-[10px] text-slate-600">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Écart Vol. vs Obj : <strong className={diffVolAbs === 0 ? "text-slate-600" : diffVolAbs > 0 ? "text-emerald-700 bg-emerald-50 px-1 rounded font-bold" : "text-rose-700 bg-rose-50 px-1 rounded font-bold"}>
+                        {diffVolAbs > 0 ? '+' : ''}{diffVolAbs.toFixed(1)} m³ ({diffVolPct > 0 ? '+' : ''}{diffVolPct.toFixed(1)}%)
+                      </strong></span>
+                    </div>
 
-              {/* Gasoil Qty */}
-              <td className="p-2 border-r border-slate-200 text-center bg-blue-50/50">
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={row.gasoil === 0 || row.gasoil === undefined ? '' : row.gasoil}
-                  onChange={e => updateDeblayageCell(postName, idx, 'gasoil', Number(e.target.value))}
-                  className="w-16 font-mono font-black text-center text-blue-950 border border-slate-200 p-0.5 rounded-sm text-xs"
-                />
-              </td>
-
-              {/* Lubrifiant Pris 1 Dropdown */}
-              <td className="p-2 border-r border-slate-200 bg-blue-50/10">
-                <select
-                  value={row.lubrifiant1 || ''}
-                  onChange={e => updateDeblayageCell(postName, idx, 'lubrifiant1', e.target.value)}
-                  className="w-full border border-slate-200 p-0.5 text-[10px]"
-                >
-                  <option value="">-- Aucun --</option>
-                  {platformSettings.oils.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </td>
-              <td className="p-2 border-r border-slate-200 text-center bg-slate-50">
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={row.lubrifiant1Qty === 0 || row.lubrifiant1Qty === undefined ? '' : row.lubrifiant1Qty}
-                  onChange={e => updateDeblayageCell(postName, idx, 'lubrifiant1Qty', Number(e.target.value))}
-                  className="w-12 text-center font-mono text-xs border border-slate-200 p-0.5"
-                />
-              </td>
-
-              {/* Lubrifiant Pris 2 Dropdown */}
-              <td className="p-2 border-r border-slate-200 bg-blue-50/10">
-                <select
-                  value={row.lubrifiant2 || ''}
-                  onChange={e => updateDeblayageCell(postName, idx, 'lubrifiant2', e.target.value)}
-                  className="w-full border border-slate-200 p-0.5 text-[10px]"
-                >
-                  <option value="">-- Aucun --</option>
-                  {platformSettings.oils.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </td>
-              <td className="p-2 border-r border-slate-200 text-center bg-slate-50">
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={row.lubrifiant2Qty === 0 || row.lubrifiant2Qty === undefined ? '' : row.lubrifiant2Qty}
-                  onChange={e => updateDeblayageCell(postName, idx, 'lubrifiant2Qty', Number(e.target.value))}
-                  className="w-12 text-center font-mono text-xs border border-slate-200 p-0.5"
-                />
-              </td>
-
-              {/* Fait de rotation remarks */}
-              <td className="p-2 border-r border-slate-200">
-                <input
-                  type="text"
-                  placeholder="Fait marquant de rotation..."
-                  value={row.remarks || ''}
-                  onChange={e => updateDeblayageCell(postName, idx, 'remarks', e.target.value)}
-                  className="w-full border-0 outline-none uppercase bg-transparent text-slate-600 font-bold"
-                />
-              </td>
-
-              <td className="p-1 text-center">
-                <button
-                  type="button"
-                  onClick={() => deleteDeblayageRow(postName, idx)}
-                  className="p-1 text-slate-400 hover:text-red-600 transition-colors"
-                  title="Supprimer la ligne"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </td>
-            </tr>
-          );
-        })}
-        {rows.length === 0 && (
-          <tr>
-            <td colSpan={16} className="p-4 text-center text-slate-400 font-semibold italic text-[10px]">
-              Aucune ligne pour ce secteur. Cliquez sur "+ Ajouter Ligne" pour en insérer une.
-            </td>
-          </tr>
+                    <div className="flex items-center gap-1.5 font-mono">
+                      <Gauge className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Ratio G/G : <strong className="text-slate-800 font-bold">{ratioGasoilGodet.toFixed(2)} L/godet</strong></span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-[10px] text-slate-400 font-bold italic p-3 bg-slate-50 rounded border border-dashed border-slate-200/60 font-black uppercase tracking-wider text-center">
+            Aucun engin de déblayage pour ce secteur.
+          </div>
         )}
-      </>
+      </div>
     );
   };
 
@@ -1785,18 +2788,18 @@ export const Production: React.FC = () => {
             <span className="text-[10px] font-black text-slate-500 uppercase block leading-none tracking-wider">Métrage Jour</span>
             <span className="text-xl font-black text-slate-800 mt-1 block font-mono">
               {(
-                p1MinageRows.reduce((acc, r) => acc + (r.chantierId ? r.meterage : 0), 0) +
-                p2MinageRows.reduce((acc, r) => acc + (r.chantierId ? r.meterage : 0), 0) +
-                p3MinageRows.reduce((acc, r) => acc + (r.chantierId ? r.meterage : 0), 0)
+                p1MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? r.reel.meterage : 0), 0) +
+                p2MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? r.reel.meterage : 0), 0) +
+                p3MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? r.reel.meterage : 0), 0)
               ).toFixed(1)} m
             </span>
           </div>
           <div className="bg-slate-50 px-4 py-2 border border-slate-300/80 text-right shadow-sm rounded-none">
             <span className="text-[10px] font-black text-slate-500 uppercase block leading-none tracking-wider">Total Wagons</span>
             <span className="text-xl font-black text-slate-800 mt-1 block font-mono">
-              {p1ExtractionRows.reduce((acc, r) => acc + (r.wagonsActual || 0), 0) +
-               p2ExtractionRows.reduce((acc, r) => acc + (r.wagonsActual || 0), 0) +
-               p3ExtractionRows.reduce((acc, r) => acc + (r.wagonsActual || 0), 0)} u
+              {p1ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
+               p2ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
+               p3ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0)} u
             </span>
           </div>
           <div className="hidden sm:flex flex-col justify-center">
@@ -1811,15 +2814,24 @@ export const Production: React.FC = () => {
       {/* CAHIER CONTROL STRIP (DATE & VIEW OPTION) */}
       <div className="bg-[#8B0000]/5 p-4 border border-[#8B0000]/10 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#8B0000]" />
-            <span className="text-xs font-black uppercase text-[#8B0000]">Cahier d'Enregistrement :</span>
-            <input 
-              type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="bg-white text-slate-800 font-black text-xs border border-slate-300 rounded-none px-3 py-1.5 focus:border-[#8B0000] focus:ring-1 focus:ring-[#8B0000] outline-none"
-            />
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-[#8B0000]" />
+              <span className="text-xs font-black uppercase text-[#8B0000]">Cahier d'Enregistrement :</span>
+              <input 
+                type="date"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                className="bg-white text-slate-800 font-black text-xs border border-slate-300 rounded-none px-3 py-1.5 focus:border-[#8B0000] focus:ring-1 focus:ring-[#8B0000] outline-none"
+              />
+            </div>
+            
+            {noPlanFound && (
+              <div id="no-plan-found-badge" className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-amber-805 bg-amber-50 border border-amber-200 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                Aucune planification trouvée pour cette date (Saisie Libre)
+              </div>
+            )}
           </div>
           
           <div className="h-6 w-px bg-slate-200 hidden md:block" />
@@ -2038,6 +3050,13 @@ export const Production: React.FC = () => {
                           >
                             <Clock3 className="w-3.5 h-3.5 text-[#00BFFF]" /> Remplir Heures Standard
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => copyAllMinagePlanToReel(shiftName)}
+                            className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-black uppercase tracking-wider rounded flex items-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-amber-600" /> Copier Tout le Plan (Minage)
+                          </button>
                         </div>
                       </div>
 
@@ -2086,48 +3105,25 @@ export const Production: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Forage & Minage table */}
-                      <div className="overflow-x-auto rounded border border-slate-200 bg-white shadow-sm">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-extrabold uppercase text-[10px] tracking-wider">
-                              <th className="p-2 text-[10px] font-black uppercase text-center w-12 border-r border-slate-200 text-slate-500 bg-slate-50">#</th>
-                              <th className="p-2 text-[10px] font-black uppercase border-r border-slate-200 text-slate-700">Chantier</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Matr. Mineur</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Matr. Assistant</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-32 border-r border-slate-200 text-center text-slate-700">Section</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700">Trous forés</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700">Nbr. volées</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-28 border-r border-slate-200 text-center text-red-900 bg-red-50/50">Métrage Planifié</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-28 border-r border-slate-200 text-center bg-emerald-50 text-emerald-950 font-black">Métrage Arraché</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-20 border-r border-slate-200 text-center text-slate-700 bg-slate-100 font-bold">ANFO (kg)</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-20 border-r border-slate-200 text-center text-slate-700 bg-slate-100 font-bold">TOVEX (kg)</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-20 border-r border-slate-200 text-center text-slate-700 bg-slate-100 font-bold">Amorces</th>
-                              <th className="p-2 text-[10px] font-black uppercase text-center w-14 text-slate-700 bg-slate-50">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-150 text-[11px]">
-                            {renderSectorRows(shiftName, 'Imiter 2', 'bg-neutral-100/90 border-neutral-300 border-t-2', 'text-neutral-900', 'bg-[#8B0000]')}
-                            {renderSectorRows(shiftName, 'Imiter 1', 'bg-sky-50/80 border-sky-300 border-t-2', 'text-sky-950', 'bg-[#00BFFF]')}
-                            {renderSectorRows(shiftName, 'Imiter Est', 'bg-teal-50/80 border-teal-300 border-t-2', 'text-teal-950', 'bg-teal-600')}
-                            
-                            {(() => {
-                              const otherRows = rows.filter(r => 
-                                !['imiter 2', 'imiter 1', 'imiter est'].includes((r.sector || '').trim().toLowerCase())
-                              );
-                              if (otherRows.length === 0) return null;
-                              return renderSectorRows(shiftName, 'Autres / Non Classés', 'bg-slate-50', 'text-slate-900', 'bg-slate-400');
-                            })()}
+                      {/* Forage & Minage cards */}
+                      <div className="space-y-6">
+                        {renderSectorCards(shiftName, 'Imiter 2', 'border-neutral-300', 'text-neutral-900', 'bg-[#8B0000]')}
+                        {renderSectorCards(shiftName, 'Imiter 1', 'border-sky-300', 'text-sky-950', 'bg-[#00BFFF]')}
+                        {renderSectorCards(shiftName, 'Imiter Est', 'border-teal-300', 'text-teal-950', 'bg-teal-600')}
+                        
+                        {(() => {
+                          const otherRows = rows.filter(r => 
+                            !['imiter 2', 'imiter 1', 'imiter est'].includes((r.sector || '').trim().toLowerCase())
+                          );
+                          if (otherRows.length === 0) return null;
+                          return renderSectorCards(shiftName, 'Autres / Non Classés', 'border-slate-300', 'text-slate-900', 'bg-slate-400');
+                        })()}
 
-                            {rows.length === 0 && (
-                              <tr>
-                                <td colSpan={13} className="text-center p-8 text-slate-400 font-bold">
-                                  Aucune ligne active. Veuillez ajouter une ligne de minage pour commencer.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                        {rows.length === 0 && (
+                          <div className="text-center p-8 text-slate-400 font-bold bg-slate-50 border-2 border-dashed border-slate-250 rounded uppercase">
+                            Aucun chantier actif. Veuillez ajouter un chantier de minage pour commencer.
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -2258,6 +3254,13 @@ export const Production: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
+                            onClick={() => copyAllDeblayagePlanToReel(shiftName)}
+                            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-black uppercase tracking-wider rounded flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-amber-600" /> Copier Tout le Plan
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => addDeblayageRow(shiftName)}
                             className="bg-[#00BFFF] hover:bg-[#00BFFF]/95 text-white font-black text-[10px] uppercase px-3 py-1.5 flex items-center gap-1.5 transition-all shadow-sm rounded cursor-pointer"
                           >
@@ -2266,51 +3269,25 @@ export const Production: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Deblayage details table */}
-                      <div className="overflow-x-auto rounded border border-slate-200 bg-white">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-extrabold uppercase text-[10px] tracking-wider">
-                              <th className="p-2 text-[10px] font-black uppercase text-center w-12 border-r border-slate-200 text-slate-500 bg-slate-50">#</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-32 border-r border-slate-200 text-slate-700">Secteur Chargé</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-32 border-r border-slate-200 text-slate-700">Matr. Conducteur</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-44 border-r border-slate-200 text-slate-700">Conducteur Nom</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-36 border-r border-slate-200 text-slate-700">Engin Charge-LHD</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center bg-slate-50 text-slate-700">Nombre Godets</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700">Volume Estimé</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700">Heure Début</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700">Heure Finition</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center bg-blue-50/50 text-blue-900 font-bold">Gasoil Pris (L)</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-36 border-r border-slate-200 bg-slate-50 text-slate-700">Lubrifiant Pris 1</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-20 border-r border-slate-200 text-center bg-slate-50 text-slate-700 font-bold">Qté 1 (L/Kg)</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-36 border-r border-slate-200 bg-slate-50 text-slate-700">Lubrifiant Pris 2</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-20 border-r border-slate-200 text-center bg-slate-50 text-slate-700 font-bold">Qté 2 (L/Kg)</th>
-                              <th className="p-2 text-[10px] font-black uppercase border-r border-slate-200 text-slate-700">Fait de rotation</th>
-                              <th className="p-2 text-[10px] font-black uppercase text-center w-14 text-slate-700">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-150 text-[11px]">
-                            {renderDeblayageSectorRows(shiftName, 'Imiter 2', 'bg-neutral-100/90 border-neutral-300 border-t-2', 'text-neutral-900', 'bg-[#8B0000]')}
-                            {renderDeblayageSectorRows(shiftName, 'Imiter 1', 'bg-sky-50/80 border-sky-300 border-t-2', 'text-sky-950', 'bg-[#00BFFF]')}
-                            {renderDeblayageSectorRows(shiftName, 'Imiter Est', 'bg-teal-50/80 border-teal-300 border-t-2', 'text-teal-950', 'bg-teal-600')}
-                            
-                            {(() => {
-                              const otherRows = deblayageRows.filter(r => 
-                                !['imiter 2', 'imiter 1', 'imiter est'].includes((r.sector || '').trim().toLowerCase())
-                              );
-                              if (otherRows.length === 0) return null;
-                              return renderDeblayageSectorRows(shiftName, 'Autres / Non Classés', 'bg-slate-50', 'text-slate-900', 'bg-slate-400');
-                            })()}
+                      {/* Deblayage details cards */}
+                      <div className="space-y-6">
+                        {renderDeblayageSectorCards(shiftName, 'Imiter 2', 'border-neutral-300', 'text-neutral-900', 'bg-[#8B0000]')}
+                        {renderDeblayageSectorCards(shiftName, 'Imiter 1', 'border-sky-300', 'text-sky-950', 'bg-[#00BFFF]')}
+                        {renderDeblayageSectorCards(shiftName, 'Imiter Est', 'border-teal-300', 'text-teal-950', 'bg-teal-600')}
+                        
+                        {(() => {
+                          const otherRows = deblayageRows.filter(r => 
+                            !['imiter 2', 'imiter 1', 'imiter est'].includes((r.sector || '').trim().toLowerCase())
+                          );
+                          if (otherRows.length === 0) return null;
+                          return renderDeblayageSectorCards(shiftName, 'Autres / Non Classés', 'border-slate-300', 'text-slate-900', 'bg-slate-400');
+                        })()}
 
-                            {deblayageRows.length === 0 && (
-                              <tr>
-                                <td colSpan={16} className="text-center p-8 text-slate-400 font-bold">
-                                  Aucune ligne active. Veuillez ajouter une ligne de déblayage pour commencer.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                        {deblayageRows.length === 0 && (
+                          <div className="text-center p-8 text-slate-400 font-bold bg-slate-50 border-2 border-dashed border-slate-250 rounded uppercase">
+                            Aucune ligne active. Veuillez ajouter une chargeuse de déblayage pour commencer.
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -2436,6 +3413,13 @@ export const Production: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
+                            onClick={() => copyAllExtractionPlanToReel(shiftName)}
+                            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-black uppercase tracking-wider rounded flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-amber-600" /> Copier Tout le Plan
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => addExtractionRow(shiftName)}
                             className="bg-[#00BFFF] hover:bg-[#00BFFF]/95 text-white font-black text-[10px] uppercase px-3 py-1.5 flex items-center gap-1.5 transition-all shadow-sm rounded cursor-pointer"
                           >
@@ -2452,167 +3436,274 @@ export const Production: React.FC = () => {
                             <span className="text-[10px] bg-[#8B0000] text-white px-2 py-1 font-black uppercase">
                               Chef de Sec (Imiter Est) / Poste
                             </span>
-                            <span className="text-xs font-extrabold text-slate-700 uppercase">
-                              {chiefName || 'Non défini (Saisir le Chef dans la feuille Minage)'}
+                            <span className="text-xs font-bold text-slate-800">
+                              {chiefName || "(Aucun affecté)"}
                             </span>
                           </div>
                         );
                       })()}
 
-                      {/* Extraction details table */}
-                      <div className="overflow-x-auto rounded border border-slate-200 bg-white">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-extrabold uppercase text-[10px] tracking-wider">
-                              <th className="p-2 text-[10px] font-black uppercase text-center w-12 border-r border-slate-200 text-slate-500 bg-slate-50">#</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-32 border-r border-slate-200 text-slate-700">Treuilliste</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-32 border-r border-slate-200 text-slate-700">Équipier 1</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-32 border-r border-slate-200 text-slate-700">Équipier 2</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-32 border-r border-slate-200 text-slate-700">Équipier 3</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-32 border-r border-slate-200 text-slate-700">Équipier 4</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center bg-slate-50 text-slate-700">Wagons Chargés</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-16 border-r border-slate-200 text-center text-slate-700 font-bold">Objectif</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700">Fréquence</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-20 border-r border-slate-200 text-center text-slate-700">Stérile (Wagons)</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700">Heure Début</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700">Heure Finit</th>
-                              <th className="p-2 text-[10px] font-black uppercase text-center w-14 text-slate-700">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-150 text-[11px]">
-                            {extractionRows.map((row, idx) => {
-                              const freqMin = row.wagonsActual > 0 ? (360 / row.wagonsActual).toFixed(1) + ' min' : '0 min';
-                              const pct = ((row.wagonsActual / (row.wagonsTarget || 48)) * 100).toFixed(0);
+                      {/* Extraction details card grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {extractionRows.map((rowWrapper, idx) => {
+                          const row = rowWrapper.reel;
+                          const plan = rowWrapper.plan;
+                          const freqMin = row.wagonsActual > 0 ? (360 / row.wagonsActual).toFixed(1) + ' min' : '0 min';
+                          const pct = ((row.wagonsActual / (row.wagonsTarget || 48)) * 100).toFixed(0);
 
-                              const treuillistName = getEmployeeName(row.treuilliste);
-                              const eq1Name = getEmployeeName(row.equipier1);
-                              const eq2Name = getEmployeeName(row.equipier2);
-                              const eq3Name = getEmployeeName(row.equipier3);
-                              const eq4Name = getEmployeeName(row.equipier4);
+                          const treuillistName = getEmployeeName(row.treuilliste);
+                          const eq1Name = getEmployeeName(row.equipier1);
+                          const eq2Name = getEmployeeName(row.equipier2);
+                          const eq3Name = getEmployeeName(row.equipier3);
+                          const eq4Name = getEmployeeName(row.equipier4);
 
-                              return (
-                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                  <td className="p-2 font-mono text-slate-400 bg-slate-50/50 text-center font-bold border-r border-slate-200">{idx + 1}</td>
-                                  
-                                  {/* Treuilliste Matricule */}
-                                  <td className="p-2 border-r border-slate-200">
-                                    <EmployeeCell
-                                      matricule={row.treuilliste || ''}
-                                      name={treuillistName}
-                                      onChange={(mat) => updateExtractionCell(shiftName, idx, 'treuilliste', mat)}
-                                      employees={activeEmployees}
-                                      placeholder="Treuilliste..."
-                                    />
-                                  </td>
+                          const treuillisteMismatch = !!(row.treuilliste && plan.treuilliste && row.treuilliste.trim().toUpperCase() !== plan.treuilliste.trim().toUpperCase());
+                          const eq1Mismatch = !!(row.equipier1 && plan.equipier1 && row.equipier1.trim().toUpperCase() !== plan.equipier1.trim().toUpperCase());
+                          const eq2Mismatch = !!(row.equipier2 && plan.equipier2 && row.equipier2.trim().toUpperCase() !== plan.equipier2.trim().toUpperCase());
+                          const eq3Mismatch = !!(row.equipier3 && plan.equipier3 && row.equipier3.trim().toUpperCase() !== plan.equipier3.trim().toUpperCase());
+                          const eq4Mismatch = !!(row.equipier4 && plan.equipier4 && row.equipier4.trim().toUpperCase() !== plan.equipier4.trim().toUpperCase());
+                          const hasMismatch = treuillisteMismatch || eq1Mismatch || eq2Mismatch || eq3Mismatch || eq4Mismatch;
 
-                                  {/* Équipier 1 */}
-                                  <td className="p-2 border-r border-slate-200">
-                                    <EmployeeCell
-                                      matricule={row.equipier1 || ''}
-                                      name={eq1Name}
-                                      onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier1', mat)}
-                                      employees={activeEmployees}
-                                      placeholder="Équipier 1..."
-                                    />
-                                  </td>
+                          const wagonsTarget = row.wagonsTarget || 48;
+                          const realWagons = row.wagonsActual || 0;
+                          const pctRealisation = wagonsTarget > 0 ? (realWagons / wagonsTarget) * 105 : 0; // matching scaling if any
+                          const realPct = wagonsTarget > 0 ? (realWagons / wagonsTarget) * 100 : 0;
 
-                                  {/* Équipier 2 */}
-                                  <td className="p-2 border-r border-slate-200">
-                                    <EmployeeCell
-                                      matricule={row.equipier2 || ''}
-                                      name={eq2Name}
-                                      onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier2', mat)}
-                                      employees={activeEmployees}
-                                      placeholder="Équipier 2..."
-                                    />
-                                  </td>
+                          const getHoursBetween = (start: string, end: string) => {
+                            if (!start || !end) return 6.5;
+                            const [h1, m1] = start.split(':').map(Number);
+                            const [h2, m2] = end.split(':').map(Number);
+                            const mDifference = (h2 * 60 + m2) - (h1 * 60 + m1);
+                            const hours = mDifference / 60;
+                            return hours > 0 ? hours : 6.5;
+                          };
+                          const durationHours = getHoursBetween(row.startTime || '07:00', row.endTime || '14:00');
+                          const cadence = durationHours > 0 ? (realWagons / durationHours) : 0;
 
-                                  {/* Équipier 3 */}
-                                  <td className="p-2 border-r border-slate-200">
-                                    <EmployeeCell
-                                      matricule={row.equipier3 || ''}
-                                      name={eq3Name}
-                                      onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier3', mat)}
-                                      employees={activeEmployees}
-                                      placeholder="Équipier 3..."
-                                    />
-                                  </td>
+                          return (
+                            <div 
+                              key={idx} 
+                              data-card-container="true"
+                              className="bg-[#F5F5F0] border-2 border-[#141414] p-4 shadow-[4px_4px_0px_0px_#141414] hover:shadow-[6px_6px_0px_0px_#141414] transition-all duration-150 flex flex-col justify-between space-y-4"
+                            >
+                              <div>
+                                {/* Header: Station Title and badges */}
+                                <div className="border-b border-[#141414]/20 pb-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="space-y-1">
+                                      <h5 className="text-[10px] font-black uppercase text-gray-500 tracking-wider">
+                                        EXTRACTION STATION #{idx + 1}
+                                      </h5>
+                                      <h4 className="text-sm font-black uppercase text-slate-900 tracking-wide">
+                                        {row.chantierName || "Bure de déchargement"}
+                                      </h4>
+                                    </div>
 
-                                  {/* Équipier 4 */}
-                                  <td className="p-2 border-r border-slate-200">
-                                    <EmployeeCell
-                                      matricule={row.equipier4 || ''}
-                                      name={eq4Name}
-                                      onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier4', mat)}
-                                      employees={activeEmployees}
-                                      placeholder="Équipier 4..."
-                                    />
-                                  </td>
+                                    <div className="flex flex-col items-end gap-1.5 select-none">
+                                      {hasMismatch && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 rounded leading-none select-none max-w-full truncate animate-pulse" title="La composition réelle diffère de la planification">
+                                          ⚠️ Équipe ≠ Plan
+                                        </span>
+                                      )}
+                                      <span className="inline-flex items-center gap-1 text-[8px] font-black bg-emerald-600 text-white px-2 py-0.5 uppercase">
+                                        <Layers className="w-2.5 h-2.5 text-white" /> Treuils
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
 
-                                  {/* Wagons actual */}
-                                  <td className="p-2 border-r border-slate-200 bg-emerald-50 text-center">
+                                {/* Custom target progress gauge */}
+                                <div className="space-y-1 py-2 border-b border-[#141414]/15 select-none text-[9px] font-black uppercase">
+                                  <div className="flex justify-between text-gray-500">
+                                    <span>Taux de Réalisation</span>
+                                    <span className="font-mono text-slate-900 font-extrabold">{realWagons} / {wagonsTarget} Wg ({realPct.toFixed(1)}%)</span>
+                                  </div>
+                                  <div className="w-full bg-slate-200 h-1 border border-[#141414]/10 rounded-sm overflow-hidden">
+                                    <div 
+                                      className={`h-full transition-all duration-300 ${realPct >= 100 ? 'bg-emerald-600' : realPct >= 50 ? 'bg-[#00BFFF]' : 'bg-[#8B0000]'}`} 
+                                      style={{ width: `${Math.min(100, realPct)}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+
+                                {/* Plan vs Reel mini-table */}
+                                <div className="mt-3 overflow-x-auto select-all">
+                                  <table className="w-full text-left border-collapse border border-[#141414] text-[9px]">
+                                    <thead>
+                                      <tr className="bg-[#141414] text-white font-black uppercase tracking-wider text-[8px]">
+                                        <th className="p-1 border-r border-white/20 w-10 text-center">MODE</th>
+                                        <th className="p-1 border-r border-white/20">Treuilliste</th>
+                                        <th className="p-1 border-r border-white/20">Equipier 1</th>
+                                        <th className="p-1 border-r border-white/20">Equipier 2</th>
+                                        <th className="p-1 border-r border-white/20">Equipier 3</th>
+                                        <th className="p-1">Equipier 4</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {/* Row Plan (locked, gray background) */}
+                                      <tr className="bg-slate-200 text-slate-600 border-b border-[#141414]">
+                                        <td className="p-1 border-r border-[#141414] text-center font-black flex items-center justify-center gap-0.5 pt-2">
+                                          <Lock className="w-2.5 h-2.5" /> PLAN
+                                        </td>
+                                        <td className="p-1 border-r border-[#141414] font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.treuilliste)}>
+                                          {plan.treuilliste || '(Vide)'}
+                                        </td>
+                                        <td className="p-1 border-r border-[#141414] font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.equipier1)}>
+                                          {plan.equipier1 || '(Vide)'}
+                                        </td>
+                                        <td className="p-1 border-r border-[#141414] font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.equipier2)}>
+                                          {plan.equipier2 || '(Vide)'}
+                                        </td>
+                                        <td className="p-1 border-r border-[#141414] font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.equipier3)}>
+                                          {plan.equipier3 || '(Vide)'}
+                                        </td>
+                                        <td className="p-1 font-mono leading-tight max-w-[55px] truncate" title={getEmployeeName(plan.equipier4)}>
+                                          {plan.equipier4 || '(Vide)'}
+                                        </td>
+                                      </tr>
+
+                                      {/* Row Reel (white background, editable) */}
+                                      <tr className="bg-white border-b border-[#141414] font-semibold text-slate-800">
+                                        <td className="p-1 border-r border-[#141414] text-center font-black text-slate-900 bg-slate-50 flex items-center justify-center gap-0.5 pt-2">
+                                          <Pencil className="w-2.5 h-2.5 text-[#00BFFF]" /> RÉEL
+                                        </td>
+                                        <td className="p-1 border-r border-[#141414]">
+                                          <EmployeeCell
+                                            matricule={row.treuilliste || ''}
+                                            name={treuillistName}
+                                            onChange={(mat) => updateExtractionCell(shiftName, idx, 'treuilliste', mat)}
+                                            employees={activeEmployees}
+                                            onKeyDown={handleKeyDown}
+                                            placeholder="T..."
+                                          />
+                                        </td>
+                                        <td className="p-1 border-r border-[#141414]">
+                                          <EmployeeCell
+                                            matricule={row.equipier1 || ''}
+                                            name={eq1Name}
+                                            onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier1', mat)}
+                                            onKeyDown={handleKeyDown}
+                                            employees={activeEmployees}
+                                            placeholder="Eq1..."
+                                          />
+                                        </td>
+                                        <td className="p-1 border-r border-[#141414]">
+                                          <EmployeeCell
+                                            matricule={row.equipier2 || ''}
+                                            name={eq2Name}
+                                            onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier2', mat)}
+                                            onKeyDown={handleKeyDown}
+                                            employees={activeEmployees}
+                                            placeholder="Eq2..."
+                                          />
+                                        </td>
+                                        <td className="p-1 border-r border-[#141414]">
+                                          <EmployeeCell
+                                            matricule={row.equipier3 || ''}
+                                            name={eq3Name}
+                                            onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier3', mat)}
+                                            onKeyDown={handleKeyDown}
+                                            employees={activeEmployees}
+                                            placeholder="Eq3..."
+                                          />
+                                        </td>
+                                        <td className="p-1">
+                                          <EmployeeCell
+                                            matricule={row.equipier4 || ''}
+                                            name={eq4Name}
+                                            onChange={(mat) => updateExtractionCell(shiftName, idx, 'equipier4', mat)}
+                                            onKeyDown={handleKeyDown}
+                                            employees={activeEmployees}
+                                            placeholder="Eq4..."
+                                          />
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+
+                                {/* Custom input form for quantitative metrics */}
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3 select-none text-[9px] font-black uppercase text-slate-700">
+                                  <div className="bg-white border border-[#141414] p-1.5 rounded-sm">
+                                    <span className="block text-gray-500 mb-0.5 leading-none">Wagons Réels</span>
                                     <input
                                       type="number"
                                       value={row.wagonsActual === 0 ? '' : row.wagonsActual}
                                       placeholder="0"
+                                      onKeyDown={handleKeyDown}
                                       onChange={e => updateExtractionCell(shiftName, idx, 'wagonsActual', Number(e.target.value))}
-                                      className="w-16 font-black text-center text-emerald-900 outline-none bg-transparent select-all"
+                                      className="w-full text-xs font-black text-center text-emerald-950 font-mono outline-none bg-transparent"
                                     />
-                                  </td>
+                                  </div>
 
-                                  {/* Objective (always 48) */}
-                                  <td className="p-2 border-r border-slate-200 text-center font-bold text-slate-400 bg-slate-50">
-                                    {row.wagonsTarget || 48}
-                                  </td>
-
-                                  {/* Frequency */}
-                                  <td className="p-2 border-r border-slate-200 text-center font-bold text-blue-900 bg-slate-50/50">
-                                    {freqMin} <span className="text-[9px] text-[#8B0000] font-black">({pct}%)</span>
-                                  </td>
-
-                                  {/* Stérile (wagons) */}
-                                  <td className="p-2 border-r border-slate-200 text-center font-bold text-slate-500">
+                                  <div className="bg-white border border-[#141414] p-1.5 rounded-sm">
+                                    <span className="block text-gray-500 mb-0.5 leading-none">Stérile (Wg)</span>
                                     <input
                                       type="number"
                                       value={row.sterileBureImiterEst === 0 ? '' : row.sterileBureImiterEst}
                                       placeholder="0"
+                                      onKeyDown={handleKeyDown}
                                       onChange={e => updateExtractionCell(shiftName, idx, 'sterileBureImiterEst', Number(e.target.value))}
-                                      className="w-14 text-center font-mono select-all focus:outline-none focus:border-amber-500"
+                                      className="w-full text-xs font-black text-center text-slate-800 font-mono outline-none bg-transparent"
                                     />
-                                  </td>
+                                  </div>
 
-                                  {/* Heure Début */}
-                                  <td className="p-2 border-r border-slate-200 text-center">
+                                  <div className="bg-white border border-[#141414] p-1.5 rounded-sm">
+                                    <span className="block text-gray-500 mb-0.5 leading-none">Début Work</span>
                                     {renderTimeSelect(row.startTime || '', (val) => updateExtractionCell(shiftName, idx, 'startTime', val))}
-                                  </td>
+                                  </div>
 
-                                  {/* Heure Finit */}
-                                  <td className="p-2 border-r border-slate-200 text-center">
+                                  <div className="bg-white border border-[#141414] p-1.5 rounded-sm">
+                                    <span className="block text-gray-500 mb-0.5 leading-none">Fin Work</span>
                                     {renderTimeSelect(row.endTime || '', (val) => updateExtractionCell(shiftName, idx, 'endTime', val))}
-                                  </td>
+                                  </div>
+                                </div>
+                              </div>
 
-                                  <td className="p-1 text-center">
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteExtractionRow(shiftName, idx)}
-                                      className="p-1 text-slate-400 hover:text-red-600 transition-colors"
-                                      title="Supprimer la ligne"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                            {extractionRows.length === 0 && (
-                              <tr>
-                                <td colSpan={13} className="text-center p-8 text-slate-400 font-bold">
-                                  Aucune ligne active. Cliquez sur "Ajouter une ligne ({shiftName})" pour commencer la saisie.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                              {/* Footer content: calculated deviations (cadence) and actions */}
+                              <div className="border-t border-[#141414]/15 pt-3 flex items-center justify-between gap-1 mt-auto">
+                                <div className="text-[10px] font-mono leading-normal flex-1">
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1 select-none">
+                                    <div>
+                                      <span className="text-[8px] font-black text-slate-500 uppercase">Cadence : </span>
+                                      <strong className="text-slate-900 font-black">{cadence.toFixed(2)} Wg/h</strong>
+                                    </div>
+                                    <div>
+                                      <span className="text-[8px] font-black text-slate-500 uppercase">Fréquence : </span>
+                                      <strong className="text-slate-900 font-black">{freqMin}</strong>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => copyExtractionPlanToReel(shiftName, idx)}
+                                    className="px-2.5 py-1 text-[9px] font-black uppercase bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 rounded flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                                    title="Copier les structures d'affection de planification vers le réel"
+                                  >
+                                    <Copy className="w-2.5 h-2.5 text-amber-600 font-bold" /> Copier
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteExtractionRow(shiftName, idx)}
+                                    className="p-1 border border-transparent hover:border-red-200 text-slate-400 hover:text-red-700 transition-all rounded"
+                                    title="Supprimer la ligne"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {extractionRows.length === 0 && (
+                          <div className="col-span-full text-center p-8 text-slate-400 font-bold bg-slate-50 border-2 border-dashed border-slate-200 rounded uppercase">
+                            Aucune ligne active. Veuillez cliquer sur "Ajouter une ligne" pour commencer.
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -2757,7 +3848,9 @@ export const Production: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-150 text-[11px]">
-                            {maintenanceRows.map((row, idx) => {
+                            {maintenanceRows.map((rowWrapper, idx) => {
+                              const row = rowWrapper.reel;
+                              const plan = rowWrapper.plan;
                               const agentValName = getEmployeeName(row.agentMatricule);
 
                               return (

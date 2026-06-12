@@ -16,9 +16,16 @@ import {
   CheckCircle,
   Info,
   Wrench,
-  Truck
+  Truck,
+  Lock,
+  Pencil,
+  Gauge,
+  TrendingUp,
+  Copy,
+  Trash2,
+  ClipboardList
 } from 'lucide-react';
-import { collection, query, onSnapshot, setDoc, doc, getDocs, deleteDoc, where, writeBatch, addDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, setDoc, doc, getDocs, deleteDoc, where, writeBatch, addDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, addDays } from 'date-fns';
@@ -108,7 +115,36 @@ export const Planning: React.FC = () => {
     // 1. Load consolidated planning record history
     const qHist = query(collection(db, 'daily_planning_sheets'));
     const unsubHist = onSnapshot(qHist, (snapshot) => {
-      setPlanningsHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const historyList: any[] = [];
+      snapshot.docs.forEach(dDoc => {
+        const dData = dDoc.data();
+        const date = dData.date || dDoc.id;
+        const mainStatus = dData.status || 'brouillon';
+        if (dData.postes) {
+          Object.entries(dData.postes).forEach(([pKey, pVal]: [string, any]) => {
+            const pName = pKey === 'poste1' ? 'Poste 1' : pKey === 'poste2' ? 'Poste 2' : 'Poste 3';
+            historyList.push({
+              id: `${dDoc.id}_${pKey}`,
+              date,
+              post: pName,
+              status: pVal.status || mainStatus,
+              minageRows: pVal.minage || [],
+              deblayageRows: pVal.deblayage || [],
+              extractionRows: pVal.extraction || [],
+              maintenanceRows: pVal.maintenance || [],
+              operator: dData.operator || pVal.operator || 'SMI USER',
+              timestamp: dData.timestamp || pVal.timestamp || ''
+            });
+          });
+        }
+      });
+      // Sort history list by date desc, then post asc
+      historyList.sort((a, b) => {
+        const dateCompare = b.date.localeCompare(a.date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.post.localeCompare(b.post);
+      });
+      setPlanningsHistory(historyList);
     });
 
     // 2. Open mining work sites
@@ -140,19 +176,26 @@ export const Planning: React.FC = () => {
   const loadPlanningWorkbook = async () => {
     setLoading(true);
     try {
-      const docId = `${selectedDate}_${selectedPost.replace(/\s+/g, '_')}`;
-      const qSnapshot = await getDocs(query(collection(db, 'daily_planning_sheets')));
-      const matchedDoc = qSnapshot.docs.find(d => d.id === docId);
+      const docRef = doc(db, 'daily_planning_sheets', selectedDate);
+      const docSnap = await getDoc(docRef);
 
-      if (matchedDoc && matchedDoc.exists()) {
-        const workbook = matchedDoc.data();
-        setMinageRows(workbook.minageRows || []);
-        setDeblayageRows(workbook.deblayageRows || []);
-        setExtractionRows(workbook.extractionRows || []);
-        setMaintenanceRows(workbook.maintenanceRows || []);
-      } else {
-        // Build empty default grid templates (Aesthetic Swiss style high density layout)
-        const initialMinage: ExcelMinage[] = Array.from({ length: 12 }, () => ({
+      const pKey = selectedPost === 'Poste 1' ? 'poste1' : selectedPost === 'Poste 2' ? 'poste2' : 'poste3';
+
+      if (docSnap.exists()) {
+        const docData = docSnap.data();
+        const posteData = docData.postes?.[pKey];
+        if (posteData) {
+          setMinageRows(posteData.minage || []);
+          setDeblayageRows(posteData.deblayage || []);
+          setExtractionRows(posteData.extraction || []);
+          setMaintenanceRows(posteData.maintenance || []);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Build empty default grid templates (Aesthetic Swiss style high density layout)
+      const initialMinage: ExcelMinage[] = Array.from({ length: 12 }, () => ({
           chantierId: '', chiefMatricule: '', chiefName: '', minerMatricule: '', minerName: '',
           assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: 32, realHoles: 32,
           plannedRounds: 1, realRounds: 1, meterage: 1.7, anfo: 50, tovex: 12, ammorces: 12, remarks: ''
@@ -182,7 +225,6 @@ export const Planning: React.FC = () => {
         setDeblayageRows(initialDeblayage);
         setExtractionRows(initialExtraction);
         setMaintenanceRows(initialMaintenance);
-      }
     } catch (err) {
       console.error("Erreur de chargement du classeur : ", err);
     } finally {
@@ -194,6 +236,28 @@ export const Planning: React.FC = () => {
   const getEmployeeName = (matricule: string) => {
     const emp = employees.find(e => e.matricule?.toUpperCase() === matricule?.trim().toUpperCase() && e.status === 'actif');
     return emp ? `${emp.nom} ${emp.prenom} (${emp.fonction})` : '';
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<any>) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      const current = e.target as HTMLElement;
+      const container = current.closest('[data-card-container="true"]');
+      if (!container) return;
+      const inputs = Array.from(
+        container.querySelectorAll('input:not([disabled]), select:not([disabled])')
+      ) as HTMLElement[];
+      const idx = inputs.indexOf(current);
+      if (idx !== -1) {
+        const nextIdx = e.shiftKey ? idx - 1 : idx + 1;
+        if (nextIdx >= 0 && nextIdx < inputs.length) {
+          inputs[nextIdx].focus();
+          if (inputs[nextIdx] instanceof HTMLInputElement) {
+            (inputs[nextIdx] as HTMLInputElement).select();
+          }
+        }
+      }
+    }
   };
 
   // Cell state modifier handlers
@@ -262,21 +326,31 @@ export const Planning: React.FC = () => {
   const savePlanningWorkbook = async () => {
     setSaveStatus('saving');
     try {
-      const docId = `${selectedDate}_${selectedPost.replace(/\s+/g, '_')}`;
+      const docRef = doc(db, 'daily_planning_sheets', selectedDate);
+      const pKey = selectedPost === 'Poste 1' ? 'poste1' : selectedPost === 'Poste 2' ? 'poste2' : 'poste3';
       
-      const payload = {
+      const updateData = {
         date: selectedDate,
-        post: selectedPost,
+        status: 'planifie',
         operator: user?.email || 'Planificateur de Direction SMI',
         timestamp: new Date().toISOString(),
-        minageRows: minageRows.filter(r => r.chantierId !== ''),
-        deblayageRows: deblayageRows.filter(r => r.driverMatricule !== ''),
-        extractionRows: extractionRows,
-        maintenanceRows: maintenanceRows.filter(r => r.agentMatricule !== '')
+        postes: {
+          [pKey]: {
+            chiefMatricule: '',
+            chiefName: '',
+            secondChiefMatricule: '',
+            secondChiefName: '',
+            status: 'planifie',
+            minage: minageRows.filter(r => r.chantierId !== ''),
+            deblayage: deblayageRows.filter(r => r.driverMatricule !== ''),
+            extraction: extractionRows,
+            maintenance: maintenanceRows.filter(r => r.agentMatricule !== '')
+          }
+        }
       };
 
-      // 1. Commit consolidated sheet doc
-      await setDoc(doc(db, 'daily_planning_sheets', docId), payload);
+      // 1. Commit consolidated sheet doc using date as ID and merging to preserve other shifts
+      await setDoc(docRef, updateData, { merge: true });
 
       // 2. Fetch and delete existing discrete planning docs matching date + post to allow total overwriting
       const planColl = collection(db, 'planning');
@@ -477,314 +551,492 @@ export const Planning: React.FC = () => {
               ))}
             </div>
 
-            {/* SHEET 1: BLASTING & MINAGE GRID */}
+            {/* SHEET 1: BLASTING & MINAGE CARDS */}
             {activeSheetTab === 'minage' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse border border-gray-200">
-                  <thead>
-                    <tr className="bg-gray-100 text-[#141414] border-b border-gray-300">
-                      <th className="p-1 text-[9px] font-black uppercase text-center w-8">Row</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-40 border-r border-gray-300">Chantier Souterrain</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-24 border-r border-gray-300">Matr. Chef</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-24 border-r border-gray-300">Matr. Mineur</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-24 border-r border-gray-300">Matr. Aide</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-16 border-r border-gray-300 text-center">Galerie (m²)</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-16 border-r border-gray-300 text-center">Volées Cibles</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-20 border-r border-gray-300 text-center">Avancement (m)</th>
-                      <th className="p-1 text-[9px] font-black uppercase">Consignes / Remarques</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {minageRows.map((row, idx) => {
-                      const chefValidName = getEmployeeName(row.chiefMatricule);
-                      const minerValidName = getEmployeeName(row.minerMatricule);
-                      const assistantValidName = getEmployeeName(row.assistantMatricule);
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {minageRows.map((row, idx) => {
+                  const chefValidName = getEmployeeName(row.chiefMatricule);
+                  const minerValidName = getEmployeeName(row.minerMatricule);
+                  const assistantValidName = getEmployeeName(row.assistantMatricule);
+                  
+                  const chantierObj = chantiers.find(c => c.id === row.chantierId);
+                  const plannedTotalMeterage = chantierObj?.plannedTotalMeterage || 100;
+                  const currentMeterage = chantierObj?.currentMeterage || 0;
+                  const progressPct = plannedTotalMeterage > 0 ? Math.min(100, (currentMeterage / plannedTotalMeterage) * 100) : 0;
 
-                      return (
-                        <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50/50">
-                          <td className="p-1 text-[9px] font-mono text-gray-400 text-center bg-gray-50 border-r border-gray-200">{idx + 1}</td>
-                          <td className="p-1 border-r border-gray-200">
-                            <select
-                              value={row.chantierId}
-                              onChange={e => updateMinageCell(idx, 'chantierId', e.target.value)}
-                              className="w-full text-[10px] font-semibold border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
-                            >
-                              <option value="">(Vide / Aucun)</option>
-                              {chantiers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                          </td>
-                          <td className="p-1 border-r border-gray-200 relative group">
-                            <input
-                              type="text"
-                              placeholder="M-..."
-                              value={row.chiefMatricule}
-                              onChange={e => updateMinageCell(idx, 'chiefMatricule', e.target.value.toUpperCase())}
-                              className="w-full text-[10px] font-mono border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5 uppercase"
-                            />
-                            {chefValidName && (
-                              <div className="absolute left-0 bottom-full bg-[#141414] text-white p-1 text-[8px] rounded hidden group-focus-within:block z-10 whitespace-nowrap">
-                                {chefValidName}
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-1 border-r border-gray-200 relative group">
-                            <input
-                              type="text"
-                              placeholder="M-..."
-                              value={row.minerMatricule}
-                              onChange={e => updateMinageCell(idx, 'minerMatricule', e.target.value.toUpperCase())}
-                              className="w-full text-[10px] font-mono border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5 uppercase"
-                            />
-                            {minerValidName && (
-                              <div className="absolute left-0 bottom-full bg-[#141414] text-white p-1 text-[8px] rounded hidden group-focus-within:block z-10 whitespace-nowrap">
-                                {minerValidName}
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-1 border-r border-gray-200 relative group">
-                            <input
-                              type="text"
-                              placeholder="M-..."
-                              value={row.assistantMatricule}
-                              onChange={e => updateMinageCell(idx, 'assistantMatricule', e.target.value.toUpperCase())}
-                              className="w-full text-[10px] font-mono border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5 uppercase"
-                            />
-                            {assistantValidName && (
-                              <div className="absolute left-0 bottom-full bg-[#141414] text-white p-1 text-[8px] rounded hidden group-focus-within:block z-10 whitespace-nowrap">
-                                {assistantValidName}
-                              </div>
-                            )}
-                          </td>
-                           <td className="p-1 border-r border-gray-200 text-center">
-                            <select
-                              value={row.gallerySize}
-                              onChange={e => updateMinageCell(idx, 'gallerySize', Number(e.target.value))}
-                              className="text-[10px] bg-transparent outline-none w-full text-center p-0.5 font-bold"
-                            >
-                              <option value={9}>9 m²</option>
-                              <option value={12}>12 m²</option>
-                            </select>
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center">
-                            <input
-                              type="number"
-                              value={row.plannedRounds}
-                              onChange={e => updateMinageCell(idx, 'plannedRounds', Number(e.target.value))}
-                              className="w-full text-[10px] font-mono text-center border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5 font-bold"
-                            />
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center bg-[#00BFFF]/5 font-black text-blue-700">
-                            {row.meterage.toFixed(1)}m
-                          </td>
-                          <td className="p-1">
-                            <input
-                              type="text"
-                              placeholder="Prescription géologique, vitesse d'avancement..."
-                              value={row.remarks}
-                              onChange={e => updateMinageCell(idx, 'remarks', e.target.value)}
-                              className="w-full text-[9px] border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                  return (
+                    <div 
+                      key={idx} 
+                      data-card-container="true"
+                      className="bg-[#F5F5F0] border-2 border-[#141414] p-4 shadow-[4px_4px_0px_0px_#141414] hover:shadow-[6px_6px_0px_0px_#141414] transition-all duration-150 flex flex-col justify-between space-y-3"
+                    >
+                      <div>
+                        {/* Header: Row index, selection dropdown and badges */}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 border-b border-[#141414]/30 pb-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase bg-[#141414] text-white px-2 py-0.5 select-none">
+                                ROW #{idx + 1}
+                              </span>
+                              <select
+                                value={row.chantierId}
+                                onChange={e => updateMinageCell(idx, 'chantierId', e.target.value)}
+                                className="text-xs font-black uppercase text-[#141414] border-b border-dashed border-[#141414]/50 focus:border-[#00BFFF] focus:ring-0 outline-none pr-4 bg-transparent cursor-pointer"
+                              >
+                                <option value="">(Vide / Aucun Chantier)</option>
+                                {chantiers.map(c => <option key={c.id} value={c.id}>{c.name || c.id}</option>)}
+                              </select>
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5 pt-1 select-none">
+                              {chantierObj?.sector && (
+                                <span className="inline-block text-[8px] font-black uppercase bg-[#00BFFF] text-white px-1.5 py-0.5">
+                                  {chantierObj.sector}
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase bg-slate-200 text-slate-800 px-1.5 py-0.5">
+                                <Lock className="w-2.5 h-2.5" /> Planification
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Progress gauge */}
+                        {chantierObj && (
+                          <div className="w-full space-y-1 py-1.5 border-b border-[#141414]/15 select-none">
+                            <div className="flex justify-between items-center text-[8px] font-black uppercase text-gray-500">
+                              <span>Progression Cumulée</span>
+                              <span className="font-mono">{currentMeterage.toFixed(1)} / {plannedTotalMeterage.toFixed(1)} m ({progressPct.toFixed(0)}%)</span>
+                            </div>
+                            <div className="w-full bg-slate-200 h-1 rounded-sm overflow-hidden border border-[#141414]/10">
+                              <div className="bg-[#8B0000] h-full transition-all duration-300" style={{ width: `${progressPct}%` }}></div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Team Assignment & Rounds Table */}
+                        <div className="mt-2 overflow-x-auto">
+                          <table className="w-full text-left border-collapse border border-[#141414] text-[10px]">
+                            <thead>
+                              <tr className="bg-[#141414] text-white text-[8px] font-black uppercase tracking-wider">
+                                <th className="p-1 border-r border-white/20">Matricule</th>
+                                <th className="p-1 border-r border-white/20">Nom Collaborateur / Rôle</th>
+                                <th className="p-1 border-r border-white/20 text-center">Section</th>
+                                <th className="p-1 text-center font-black">Volées</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {/* Chef de Section */}
+                              <tr className="border-b border-[#141414]/30 bg-white/40">
+                                <td className="p-1 border-r border-[#141414]/30">
+                                  <input
+                                    type="text"
+                                    placeholder="Chef (M-...)"
+                                    value={row.chiefMatricule}
+                                    onChange={e => updateMinageCell(idx, 'chiefMatricule', e.target.value.toUpperCase())}
+                                    onKeyDown={handleKeyDown}
+                                    className="w-full bg-transparent border-none outline-none font-mono text-[10px] uppercase font-bold"
+                                  />
+                                </td>
+                                <td className="p-1 border-r border-[#141414]/30 text-slate-600 block max-w-[120px] truncate" title={chefValidName || 'Non Assigné'}>
+                                  {chefValidName ? chefValidName.split(' (')[0] : 'CHEF: Non Assigné'}
+                                </td>
+                                <td className="p-1 border-r border-[#141414]/30 text-center font-black" rowSpan={3}>
+                                  <select
+                                    value={row.gallerySize}
+                                    onChange={e => updateMinageCell(idx, 'gallerySize', Number(e.target.value))}
+                                    onKeyDown={handleKeyDown}
+                                    className="text-[9px] bg-transparent outline-none w-full text-center p-0.5 font-bold cursor-pointer"
+                                  >
+                                    <option value={9}>9 m²</option>
+                                    <option value={12}>12 m²</option>
+                                  </select>
+                                </td>
+                                <td className="p-1 text-center font-black" rowSpan={3}>
+                                  <div className="flex flex-col items-center justify-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={row.plannedRounds === 0 ? '' : row.plannedRounds}
+                                      placeholder="0"
+                                      onChange={e => updateMinageCell(idx, 'plannedRounds', Number(e.target.value))}
+                                      onKeyDown={handleKeyDown}
+                                      className="w-10 text-center font-black text-xs border border-dashed border-[#141414]/35 bg-white py-0.5 rounded outline-none"
+                                    />
+                                    <span className="text-[8px] font-black text-sky-800 uppercase block font-mono">
+                                      {row.meterage.toFixed(1)}m
+                                    </span>
+                                  </div>
+                                </td>
+                              </tr>
+                              {/* Mineur */}
+                              <tr className="border-b border-[#141414]/30 bg-white/40">
+                                <td className="p-1 border-r border-[#141414]/30">
+                                  <input
+                                    type="text"
+                                    placeholder="Mineur"
+                                    value={row.minerMatricule}
+                                    onChange={e => updateMinageCell(idx, 'minerMatricule', e.target.value.toUpperCase())}
+                                    onKeyDown={handleKeyDown}
+                                    className="w-full bg-transparent border-none outline-none font-mono text-[10px] uppercase font-bold"
+                                  />
+                                </td>
+                                <td className="p-1 border-r border-[#141414]/30 text-slate-600 block max-w-[120px] truncate" title={minerValidName || 'Non Assigné'}>
+                                  {minerValidName ? minerValidName.split(' (')[0] : 'MINER: Non Assigné'}
+                                </td>
+                              </tr>
+                              {/* Aide Mineur */}
+                              <tr className="bg-white/40">
+                                <td className="p-1 border-r border-[#141414]/30">
+                                  <input
+                                    type="text"
+                                    placeholder="Assistant"
+                                    value={row.assistantMatricule}
+                                    onChange={e => updateMinageCell(idx, 'assistantMatricule', e.target.value.toUpperCase())}
+                                    onKeyDown={handleKeyDown}
+                                    className="w-full bg-transparent border-none outline-none font-mono text-[10px] uppercase font-bold"
+                                  />
+                                </td>
+                                <td className="p-1 border-r border-[#141414]/30 text-slate-600 block max-w-[120px] truncate" title={assistantValidName || 'Non Assigné'}>
+                                  {assistantValidName ? assistantValidName.split(' (')[0] : 'AIDE: Non Assigné'}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Consignes / Directives */}
+                      <div className="bg-white border border-[#141414] p-1.5 flex items-center gap-1 text-[10px]">
+                        <ClipboardList className="w-3.5 h-3.5 text-red-700 shrink-0 select-none" />
+                        <input
+                          type="text"
+                          placeholder="Prescriptions géostructurelles, vitesse d'avancement..."
+                          value={row.remarks || ''}
+                          onChange={e => updateMinageCell(idx, 'remarks', e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="flex-1 bg-transparent border-none outline-none text-[9px] text-[#141414] font-medium placeholder-slate-450 uppercase"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
-            {/* SHEET 2: LOADER DEBLAYAGE GRID */}
+            {/* SHEET 2: LOADER DEBLAYAGE CARDS */}
             {activeSheetTab === 'deblayage' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse border border-gray-200">
-                  <thead>
-                    <tr className="bg-gray-100 text-[#141414] border-b border-gray-300">
-                      <th className="p-1 text-[9px] font-black uppercase text-center w-8">Row</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-40 border-r border-gray-300">Nettoyage Chantier</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-24 border-r border-gray-300">Matr. Conducteur</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-36 border-r border-gray-300">Conducteur Nom</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-48 border-r border-gray-300">Engin Assigné (LHD)</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-20 border-r border-gray-300 text-center bg-[#00BFFF]/5 text-[#00BFFF]">Nombre Godets Cibles</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-24 border-r border-gray-300 text-center">Volume Théorique (m³)</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-16 border-r border-gray-300 text-center">Heures Prévues</th>
-                      <th className="p-1 text-[9px] font-black uppercase">Directives Planification</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {deblayageRows.map((row, idx) => {
-                      const condValidName = getEmployeeName(row.driverMatricule);
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {deblayageRows.map((row, idx) => {
+                  const condValidName = getEmployeeName(row.driverMatricule);
+                  
+                  const chantierObj = chantiers.find(c => c.id === row.chantierId);
+                  const plannedTotalMeterage = chantierObj?.plannedTotalMeterage || 100;
+                  const currentMeterage = chantierObj?.currentMeterage || 0;
+                  const progressPct = plannedTotalMeterage > 0 ? Math.min(100, (currentMeterage / plannedTotalMeterage) * 100) : 0;
 
-                      return (
-                        <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50/50">
-                          <td className="p-1 text-[9px] font-mono text-gray-400 text-center bg-gray-50 border-r border-gray-200">{idx + 1}</td>
-                          <td className="p-1 border-r border-gray-200">
-                            <select
-                              value={row.chantierId}
-                              onChange={e => updateDeblayageCell(idx, 'chantierId', e.target.value)}
-                              className="w-full text-[10px] font-semibold border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
-                            >
-                              <option value="">(Choisir chantier)</option>
-                              {chantiers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                          </td>
-                          <td className="p-1 border-r border-gray-200 relative">
-                            <input
-                              type="text"
-                              placeholder="M-..."
-                              value={row.driverMatricule}
-                              onChange={e => updateDeblayageCell(idx, 'driverMatricule', e.target.value.toUpperCase())}
-                              className="w-full text-[10px] font-mono border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5 uppercase"
-                            />
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-[10px] font-medium text-gray-500 bg-gray-50/50">
-                            {condValidName ? condValidName.split(' ')[0] + ' ' + (condValidName.split(' ')[1] || '') : 'Aucun'}
-                          </td>
-                          <td className="p-1 border-r border-gray-200">
-                            <select
-                              value={row.engineId}
-                              onChange={e => updateDeblayageCell(idx, 'engineId', e.target.value)}
-                              className="w-full text-[10px] border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
-                            >
-                              <option value="">-- CHOISIR ENGIN --</option>
-                              {engines.map(eng => (
-                                <option key={eng.id} value={eng.id}>
-                                  [{eng.code}] - {eng.name}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center bg-[#00BFFF]/5">
-                            <input
-                              type="number"
-                              value={row.godets === 0 ? '' : row.godets}
-                              placeholder="0"
-                              onChange={e => updateDeblayageCell(idx, 'godets', Number(e.target.value))}
-                              className="w-full text-[10px] font-black text-center text-blue-800 outline-none bg-transparent p-0.5"
-                            />
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center text-[10px] font-mono font-bold text-gray-700 bg-gray-50">
-                            {row.volumeEstimated.toFixed(1)} m³
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center">
-                            <input
-                              type="number"
-                              step="0.5"
-                              value={row.hoursWorked}
-                              onChange={e => updateDeblayageCell(idx, 'hoursWorked', Number(e.target.value))}
-                              className="w-full text-[10px] font-mono text-center outline-none bg-transparent p-0.5"
-                            />
-                          </td>
-                          <td className="p-1">
-                            <input
-                              type="text"
-                              placeholder="Sens de déblayage, niveau de priorité..."
-                              value={row.remarks}
-                              onChange={e => updateDeblayageCell(idx, 'remarks', e.target.value)}
-                              className="w-full text-[9px] border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                  return (
+                    <div 
+                      key={idx} 
+                      data-card-container="true"
+                      className="bg-[#F5F5F0] border-2 border-[#141414] p-4 shadow-[4px_4px_0px_0px_#141414] hover:shadow-[6px_6px_0px_0px_#141414] transition-all duration-150 flex flex-col justify-between space-y-3"
+                    >
+                      <div>
+                        {/* Header: Row index, selection dropdown and badges */}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 border-b border-[#141414]/30 pb-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase bg-[#141414] text-white px-2 py-0.5 select-none">
+                                LHD #{idx + 1}
+                              </span>
+                              <select
+                                value={row.chantierId}
+                                onChange={e => updateDeblayageCell(idx, 'chantierId', e.target.value)}
+                                className="text-xs font-black uppercase text-[#141414] border-b border-dashed border-[#141414]/50 focus:border-[#00BFFF] focus:ring-0 outline-none pr-4 bg-transparent cursor-pointer"
+                              >
+                                <option value="">(Choisir chantier de nettoyage)</option>
+                                {chantiers.map(c => <option key={c.id} value={c.id}>{c.name || c.id}</option>)}
+                              </select>
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5 pt-1 select-none">
+                              {chantierObj?.sector && (
+                                <span className="inline-block text-[8px] font-black uppercase bg-[#00BFFF] text-white px-1.5 py-0.5">
+                                  {chantierObj.sector}
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase bg-slate-200 text-slate-800 px-1.5 py-0.5">
+                                <Lock className="w-2.5 h-2.5" /> Planification
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Progress gauge */}
+                        {chantierObj && (
+                          <div className="w-full space-y-1 py-1.5 border-b border-[#141414]/15 select-none">
+                            <div className="flex justify-between items-center text-[8px] font-black uppercase text-gray-500">
+                              <span>Progression Cumulée</span>
+                              <span className="font-mono">{currentMeterage.toFixed(1)} / {plannedTotalMeterage.toFixed(1)} m ({progressPct.toFixed(0)}%)</span>
+                            </div>
+                            <div className="w-full bg-slate-200 h-1 rounded-sm overflow-hidden border border-[#141414]/10">
+                              <div className="bg-[#00BFFF] h-full transition-all duration-300" style={{ width: `${progressPct}%` }}></div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Deblayage Assignment Table */}
+                        <div className="mt-2 overflow-x-auto">
+                          <table className="w-full text-left border-collapse border border-[#141414] text-[10px]">
+                            <thead>
+                              <tr className="bg-[#141414] text-white text-[8px] font-black uppercase tracking-wider">
+                                <th className="p-1 border-r border-white/20 w-24">Conducteur</th>
+                                <th className="p-1 border-r border-white/20">Chargeuse assignée</th>
+                                <th className="p-1 border-r border-white/20 text-center w-12">Godets</th>
+                                <th className="p-1 border-r border-white/20 text-center w-14">Vol (m³)</th>
+                                <th className="p-1 text-center w-14">Heures</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr className="bg-white/40 font-bold">
+                                {/* driver matricule */}
+                                <td className="p-1 border-r border-[#141414]/30">
+                                  <div className="flex flex-col gap-1">
+                                    <input
+                                      type="text"
+                                      placeholder="M-..."
+                                      value={row.driverMatricule}
+                                      onChange={e => updateDeblayageCell(idx, 'driverMatricule', e.target.value.toUpperCase())}
+                                      onKeyDown={handleKeyDown}
+                                      className="w-full bg-transparent border-b border-dashed border-[#141414]/25 outline-none font-mono text-[10px] uppercase font-bold"
+                                    />
+                                    <span className="text-[7px] text-gray-500 truncate block max-w-[80px]" title={condValidName || 'Non Assigné'}>
+                                      {condValidName ? condValidName.split(' (')[0] : 'Conducteur...'}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* engine LHD selection */}
+                                <td className="p-1 border-r border-[#141414]/30">
+                                  <select
+                                    value={row.engineId}
+                                    onChange={e => updateDeblayageCell(idx, 'engineId', e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    className="w-full text-[9px] bg-transparent outline-none font-bold cursor-pointer"
+                                  >
+                                    <option value="">-- CHOISIR --</option>
+                                    {engines.map(eng => (
+                                      <option key={eng.id} value={eng.id}>
+                                        [{eng.code}] - {eng.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+
+                                {/* target godets */}
+                                <td className="p-1 border-r border-[#141414]/30 text-center">
+                                  <input
+                                    type="number"
+                                    value={row.godets === 0 ? '' : row.godets}
+                                    placeholder="0"
+                                    onChange={e => updateDeblayageCell(idx, 'godets', Number(e.target.value))}
+                                    onKeyDown={handleKeyDown}
+                                    className="w-full text-center font-black text-xs bg-white border border-dashed border-[#141414]/35 py-0.5 rounded outline-none"
+                                  />
+                                </td>
+
+                                {/* target volume */}
+                                <td className="p-1 border-r border-[#141414]/30 text-center font-mono text-[#00BFFF] font-black bg-white/20">
+                                  {row.volumeEstimated.toFixed(1)}
+                                </td>
+
+                                {/* hours worked */}
+                                <td className="p-1 text-center">
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    value={row.hoursWorked}
+                                    onChange={e => updateDeblayageCell(idx, 'hoursWorked', Number(e.target.value))}
+                                    onKeyDown={handleKeyDown}
+                                    className="w-full text-center font-bold text-[10px] bg-white border border-dashed border-[#141414]/35 py-0.5 rounded outline-none"
+                                  />
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Consignes / Directives */}
+                      <div className="bg-white border border-[#141414] p-1.5 flex items-center gap-1 text-[10px]">
+                        <ClipboardList className="w-3.5 h-3.5 text-[#00BFFF] shrink-0 select-none" />
+                        <input
+                          type="text"
+                          placeholder="Directives d'évacuation, priorité..."
+                          value={row.remarks || ''}
+                          onChange={e => updateDeblayageCell(idx, 'remarks', e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="flex-1 bg-transparent border-none outline-none text-[9px] text-[#141414] font-medium placeholder-slate-450 uppercase"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
-            {/* SHEET 3: WINCH EXTRACTION GRID */}
+            {/* SHEET 3: WINCH EXTRACTION CARDS */}
             {activeSheetTab === 'extraction' && (
-              <div className="overflow-x-auto text-[11px]">
-                <table className="w-full text-left border-collapse border border-gray-200">
-                  <thead>
-                    <tr className="bg-gray-100 text-[#141414] border-b border-gray-300">
-                      <th className="p-1 text-[9px] font-black uppercase text-center w-8">Row</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-48 border-r border-gray-300">Bure / Secteur Extraction</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-28 border-r border-gray-300">Treuilliste 1</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-28 border-r border-gray-300">Treuilliste 2</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-28 border-r border-gray-300">Treuilliste 3</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-14 border-r border-gray-300 text-center">Ouvriers</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-20 border-r border-gray-300 text-center bg-green-50 text-green-900">Wagons Cible</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-22 border-r border-gray-300 text-center font-mono text-indigo-700">Durée/Wagon visée</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-16 border-r border-gray-300 text-center">Stérile prévu</th>
-                      <th className="p-1 text-[9px] font-black uppercase">Consignes spéciales</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {extractionRows.map((row, idx) => {
-                      const avgMin = row.wagonsTarget > 0 ? (360 / row.wagonsTarget) : 0;
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {extractionRows.map((row, idx) => {
+                  const t1Name = getEmployeeName(row.treuilliste1);
+                  const t2Name = getEmployeeName(row.treuilliste2);
+                  const t3Name = getEmployeeName(row.treuilliste3);
+                  const avgMin = row.wagonsTarget > 0 ? (360 / row.wagonsTarget) : 0;
 
-                      return (
-                        <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50/50">
-                          <td className="p-1 text-[9px] font-mono text-gray-400 text-center bg-gray-50 border-r border-gray-200">{idx + 1}</td>
-                          <td className="p-1 border-r border-gray-200 font-bold uppercase text-[#141414] bg-gray-50/55">{row.chantierName}</td>
-                          <td className="p-1 border-r border-gray-200">
-                            <input
-                              type="text"
-                              placeholder="M-..."
-                              value={row.treuilliste1}
-                              onChange={e => updateExtractionCell(idx, 'treuilliste1', e.target.value.toUpperCase())}
-                              className="w-full text-[10px] font-mono border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
-                            />
-                          </td>
-                          <td className="p-1 border-r border-gray-200">
-                            <input
-                              type="text"
-                              placeholder="M-..."
-                              value={row.treuilliste2}
-                              onChange={e => updateExtractionCell(idx, 'treuilliste2', e.target.value.toUpperCase())}
-                              className="w-full text-[10px] font-mono border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
-                            />
-                          </td>
-                          <td className="p-1 border-r border-gray-200">
-                            <input
-                              type="text"
-                              placeholder="M-..."
-                              value={row.treuilliste3}
-                              onChange={e => updateExtractionCell(idx, 'treuilliste3', e.target.value.toUpperCase())}
-                              className="w-full text-[10px] font-mono border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
-                            />
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center">
+                  return (
+                    <div 
+                      key={idx} 
+                      data-card-container="true"
+                      className="bg-[#F5F5F0] border-2 border-[#141414] p-4 shadow-[4px_4px_0px_0px_#141414] hover:shadow-[6px_6px_0px_0px_#141414] transition-all duration-150 flex flex-col justify-between space-y-3"
+                    >
+                      <div>
+                        {/* Header: Station info */}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 border-b border-[#141414]/30 pb-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase bg-[#141414] text-white px-2 py-0.5 select-none animate-pulse">
+                                WINCH #{idx + 1}
+                              </span>
+                              <span className="text-xs font-black uppercase text-[#141414] leading-none">
+                                {row.chantierName || "Secteur d'extraction"}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5 pt-1 select-none">
+                              <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase bg-slate-200 text-slate-800 px-1.5 py-0.5">
+                                <Lock className="w-2.5 h-2.5" /> Planification
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Crew details form */}
+                        <div className="mt-3 space-y-2 select-all text-xs font-bold">
+                          <h6 className="text-[9px] font-black uppercase text-gray-500 tracking-wider">Affectations de l'équipe</h6>
+                          <div className="grid grid-cols-3 gap-2">
+                            {/* Treuilliste 1 */}
+                            <div className="bg-white border border-[#141414] p-1.5 shadow-sm rounded-sm">
+                              <span className="block text-[8px] font-black text-slate-500 uppercase leading-none mb-1">Treuilliste 1</span>
+                              <input
+                                type="text"
+                                placeholder="M-..."
+                                value={row.treuilliste1 || ''}
+                                onKeyDown={handleKeyDown}
+                                onChange={e => updateExtractionCell(idx, 'treuilliste1', e.target.value.toUpperCase())}
+                                className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                              />
+                              <span className="text-[7.5px] text-gray-500 block truncate max-w-full font-black mt-0.5" title={t1Name || 'Libre'}>
+                                {t1Name ? t1Name.split(' (')[0] : '(Vide)'}
+                              </span>
+                            </div>
+
+                            {/* Treuilliste 2 */}
+                            <div className="bg-white border border-[#141414] p-1.5 shadow-sm rounded-sm">
+                              <span className="block text-[8px] font-black text-slate-500 uppercase leading-none mb-1">Treuilliste 2</span>
+                              <input
+                                type="text"
+                                placeholder="M-..."
+                                value={row.treuilliste2 || ''}
+                                onKeyDown={handleKeyDown}
+                                onChange={e => updateExtractionCell(idx, 'treuilliste2', e.target.value.toUpperCase())}
+                                className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                              />
+                              <span className="text-[7.5px] text-gray-500 block truncate max-w-full font-black mt-0.5" title={t2Name || 'Libre'}>
+                                {t2Name ? t2Name.split(' (')[0] : '(Vide)'}
+                              </span>
+                            </div>
+
+                            {/* Treuilliste 3 */}
+                            <div className="bg-white border border-[#141414] p-1.5 shadow-sm rounded-sm">
+                              <span className="block text-[8px] font-black text-slate-500 uppercase leading-none mb-1">Treuilliste 3</span>
+                              <input
+                                type="text"
+                                placeholder="M-..."
+                                value={row.treuilliste3 || ''}
+                                onKeyDown={handleKeyDown}
+                                onChange={e => updateExtractionCell(idx, 'treuilliste3', e.target.value.toUpperCase())}
+                                className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
+                              />
+                              <span className="text-[7.5px] text-gray-500 block truncate max-w-full font-black mt-0.5" title={t3Name || 'Libre'}>
+                                {t3Name ? t3Name.split(' (')[0] : '(Vide)'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Quantitative Metrics section */}
+                        <div className="grid grid-cols-3 gap-2 mt-3 select-none text-[9px] font-black uppercase text-slate-700">
+                          <div className="bg-white border border-[#141414] p-1.5 rounded-sm shadow-sm">
+                            <span className="block text-gray-400 mb-0.5 leading-none">Ouvriers Appui</span>
                             <input
                               type="number"
-                              value={row.ouvriersCount}
+                              value={row.ouvriersCount || 0}
+                              onKeyDown={handleKeyDown}
                               onChange={e => updateExtractionCell(idx, 'ouvriersCount', Number(e.target.value))}
-                              className="w-full text-[10px] text-center border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
+                              className="w-full text-xs font-black text-center text-slate-850 outline-none bg-transparent font-mono"
                             />
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center bg-green-50/50 font-black">
+                          </div>
+
+                          <div className="bg-emerald-50 border border-[#141414] p-1.5 rounded-sm shadow-sm">
+                            <span className="block text-emerald-800 mb-0.5 leading-none">Cible Wagons</span>
                             <input
                               type="number"
-                              value={row.wagonsTarget}
+                              value={row.wagonsTarget || 0}
+                              onKeyDown={handleKeyDown}
                               onChange={e => updateExtractionCell(idx, 'wagonsTarget', Number(e.target.value))}
-                              className="w-full text-[11px] font-black text-center text-green-800 outline-none bg-transparent p-0.5"
+                              className="w-full text-xs font-black text-center text-emerald-990 outline-none bg-transparent font-mono"
                             />
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center font-mono font-black text-indigo-700 bg-indigo-50/30">
-                            {row.wagonsTarget > 0 ? `${avgMin.toFixed(1)} mins` : '--'}
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center">
+                          </div>
+
+                          <div className="bg-[#F5F5F0] border border-[#141414] p-1.5 rounded-sm shadow-sm">
+                            <span className="block text-gray-400 mb-0.5 leading-none">Stérile prévu</span>
                             <input
                               type="number"
-                              value={row.sterileBureImiterEst}
+                              value={row.sterileBureImiterEst || 0}
+                              onKeyDown={handleKeyDown}
                               onChange={e => updateExtractionCell(idx, 'sterileBureImiterEst', Number(e.target.value))}
-                              className="w-full text-[10px] font-mono text-center outline-none bg-transparent p-0.5 text-gray-600 font-bold"
+                              className="w-full text-xs font-black text-center text-slate-750 outline-none bg-transparent font-mono"
                             />
-                          </td>
-                          <td className="p-1">
-                            <input
-                              type="text"
-                              placeholder="Instructions d'evacuation, entretien treuils..."
-                              value={row.remarks}
-                              onChange={e => updateExtractionCell(idx, 'remarks', e.target.value)}
-                              className="w-full text-[9px] border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+
+                        {/* Consignes spéciales */}
+                        <div className="mt-3 bg-white border border-[#141414] p-2 rounded-sm shadow-sm select-all">
+                          <span className="block text-[8px] font-black uppercase text-gray-500 leading-none mb-1">Consignes spéciales</span>
+                          <input
+                            type="text"
+                            placeholder="Instructions d'évacuation, entretien treuils..."
+                            value={row.remarks || ''}
+                            onKeyDown={handleKeyDown}
+                            onChange={e => updateExtractionCell(idx, 'remarks', e.target.value)}
+                            className="w-full text-[10px] font-bold text-slate-800 bg-transparent outline-none border-b border-transparent hover:border-gray-300 focus:border-[#00BFFF]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Card Footer with calculated average minutes/wagon */}
+                      <div className="border-t border-[#141414]/15 pt-2 flex items-center justify-between gap-1 select-none text-[10px] font-mono font-black uppercase">
+                        <div className="flex items-center gap-1.5 text-indigo-700">
+                          <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Intervalle ciblé :</span>
+                          <strong className="text-xs text-indigo-900 bg-indigo-50 px-1.5 py-0.5 rounded shadow-sm border border-indigo-200">
+                            {row.wagonsTarget > 0 ? `${avgMin.toFixed(1)} mins / wagon` : '-- mins'}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
