@@ -30,6 +30,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, addDays } from 'date-fns';
 import { MatriculeAutocomplete } from '../components/MatriculeAutocomplete';
+import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 // Excel interface structures matching Production schema for full planning alignment
 interface ExcelMinage {
@@ -115,8 +116,8 @@ const POST_HOURS: Record<'Poste 1' | 'Poste 2' | 'Poste 3', { start: string; end
 };
 
 const EXPLOSIVES_PER_ROUND: Record<9 | 12, { anfo: number; tovex: number; ammorces: number; plannedHoles: number }> = {
-  9:  { anfo: 35, tovex: 2.6, ammorces: 26, plannedHoles: 26 },
-  12: { anfo: 40, tovex: 3.2, ammorces: 32, plannedHoles: 32 },
+  9:  { anfo: 35, tovex: 2.6, ammorces: 26, plannedHoles: 28 }, // 28 trous prévus, 26 chargés (ammorces)
+  12: { anfo: 40, tovex: 3.2, ammorces: 32, plannedHoles: 38 }, // 38 trous prévus, 32 chargés (ammorces)
 };
 
 const computeExplosives = (gallerySize: 9 | 12, plannedRounds: number) => {
@@ -127,6 +128,51 @@ const computeExplosives = (gallerySize: 9 | 12, plannedRounds: number) => {
     tovex: Math.round(base.tovex * rounds * 100) / 100,
     ammorces: Math.round(base.ammorces * rounds),
     plannedHoles: base.plannedHoles * rounds,
+  };
+};
+
+const isEstSector = (s: string) => {
+  const lower = (s || '').toLowerCase();
+  return lower.includes('est') || lower.includes('bure');
+};
+
+const isSectorMatching = (s1: string, s2: string) => {
+  const norm1 = (s1 || '').toLowerCase().trim();
+  const norm2 = (s2 || '').toLowerCase().trim();
+  if (norm1 === norm2) return true;
+  if (isEstSector(norm1) && isEstSector(norm2)) return true;
+  return false;
+};
+
+const getSectorBadgeStyles = (sec: string) => {
+  const norm = (sec || '').toLowerCase().trim();
+  if (norm.includes('imiter 1')) {
+    return {
+      bg: 'bg-sky-50 border border-sky-250 text-sky-800 shadow-xs ring-1 ring-sky-300/30',
+      dot: 'bg-sky-500'
+    };
+  }
+  if (norm.includes('imiter 2')) {
+    return {
+      bg: 'bg-rose-50 border border-rose-250 text-rose-800 shadow-xs ring-1 ring-rose-300/30',
+      dot: 'bg-rose-500'
+    };
+  }
+  if (norm.includes('est') && norm.includes('bure')) {
+    return {
+      bg: 'bg-indigo-50 border border-indigo-250 text-indigo-800 shadow-xs ring-1 ring-indigo-300/30',
+      dot: 'bg-indigo-500'
+    };
+  }
+  if (norm.includes('est')) {
+    return {
+      bg: 'bg-emerald-50 border border-emerald-250 text-emerald-800 shadow-xs ring-1 ring-emerald-300/30',
+      dot: 'bg-emerald-500'
+    };
+  }
+  return {
+    bg: 'bg-slate-50 border border-slate-250 text-slate-700 shadow-xs ring-1 ring-slate-300/30',
+    dot: 'bg-slate-500'
   };
 };
 
@@ -187,13 +233,13 @@ const ensureMinimumRows = (
   const result: any[] = [];
   const unassignedLoaded = [...loadedRows];
 
-  sectors.forEach(sec => {
-    // Find already stored rows for this sector
-    const matchingRows = unassignedLoaded.filter(row => {
-      if (row.sectorGroup === sec) return true;
-      const ch = chantiersList.find(c => c.id === row.chantierId);
-      return ch?.sector === sec;
-    });
+    sectors.forEach(sec => {
+      // Find already stored rows for this sector
+      const matchingRows = unassignedLoaded.filter(row => {
+        if (row.sectorGroup === sec) return true;
+        const ch = chantiersList.find(c => c.id === row.chantierId);
+        return ch ? isSectorMatching(ch.sector, sec) : false;
+      });
 
     // Remove them from unassigned
     matchingRows.forEach(row => {
@@ -275,8 +321,54 @@ export const Planning: React.FC = () => {
     'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
     'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' }
   });
-  const [extractionRows, setExtractionRows] = useState<ExcelExtraction[]>([]);
-  const [maintenanceRows, setMaintenanceRows] = useState<ExcelMaintenance[]>([]);
+  const [extractionRowsByPost, setExtractionRowsByPost] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelExtraction[]>>({
+    'Poste 1': [],
+    'Poste 2': [],
+    'Poste 3': []
+  });
+  const [maintenanceRowsByPost, setMaintenanceRowsByPost] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMaintenance[]>>({
+    'Poste 1': [],
+    'Poste 2': [],
+    'Poste 3': []
+  });
+
+  // Pre-filled rows helpers for Maintenance & Extraction
+  const getDefaultMaintenanceRows = (post: 'Poste 1' | 'Poste 2' | 'Poste 3'): ExcelMaintenance[] => {
+    const defaults = POST_HOURS[post];
+    if (post === 'Poste 1') {
+      return [
+        { roleLabel: 'MÉCANICIEN 1', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' },
+        { roleLabel: 'MÉCANICIEN 2', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' },
+        { roleLabel: 'MÉCANICIEN 3', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' },
+        { roleLabel: 'ÉLECTRICIEN', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' },
+        { roleLabel: 'CHAUDRONNIER', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' }
+      ];
+    } else {
+      return [
+        { roleLabel: 'MÉCANICIEN 1', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' }
+      ];
+    }
+  };
+
+  const getDefaultExtractionRows = (post: 'Poste 1' | 'Poste 2' | 'Poste 3'): ExcelExtraction[] => {
+    const defaults = POST_HOURS[post];
+    return [
+      {
+        chantierName: 'Extraction Bure N340 Imiter Est',
+        treuilliste: '',
+        equipier1: '',
+        equipier2: '',
+        equipier3: '',
+        equipier4: '',
+        wagonsTarget: 48,
+        wagonsActual: 0,
+        sterileBureImiterEst: 0,
+        startTime: defaults.start,
+        endTime: defaults.end,
+        remarks: ''
+      }
+    ];
+  };
 
   // Load baseline master configuration lists & historical saved sheets from Firestore
   useEffect(() => {
@@ -371,6 +463,8 @@ export const Planning: React.FC = () => {
 
       const loadedMinageByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const loadedDeblayageByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelDeblayage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
+      const loadedExtractionByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelExtraction[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
+      const loadedMaintenanceByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMaintenance[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
 
       const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
 
@@ -379,18 +473,20 @@ export const Planning: React.FC = () => {
         posts.forEach(p => {
           const pk = p === 'Poste 1' ? 'poste1' : p === 'Poste 2' ? 'poste2' : 'poste3';
           const pData = docData.postes?.[pk];
+          const currentDefaults = POST_HOURS[p];
           loadedMinageByPost[p] = ensureMinimumRows(pData?.minage || [], 'minage', p, chantiers);
           loadedDeblayageByPost[p] = ensureMinimumRows(pData?.deblayage || [], 'deblayage', p, chantiers);
+          loadedExtractionByPost[p] = sanitizeExtractionRows(pData?.extraction, currentDefaults);
+          loadedMaintenanceByPost[p] = pData?.maintenance || [];
+          if (loadedMaintenanceByPost[p].length === 0) {
+            loadedMaintenanceByPost[p] = getDefaultMaintenanceRows(p);
+          }
         });
 
         setMinageRowsByPost(loadedMinageByPost);
         setDeblayageRowsByPost(loadedDeblayageByPost);
-
-        const currentPKey = selectedPost === 'Poste 1' ? 'poste1' : selectedPost === 'Poste 2' ? 'poste2' : 'poste3';
-        const currentPostData = docData.postes?.[currentPKey];
-        const currentDefaults = POST_HOURS[selectedPost];
-        setExtractionRows(sanitizeExtractionRows(currentPostData?.extraction, currentDefaults));
-        setMaintenanceRows(currentPostData?.maintenance || []);
+        setExtractionRowsByPost(loadedExtractionByPost);
+        setMaintenanceRowsByPost(loadedMaintenanceByPost);
         setLoading(false);
         return;
       }
@@ -402,40 +498,14 @@ export const Planning: React.FC = () => {
           ...row,
           hoursWorked: POST_HOURS[p].duration
         }));
+        loadedExtractionByPost[p] = getDefaultExtractionRows(p);
+        loadedMaintenanceByPost[p] = getDefaultMaintenanceRows(p);
       });
 
       setMinageRowsByPost(loadedMinageByPost);
       setDeblayageRowsByPost(loadedDeblayageByPost);
-
-      const currentDefaults = POST_HOURS[selectedPost];
-      const initialExtraction: ExcelExtraction[] = [
-        {
-          chantierName: 'Extraction Bure N340 Imiter Est',
-          treuilliste: '',
-          equipier1: '',
-          equipier2: '',
-          equipier3: '',
-          equipier4: '',
-          wagonsTarget: 48,
-          wagonsActual: 0,
-          sterileBureImiterEst: 0,
-          startTime: currentDefaults.start,
-          endTime: currentDefaults.end,
-          remarks: ''
-        }
-      ];
-
-      const initialMaintenance: ExcelMaintenance[] = [
-        { roleLabel: 'MÉCANICIEN 1', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: currentDefaults.duration, workDescription: '' },
-        { roleLabel: 'MÉCANICIEN 2', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: currentDefaults.duration, workDescription: '' },
-        { roleLabel: 'MÉCANICIEN 3', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: currentDefaults.duration, workDescription: '' },
-        { roleLabel: 'MÉCANICIEN 4', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: currentDefaults.duration, workDescription: '' },
-        { roleLabel: 'CHAUDRONNIER', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: currentDefaults.duration, workDescription: '' },
-        { roleLabel: 'ÉLECTRICIEN', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: currentDefaults.duration, workDescription: '' },
-      ];
-
-      setExtractionRows(initialExtraction);
-      setMaintenanceRows(initialMaintenance);
+      setExtractionRowsByPost(loadedExtractionByPost);
+      setMaintenanceRowsByPost(loadedMaintenanceByPost);
     } catch (err) {
       console.error("Erreur de chargement du classeur : ", err);
     } finally {
@@ -542,14 +612,16 @@ export const Planning: React.FC = () => {
     setDeblayageRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
 
-  const updateExtractionCell = (index: number, field: keyof ExcelExtraction, value: any) => {
-    const clone = [...extractionRows];
+  const updateExtractionCell = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', index: number, field: keyof ExcelExtraction, value: any) => {
+    const clone = [...(extractionRowsByPost[post] || [])];
+    if (!clone[index]) return;
     clone[index] = { ...clone[index], [field]: value };
-    setExtractionRows(clone);
+    setExtractionRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
 
-  const updateMaintenanceCell = (index: number, field: keyof ExcelMaintenance, value: any) => {
-    const clone = [...maintenanceRows];
+  const updateMaintenanceCell = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', index: number, field: keyof ExcelMaintenance, value: any) => {
+    const clone = [...(maintenanceRowsByPost[post] || [])];
+    if (!clone[index]) return;
     clone[index] = { ...clone[index], [field]: value };
 
     if (field === 'agentMatricule') {
@@ -559,7 +631,33 @@ export const Planning: React.FC = () => {
     if (field === 'engineId') {
       clone[index].engineCode = String(value);
     }
-    setMaintenanceRows(clone);
+    setMaintenanceRowsByPost(prev => ({ ...prev, [post]: clone }));
+  };
+
+  const addRowToMaintenance = (post: 'Poste 1' | 'Poste 2' | 'Poste 3') => {
+    const currentRows = maintenanceRowsByPost[post] || [];
+    const defaults = POST_HOURS[post];
+    const newIdx = currentRows.filter(r => r.roleLabel.startsWith('MÉCANICIEN')).length + 1;
+    const newRow: ExcelMaintenance = {
+      roleLabel: `MÉCANICIEN ${newIdx}`,
+      agentMatricule: '',
+      agentName: '',
+      engineId: '',
+      engineCode: '',
+      hoursSpent: defaults.duration,
+      workDescription: ''
+    };
+    setMaintenanceRowsByPost(prev => ({
+      ...prev,
+      [post]: [...currentRows, newRow]
+    }));
+  };
+
+  const deleteMaintenanceRowAt = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', index: number) => {
+    setMaintenanceRowsByPost(prev => ({
+      ...prev,
+      [post]: prev[post].filter((_, idx) => idx !== index)
+    }));
   };
 
   const focusOnCell = (rIdx: number, cIdx: number) => {
@@ -579,6 +677,12 @@ export const Planning: React.FC = () => {
     let targetRow = rowIndex;
     let targetCol = colIndex;
 
+    const isNumberInput = e.target instanceof HTMLInputElement && e.target.type === 'number';
+    if (isNumberInput && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      // Let standard browser arrow keys change the field value, do not move spreadsheet cell focus
+      return;
+    }
+
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       targetRow = rowIndex - 1;
@@ -586,8 +690,15 @@ export const Planning: React.FC = () => {
       e.preventDefault();
       targetRow = rowIndex + 1;
     } else if (e.key === 'ArrowLeft') {
+      // If user is inside an input, let them navigate text instead of moving to the next cell
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+        return;
+      }
       targetCol = colIndex - 1;
     } else if (e.key === 'ArrowRight') {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+        return;
+      }
       targetCol = colIndex + 1;
     } else {
       return;
@@ -603,9 +714,7 @@ export const Planning: React.FC = () => {
     posts.forEach(p => {
       minageRowsByPost[p].forEach((r, i) => {
         const minageChantierName = chantiers.find(c => c.id === r.chantierId)?.name || `Ligne ${i + 1}`;
-        if (r.chiefMatricule) {
-          list.push({ matricule: r.chiefMatricule.trim().toUpperCase(), name: r.chiefName, role: 'Chef de Poste', sheet: `Minage (${p})`, location: minageChantierName });
-        }
+        // Sector/Post Chiefs are excluded from mobilization checks to ignore duplicate warnings
         if (r.minerMatricule) {
           list.push({ matricule: r.minerMatricule.trim().toUpperCase(), name: r.minerName, role: 'Mineur', sheet: `Minage (${p})`, location: minageChantierName });
         }
@@ -620,31 +729,33 @@ export const Planning: React.FC = () => {
           list.push({ matricule: r.driverMatricule.trim().toUpperCase(), name: r.driverName, role: 'Conducteur', sheet: `Déblayage (${p})`, location: deblayageChantierName });
         }
       });
-    });
 
-    extractionRows.forEach((r) => {
-      const loc = 'Bure N340';
-      if (r.treuilliste) {
-        list.push({ matricule: r.treuilliste.trim().toUpperCase(), name: getEmployeeName(r.treuilliste).split(' (')[0], role: 'Treuilliste', sheet: `Extraction (${selectedPost})`, location: loc });
-      }
-      if (r.equipier1) {
-        list.push({ matricule: r.equipier1.trim().toUpperCase(), name: getEmployeeName(r.equipier1).split(' (')[0], role: 'Équipier 1', sheet: `Extraction (${selectedPost})`, location: loc });
-      }
-      if (r.equipier2) {
-        list.push({ matricule: r.equipier2.trim().toUpperCase(), name: getEmployeeName(r.equipier2).split(' (')[0], role: 'Équipier 2', sheet: `Extraction (${selectedPost})`, location: loc });
-      }
-      if (r.equipier3) {
-        list.push({ matricule: r.equipier3.trim().toUpperCase(), name: getEmployeeName(r.equipier3).split(' (')[0], role: 'Équipier 3', sheet: `Extraction (${selectedPost})`, location: loc });
-      }
-      if (r.equipier4) {
-        list.push({ matricule: r.equipier4.trim().toUpperCase(), name: getEmployeeName(r.equipier4).split(' (')[0], role: 'Équipier 4', sheet: `Extraction (${selectedPost})`, location: loc });
-      }
-    });
+      const extRows = extractionRowsByPost[p] || [];
+      extRows.forEach((r) => {
+        const loc = 'Bure N340';
+        if (r.treuilliste) {
+          list.push({ matricule: r.treuilliste.trim().toUpperCase(), name: getEmployeeName(r.treuilliste).split(' (')[0], role: 'Treuilliste', sheet: `Extraction (${p})`, location: loc });
+        }
+        if (r.equipier1) {
+          list.push({ matricule: r.equipier1.trim().toUpperCase(), name: getEmployeeName(r.equipier1).split(' (')[0], role: 'Équipier 1', sheet: `Extraction (${p})`, location: loc });
+        }
+        if (r.equipier2) {
+          list.push({ matricule: r.equipier2.trim().toUpperCase(), name: getEmployeeName(r.equipier2).split(' (')[0], role: 'Équipier 2', sheet: `Extraction (${p})`, location: loc });
+        }
+        if (r.equipier3) {
+          list.push({ matricule: r.equipier3.trim().toUpperCase(), name: getEmployeeName(r.equipier3).split(' (')[0], role: 'Équipier 3', sheet: `Extraction (${p})`, location: loc });
+        }
+        if (r.equipier4) {
+          list.push({ matricule: r.equipier4.trim().toUpperCase(), name: getEmployeeName(r.equipier4).split(' (')[0], role: 'Équipier 4', sheet: `Extraction (${p})`, location: loc });
+        }
+      });
 
-    maintenanceRows.forEach((r) => {
-      if (r.agentMatricule) {
-        list.push({ matricule: r.agentMatricule.trim().toUpperCase(), name: r.agentName, role: r.roleLabel, sheet: `Maintenance (${selectedPost})`, location: r.engineCode || 'Fixe' });
-      }
+      const maintRows = maintenanceRowsByPost[p] || [];
+      maintRows.forEach((r) => {
+        if (r.agentMatricule) {
+          list.push({ matricule: r.agentMatricule.trim().toUpperCase(), name: r.agentName, role: r.roleLabel, sheet: `Maintenance (${p})`, location: r.engineCode || 'Fixe' });
+        }
+      });
     });
 
     return list;
@@ -918,13 +1029,10 @@ export const Planning: React.FC = () => {
           ...newPostesObj[pk],
           status: 'planifie',
           minage: pMinage,
-          deblayage: pDeblayage
+          deblayage: pDeblayage,
+          extraction: extractionRowsByPost[p] || [],
+          maintenance: (maintenanceRowsByPost[p] || []).filter(r => r.agentMatricule !== '')
         };
-
-        if (p === selectedPost) {
-          newPostesObj[pk].extraction = extractionRows;
-          newPostesObj[pk].maintenance = maintenanceRows.filter(r => r.agentMatricule !== '');
-        }
       });
 
       const updateData = {
@@ -1049,35 +1157,38 @@ export const Planning: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Dense industrial header bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-[#141414] pb-2 gap-2">
-        <div>
-          <h3 className="text-xl font-black tracking-tight text-[#141414] uppercase flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-[#00BFFF]" /> Planification-Ordonnancement SMI
-          </h3>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">
-            Cahier de Chargement Théorique • Alignement optimal des équipes et chantiers du fond
-          </p>
+      {/* Dense modern header bar with Logo */}
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white border border-gray-200 rounded-xl p-4 shadow-sm gap-4">
+        <div className="flex items-center gap-4">
+          <img src={logoImg} alt="HydroMines Logo" className="h-14 w-14 object-contain rounded" referrerPolicy="no-referrer" />
+          <div>
+            <h3 className="text-xl font-black tracking-tight text-gray-900 uppercase flex items-center gap-2">
+              Planification-Ordonnancement SMI
+            </h3>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+              Cahier de Chargement Théorique • Alignement optimal des équipes et chantiers du fond
+            </p>
+          </div>
         </div>
 
         {/* View Toggle tabs */}
-        <div className="flex gap-1.5 p-1 bg-[#141414]/5">
+        <div className="flex gap-1.5 p-1 bg-gray-100 rounded-lg">
           <button 
             onClick={() => setViewMode('sheet')}
-            className={`px-3 py-1 font-black text-[9px] uppercase tracking-wider transition-all border ${
+            className={`px-3.5 py-1.5 rounded-md font-extrabold text-[10px] uppercase tracking-wider transition-all ${
               viewMode === 'sheet' 
-                ? 'bg-[#141414] text-white border-[#141414]' 
-                : 'bg-white text-gray-700 border-[#141414]/10 hover:bg-gray-50'
+                ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             🟩 Planification interactive
           </button>
           <button 
             onClick={() => setViewMode('history')}
-            className={`px-3 py-1 font-black text-[9px] uppercase tracking-wider transition-all border ${
+            className={`px-3.5 py-1.5 rounded-md font-extrabold text-[10px] uppercase tracking-wider transition-all ${
               viewMode === 'history' 
-                ? 'bg-[#141414] text-white border-[#141414]' 
-                : 'bg-white text-gray-700 border-[#141414]/10 hover:bg-gray-50'
+                ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             📋 Cahiers planifiés ({planningsHistory.length})
@@ -1086,38 +1197,46 @@ export const Planning: React.FC = () => {
       </div>
 
       {/* Date & Shift workbook controller */}
-      <div className="bg-[#141414] text-white p-3 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-3.5 h-3.5 text-[#00BFFF]" />
-            <span className="text-[9px] font-black uppercase text-white/50">Plan théorique du :</span>
-            <input 
-              type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="bg-white/10 text-white font-black text-[10px] uppercase border-0 outline-none px-2 py-1 focus:bg-white focus:text-[#141414]"
-            />
+      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-sky-50 rounded-lg text-[#00BFFF]">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-wider">Plan théorique du</span>
+              <input 
+                type="date"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                className="bg-gray-50 hover:bg-gray-100 text-gray-900 font-extrabold text-[12px] uppercase border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#00BFFF] focus:border-transparent transition-all"
+              />
+            </div>
           </div>
 
           {(activeSheetTab === 'minage' || activeSheetTab === 'deblayage') ? (
-            <div className="flex items-center gap-2 border-l border-white/20 pl-4">
-              <span className="text-[9px] font-black uppercase text-white/50">Poste :</span>
-              <span className="bg-[#00BFFF]/20 text-[#00BFFF] border border-[#00BFFF]/30 font-black text-[9px] uppercase tracking-wider px-2 py-1 rounded-sm">
-                📚 3 postes synchronisés en continu
-              </span>
+            <div className="flex items-center gap-3 border-l border-gray-100 pl-6 h-10">
+              <div>
+                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-wider">Poste</span>
+                <span className="bg-emerald-50 text-emerald-700 border border-emerald-150 font-black text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md">
+                  📚 3 postes synchronisés en continu
+                </span>
+              </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 border-l border-white/20 pl-4">
-              <span className="text-[9px] font-black uppercase text-white/50">Poste :</span>
-              <select 
-                value={selectedPost}
-                onChange={e => setSelectedPost(e.target.value as any)}
-                className="bg-white/10 text-white font-black text-[10px] uppercase border-0 outline-none px-2 py-1 focus:bg-white focus:text-[#141414] appearance-none"
-              >
-                <option value="Poste 1" className="text-black">POSTE 1 (MATIN)</option>
-                <option value="Poste 2" className="text-black">POSTE 2 (MIDI)</option>
-                <option value="Poste 3" className="text-black">POSTE 3 (NUIT)</option>
-              </select>
+            <div className="flex items-center gap-3 border-l border-gray-100 pl-6 h-10">
+              <div>
+                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-wider">Poste actif</span>
+                <select 
+                  value={selectedPost}
+                  onChange={e => setSelectedPost(e.target.value as any)}
+                  className="bg-gray-50 hover:bg-gray-100 text-gray-900 font-extrabold text-[12px] uppercase border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#00BFFF] focus:border-transparent transition-all appearance-none"
+                >
+                  <option value="Poste 1" className="text-black">POSTE 1 (MATIN)</option>
+                  <option value="Poste 2" className="text-black">POSTE 2 (MIDI)</option>
+                  <option value="Poste 3" className="text-black">POSTE 3 (NUIT)</option>
+                </select>
+              </div>
             </div>
           )}
         </div>
@@ -1126,24 +1245,24 @@ export const Planning: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={duplicatePreviousWeek}
-              className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 text-[9px] font-bold uppercase transition-all flex items-center gap-1.5"
+              className="bg-gray-100 hover:bg-gray-250 text-gray-800 border border-gray-200 px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-1.5"
               title="Importer et adapter la planification de la semaine passée J-7"
             >
-              <Copy className="w-3 h-3 text-[#00BFFF]" /> Dupliquer J-7 (Intelligent)
+              <Copy className="w-3.5 h-3.5 text-[#00BFFF]" /> Dupliquer J-7 (Intelligent)
             </button>
             <button
               onClick={loadPlanningWorkbook}
-              className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 text-[9px] font-bold uppercase transition-all flex items-center gap-1.5"
+              className="bg-gray-100 hover:bg-gray-250 text-gray-800 border border-gray-200 px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-1.5"
               title="Réinitialiser ou recharger depuis le cloud"
             >
-              <RotateCcw className="w-3 h-3 text-[#00BFFF]" /> Recharger
+              <RotateCcw className="w-3.5 h-3.5 text-[#00BFFF]" /> Recharger
             </button>
             <button
               onClick={savePlanningWorkbook}
               disabled={saveStatus === 'saving'}
-              className="bg-[#00BFFF] hover:bg-[#00BFFF]/90 text-white font-black px-4 py-1.5 text-[9px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:translate-y-px"
+              className="bg-[#00BFFF] hover:bg-sky-500 text-white font-extrabold px-4.5 py-2 rounded-lg text-[10px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:translate-y-px"
             >
-              <Save className="w-3.5 h-3.5" /> 
+              <Save className="w-4 h-4" /> 
               {saveStatus === 'saving' ? 'Enregistrement...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver l\'Ordonnancement'}
             </button>
           </div>
@@ -1158,28 +1277,58 @@ export const Planning: React.FC = () => {
         <div className="space-y-4">
           
           {/* SPREADSHEET WORKSPACE */}
-          <div className="w-full space-y-3 bg-white border border-[#141414] p-3 shadow-md">
+          <div className="w-full space-y-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
             
             {/* Sheet Tabs */}
-            <div className="flex items-center border-b border-gray-200 pb-1.5 gap-1">
+            <div className="flex flex-wrap items-center justify-center border-b border-gray-250 pb-2.5 gap-2">
               {[
-                { id: 'minage', label: '🔨 Sheet 1 - Alignement Forage & Minage', activeColor: 'border-b-2 border-red-600 font-black text-red-700' },
-                { id: 'deblayage', label: '🚜 Sheet 2 - Programme Déblayage & Vol', activeColor: 'border-b-2 border-[#00BFFF] font-black text-[#00BFFF]' },
-                { id: 'extraction', label: '🚃 Sheet 3 - Objectifs Extraction', activeColor: 'border-b-2 border-green-600 font-black text-green-700' },
-                { id: 'maintenance', label: '🔧 Sheet 4 - Brigade Maintenance Programmée', activeColor: 'border-b-2 border-purple-600 font-black text-purple-700' },
-              ].map(sheet => (
-                <button
-                  key={sheet.id}
-                  onClick={() => setActiveSheetTab(sheet.id as any)}
-                  className={`px-3 py-1 text-[9px] uppercase tracking-wider transition-colors border-r border-gray-100 ${
-                    activeSheetTab === sheet.id 
-                      ? sheet.activeColor + ' bg-gray-50 font-black' 
-                      : 'text-gray-400 hover:text-[#141414]'
-                  }`}
-                >
-                  {sheet.label}
-                </button>
-              ))}
+                { 
+                  id: 'minage', 
+                  label: '🔨 Sheet 1 - Alignement Forage & Minage', 
+                  activeClass: 'border-red-500 text-red-600 bg-gradient-to-b from-red-50/70 via-white to-white shadow-[0_-4px_16px_rgba(239,68,68,0.18)] border-t-2', 
+                  inactiveClass: 'text-gray-400 hover:text-red-500 hover:bg-red-50/5 border-t-2 border-transparent',
+                  glowDot: 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.85)]'
+                },
+                { 
+                  id: 'deblayage', 
+                  label: '🚜 Sheet 2 - Programme Déblayage & Vol', 
+                  activeClass: 'border-[#00BFFF] text-sky-600 bg-gradient-to-b from-sky-50/70 via-white to-white shadow-[0_-4px_16px_rgba(0,191,255,0.22)] border-t-2', 
+                  inactiveClass: 'text-gray-400 hover:text-sky-400 hover:bg-sky-50/5 border-t-2 border-transparent',
+                  glowDot: 'bg-[#00BFFF] shadow-[0_0_10px_rgba(0,191,255,0.85)]'
+                },
+                { 
+                  id: 'extraction', 
+                  label: '🚃 Sheet 3 - Objectifs Extraction', 
+                  activeClass: 'border-emerald-500 text-emerald-600 bg-gradient-to-b from-emerald-50/70 via-white to-white shadow-[0_-4px_16px_rgba(16,185,129,0.18)] border-t-2', 
+                  inactiveClass: 'text-gray-400 hover:text-emerald-500 hover:bg-emerald-50/5 border-t-2 border-transparent',
+                  glowDot: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.85)]'
+                },
+                { 
+                  id: 'maintenance', 
+                  label: '🔧 Sheet 4 - Brigade Maintenance Programmée', 
+                  activeClass: 'border-purple-500 text-purple-600 bg-gradient-to-b from-purple-50/70 via-white to-white shadow-[0_-4px_16px_rgba(168,85,247,0.18)] border-t-2', 
+                  inactiveClass: 'text-gray-400 hover:text-purple-500 hover:bg-purple-50/5 border-t-2 border-transparent',
+                  glowDot: 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.85)]'
+                },
+              ].map(sheet => {
+                const isActive = activeSheetTab === sheet.id;
+                return (
+                  <button
+                    key={sheet.id}
+                    onClick={() => setActiveSheetTab(sheet.id as any)}
+                    className={`px-4.5 py-2.5 text-[10px] rounded-t-xl uppercase tracking-wider transition-all duration-300 border-r border-gray-100 flex items-center gap-2.5 select-none cursor-pointer ${
+                      isActive 
+                        ? `${sheet.activeClass} font-black` 
+                        : `${sheet.inactiveClass} font-semibold`
+                    }`}
+                  >
+                    <span>{sheet.label}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                      isActive ? `${sheet.glowDot} animate-pulse scale-110` : 'bg-gray-300/40'
+                    }`} />
+                  </button>
+                );
+              })}
             </div>
 
             {/* SHEET 1: BLASTING & MINAGE INTERACTIVE EXCEL GRID (3 SHIFTS VERTICALLY STACKED) */}
@@ -1199,37 +1348,29 @@ export const Planning: React.FC = () => {
                     const SECTOR_ORDER = ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Autres / Non classés'];
 
                     return (
-                      <div key={p} className="border border-[#141414]/15 bg-white p-3 shadow-sm rounded-sm">
+                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
                         {/* Shifty/Post block banner */}
-                        <div className="bg-[#8B0000]/10 border-l-4 border-[#8B0000] p-2.5 mb-3 flex items-center justify-between">
-                          <div>
-                            <h4 className="text-xs font-black uppercase text-[#8B0000] tracking-wider flex items-center gap-1.5">
-                              🏭 {p} ({postHoursLabels[p]})
-                            </h4>
-                            <p className="text-[9px] font-bold text-gray-500 uppercase">
-                              Cadence Forage, Chargement et Sautage théorique
-                            </p>
-                          </div>
-                          <span className="text-[9.5px] font-black uppercase text-[#8B0000] bg-white border border-[#8B0000]/20 px-2 py-0.5 rounded-sm">
-                            Saisie Active
-                          </span>
+                        <div className="bg-gradient-to-r from-transparent via-slate-950 to-transparent p-3.5 mb-4 flex items-center justify-center select-none rounded-lg">
+                          <h4 className="text-[13px] font-black uppercase text-white tracking-[0.25em] flex items-center gap-2.5 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]">
+                            🏭 {p} <span className="text-slate-350 font-semibold tracking-normal text-[11px]">({postHoursLabels[p]})</span>
+                          </h4>
                         </div>
 
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse border border-[#141414]/25 text-[10.5px]">
+                        <div className="overflow-x-auto rounded-lg border border-gray-200">
+                          <table className="w-full text-left border-collapse text-[11px]">
                             <thead>
-                              <tr className="bg-[#141414] text-white text-[8px] font-black uppercase tracking-wider sticky top-0 z-10">
-                                <th className="p-1 border border-white/10 text-center w-8 select-none">#</th>
-                                <th className="p-1 border border-white/10 min-w-[124px]">Chantier</th>
-                                <th className="p-1 border border-white/10 min-w-[144px]">Mineur (Matricule / Nom)</th>
-                                <th className="p-1 border border-white/10 min-w-[144px]">Aide-Mineur</th>
-                                <th className="p-1 border border-white/10 w-20 text-center">Section</th>
-                                <th className="p-1 border border-white/10 w-16 text-center">Volées prévues</th>
-                                <th className="p-1 border border-white/10 w-20 text-center">Mètres prévus</th>
-                                <th className="p-1 border border-white/10 w-16 text-center">Trous prévus</th>
-                                <th className="p-1 border border-white/10 w-16 text-center">ANFO (kg)</th>
-                                <th className="p-1 border border-white/10 w-16 text-center">Tovex (kg)</th>
-                                <th className="p-1 border border-white/10 w-16 text-center">Amorces</th>
+                              <tr className="bg-slate-50 text-gray-700 text-[9px] font-black uppercase tracking-wider border-b border-gray-200 sticky top-0 z-10 select-none">
+                                <th className="p-2 border-r border-gray-200 text-center w-8 select-none bg-slate-100/50">#</th>
+                                <th className="p-2 border-r border-gray-100 min-w-[124px] bg-gradient-to-r from-[#00BFFF]/20 via-[#00BFFF]/10 to-transparent text-sky-950 font-black">Chantier</th>
+                                <th className="p-2 border-r border-gray-100 min-w-[144px] bg-gradient-to-r from-red-600/20 via-red-500/10 to-transparent text-red-950 font-black">Mineur (Matricule / Nom)</th>
+                                <th className="p-2 border-r border-gray-100 min-w-[144px] bg-gradient-to-r from-[#00BFFF]/20 via-[#00BFFF]/10 to-transparent text-sky-950 font-black">Aide-Mineur</th>
+                                <th className="p-2 border-r border-gray-100 w-20 text-center bg-gradient-to-r from-red-600/20 via-red-500/10 to-transparent text-red-950 font-black">Section</th>
+                                <th className="p-2 border-r border-gray-200 w-16 text-center bg-sky-50/35">Volées prévues</th>
+                                <th className="p-2 border-r border-gray-200 w-20 text-center bg-red-50/35">Mètres prévus</th>
+                                <th className="p-2 border-r border-gray-200 w-16 text-center bg-sky-50/35">Trous prévus</th>
+                                <th className="p-2 border-r border-gray-200 w-16 text-center bg-red-50/35">ANFO (kg)</th>
+                                <th className="p-2 border-r border-gray-200 w-16 text-center bg-sky-50/35">Tovex (kg)</th>
+                                <th className="p-2 text-center w-16 bg-red-50/35">Amorces</th>
 
                               </tr>
                             </thead>
@@ -1244,45 +1385,60 @@ export const Planning: React.FC = () => {
                                 return (
                                   <React.Fragment key={sec}>
                                     {/* Sector Header Badge Row */}
-                                    <tr className="bg-neutral-100 border-y border-[#141414]/20 select-none">
-                                      <td colSpan={11} className="py-2 px-2 bg-neutral-100">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <tr className="bg-gray-50/80 border-y border-gray-200 select-none">
+                                      <td colSpan={11} className="py-2.5 px-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                           <div className="flex flex-wrap items-center gap-2">
-                                            <span className="inline-block px-1.5 py-0.5 bg-[#8B0000] text-white text-[8px] font-black uppercase tracking-wider">
-                                              {sec}
-                                            </span>
-                                            <span className="text-[10px] font-black text-[#141414] uppercase">
-                                              {sec === 'Autres / Non classés' ? 'Autres chantiers non classés' : `Secteur ${sec}`} • {sectorRowsWithIdx.filter(it => it.row.chantierId).length} chantiers prévus
-                                            </span>
+                                            {(() => {
+                                              const style = getSectorBadgeStyles(sec);
+                                              return (
+                                                <span className={`inline-flex items-center gap-2 px-3 py-1 text-[10px] font-extrabold uppercase rounded-lg ${style.bg}`}>
+                                                  <span className={`w-2 h-2 rounded-full ${style.dot} animate-pulse`} />
+                                                  {sec === 'Autres / Non classés' ? 'Autres chantiers non classés' : sec}
+                                                </span>
+                                              );
+                                            })()}
                                           </div>
                                           
-                                          {/* Sector Chief Selection */}
-                                          {sec !== 'Autres / Non classés' && (
-                                            <div className="flex items-center gap-2 bg-white border border-[#141414]/20 px-2 py-1 rounded-sm shadow-sm">
-                                              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                                                👨‍✈️ Chef de Secteur / Poste :
-                                              </span>
-                                              <div className="w-56 text-black font-semibold text-[10.5px]">
-                                                <MatriculeAutocomplete
-                                                  value={sectorChiefs[p]?.[sec as 'Imiter 2' | 'Imiter 1' | 'Imiter Est'] || ''}
-                                                  onChange={(matricule) => {
-                                                    setSectorChiefs(prev => ({
-                                                      ...prev,
-                                                      [p]: {
-                                                        ...(prev[p] || {}),
-                                                        [sec]: matricule
-                                                      }
-                                                    }));
-                                                  }}
-                                                  employees={employees}
-                                                  sector={sec !== 'Autres / Non classés' ? sec : undefined}
-                                                  fonctions={['CHEF']}
-                                                  post={p}
-                                                  placeholder="Saisir Matricule Chef..."
-                                                />
+                                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                            {/* Button inline in header for high compactness */}
+                                            <button
+                                              type="button"
+                                              onClick={() => addRowToMinageSector(p, sec)}
+                                              className="text-[9.5px] font-black text-white hover:bg-sky-600 bg-[#00BFFF] border border-transparent px-2.5 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 uppercase tracking-wider shadow-xs"
+                                              title={`Ajouter un chantier de production à ${sec}`}
+                                            >
+                                              + Ajouter Ligne
+                                            </button>
+
+                                            {/* Sector Chief Selection */}
+                                            {sec !== 'Autres / Non classés' && (
+                                              <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1 rounded-lg shadow-sm">
+                                                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                                                  👨‍✈️ Chef de Secteur / Poste :
+                                                </span>
+                                                <div className="w-56 text-black font-semibold text-[10.5px]">
+                                                  <MatriculeAutocomplete
+                                                    value={sectorChiefs[p]?.[sec as 'Imiter 2' | 'Imiter 1' | 'Imiter Est'] || ''}
+                                                    onChange={(matricule) => {
+                                                      setSectorChiefs(prev => ({
+                                                        ...prev,
+                                                        [p]: {
+                                                          ...(prev[p] || {}),
+                                                          [sec]: matricule
+                                                        }
+                                                      }));
+                                                    }}
+                                                    employees={employees}
+                                                    sector={sec !== 'Autres / Non classés' ? sec : undefined}
+                                                    fonctions={['CHEF']}
+                                                    post={p}
+                                                    placeholder="Saisir Matricule Chef..."
+                                                  />
+                                                </div>
                                               </div>
-                                            </div>
-                                          )}
+                                            )}
+                                          </div>
                                         </div>
                                       </td>
                                     </tr>
@@ -1290,23 +1446,23 @@ export const Planning: React.FC = () => {
                                     {/* Group matching rows */}
                                     {sectorRowsWithIdx.map(({ row, idx: flatIdx }) => {
                                       const globalIdx = globalIdxCounter++;
-                                      const options = chantiers.filter(c => c.sector === sec || sec === 'Autres / Non classés');
+                                      const options = chantiers.filter(c => sec === 'Autres / Non classés' || isSectorMatching(c.sector, sec));
                                       const hasChantier = options.some(o => o.id === row.chantierId);
                                       const fallbackChantier = row.chantierId && !hasChantier ? chantiers.find(c => c.id === row.chantierId) : null;
 
                                       return (
                                         <tr 
                                           key={flatIdx}
-                                          className="border-b border-[#141414]/10 hover:bg-[#00BFFF]/5 transition-colors"
+                                          className="border-b border-gray-200 hover:bg-sky-50/20 transition-colors"
                                         >
                                           {/* Line Index & Delete Action */}
-                                          <td className="p-1 border border-[#141414]/10 text-center text-[10px] text-gray-500 font-mono w-8 select-none relative group">
+                                          <td className="p-1 px-1.5 border-r border-gray-200 text-center text-[10.5px] text-gray-500 font-mono w-8 select-none relative group bg-gray-50/50">
                                             <span className="group-hover:opacity-0 transition-opacity">{flatIdx + 1}</span>
                                             {isMinageRowRemovable(p, flatIdx) && (
                                               <button
                                                 type="button"
                                                 onClick={() => deleteMinageRowAt(p, flatIdx)}
-                                                className="absolute inset-x-0.5 top-0.5 bottom-0.5 bg-red-100 hover:bg-red-200 text-[#8B0000] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded cursor-pointer text-[10px] font-black border-none outline-none"
+                                                className="absolute inset-x-0.5 top-0.5 bottom-0.5 bg-red-55 hover:bg-red-100 text-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded cursor-pointer text-[10.5px] font-black border-none outline-none"
                                                 title="Retirer cette ligne"
                                               >
                                                 🗑️
@@ -1315,12 +1471,12 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Chantier dropdown selection */}
-                                          <td data-row={globalIdx} data-col={0} className="p-1 border border-[#141414]/10 min-w-[124px] focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={0} className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             <select
                                               value={row.chantierId}
                                               onChange={e => updateMinageCell(p, flatIdx, 'chantierId', e.target.value)}
                                               onKeyDown={makeExcelKeyHandler(globalIdx, 0)}
-                                              className="w-full bg-transparent border-0 font-bold p-0 text-[10.5px] uppercase outline-none"
+                                              className="w-full bg-transparent border-0 font-extrabold p-0.5 text-[11px] uppercase outline-none text-gray-800"
                                             >
                                               <option value="">(Vide)</option>
                                               {fallbackChantier && (
@@ -1335,7 +1491,7 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Mineur */}
-                                          <td data-row={globalIdx} data-col={1} className="p-0.5 border border-[#141414]/10 min-w-[180px] focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={1} className="p-0.5 border-r border-gray-200 min-w-[180px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             <MatriculeAutocomplete
                                               value={row.minerMatricule}
                                               onChange={(matricule) => updateMinageCell(p, flatIdx, 'minerMatricule', matricule)}
@@ -1349,7 +1505,7 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Aide-Mineur */}
-                                          <td data-row={globalIdx} data-col={2} className="p-0.5 border border-[#141414]/10 min-w-[180px] focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={2} className="p-0.5 border-r border-gray-200 min-w-[180px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             <MatriculeAutocomplete
                                               value={row.assistantMatricule}
                                               onChange={(matricule) => updateMinageCell(p, flatIdx, 'assistantMatricule', matricule)}
@@ -1363,36 +1519,50 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Section */}
-                                          <td data-row={globalIdx} data-col={3} className="p-1 border border-[#141414]/10 w-20 text-center focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={3} className="p-1 border-r border-gray-200 w-20 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             <select
                                               value={row.gallerySize}
                                               onChange={e => updateMinageCell(p, flatIdx, 'gallerySize', Number(e.target.value))}
                                               onKeyDown={makeExcelKeyHandler(globalIdx, 3)}
-                                              className="w-full bg-transparent border-none text-center outline-none font-bold"
+                                              className="w-full bg-transparent border-none text-center outline-none font-bold text-gray-800 text-[11px]"
                                             >
                                               <option value={9}>9 m²</option>
                                               <option value={12}>12 m²</option>
                                             </select>
                                           </td>
 
-                                          {/* Volées prévues */}
-                                          <td data-row={globalIdx} data-col={4} className="p-1 border border-[#141414]/10 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          {/* Volées prévues (Always frozen to 1) */}
+                                          <td data-row={globalIdx} data-col={4} className="p-1 border-r border-gray-200 w-16 text-center bg-gray-50/50 select-none relative group/volee">
                                             <input
                                               type="number"
-                                              value={row.plannedRounds}
-                                              onChange={e => updateMinageCell(p, flatIdx, 'plannedRounds', Number(e.target.value))}
-                                              onKeyDown={makeExcelKeyHandler(globalIdx, 4)}
-                                              className="w-full bg-transparent text-center font-bold text-xs outline-none border-0"
+                                              value={1}
+                                              disabled
+                                              className="w-full bg-transparent text-center font-black text-[11px] outline-none border-0 text-slate-400 cursor-not-allowed select-none"
                                             />
+                                            
+                                            {/* High-fidelity professional tooltip popover */}
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/volee:block w-72 bg-slate-950 text-slate-100 text-[10.5px] p-3 rounded-xl shadow-2xl z-50 border border-slate-800 pointer-events-none transition-all duration-200 text-left">
+                                              <div className="font-extrabold text-[#00BFFF] uppercase tracking-wider text-[9px] mb-1">
+                                                ℹ️ Spécifications de Tir & Forage
+                                              </div>
+                                              <p className="font-semibold leading-relaxed text-slate-250">
+                                                {row.gallerySize === 12 ? (
+                                                  <>Le gabarit de foration théorique pour <strong className="text-white">12m²</strong> est de <strong className="text-white font-black">38 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">32 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">32</strong> s'affiche pour le chargement et les amorces).</>
+                                                ) : (
+                                                  <>Le gabarit de foration théorique pour <strong className="text-white">9m²</strong> est de <strong className="text-white font-black">28 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">26 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">26</strong> s'affiche pour le chargement et les amorces).</>
+                                                )}
+                                              </p>
+                                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-950"></div>
+                                            </div>
                                           </td>
 
                                           {/* Mètres prévus */}
-                                          <td className="p-1 border border-[#141414]/10 w-20 text-center font-mono font-bold text-slate-500 bg-[#141414]/5 select-none font-black">
+                                          <td className="p-1 border-r border-gray-200 w-20 text-center font-mono font-extrabold text-blue-600 bg-gray-50/80 select-none">
                                             {row.meterage.toFixed(1)} m
                                           </td>
 
                                           {/* Trous prévus */}
-                                          <td data-row={globalIdx} data-col={5} className="p-1 border border-[#141414]/10 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={5} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             {row.explosivesManualOverride ? (
                                               <div className="flex items-center justify-center gap-1">
                                                 <input
@@ -1400,7 +1570,7 @@ export const Planning: React.FC = () => {
                                                   value={row.plannedHoles}
                                                   onChange={e => updateMinageCell(p, flatIdx, 'plannedHoles', Number(e.target.value))}
                                                   onKeyDown={makeExcelKeyHandler(globalIdx, 5)}
-                                                  className="w-full bg-transparent text-center font-mono font-bold text-xs outline-none border-none py-0.5"
+                                                  className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-650"
                                                 />
                                                 <button
                                                   type="button"
@@ -1414,7 +1584,7 @@ export const Planning: React.FC = () => {
                                             ) : (
                                               <div
                                                 onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                className="cursor-pointer font-bold text-xs text-center select-none py-1 hover:bg-[#00BFFF]/10 w-full text-slate-800"
+                                                className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
                                                 title="Double-clic pour modifier manuellement"
                                               >
                                                 {row.plannedHoles}
@@ -1423,7 +1593,7 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* ANFO */}
-                                          <td data-row={globalIdx} data-col={6} className="p-1 border border-[#141414]/10 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={6} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             {row.explosivesManualOverride ? (
                                               <div className="flex items-center justify-center gap-1">
                                                 <input
@@ -1431,7 +1601,7 @@ export const Planning: React.FC = () => {
                                                   value={row.anfo}
                                                   onChange={e => updateMinageCell(p, flatIdx, 'anfo', Number(e.target.value))}
                                                   onKeyDown={makeExcelKeyHandler(globalIdx, 6)}
-                                                  className="w-full bg-transparent text-center font-mono font-bold text-xs outline-none border-none py-0.5"
+                                                  className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-650"
                                                 />
                                                 <button
                                                   type="button"
@@ -1445,7 +1615,7 @@ export const Planning: React.FC = () => {
                                             ) : (
                                               <div
                                                 onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                className="cursor-pointer font-bold text-xs text-center select-none py-1 hover:bg-[#00BFFF]/10 w-full text-slate-800"
+                                                className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
                                                 title="Double-clic pour modifier manuellement"
                                               >
                                                 {row.anfo}
@@ -1454,16 +1624,16 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Tovex */}
-                                          <td data-row={globalIdx} data-col={7} className="p-1 border border-[#141414]/10 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={7} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             {row.explosivesManualOverride ? (
                                               <div className="flex items-center justify-center gap-1">
                                                 <input
                                                   type="number"
-                                                  step="0.1"
+                                                  step="0.5"
                                                   value={row.tovex}
                                                   onChange={e => updateMinageCell(p, flatIdx, 'tovex', Number(e.target.value))}
                                                   onKeyDown={makeExcelKeyHandler(globalIdx, 7)}
-                                                  className="w-full bg-transparent text-center font-mono font-bold text-xs outline-none border-none py-0.5"
+                                                  className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-650"
                                                 />
                                                 <button
                                                   type="button"
@@ -1477,7 +1647,7 @@ export const Planning: React.FC = () => {
                                             ) : (
                                               <div
                                                 onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                className="cursor-pointer font-bold text-xs text-center select-none py-1 hover:bg-[#00BFFF]/10 w-full text-slate-800"
+                                                className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
                                                 title="Double-clic pour modifier manuellement"
                                               >
                                                 {row.tovex.toFixed(1)}
@@ -1486,7 +1656,7 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Amorces */}
-                                          <td data-row={globalIdx} data-col={8} className="p-1 border border-[#141414]/10 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={8} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             {row.explosivesManualOverride ? (
                                               <div className="flex items-center justify-center gap-1">
                                                 <input
@@ -1494,7 +1664,7 @@ export const Planning: React.FC = () => {
                                                   value={row.ammorces}
                                                   onChange={e => updateMinageCell(p, flatIdx, 'ammorces', Number(e.target.value))}
                                                   onKeyDown={makeExcelKeyHandler(globalIdx, 8)}
-                                                  className="w-full bg-transparent text-center font-mono font-bold text-xs outline-none border-none py-0.5"
+                                                  className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-655"
                                                 />
                                                 <button
                                                   type="button"
@@ -1508,7 +1678,7 @@ export const Planning: React.FC = () => {
                                             ) : (
                                               <div
                                                 onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                className="cursor-pointer font-bold text-xs text-center select-none py-1 hover:bg-[#00BFFF]/10 w-full text-slate-800"
+                                                className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
                                                 title="Double-clic pour modifier manuellement"
                                               >
                                                 {row.ammorces}
@@ -1531,18 +1701,7 @@ export const Planning: React.FC = () => {
                                       );
                                     })}
 
-                                    {/* Row additions footer for sector */}
-                                    <tr className="border-b border-[#141414]/10">
-                                      <td colSpan={11} className="py-1 px-3 bg-neutral-50/50">
-                                        <button
-                                          type="button"
-                                          onClick={() => addRowToMinageSector(p, sec)}
-                                          className="text-[9px] font-black text-[#00BFFF] hover:underline bg-transparent border-none cursor-pointer flex items-center gap-1 uppercase tracking-wider"
-                                        >
-                                          + Ajouter une ligne de production ({sec})
-                                        </button>
-                                      </td>
-                                    </tr>
+                                    {/* Row additions footer removed - moved inline in header */}
                                   </React.Fragment>
                                 );
                               })}
@@ -1573,33 +1732,25 @@ export const Planning: React.FC = () => {
                     const SECTOR_ORDER = ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Autres / Non classés'];
 
                     return (
-                      <div key={p} className="border border-[#141414]/15 bg-white p-3 shadow-sm rounded-sm">
+                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
                         {/* Shifty/Post block banner */}
-                        <div className="bg-[#00BFFF]/10 border-l-4 border-[#00BFFF] p-2.5 mb-3 flex items-center justify-between">
-                          <div>
-                            <h4 className="text-xs font-black uppercase text-[#00BFFF] tracking-wider flex items-center gap-1.5">
-                              🚜 {p} ({postHoursLabels[p]})
-                            </h4>
-                            <p className="text-[9px] font-bold text-gray-500 uppercase">
-                              Déblayage de Front, Nettoyage et Marinage théorique
-                            </p>
-                          </div>
-                          <span className="text-[9.5px] font-black uppercase text-[#00BFFF] bg-white border border-[#00BFFF]/20 px-2 py-0.5 rounded-sm">
-                            Saisie Active
-                          </span>
+                        <div className="bg-gradient-to-r from-transparent via-slate-950 to-transparent p-3.5 mb-4 flex items-center justify-center select-none rounded-lg">
+                          <h4 className="text-[13px] font-black uppercase text-white tracking-[0.25em] flex items-center gap-2.5 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]">
+                            🚜 {p} <span className="text-slate-350 font-semibold tracking-normal text-[11px]">({postHoursLabels[p]})</span>
+                          </h4>
                         </div>
 
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse border border-[#141414]/25 text-[10.5px]">
+                        <div className="overflow-x-auto rounded-lg border border-gray-200">
+                          <table className="w-full text-left border-collapse text-[11px]">
                             <thead>
-                              <tr className="bg-[#141414] text-white text-[8px] font-black uppercase tracking-wider sticky top-0 z-10">
-                                <th className="p-1 border border-white/10 text-center w-8 select-none">#</th>
-                                <th className="p-1 border border-white/10 min-w-[124px]">Chantier de nettoyage</th>
-                                <th className="p-1 border border-white/10 min-w-[160px]">Conducteur engin (Matricule / Nom)</th>
-                                <th className="p-1 border border-white/10 min-w-[140px]">Machine / Engin</th>
-                                <th className="p-1 border border-white/10 w-20 text-center">Godets planifiés</th>
-                                <th className="p-1 border border-white/10 w-24 text-center">Volume estimé (m³)</th>
-                                <th className="p-1 border border-white/10 w-24 text-center">Heures travail</th>
+                              <tr className="bg-slate-50 text-gray-700 text-[9px] font-black uppercase tracking-wider border-b border-gray-200 sticky top-0 z-10 select-none">
+                                <th className="p-2 border-r border-gray-200 text-center w-8 select-none bg-slate-100/50">#</th>
+                                <th className="p-2 border-r border-gray-100 min-w-[124px] bg-gradient-to-r from-[#00BFFF]/20 via-[#00BFFF]/10 to-transparent text-sky-950 font-black">Chantier de nettoyage</th>
+                                <th className="p-2 border-r border-gray-100 min-w-[160px] bg-gradient-to-r from-red-600/20 via-red-500/10 to-transparent text-red-950 font-black">Conducteur engin (Matricule / Nom)</th>
+                                <th className="p-2 border-r border-gray-100 min-w-[140px] bg-gradient-to-r from-[#00BFFF]/20 via-[#00BFFF]/10 to-transparent text-sky-950 font-black">Machine / Engin</th>
+                                <th className="p-2 border-r border-gray-200 w-20 text-center bg-sky-50/35">Godets planifiés</th>
+                                <th className="p-2 border-r border-gray-200 w-24 text-center bg-red-50/35">Volume estimé (m³)</th>
+                                <th className="p-2 text-center w-24 bg-sky-50/35">Heures travail</th>
 
                               </tr>
                             </thead>
@@ -1614,15 +1765,32 @@ export const Planning: React.FC = () => {
                                 return (
                                   <React.Fragment key={sec}>
                                     {/* Group Sector Header */}
-                                    <tr className="bg-neutral-100 border-y border-[#141414]/20 select-none">
-                                      <td colSpan={7} className="py-1.5 px-2 bg-neutral-100">
-                                        <div className="flex items-center gap-2">
-                                          <span className="inline-block px-1.5 py-0.5 bg-[#00BFFF] text-white text-[8px] font-black uppercase tracking-wider">
-                                            {sec}
-                                          </span>
-                                          <span className="text-[9px] font-black text-[#141414] uppercase">
-                                            {sec === 'Autres / Non classés' ? 'Autres chantiers non classés' : `Secteur ${sec}`} • {sectorRowsWithIdx.filter(it => it.row.chantierId).length} déblayages planifiés
-                                          </span>
+                                    <tr className="bg-gray-50/80 border-y border-gray-200 select-none">
+                                      <td colSpan={7} className="py-2 px-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            {(() => {
+                                              const style = getSectorBadgeStyles(sec);
+                                              return (
+                                                <span className={`inline-flex items-center gap-2 px-3 py-1 text-[10px] font-extrabold uppercase rounded-lg ${style.bg}`}>
+                                                  <span className={`w-2 h-2 rounded-full ${style.dot} animate-pulse`} />
+                                                  {sec === 'Autres / Non classés' ? 'Autres chantiers non classés' : sec}
+                                                </span>
+                                              );
+                                            })()}
+                                          </div>
+                                          
+                                          <div className="flex items-center gap-2 shadow-sm rounded-md bg-white p-0.5">
+                                            {/* Button inline in header for high compactness */}
+                                            <button
+                                              type="button"
+                                              onClick={() => addRowToDeblayageSector(p, sec)}
+                                              className="text-[9px] font-black text-white hover:bg-sky-600 bg-[#00BFFF] border border-transparent px-2.5 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 uppercase tracking-wider"
+                                              title={`Ajouter un chantier de nettoyage à ${sec}`}
+                                            >
+                                              + Ajouter Ligne
+                                            </button>
+                                          </div>
                                         </div>
                                       </td>
                                     </tr>
@@ -1630,23 +1798,23 @@ export const Planning: React.FC = () => {
                                     {/* Sector matching rows */}
                                     {sectorRowsWithIdx.map(({ row, idx: flatIdx }) => {
                                       const globalIdx = globalIdxCounter++;
-                                      const options = chantiers.filter(c => c.sector === sec || sec === 'Autres / Non classés');
+                                      const options = chantiers.filter(c => sec === 'Autres / Non classés' || isSectorMatching(c.sector, sec));
                                       const hasChantier = options.some(o => o.id === row.chantierId);
                                       const fallbackChantier = row.chantierId && !hasChantier ? chantiers.find(c => c.id === row.chantierId) : null;
 
                                       return (
                                         <tr 
                                           key={flatIdx}
-                                          className="border-b border-[#141414]/10 hover:bg-[#00BFFF]/5 transition-colors"
+                                          className="border-b border-gray-200 hover:bg-sky-50/20 transition-colors"
                                         >
                                           {/* Line Index & Trash */}
-                                          <td className="p-1 border border-[#141414]/10 text-center text-[10px] text-gray-500 font-mono w-8 select-none relative group">
+                                          <td className="p-1 px-1.5 border-r border-gray-200 text-center text-[10.5px] text-gray-500 font-mono w-8 select-none relative group bg-gray-50/50">
                                             <span className="group-hover:opacity-0 transition-opacity">{flatIdx + 1}</span>
                                             {isDeblayageRowRemovable(p, flatIdx) && (
                                               <button
                                                 type="button"
                                                 onClick={() => deleteDeblayageRowAt(p, flatIdx)}
-                                                className="absolute inset-x-0.5 top-0.5 bottom-0.5 bg-red-100 hover:bg-red-200 text-[#8B0000] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded cursor-pointer text-[10px] font-black border-none outline-none"
+                                                className="absolute inset-x-0.5 top-0.5 bottom-0.5 bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded cursor-pointer text-[10.5px] font-black border-none outline-none"
                                                 title="Retirer cette ligne"
                                               >
                                                 🗑️
@@ -1655,12 +1823,12 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Chantier dropdown selection */}
-                                          <td data-row={globalIdx} data-col={0} className="p-1 border border-[#141414]/10 min-w-[124px] focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={0} className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             <select
                                               value={row.chantierId}
                                               onChange={e => updateDeblayageCell(p, flatIdx, 'chantierId', e.target.value)}
                                               onKeyDown={makeExcelKeyHandler(globalIdx, 0)}
-                                              className="w-full bg-transparent border-0 font-bold p-0 text-[10.5px] uppercase outline-none"
+                                              className="w-full bg-transparent border-0 font-extrabold p-0.5 text-[11px] uppercase outline-none text-gray-800"
                                             >
                                               <option value="">(Vide)</option>
                                               {fallbackChantier && (
@@ -1675,7 +1843,7 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Driver */}
-                                          <td data-row={globalIdx} data-col={1} className="p-0.5 border border-[#141414]/10 min-w-[160px] focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={1} className="p-0.5 border-r border-gray-200 min-w-[160px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             <MatriculeAutocomplete
                                               value={row.driverMatricule}
                                               onChange={(matricule) => updateDeblayageCell(p, flatIdx, 'driverMatricule', matricule)}
@@ -1689,12 +1857,12 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Engine */}
-                                          <td data-row={globalIdx} data-col={2} className="p-1 border border-[#141414]/10 min-w-[140px] focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={2} className="p-1 border-r border-gray-200 min-w-[140px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             <select
                                               value={row.engineId}
                                               onChange={e => updateDeblayageCell(p, flatIdx, 'engineId', e.target.value)}
                                               onKeyDown={makeExcelKeyHandler(globalIdx, 2)}
-                                              className="w-full bg-transparent border-0 font-bold p-0 text-[10.5px] uppercase outline-none"
+                                              className="w-full bg-transparent border-0 font-bold text-[11px] uppercase outline-none text-gray-800"
                                             >
                                               <option value="">(Machine LHD)</option>
                                               {platformSettings.engines.map(eng => (
@@ -1706,31 +1874,31 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Godets */}
-                                          <td data-row={globalIdx} data-col={3} className="p-1 border border-[#141414]/10 w-20 text-center focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={3} className="p-1 border-r border-gray-200 w-20 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             <input
                                               type="number"
                                               value={row.godets === 0 ? '' : row.godets}
                                               placeholder="0"
                                               onChange={e => updateDeblayageCell(p, flatIdx, 'godets', Number(e.target.value))}
                                               onKeyDown={makeExcelKeyHandler(globalIdx, 3)}
-                                              className="w-full bg-transparent text-center font-bold text-xs outline-none border-0"
+                                              className="w-full bg-transparent text-center font-bold text-[11px] outline-none border-0 text-gray-800"
                                             />
                                           </td>
 
                                           {/* Volume estimated */}
-                                          <td className="p-1 border border-[#141414]/10 w-24 text-center font-mono font-bold text-slate-500 bg-[#141414]/5 select-none font-black">
+                                          <td className="p-1 border-r border-gray-200 w-24 text-center font-mono font-extrabold text-blue-600 bg-gray-50/80 select-none">
                                             {row.volumeEstimated.toFixed(1)} m³
                                           </td>
 
                                           {/* Hours worked */}
-                                          <td data-row={globalIdx} data-col={4} className="p-1 border border-[#141414]/10 w-24 text-center focus-within:ring-2 focus-within:ring-[#00BFFF] focus-within:ring-inset focus-within:bg-[#00BFFF]/5">
+                                          <td data-row={globalIdx} data-col={4} className="p-1 border-r border-gray-200 w-24 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             <input
                                               type="number"
                                               step="0.5"
                                               value={row.hoursWorked}
                                               onChange={e => updateDeblayageCell(p, flatIdx, 'hoursWorked', Number(e.target.value))}
                                               onKeyDown={makeExcelKeyHandler(globalIdx, 4)}
-                                              className="w-full bg-transparent text-center font-bold text-xs outline-none border-0"
+                                              className="w-full bg-transparent text-center font-bold text-[11px] outline-none border-0 text-gray-800"
                                             />
                                           </td>
 
@@ -1738,7 +1906,7 @@ export const Planning: React.FC = () => {
                                           <td className="hidden">
                                             <input
                                               type="text"
-
+ 
                                               value={row.remarks || ''}
                                               onChange={e => updateDeblayageCell(p, flatIdx, 'remarks', e.target.value)}
                                               onKeyDown={makeExcelKeyHandler(globalIdx, 5)}
@@ -1749,18 +1917,7 @@ export const Planning: React.FC = () => {
                                       );
                                     })}
 
-                                    {/* Sector addition row */}
-                                    <tr className="border-b border-[#141414]/10">
-                                      <td colSpan={7} className="py-1 px-3 bg-neutral-50/50">
-                                        <button
-                                          type="button"
-                                          onClick={() => addRowToDeblayageSector(p, sec)}
-                                          className="text-[9px] font-black text-[#00BFFF] hover:underline bg-transparent border-none cursor-pointer flex items-center gap-1 uppercase tracking-wider"
-                                        >
-                                          + Ajouter une ligne de nettoyage ({sec})
-                                        </button>
-                                      </td>
-                                    </tr>
+                                    {/* Sector addition row removed - moved inline in header */}
                                   </React.Fragment>
                                 );
                               })}
@@ -1774,326 +1931,395 @@ export const Planning: React.FC = () => {
               </div>
             )}
 
-            {/* SHEET 3: SINGLE FIXED CARD FOR EXTRACTION */}
+            {/* SHEET 3: 3 SHIFTS VERTICALLY STACKED FOR EXTRACTION */}
             {activeSheetTab === 'extraction' && (() => {
-              const row = extractionRows[0] || {
-                chantierName: 'Extraction Bure N340 Imiter Est',
-                treuilliste: '',
-                equipier1: '',
-                equipier2: '',
-                equipier3: '',
-                equipier4: '',
-                wagonsTarget: 48,
-                sterileBureImiterEst: 0,
-                startTime: '08:00',
-                endTime: '13:30',
-                remarks: ''
+              const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
+              const postHoursLabels: Record<string, string> = {
+                'Poste 1': '07h - 14h',
+                'Poste 2': '15h - 22h',
+                'Poste 3': '23h - 06h'
               };
-              const idx = 0;
-              const tName = getEmployeeName(row.treuilliste);
-              const eq1Name = getEmployeeName(row.equipier1);
-              const eq2Name = getEmployeeName(row.equipier2);
-              const eq3Name = getEmployeeName(row.equipier3);
-              const eq4Name = getEmployeeName(row.equipier4);
-              const avgMin = row.wagonsTarget > 0 ? (360 / row.wagonsTarget) : 0;
 
               return (
-                <div className="max-w-4xl mx-auto">
-                  <div 
-                    data-card-container="true"
-                    className="bg-[#F5F5F0] border-2 border-[#141414] p-6 shadow-[4px_4px_0px_0px_#141414] hover:shadow-[6px_6px_0px_0px_#141414] transition-all duration-150 space-y-6"
-                  >
-                    {/* Title Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[#141414] pb-4">
-                      <div>
-                        <span className="text-[10px] font-black uppercase bg-[#8B0000] text-white px-2 py-1 font-mono tracking-wider">
-                          Poste de Treuil Unique
-                        </span>
-                        <h3 className="text-lg font-black uppercase text-[#141414] mt-1">
-                          Extraction Bure N340 Imiter Est
-                        </h3>
-                      </div>
-                      <span className="inline-flex items-center gap-1 text-xs font-black uppercase bg-[#00BFFF] text-white px-3 py-1 border border-[#141414]">
-                        📅 Planification du Poste
-                      </span>
-                    </div>
+                <div className="space-y-8">
+                  {posts.map(p => {
+                    const rowsForPost = extractionRowsByPost[p] || [];
+                    const row = rowsForPost[0] || {
+                      chantierName: 'Extraction Bure N340 Imiter Est',
+                      treuilliste: '',
+                      equipier1: '',
+                      equipier2: '',
+                      equipier3: '',
+                      equipier4: '',
+                      wagonsTarget: 48,
+                      sterileBureImiterEst: 0,
+                      startTime: POST_HOURS[p].start,
+                      endTime: POST_HOURS[p].end,
+                      remarks: ''
+                    };
+                    const idx = 0;
+                    const tName = getEmployeeName(row.treuilliste);
+                    const eq1Name = getEmployeeName(row.equipier1);
+                    const eq2Name = getEmployeeName(row.equipier2);
+                    const eq3Name = getEmployeeName(row.equipier3);
+                    const eq4Name = getEmployeeName(row.equipier4);
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Left Block: Personnel Assignations */}
-                      <div className="space-y-4">
-                        <div className="border-b border-[#141414]/20 pb-1">
-                          <h4 className="text-[11px] font-black uppercase text-[#8B0000] tracking-wider select-none">
-                            Assignations de l'équipe
+                    return (
+                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
+                        {/* Shifty/Post block banner */}
+                        <div className="bg-gradient-to-r from-transparent via-slate-950 to-transparent p-3.5 mb-4 flex items-center justify-center select-none rounded-lg">
+                          <h4 className="text-[13px] font-black uppercase text-white tracking-[0.25em] flex items-center gap-2.5 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]">
+                            🚃 {p} <span className="text-slate-350 font-semibold tracking-normal text-[11px]">({postHoursLabels[p]})</span>
                           </h4>
                         </div>
 
-                        {/* Treuilliste */}
-                        <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
-                          <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
-                            Treuilliste Prévu
-                          </label>
-                          <MatriculeAutocomplete
-                            value={row.treuilliste || ''}
-                            onChange={(matricule) => updateExtractionCell(idx, 'treuilliste', matricule)}
-                            employees={employees}
-                            fonctions={['TREUILLISTE']}
-                            post={selectedPost}
-                            placeholder="Saisir matricule..."
-                          />
-                          <span className="text-[10px] text-sky-700 block truncate max-w-full font-bold mt-1">
-                            {tName || '❌ Aucun treuilliste affecté (Libre)'}
-                          </span>
-                        </div>
+                        <div className="max-w-4xl mx-auto">
+                          <div 
+                            data-card-container="true"
+                            className="bg-white border border-gray-200 p-6 shadow-md rounded-2xl space-y-6"
+                          >
+                            {/* Title Header */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-4">
+                              <div>
+                                <h3 className="text-lg font-black uppercase text-gray-805 mt-1 tracking-wide">
+                                  Extraction Bure N340 Imiter Est
+                                </h3>
+                              </div>
+                              <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase bg-emerald-50/70 text-emerald-600 px-3 py-1 rounded-lg border border-emerald-200/50 shadow-sm">
+                                📅 Planification du Poste
+                              </span>
+                            </div>
 
-                        {/* Crew grid */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
-                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
-                              Équipier Prévu 1
-                            </label>
-                            <MatriculeAutocomplete
-                              value={row.equipier1 || ''}
-                              onChange={(matricule) => updateExtractionCell(idx, 'equipier1', matricule)}
-                              employees={employees}
-                              fonctions={['OUVRIER']}
-                              post={selectedPost}
-                              placeholder="Matricule..."
-                            />
-                            <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
-                              {eq1Name || '(Vide)'}
-                            </span>
-                          </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {/* Left Block: Personnel Assignations */}
+                              <div className="space-y-4">
+                                <div className="border-b border-gray-150 pb-1.5">
+                                  <h4 className="text-[11px] font-extrabold uppercase text-gray-600 tracking-wider select-none">
+                                    Assignations de l'équipe
+                                  </h4>
+                                </div>
 
-                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
-                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
-                              Équipier Prévu 2
-                            </label>
-                            <MatriculeAutocomplete
-                              value={row.equipier2 || ''}
-                              onChange={(matricule) => updateExtractionCell(idx, 'equipier2', matricule)}
-                              employees={employees}
-                              fonctions={['OUVRIER']}
-                              post={selectedPost}
-                              placeholder="Matricule..."
-                            />
-                            <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
-                              {eq2Name || '(Vide)'}
-                            </span>
-                          </div>
+                                {/* Treuilliste */}
+                                <div className="bg-gray-50/60 border border-gray-200 p-3 shadow-none rounded-xl">
+                                  <label className="block text-[9.5px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                                    Treuilliste Prévu
+                                  </label>
+                                  <MatriculeAutocomplete
+                                    value={row.treuilliste || ''}
+                                    onChange={(matricule) => updateExtractionCell(p, idx, 'treuilliste', matricule)}
+                                    employees={employees}
+                                    fonctions={['TREUILLISTE']}
+                                    post={p}
+                                    placeholder="Saisir matricule..."
+                                  />
+                                  <span className="text-[11px] text-sky-750 block truncate max-w-full font-extrabold mt-1.5">
+                                    {tName || '❌ Aucun treuilliste affecté (Libre)'}
+                                  </span>
+                                </div>
 
-                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
-                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
-                              Équipier Prévu 3
-                            </label>
-                            <MatriculeAutocomplete
-                              value={row.equipier3 || ''}
-                              onChange={(matricule) => updateExtractionCell(idx, 'equipier3', matricule)}
-                              employees={employees}
-                              fonctions={['OUVRIER']}
-                              post={selectedPost}
-                              placeholder="Matricule..."
-                            />
-                            <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
-                              {eq3Name || '(Vide)'}
-                            </span>
-                          </div>
+                                {/* Crew grid */}
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="bg-gray-50/60 border border-gray-200 p-3 shadow-none rounded-xl">
+                                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                                      Équipier Prévu 1
+                                    </label>
+                                    <MatriculeAutocomplete
+                                      value={row.equipier1 || ''}
+                                      onChange={(matricule) => updateExtractionCell(p, idx, 'equipier1', matricule)}
+                                      employees={employees}
+                                      fonctions={['OUVRIER']}
+                                      post={p}
+                                      placeholder="Matricule..."
+                                    />
+                                    <span className="text-[10px] text-slate-650 block truncate max-w-full font-bold mt-1">
+                                      {eq1Name || '(Vide)'}
+                                    </span>
+                                  </div>
 
-                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
-                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
-                              Équipier Prévu 4
-                            </label>
-                            <MatriculeAutocomplete
-                              value={row.equipier4 || ''}
-                              onChange={(matricule) => updateExtractionCell(idx, 'equipier4', matricule)}
-                              employees={employees}
-                              fonctions={['OUVRIER']}
-                              post={selectedPost}
-                              placeholder="Matricule..."
-                            />
-                            <span className="text-[9px] text-slate-600 block truncate max-w-full font-semibold mt-1">
-                              {eq4Name || '(Vide)'}
-                            </span>
+                                  <div className="bg-gray-50/60 border border-gray-200 p-3 shadow-none rounded-xl">
+                                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                                      Équipier Prévu 2
+                                    </label>
+                                    <MatriculeAutocomplete
+                                      value={row.equipier2 || ''}
+                                      onChange={(matricule) => updateExtractionCell(p, idx, 'equipier2', matricule)}
+                                      employees={employees}
+                                      fonctions={['OUVRIER']}
+                                      post={p}
+                                      placeholder="Matricule..."
+                                    />
+                                    <span className="text-[10px] text-slate-650 block truncate max-w-full font-bold mt-1">
+                                      {eq2Name || '(Vide)'}
+                                    </span>
+                                  </div>
+
+                                  <div className="bg-gray-50/60 border border-gray-200 p-3 shadow-none rounded-xl">
+                                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                                      Équipier Prévu 3
+                                    </label>
+                                    <MatriculeAutocomplete
+                                      value={row.equipier3 || ''}
+                                      onChange={(matricule) => updateExtractionCell(p, idx, 'equipier3', matricule)}
+                                      employees={employees}
+                                      fonctions={['OUVRIER']}
+                                      post={p}
+                                      placeholder="Matricule..."
+                                    />
+                                    <span className="text-[10px] text-slate-650 block truncate max-w-full font-bold mt-1">
+                                      {eq3Name || '(Vide)'}
+                                    </span>
+                                  </div>
+
+                                  <div className="bg-gray-50/60 border border-gray-200 p-3 shadow-none rounded-xl">
+                                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                                      Équipier Prévu 4
+                                    </label>
+                                    <MatriculeAutocomplete
+                                      value={row.equipier4 || ''}
+                                      onChange={(matricule) => updateExtractionCell(p, idx, 'equipier4', matricule)}
+                                      employees={employees}
+                                      fonctions={['OUVRIER']}
+                                      post={p}
+                                      placeholder="Matricule..."
+                                    />
+                                    <span className="text-[10px] text-slate-650 block truncate max-w-full font-bold mt-1">
+                                      {eq4Name || '(Vide)'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Right Block: Metrics & Schedule */}
+                              <div className="space-y-4">
+                                <div className="border-b border-gray-150 pb-1.5">
+                                  <h4 className="text-[11px] font-extrabold uppercase text-gray-600 tracking-wider select-none">
+                                    Objectifs & Horaires
+                                  </h4>
+                                </div>
+
+                                {/* Hours */}
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="bg-gray-50/60 border border-gray-200 p-3 shadow-none rounded-xl">
+                                    <label className="block text-[9.5px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                                      Heure Début Prévue
+                                    </label>
+                                    <input
+                                      type="time"
+                                      value={row.startTime || POST_HOURS[p].start}
+                                      onChange={e => updateExtractionCell(p, idx, 'startTime', e.target.value)}
+                                      className="w-full text-xs font-mono text-slate-800 font-bold outline-none bg-transparent"
+                                    />
+                                  </div>
+
+                                  <div className="bg-gray-50/60 border border-gray-200 p-3 shadow-none rounded-xl">
+                                    <label className="block text-[9.5px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                                      Heure Fin Prévue
+                                    </label>
+                                    <input
+                                      type="time"
+                                      value={row.endTime || POST_HOURS[p].end}
+                                      onChange={e => updateExtractionCell(p, idx, 'endTime', e.target.value)}
+                                      className="w-full text-xs font-mono text-slate-800 font-bold outline-none bg-transparent"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Target numbers */}
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="bg-emerald-50/70 border border-emerald-100 p-3 shadow-none rounded-xl">
+                                    <label className="block text-[9.5px] font-black text-emerald-800 uppercase tracking-wider mb-1.5">
+                                      Cible Wagons (Target)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={row.wagonsTarget}
+                                      onKeyDown={handleKeyDown}
+                                      onChange={e => updateExtractionCell(p, idx, 'wagonsTarget', Number(e.target.value))}
+                                      className="w-full text-sm font-extrabold text-emerald-950 font-mono outline-none bg-transparent"
+                                    />
+                                  </div>
+
+                                  <div className="bg-slate-50 border border-gray-200 p-3 shadow-none rounded-xl">
+                                    <label className="block text-[9.5px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                                      Stérile Prévu (Wg)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={row.sterileBureImiterEst}
+                                      onKeyDown={handleKeyDown}
+                                      onChange={e => updateExtractionCell(p, idx, 'sterileBureImiterEst', Number(e.target.value))}
+                                      className="w-full text-sm font-extrabold text-slate-800 font-mono outline-none bg-transparent"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Special instructions / Consignes */}
+                                <div className="bg-white border border-gray-200 p-3 rounded-xl shadow-none">
+                                  <label className="block text-[9.5px] font-black uppercase text-gray-500 tracking-wider mb-1.5">
+                                    Consignes spéciales
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ex : Priorité évacuation Bure N340..."
+                                    value={row.remarks || ''}
+                                    onKeyDown={handleKeyDown}
+                                    onChange={e => updateExtractionCell(p, idx, 'remarks', e.target.value)}
+                                    className="w-full text-xs font-bold text-slate-805 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-[#00BFFF]"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Footer analysis info */}
+                            <div className="border-t border-gray-250 pt-4 flex flex-wrap items-center justify-between gap-4 select-none text-[10px] font-mono font-black uppercase">
+                              <div className="flex items-center gap-1.5 text-emerald-700">
+                                <ClipboardList className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Intervalle ciblé :</span>
+                                <strong className="text-xs text-emerald-900 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md shadow-sm font-sans font-extrabold">
+                                  9 mins / wagon
+                                </strong>
+                              </div>
+                              <span className="text-slate-400 text-[9px]">
+                                Bure N340 Imiter Est • SMI HydroMines
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-
-                      {/* Right Block: Metrics & Schedule */}
-                      <div className="space-y-4">
-                        <div className="border-b border-[#141414]/20 pb-1">
-                          <h4 className="text-[11px] font-black uppercase text-[#8B0000] tracking-wider select-none">
-                            Objectifs & Horaires
-                          </h4>
-                        </div>
-
-                        {/* Hours */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
-                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
-                              Heure Début Prévue
-                            </label>
-                            <input
-                              type="time"
-                              value={row.startTime || '08:00'}
-                              onChange={e => updateExtractionCell(idx, 'startTime', e.target.value)}
-                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
-                            />
-                          </div>
-
-                          <div className="bg-white border border-[#141414] p-3 shadow-sm rounded-sm">
-                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
-                              Heure Fin Prévue
-                            </label>
-                            <input
-                              type="time"
-                              value={row.endTime || '13:30'}
-                              onChange={e => updateExtractionCell(idx, 'endTime', e.target.value)}
-                              className="w-full text-xs font-mono text-slate-850 font-bold outline-none bg-transparent"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Target numbers */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-emerald-50 border border-[#141414] p-3 shadow-sm rounded-sm">
-                            <label className="block text-[9px] font-black text-emerald-800 uppercase leading-none mb-1.5">
-                              Cible Wagons (Target)
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={row.wagonsTarget}
-                              onKeyDown={handleKeyDown}
-                              onChange={e => updateExtractionCell(idx, 'wagonsTarget', Number(e.target.value))}
-                              className="w-full text-sm font-black text-emerald-950 font-mono outline-none bg-transparent"
-                            />
-                          </div>
-
-                          <div className="bg-slate-100 border border-[#141414] p-3 shadow-sm rounded-sm">
-                            <label className="block text-[9px] font-black text-slate-500 uppercase leading-none mb-1.5">
-                              Stérile Prévu (Wg)
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={row.sterileBureImiterEst}
-                              onKeyDown={handleKeyDown}
-                              onChange={e => updateExtractionCell(idx, 'sterileBureImiterEst', Number(e.target.value))}
-                              className="w-full text-sm font-black text-slate-800 font-mono outline-none bg-transparent"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Special instructions / Consignes */}
-                        <div className="bg-white border border-[#141414] p-3 rounded-sm shadow-sm">
-                          <label className="block text-[9px] font-black uppercase text-gray-500 leading-none mb-1.5">
-                            Consignes spéciales
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Ex : Priorité évacuation Bure N340..."
-                            value={row.remarks || ''}
-                            onKeyDown={handleKeyDown}
-                            onChange={e => updateExtractionCell(idx, 'remarks', e.target.value)}
-                            className="w-full text-xs font-bold text-slate-800 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-[#00BFFF]"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Footer analysis info */}
-                    <div className="border-t border-[#141414]/15 pt-3 flex flex-wrap items-center justify-between gap-4 select-none text-[10px] font-mono font-black uppercase">
-                      <div className="flex items-center gap-1.5 text-indigo-700">
-                        <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>Intervalle ciblé :</span>
-                        <strong className="text-xs text-indigo-900 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded shadow-sm">
-                          {row.wagonsTarget > 0 ? `${avgMin.toFixed(1)} mins / wagon` : '-- mins'}
-                        </strong>
-                      </div>
-                      <span className="text-slate-500 text-[9px]">
-                        Bure N340 Imiter Est • SMI HydroMines
-                      </span>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
               );
             })()}
 
-            {/* SHEET 4: BRIGADE MAINTENANCE SUPPORT */}
+            {/* SHEET 4: BRIGADE MAINTENANCE SUPPORT (3 SHIFTS VERTICALLY STACKED) */}
             {activeSheetTab === 'maintenance' && (
-              <div className="overflow-x-auto text-[11px]">
-                <table className="w-full text-left border-collapse border border-gray-200">
-                  <thead>
-                    <tr className="bg-gray-100 text-[#141414] border-b border-gray-300">
-                      <th className="p-1 text-[9px] font-black uppercase text-center w-8">Row</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-32 border-r border-gray-300">Rôle Fixe SMI</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-24 border-r border-gray-300">Matr. Spécialiste</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-36 border-r border-gray-300">Nom Spécialiste</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-48 border-r border-gray-300">Machine d'Intervention</th>
-                      <th className="p-1 text-[9px] font-black uppercase w-16 border-r border-gray-300 text-center">Heures</th>
-                      <th className="p-1 text-[9px] font-black uppercase">Fiche d'Opérations techniques de maintenance planifiée</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {maintenanceRows.map((row, idx) => {
-                      const expertValidName = getEmployeeName(row.agentMatricule);
+              <div className="space-y-8">
+                {(() => {
+                  const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
+                  const postHoursLabels: Record<string, string> = {
+                    'Poste 1': '07h - 14h',
+                    'Poste 2': '15h - 22h',
+                    'Poste 3': '23h - 06h'
+                  };
 
-                      return (
-                        <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50/50">
-                          <td className="p-1 text-[9px] font-mono text-gray-400 text-center bg-gray-50 border-r border-gray-200">{idx + 1}</td>
-                          <td className="p-1 border-r border-gray-200 font-black uppercase text-purple-700 bg-[#A020F0]/5">{row.roleLabel}</td>
-                          <td className="p-1 border-r border-gray-200">
-                            <MatriculeAutocomplete
-                              value={row.agentMatricule}
-                              onChange={(matricule) => updateMaintenanceCell(idx, 'agentMatricule', matricule)}
-                              employees={employees}
-                              fonctions={['MECANICIEN', 'CHAUDRONNIER', 'ELECTRICIEN']}
-                              placeholder="M-..."
-                            />
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-[10px] font-semibold text-gray-500 bg-gray-50">
-                            {expertValidName ? expertValidName.split(' ')[0] + ' ' + (expertValidName.split(' ')[1] || '') : 'Inconnu'}
-                          </td>
-                          <td className="p-1 border-r border-gray-200">
-                            <select
-                              value={row.engineId}
-                              onChange={e => updateMaintenanceCell(idx, 'engineId', e.target.value)}
-                              className="w-full text-[10px] border border-transparent hover:border-gray-300 focus:border-[#A020F0] outline-none bg-transparent p-0.5"
-                            >
-                              <option value="">(Aucun engin repéré)</option>
-                              {platformSettings.engines.map(eng => (
-                                <option key={eng} value={eng}>
-                                  {eng}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="p-1 border-r border-gray-200 text-center">
-                            <input
-                              type="number"
-                              value={row.hoursSpent}
-                              onChange={e => updateMaintenanceCell(idx, 'hoursSpent', Number(e.target.value))}
-                              className="w-full text-[10px] font-mono text-center outline-none bg-transparent p-0.5"
-                            />
-                          </td>
-                          <td className="p-1">
-                            <input
-                              type="text"
-                              placeholder="Visite périodique des 250h, graissage, vidange pont..."
-                              value={row.workDescription}
-                              onChange={e => updateMaintenanceCell(idx, 'workDescription', e.target.value)}
-                              className="w-full text-[9px] border border-transparent hover:border-gray-300 focus:border-[#00BFFF] outline-none bg-transparent p-0.5 uppercase"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                  return posts.map(p => {
+                    const rowsForPost = maintenanceRowsByPost[p] || [];
+
+                    return (
+                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
+                        {/* Shifty/Post block banner */}
+                        <div className="bg-gradient-to-r from-transparent via-slate-950 to-transparent p-3.5 mb-4 flex items-center justify-center select-none rounded-lg">
+                          <h4 className="text-[13px] font-black uppercase text-white tracking-[0.25em] flex items-center gap-2.5 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]">
+                            🔧 {p} <span className="text-slate-350 font-semibold tracking-normal text-[11px]">({postHoursLabels[p]})</span>
+                          </h4>
+                        </div>
+
+                        <div className="overflow-x-auto text-[11px] border border-gray-250 rounded-xl bg-white shadow-sm">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-gray-50/75 text-slate-705 border-b border-gray-200 font-bold">
+                                <th className="p-2 px-3 text-[9.5px] font-black uppercase text-center w-8 text-gray-400">Row</th>
+                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-40 border-r border-gray-200">Rôle Fixe SMI</th>
+                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-28 border-r border-gray-200">Matr. Spécialiste</th>
+                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-44 border-r border-gray-200">Nom Spécialiste</th>
+                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-52 border-r border-gray-200">Machine d'Intervention</th>
+                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-20 border-r border-gray-200 text-center">Heures</th>
+                                <th className="p-2 px-3 text-[9.5px] font-black uppercase border-r border-gray-200">Fiche d'Opérations techniques de maintenance planifiée</th>
+                                <th className="p-2 px-3 text-[9.5px] font-black uppercase text-center w-12">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rowsForPost.map((row, idx) => {
+                                const expertValidName = getEmployeeName(row.agentMatricule);
+
+                                return (
+                                  <tr key={idx} className="border-b border-gray-200 hover:bg-purple-50/10 transition-colors">
+                                    <td className="p-2 px-3 text-[10px] font-mono text-gray-400 text-center bg-gray-50/40 border-r border-gray-200">{idx + 1}</td>
+                                    <td className="p-2 px-3 border-r border-gray-200 font-extrabold uppercase text-purple-700 bg-purple-50/30 text-[10.5px]">
+                                      {row.roleLabel}
+                                    </td>
+                                    <td className="p-2 px-2.5 border-r border-gray-200 min-w-[110px] focus-within:ring-2 focus-within:ring-purple-200 focus-within:bg-purple-50/10">
+                                      <MatriculeAutocomplete
+                                        value={row.agentMatricule}
+                                        onChange={(matricule) => updateMaintenanceCell(p, idx, 'agentMatricule', matricule)}
+                                        employees={employees}
+                                        fonctions={['MECANICIEN', 'CHAUDRONNIER', 'ELECTRICIEN']}
+                                        placeholder="M-..."
+                                        post={p}
+                                      />
+                                    </td>
+                                    <td className="p-2 px-3 border-r border-gray-200 text-[11px] font-extrabold text-slate-700 bg-gray-50/50">
+                                      {expertValidName ? expertValidName.split(' ')[0] + ' ' + (expertValidName.split(' ')[1] || '') : 'Inconnu'}
+                                    </td>
+                                    <td className="p-2 px-2.5 border-r border-gray-200 focus-within:ring-2 focus-within:ring-purple-200">
+                                      <select
+                                        value={row.engineId}
+                                        onChange={e => updateMaintenanceCell(p, idx, 'engineId', e.target.value)}
+                                        className="w-full text-[11px] font-semibold border-0 outline-none bg-transparent p-0 text-slate-800"
+                                      >
+                                        <option value="">(Aucun engin repéré)</option>
+                                        {platformSettings.engines.map(eng => (
+                                          <option key={eng} value={eng}>
+                                            {eng}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                    <td className="p-2 px-2 text-center border-r border-gray-200 focus-within:ring-2 focus-within:ring-purple-200">
+                                      <input
+                                        type="number"
+                                        value={row.hoursSpent}
+                                        onChange={e => updateMaintenanceCell(p, idx, 'hoursSpent', Number(e.target.value))}
+                                        className="w-full text-[11px] font-mono text-center outline-none bg-transparent p-0 text-slate-800 font-bold"
+                                      />
+                                    </td>
+                                    <td className="p-2 px-3 border-r border-gray-200 focus-within:ring-2 focus-within:ring-purple-200">
+                                      <input
+                                        type="text"
+                                        placeholder="Visite périodique des 250h, graissage, vidange pont..."
+                                        value={row.workDescription}
+                                        onChange={e => updateMaintenanceCell(p, idx, 'workDescription', e.target.value)}
+                                        className="w-full text-[11px] border-0 outline-none bg-transparent p-0 uppercase text-slate-750 font-medium"
+                                      />
+                                    </td>
+                                    <td className="p-2 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteMaintenanceRowAt(p, idx)}
+                                        className="text-red-400 hover:text-red-700 p-1.5 rounded transition-colors"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Button for dynamic row addition */}
+                        <div className="flex justify-end mt-3">
+                          <button
+                            type="button"
+                            onClick={() => addRowToMaintenance(p)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[9px] font-black uppercase text-purple-600 bg-purple-50 hover:bg-purple-100/70 border border-purple-200/50 rounded-lg transition-all cursor-pointer shadow-xs"
+                          >
+                            <span>+ Ajouter Ligne</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
 
             {/* Auto Legend Info */}
-            <div className="flex justify-between items-center text-[8px] text-gray-400 mt-2 italic bg-gray-50 p-2 border border-gray-100/50">
+            <div className="flex justify-between items-center text-[9px] text-slate-400 mt-2.5 font-sans bg-gray-50/50 p-2.5 border border-gray-150 rounded-lg">
               <span>* Les prévisions de chargement s'injectent instantanément dans les fiches de Saisie Surface correspondantes.</span>
               <span>* Matrice automatisée : Le nom et la fonction de l'effectif se cherchent en temps réel en tapant le matricule.</span>
             </div>
@@ -2113,25 +2339,25 @@ export const Planning: React.FC = () => {
               if (duplicates.length === 0) return null;
 
               return (
-                <div id="duplicate-warnings-banner" className="my-3 border-2 border-[#8B0000] bg-red-50 text-red-950 p-3 shadow-sm">
-                  <div className="flex items-center gap-2 pb-1.5 border-b border-[#8B0000]/20 mb-2">
+                <div id="duplicate-warnings-banner" className="my-3 border border-red-200 bg-red-50/60 text-red-950 p-4 rounded-xl shadow-none">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-red-200 mb-2">
                     <span className="animate-pulse inline-block w-2.5 h-2.5 rounded-full bg-red-600"></span>
                     <span className="text-[10px] font-black uppercase tracking-wider text-red-800">
                       ⚠️ ALERTE DE DOUBLE AFFECTATION D'EFFECTIF (CONFLIT DE PLANNING)
                     </span>
                   </div>
-                  <div className="divide-y divide-[#8B0000]/10 max-h-24 overflow-y-auto pr-1">
+                  <div className="divide-y divide-red-200/50 max-h-24 overflow-y-auto pr-1">
                     {duplicates.map(([mat, occurrences]) => (
                       <div key={mat} className="py-1 text-[9.5px] font-medium flex items-start gap-1 justify-between">
                         <div>
-                          Le matricule <strong className="font-mono bg-red-150 px-1 text-red-900 border border-red-200">{mat}</strong> ({occurrences[0].name}) 
+                          Le matricule <strong className="font-mono bg-red-100 px-1 text-red-900 border border-red-200 rounded">{mat}</strong> ({occurrences[0].name}) 
                           est affecté <strong className="text-red-900">{occurrences.length} fois</strong> en même temps :
                         </div>
                         <div className="flex flex-wrap gap-1 mt-0.5 justify-end">
                           {occurrences.map((occ, oIdx) => (
                             <span 
                               key={oIdx} 
-                              className="inline-block px-1.5 py-0.25 bg-[#8B0000] text-white text-[7.5px] font-black uppercase rounded-sm"
+                              className="inline-block px-1.5 py-0.5 bg-red-600 text-white text-[7.5px] font-extrabold uppercase rounded"
                               title={`${occ.role} à ${occ.location}`}
                             >
                               {occ.sheet} ({occ.location})
@@ -2147,24 +2373,24 @@ export const Planning: React.FC = () => {
           </div>
 
           {/* INTEGRATED FULL-WIDTH BOTTOM SUMMARY BAR */}
-          <div className="bg-[#141414] text-white p-4 flex flex-col md:flex-row items-center justify-between gap-4 border border-[#141414] shadow-md">
-            <div className="flex items-center gap-6">
-              <div className="border-r border-white/20 pr-6">
-                <span className="text-white/40 uppercase text-[8px] font-bold block">Chantiers programmés</span>
-                <span className="text-lg font-black text-white mt-0.5 block">
+          <div className="bg-white p-4 flex flex-col md:flex-row items-center justify-between gap-4 border border-gray-200 rounded-2xl shadow-lg mt-6">
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="border-r border-gray-200 pr-6">
+                <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Chantiers programmés</span>
+                <span className="text-base font-black text-slate-800 mt-0.5 block">
                   {([...minageRowsByPost['Poste 1'], ...minageRowsByPost['Poste 2'], ...minageRowsByPost['Poste 3']].filter(r => r.chantierId !== '').length + 
                     [...deblayageRowsByPost['Poste 1'], ...deblayageRowsByPost['Poste 2'], ...deblayageRowsByPost['Poste 3']].filter(r => r.chantierId !== '').length)} postes de fond
                 </span>
               </div>
-              <div className="border-r border-white/20 pr-6">
-                <span className="text-white/40 uppercase text-[8px] font-bold block">Objectif Avancement</span>
-                <span className="text-lg font-black text-[#00BFFF] mt-0.5 block">
+              <div className="border-r border-gray-200 pr-6">
+                <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Objectif Avancement</span>
+                <span className="text-base font-black text-[#00BFFF] mt-0.5 block">
                   {([...minageRowsByPost['Poste 1'], ...minageRowsByPost['Poste 2'], ...minageRowsByPost['Poste 3']].reduce((a, b) => a + (b.chantierId ? b.meterage : 0), 0)).toFixed(1)} mètres
                 </span>
               </div>
               <div>
-                <span className="text-white/40 uppercase text-[8px] font-bold block">Coordinateur</span>
-                <span className="text-[10px] font-semibold text-[#00BFFF] mt-0.5 block uppercase">
+                <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Coordinateur</span>
+                <span className="text-[10px] font-extrabold text-slate-600 mt-0.5 block uppercase">
                   {user?.email || 'Secrétaire de Planification SMI'}
                 </span>
               </div>
@@ -2173,7 +2399,7 @@ export const Planning: React.FC = () => {
             <button 
               onClick={savePlanningWorkbook}
               disabled={saveStatus === 'saving'}
-              className="w-full md:w-auto bg-[#00BFFF] hover:bg-sky-500 text-white py-2.5 px-6 font-black uppercase tracking-widest text-[9px] transition-all shadow-md active:translate-y-px"
+              className="w-full md:w-auto bg-[#00BFFF] hover:bg-sky-500 text-white py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md hover:shadow-lg active:translate-y-px cursor-pointer"
             >
               {saveStatus === 'saving' ? 'Validation ...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver l\'Ordonnancement Complet'}
             </button>
@@ -2181,35 +2407,35 @@ export const Planning: React.FC = () => {
         </div>
       ) : (
         /* CONSOLIDATED HISTORY LIST VIEW */
-        <div className="bg-white border-2 border-[#141414] shadow-[8px_8px_0px_rgba(20,20,20,0.05)]">
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-md overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#141414] text-white">
+                <tr className="bg-gray-55 text-slate-700 border-b border-gray-200">
                   {['Date programmée', 'Shift / Poste', 'Chantiers planifiés (Blasting)', 'Avancement ciblé', 'Sauvegardé par', 'Fiche'].map(h => (
-                    <th key={h} className="px-5 py-3 text-[9px] font-black uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-5 py-3 text-[9px] font-extrabold uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#141414]/10 text-[10px]">
+              <tbody className="divide-y divide-gray-150 text-[11px]">
                 {planningsHistory.map((record) => (
-                  <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-3 font-mono font-bold">{record.date}</td>
+                  <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-3 font-mono font-bold text-slate-800">{record.date}</td>
                     <td className="px-5 py-3">
-                      <span className="bg-gray-100 px-2 py-0.5 font-bold uppercase border border-gray-200">{record.post}</span>
+                      <span className="bg-gray-100 text-slate-700 px-2.5 py-0.5 font-extrabold uppercase border border-gray-200 rounded">{record.post}</span>
                     </td>
-                    <td className="px-5 py-3 text-[#8B0000] font-black">
+                    <td className="px-5 py-3 text-red-600 font-extrabold">
                       {record.minageRows ? record.minageRows.length : 0} chantiers tirs
                     </td>
-                    <td className="px-5 py-3 font-black text-blue-700">
+                    <td className="px-5 py-3 font-extrabold text-blue-600">
                       {record.minageRows ? record.minageRows.reduce((acc: number, r: any) => acc + (r.meterage || 0), 0).toFixed(1) : '0.0'} m
                     </td>
-                    <td className="px-5 py-3 text-gray-400 font-bold uppercase text-[9px]">
+                    <td className="px-5 py-3 text-slate-500 font-bold uppercase text-[10px]">
                       {record.operator ? record.operator.split('@')[0] : 'SMI USER'}
                     </td>
                     <td className="px-5 py-3">
-                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-green-50 border border-green-500/20 text-green-700 font-bold uppercase text-[8px]">
-                        <CheckCircle className="w-3 h-3 text-green-600" /> Planifié Souterrain
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50/50 border border-green-200 text-green-700 font-extrabold uppercase text-[8.5px] rounded-lg">
+                        <CheckCircle className="w-3.5 h-3.5 text-green-600" /> Planifié Souterrain
                       </div>
                     </td>
                   </tr>

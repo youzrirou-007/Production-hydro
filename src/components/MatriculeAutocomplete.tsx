@@ -24,11 +24,26 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
 }) => {
   const [typed, setTyped] = useState(value || '');
   const [isOpen, setIsOpen] = useState(false);
+  const [direction, setDirection] = useState<'up' | 'down'>('down');
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTyped(value || '');
   }, [value]);
+
+  // Adjust direction dynamically depending on proximity to bottom
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      // If less than 170px below and screen has some space above, render upward
+      if (spaceBelow < 170 && rect.top > 170) {
+        setDirection('up');
+      } else {
+        setDirection('down');
+      }
+    }
+  }, [isOpen]);
 
   // Handle outside clicks
   useEffect(() => {
@@ -163,7 +178,7 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
       )}
 
       {isOpen && (hasPrimarySuggestions || hasSecondarySuggestions) && (
-        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border-2 border-slate-900 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)] z-[999] divide-y divide-slate-150">
+        <div className={`absolute left-0 right-0 max-h-60 overflow-y-auto bg-white border-2 border-slate-900 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)] z-[999] divide-y divide-slate-150 ${direction === 'up' ? 'bottom-full mb-1.5' : 'top-full mt-1'}`}>
           
           {/* PRIMARY SUGGESTIONS SECTION */}
           {hasPrimarySuggestions && (

@@ -338,6 +338,7 @@ export const Production: React.FC = () => {
   const [isTemplateLoaded, setIsTemplateLoaded] = useState(false);
   const [templateDateHint, setTemplateDateHint] = useState('');
   const [noPlanFound, setNoPlanFound] = useState(false);
+  const [structureEditMode, setStructureEditMode] = useState<boolean>(false);
 
   // Excel grids state for Poste 1
   const [p1MinageRows, setP1MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
@@ -1208,7 +1209,7 @@ export const Production: React.FC = () => {
 
       } else {
         // No production, try loaded daily_planning_sheets
-        const planDocRef = doc(db, 'daily_planning_sheets', selectedDate);
+        const planDocRef = doc(db, 'daily_planning_sheets', yesterdayDateStr);
         const planSnap = await getDoc(planDocRef);
 
         if (planSnap.exists()) {
@@ -2163,13 +2164,15 @@ export const Production: React.FC = () => {
             <span className={`${textColorAccent} text-sm font-black uppercase tracking-wider`}>
               Secteur : <strong>{sectorName}</strong>
             </span>
-            <button
-              type="button"
-              onClick={() => addMinageRowForSector(postName, sectorName)}
-              className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[9px] uppercase px-3 py-1.5 flex items-center gap-1 transition-all rounded shadow-sm cursor-pointer shrink-0"
-            >
-              <Plus className="w-3 h-3 text-[#00BFFF]" /> Ajouter Ligne
-            </button>
+            {structureEditMode && (
+              <button
+                type="button"
+                onClick={() => addMinageRowForSector(postName, sectorName)}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[9px] uppercase px-3 py-1.5 flex items-center gap-1 transition-all rounded shadow-sm cursor-pointer shrink-0"
+              >
+                <Plus className="w-3 h-3 text-[#00BFFF]" /> Ajouter Ligne
+              </button>
+            )}
           </div>
 
           {/* Encadrement de secteur */}
@@ -2281,14 +2284,16 @@ export const Production: React.FC = () => {
                         >
                           <Copy className="w-2.5 h-2.5 text-amber-600" /> Copier
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteMinageRow(postName, idx)}
-                          className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer select-none"
-                          title="Supprimer ce chantier"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {structureEditMode && (
+                          <button
+                            type="button"
+                            onClick={() => deleteMinageRow(postName, idx)}
+                            className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer select-none"
+                            title="Supprimer ce chantier"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -2511,13 +2516,15 @@ export const Production: React.FC = () => {
             <span className={`${textColorAccent} text-sm font-black uppercase tracking-wider`}>
               Secteur : <strong>{sectorName}</strong>
             </span>
-            <button
-              type="button"
-              onClick={() => addDeblayageRowForSector(postName, sectorName)}
-              className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[9px] uppercase px-3 py-1 flex items-center gap-1 transition-all rounded shadow-sm cursor-pointer shrink-0"
-            >
-              <Plus className="w-3 h-3 text-[#00BFFF]" /> Ajouter Ligne
-            </button>
+            {structureEditMode && (
+              <button
+                type="button"
+                onClick={() => addDeblayageRowForSector(postName, sectorName)}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[9px] uppercase px-3 py-1 flex items-center gap-1 transition-all rounded shadow-sm cursor-pointer shrink-0"
+              >
+                <Plus className="w-3 h-3 text-[#00BFFF]" /> Ajouter Ligne
+              </button>
+            )}
           </div>
         </div>
 
@@ -2609,14 +2616,16 @@ export const Production: React.FC = () => {
                         >
                           <Copy className="w-2.5 h-2.5 text-amber-600" /> Copier
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteDeblayageRow(postName, idx)}
-                          className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer select-none"
-                          title="Supprimer ce chantier"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {structureEditMode && (
+                          <button
+                            type="button"
+                            onClick={() => deleteDeblayageRow(postName, idx)}
+                            className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer select-none"
+                            title="Supprimer ce chantier"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -2993,25 +3002,44 @@ export const Production: React.FC = () => {
 
           {/* SPREADSHEET TABS */}
           <div className="border border-slate-200 p-4 bg-slate-50/50 space-y-4 shadow-sm">
-            <div className="flex flex-wrap items-center border-b border-slate-200 pb-2 gap-2">
-              {[
-                { id: 'minage', label: '🔨 Sheet 1 - Forage & Minage', activeStyle: 'bg-[#8B0000] text-white' },
-                { id: 'deblayage', label: 'LHD - Déblayage & Charge', activeStyle: 'bg-[#00BFFF] text-white' },
-                { id: 'extraction', label: '🚃 Sheet 3 - Extraction & Wagons', activeStyle: 'bg-[#8B0000] text-white' },
-                { id: 'maintenance', label: '🔧 Sheet 4 - Brigade Technique', activeStyle: 'bg-slate-800 text-white' },
-              ].map(sheet => (
-                <button
-                  key={sheet.id}
-                  onClick={() => setActiveSheetTab(sheet.id as any)}
-                  className={`px-4 py-2 font-black text-xs uppercase tracking-wide transition-all ${
-                    activeSheetTab === sheet.id 
-                      ? sheet.activeStyle 
-                      : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50'
-                  }`}
-                >
-                  {sheet.label}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center justify-between border-b border-slate-200 pb-2 gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'minage', label: '🔨 Sheet 1 - Forage & Minage', activeStyle: 'bg-[#8B0000] text-white' },
+                  { id: 'deblayage', label: 'LHD - Déblayage & Charge', activeStyle: 'bg-[#00BFFF] text-white' },
+                  { id: 'extraction', label: '🚃 Sheet 3 - Extraction & Wagons', activeStyle: 'bg-[#8B0000] text-white' },
+                  { id: 'maintenance', label: '🔧 Sheet 4 - Brigade Technique', activeStyle: 'bg-slate-800 text-white' },
+                ].map(sheet => (
+                  <button
+                    key={sheet.id}
+                    onClick={() => setActiveSheetTab(sheet.id as any)}
+                    className={`px-4 py-2 font-black text-xs uppercase tracking-wide transition-all ${
+                      activeSheetTab === sheet.id 
+                        ? sheet.activeStyle 
+                        : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                    }`}
+                  >
+                    {sheet.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Mode d'Ajustement Structurel Optionnel (pour cas exceptionnels) */}
+              <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 border border-slate-205 rounded-none shadow-xs">
+                <span className="text-[10px] font-black uppercase text-slate-600 tracking-wider">Ajustements Exceptionnels :</span>
+                <label className="relative inline-flex items-center cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    checked={structureEditMode} 
+                    onChange={e => setStructureEditMode(e.target.checked)}
+                    className="sr-only peer" 
+                  />
+                  <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00BFFF]"></div>
+                  <span className="ml-2 text-[10px] font-black text-slate-700 uppercase tracking-wide">
+                    {structureEditMode ? 'Actif (Ajouter/Supprimer activés)' : 'Inactif'}
+                  </span>
+                </label>
+              </div>
             </div>
 
             {/* ASSISTANTS DE SAISIE POUR LE SECRETARIAT */}
@@ -3319,13 +3347,15 @@ export const Production: React.FC = () => {
                           >
                             <Copy className="w-3.5 h-3.5 text-amber-600" /> Copier Tout le Plan
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => addDeblayageRow(shiftName)}
-                            className="bg-[#00BFFF] hover:bg-[#00BFFF]/95 text-white font-black text-[10px] uppercase px-3 py-1.5 flex items-center gap-1.5 transition-all shadow-sm rounded cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" /> Ajouter une ligne ({shiftName})
-                          </button>
+                          {structureEditMode && (
+                            <button
+                              type="button"
+                              onClick={() => addDeblayageRow(shiftName)}
+                              className="bg-[#00BFFF] hover:bg-[#00BFFF]/95 text-white font-black text-[10px] uppercase px-3 py-1.5 flex items-center gap-1.5 transition-all shadow-sm rounded cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Ajouter une ligne ({shiftName})
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -3478,13 +3508,15 @@ export const Production: React.FC = () => {
                           >
                             <Copy className="w-3.5 h-3.5 text-amber-600" /> Copier Tout le Plan
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => addExtractionRow(shiftName)}
-                            className="bg-[#00BFFF] hover:bg-[#00BFFF]/95 text-white font-black text-[10px] uppercase px-3 py-1.5 flex items-center gap-1.5 transition-all shadow-sm rounded cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" /> Ajouter une ligne ({shiftName})
-                          </button>
+                          {structureEditMode && (
+                            <button
+                              type="button"
+                              onClick={() => addExtractionRow(shiftName)}
+                              className="bg-[#00BFFF] hover:bg-[#00BFFF]/95 text-white font-black text-[10px] uppercase px-3 py-1.5 flex items-center gap-1.5 transition-all shadow-sm rounded cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Ajouter une ligne ({shiftName})
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -3946,15 +3978,17 @@ export const Production: React.FC = () => {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => addMaintenanceRow(shiftName)}
-                            className="bg-[#00BFFF] hover:bg-[#00BFFF]/95 text-white font-black text-[10px] uppercase px-3 py-1.5 flex items-center gap-1.5 transition-all shadow-sm rounded cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" /> Ajouter une ligne ({shiftName})
-                          </button>
-                        </div>
+                        {structureEditMode && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => addMaintenanceRow(shiftName)}
+                              className="bg-[#00BFFF] hover:bg-[#00BFFF]/95 text-white font-black text-[10px] uppercase px-3 py-1.5 flex items-center gap-1.5 transition-all shadow-sm rounded cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Ajouter une ligne ({shiftName})
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {/* Maintenance details table */}
@@ -3969,7 +4003,7 @@ export const Production: React.FC = () => {
                               <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Machine Clé de l'Intervention</th>
                               <th className="p-2 text-[10px] font-black uppercase w-20 border-r border-slate-200 text-center text-slate-700">Durée (h)</th>
                               <th className="p-2 text-[10px] font-black uppercase border-r border-slate-200 text-slate-700">Description diagnostic / Remise en route</th>
-                              <th className="p-2 text-[10px] font-black uppercase text-center w-14 text-slate-700">Action</th>
+                              {structureEditMode && <th className="p-2 text-[10px] font-black uppercase text-center w-14 text-slate-700">Action</th>}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-150 text-[11px]">
@@ -4034,23 +4068,25 @@ export const Production: React.FC = () => {
                                       className="w-full border-0 outline-none uppercase bg-transparent text-slate-700"
                                     />
                                   </td>
-                                  <td className="p-1 text-center">
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteMaintenanceRow(shiftName, idx)}
-                                      className="p-1 text-slate-400 hover:text-red-600 transition-colors"
-                                      title="Supprimer la ligne"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </td>
+                                  {structureEditMode && (
+                                    <td className="p-1 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteMaintenanceRow(shiftName, idx)}
+                                        className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                                        title="Supprimer la ligne"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </td>
+                                  )}
                                 </tr>
                               );
                             })}
                             {maintenanceRows.length === 0 ? (
                               <tr>
-                                <td colSpan={8} className="text-center p-8 text-slate-400 font-bold">
-                                  Aucune ligne active. Cliquez sur "Ajouter une ligne ({shiftName})" pour commencer la saisie.
+                                <td colSpan={structureEditMode ? 8 : 7} className="text-center p-8 text-slate-400 font-bold">
+                                  Aucune ligne active. {structureEditMode ? `Cliquez sur "Ajouter une ligne (${shiftName})" pour commencer la saisie.` : 'Aucune maintenance prévue/saisie.'}
                                 </td>
                               </tr>
                             ) : (
@@ -4071,12 +4107,12 @@ export const Production: React.FC = () => {
                                         </td>
                                         
                                         {/* Description & Action */}
-                                        <td colSpan={2} className="p-3"></td>
+                                        <td colSpan={structureEditMode ? 2 : 1} className="p-3"></td>
                                       </tr>
 
                                       <tr className="bg-slate-100 text-slate-800 font-black text-[11px] border-t border-slate-300">
                                         <td colSpan={5} className="p-3 text-right text-slate-500 uppercase font-black">Analyse S.M.I:</td>
-                                        <td colSpan={3} className="p-3 text-center bg-purple-500/10 text-purple-900 tracking-wide uppercase font-black">
+                                        <td colSpan={structureEditMode ? 3 : 2} className="p-3 text-center bg-purple-500/10 text-purple-900 tracking-wide uppercase font-black">
                                           🛠️ Charge d'Indisponibilité Machine : <span className="text-xs font-black font-mono ml-1.5">{totalHours} h d'arrêt / {interventionsCount} interventions</span>
                                         </td>
                                       </tr>

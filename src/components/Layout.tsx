@@ -30,6 +30,7 @@ import { twMerge } from 'tailwind-merge';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { getUpcomingSaturday } from '../lib/rotation';
+import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -107,9 +108,9 @@ export const Layout: React.FC<{
         }}
         className="bg-white border-[#141414]/10 flex flex-col z-50 overflow-hidden relative shadow-2xl"
       >
-        <div className="p-6 border-b border-[#141414]/10 flex items-center justify-between gap-3">
+        <div className="p-5 border-b border-[#141414]/10 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Factory className="w-8 h-8 text-[#00BFFF]" />
+            <img src={logoImg} alt="HydroMines logo" className="w-8 h-8 object-contain rounded" referrerPolicy="no-referrer" />
             {isOpen && (
               <h1 className="text-2xl font-black tracking-tighter leading-none italic uppercase">
                 <span className="text-[#00BFFF]">Hydro</span>
