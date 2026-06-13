@@ -21,11 +21,15 @@ import {
   Brain,
   Plus,
   MapPin,
-  Calendar
+  Calendar,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { db } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { getUpcomingSaturday } from '../lib/rotation';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -45,11 +49,11 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'daily_report', label: 'Rapport Consolidé', icon: <Layers className="w-5 h-5" />, category: 'production' },
   { id: 'chantiers', label: 'Chantiers', icon: <MapPin className="w-5 h-5" />, category: 'production' },
   { id: 'planning', label: 'Planification', icon: <Calendar className="w-5 h-5" />, category: 'production' },
+  { id: 'rotation', label: 'Changement de Poste', icon: <RefreshCw className="w-5 h-5" />, category: 'production' },
   
   // ADMIN
   { id: 'admin', label: 'Administration', icon: <Users className="w-5 h-5" />, roles: ['admin'], category: 'admin' },
 ];
-
 export const Layout: React.FC<{ 
   activeTab: string; 
   setActiveTab: (tab: string) => void;
@@ -57,6 +61,29 @@ export const Layout: React.FC<{
 }> = ({ activeTab, setActiveTab, children }) => {
   const { user, profile, logout } = useAuth();
   const [isOpen, setIsOpen] = React.useState(true);
+  const [rotationPending, setRotationPending] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!user) return;
+    const isSaturday = new Date().getDay() === 6;
+    if (!isSaturday) {
+      setRotationPending(false);
+      return;
+    }
+
+    const checkRotation = async () => {
+      try {
+        const saturdayStr = getUpcomingSaturday();
+        const docRef = doc(db, 'rotations_history', saturdayStr);
+        const docSnap = await getDoc(docRef);
+        setRotationPending(!docSnap.exists());
+      } catch (err) {
+        console.error("Error checking rotation_history in Layout:", err);
+      }
+    };
+
+    checkRotation();
+  }, [user]);
 
   if (!user) return <div className="min-h-screen bg-[#F5F5F0] flex items-center justify-center">{children}</div>;
 
@@ -127,7 +154,10 @@ export const Layout: React.FC<{
                     {item.icon}
                   </div>
                   {isOpen && (
-                    <span className="font-bold text-[10.5px] uppercase tracking-tight">{item.label}</span>
+                    <span className="font-bold text-[10.5px] uppercase tracking-tight flex-1 text-left">{item.label}</span>
+                  )}
+                  {item.id === 'rotation' && rotationPending && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse absolute right-4 top-1/2 -translate-y-1/2" />
                   )}
                   {activeTab === item.id && (
                     <motion.div 

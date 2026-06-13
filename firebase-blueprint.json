@@ -129,6 +129,8 @@
               "employeeId": { "type": "string" },
               "matricule": { "type": "string" },
               "name": { "type": "string" },
+              "fonction": { "type": "string" },
+              "sector": { "type": "string" },
               "fromPost": { "type": "string" },
               "toPost": { "type": "string" }
             }
