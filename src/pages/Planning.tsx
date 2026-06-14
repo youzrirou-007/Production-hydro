@@ -1157,116 +1157,120 @@ export const Planning: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Dense modern header bar with Logo */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white border border-gray-200 rounded-xl p-4 shadow-sm gap-4">
-        <div className="flex items-center gap-4">
-          <img src={logoImg} alt="HydroMines Logo" className="h-14 w-14 object-contain rounded" referrerPolicy="no-referrer" />
-          <div>
-            <h3 className="text-xl font-black tracking-tight text-gray-900 uppercase flex items-center gap-2">
+      {/* Unified Elegant Header Banner with Enlarged Logo and Centered Title */}
+      <div id="unified-planning-banner" className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+          {/* Logo Column */}
+          <div className="flex-shrink-0 animate-fade-in">
+            <img 
+              src={logoImg} 
+              alt="HydroMines Logo" 
+              className="h-24 w-24 md:h-28 md:w-28 object-contain rounded-xl border border-gray-150 p-1.5 bg-white shadow-sm" 
+              referrerPolicy="no-referrer" 
+            />
+          </div>
+
+          {/* Centered Column: Title, Subtitle, Date & Shift controls */}
+          <div className="flex-1 text-center space-y-2 max-w-2xl">
+            <h3 className="text-2xl md:text-3xl font-black tracking-tight text-gray-955 uppercase">
               Planification-Ordonnancement SMI
             </h3>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-gray-500">
               Cahier de Chargement Théorique • Alignement optimal des équipes et chantiers du fond
             </p>
-          </div>
-        </div>
 
-        {/* View Toggle tabs */}
-        <div className="flex gap-1.5 p-1 bg-gray-100 rounded-lg">
-          <button 
-            onClick={() => setViewMode('sheet')}
-            className={`px-3.5 py-1.5 rounded-md font-extrabold text-[10px] uppercase tracking-wider transition-all ${
-              viewMode === 'sheet' 
-                ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            🟩 Planification interactive
-          </button>
-          <button 
-            onClick={() => setViewMode('history')}
-            className={`px-3.5 py-1.5 rounded-md font-extrabold text-[10px] uppercase tracking-wider transition-all ${
-              viewMode === 'history' 
-                ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            📋 Cahiers planifiés ({planningsHistory.length})
-          </button>
-        </div>
-      </div>
-
-      {/* Date & Shift workbook controller */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-sky-50 rounded-lg text-[#00BFFF]">
-              <Calendar className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-wider">Plan théorique du</span>
-              <input 
-                type="date"
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-                className="bg-gray-50 hover:bg-gray-100 text-gray-900 font-extrabold text-[12px] uppercase border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#00BFFF] focus:border-transparent transition-all"
-              />
-            </div>
-          </div>
-
-          {(activeSheetTab === 'minage' || activeSheetTab === 'deblayage') ? (
-            <div className="flex items-center gap-3 border-l border-gray-100 pl-6 h-10">
-              <div>
-                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-wider">Poste</span>
-                <span className="bg-emerald-50 text-emerald-700 border border-emerald-150 font-black text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md">
-                  📚 3 postes synchronisés en continu
+            {/* Shift and date options combined inside the main banner text */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <div className="inline-flex items-center gap-2 bg-sky-50/60 border border-sky-100 px-3 py-1.5 rounded-xl shadow-xs">
+                <span className="text-[10px] font-black uppercase text-[#00BFFF] tracking-wider">
+                  📅 Plan théorique du :
                 </span>
+                <input 
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="bg-white hover:bg-gray-50 text-gray-950 font-extrabold text-[12px] uppercase border border-gray-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#00BFFF]/30 cursor-pointer"
+                />
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 border-l border-gray-100 pl-6 h-10">
-              <div>
-                <span className="block text-[9px] font-bold uppercase text-gray-400 tracking-wider">Poste actif</span>
-                <select 
-                  value={selectedPost}
-                  onChange={e => setSelectedPost(e.target.value as any)}
-                  className="bg-gray-50 hover:bg-gray-100 text-gray-900 font-extrabold text-[12px] uppercase border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-[#00BFFF] focus:border-transparent transition-all appearance-none"
-                >
-                  <option value="Poste 1" className="text-black">POSTE 1 (MATIN)</option>
-                  <option value="Poste 2" className="text-black">POSTE 2 (MIDI)</option>
-                  <option value="Poste 3" className="text-black">POSTE 3 (NUIT)</option>
-                </select>
-              </div>
-            </div>
-          )}
-        </div>
 
-        {viewMode === 'sheet' && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={duplicatePreviousWeek}
-              className="bg-gray-100 hover:bg-gray-250 text-gray-800 border border-gray-200 px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-1.5"
-              title="Importer et adapter la planification de la semaine passée J-7"
-            >
-              <Copy className="w-3.5 h-3.5 text-[#00BFFF]" /> Dupliquer J-7 (Intelligent)
-            </button>
-            <button
-              onClick={loadPlanningWorkbook}
-              className="bg-gray-100 hover:bg-gray-250 text-gray-800 border border-gray-200 px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all flex items-center gap-1.5"
-              title="Réinitialiser ou recharger depuis le cloud"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-[#00BFFF]" /> Recharger
-            </button>
-            <button
-              onClick={savePlanningWorkbook}
-              disabled={saveStatus === 'saving'}
-              className="bg-[#00BFFF] hover:bg-sky-500 text-white font-extrabold px-4.5 py-2 rounded-lg text-[10px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:translate-y-px"
-            >
-              <Save className="w-4 h-4" /> 
-              {saveStatus === 'saving' ? 'Enregistrement...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver l\'Ordonnancement'}
-            </button>
+              {(activeSheetTab === 'minage' || activeSheetTab === 'deblayage') ? (
+                <div className="inline-flex items-center gap-2 bg-emerald-50/50 border border-emerald-100 px-3 py-1.5 rounded-xl">
+                  <span className="text-[10px] font-extrabold uppercase text-emerald-700 tracking-wider">
+                    📚 3 postes synchronisés en continu
+                  </span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 bg-purple-50/50 border border-purple-150 px-3 py-1 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-extrabold uppercase text-purple-700 tracking-wider">
+                    Poste actif :
+                  </span>
+                  <select 
+                    value={selectedPost}
+                    onChange={e => setSelectedPost(e.target.value as any)}
+                    className="bg-white text-gray-950 font-extrabold text-[11px] uppercase border border-gray-200 rounded-lg px-2 py-0.5 outline-none cursor-pointer"
+                  >
+                    <option value="Poste 1">POSTE 1 (MATIN)</option>
+                    <option value="Poste 2">POSTE 2 (MIDI)</option>
+                    <option value="Poste 3">POSTE 3 (NUIT)</option>
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+
+          {/* Right Column: View toggles & Quick action items */}
+          <div className="flex flex-col items-center lg:items-end gap-3 w-full lg:w-auto">
+            <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-full max-w-xs md:max-w-none">
+              <button 
+                onClick={() => setViewMode('sheet')}
+                className={`flex-1 px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all text-center ${
+                  viewMode === 'sheet' 
+                    ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                🟩 Planification
+              </button>
+              <button 
+                onClick={() => setViewMode('history')}
+                className={`flex-1 px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all text-center ${
+                  viewMode === 'history' 
+                    ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                📋 Cahiers ({planningsHistory.length})
+              </button>
+            </div>
+
+            {viewMode === 'sheet' && (
+              <div className="flex flex-wrap justify-center lg:justify-end gap-1.5 w-full">
+                <button
+                  onClick={duplicatePreviousWeek}
+                  className="bg-gray-50 hover:bg-gray-150 text-gray-850 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
+                  title="Importer et adapter la planification de la semaine passée J-7"
+                >
+                  <Copy className="w-3 h-3 text-[#00BFFF]" /> J-7
+                </button>
+                <button
+                  onClick={loadPlanningWorkbook}
+                  className="bg-gray-50 hover:bg-gray-150 text-gray-850 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
+                  title="Réinitialiser ou recharger depuis le cloud"
+                >
+                  <RotateCcw className="w-3 h-3 text-[#00BFFF]" /> Recharger
+                </button>
+                <button
+                  onClick={savePlanningWorkbook}
+                  disabled={saveStatus === 'saving'}
+                  className="bg-[#00BFFF] hover:bg-sky-500 text-white font-extrabold px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" /> 
+                  {saveStatus === 'saving' ? '...' : saveStatus === 'saved' ? 'Enregistré !' : 'Graver'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {loading ? (
