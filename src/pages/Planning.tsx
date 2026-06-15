@@ -31,6 +31,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { format, addDays } from 'date-fns';
 import { MatriculeAutocomplete } from '../components/MatriculeAutocomplete';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import { ExcelExportButton } from '../components/ExcelExportButton';
+import { GapReportModal } from '../components/GapReportModal';
+import { AuditLogsDrawer, logPlanningAction } from '../components/AuditLogsDrawer';
 
 // Excel interface structures matching Production schema for full planning alignment
 interface ExcelMinage {
@@ -229,27 +232,55 @@ const ensureMinimumRows = (
   chantiersList: any[]
 ) => {
   const sectors: ('Imiter 2' | 'Imiter 1' | 'Imiter Est')[] = ['Imiter 2', 'Imiter 1', 'Imiter Est'];
-  const defaultCounts = DEFAULT_ROWS_PER_SECTOR[post] || { 'Imiter 2': 2, 'Imiter 1': 2, 'Imiter Est': 2 };
   const result: any[] = [];
   const unassignedLoaded = [...loadedRows];
 
-    sectors.forEach(sec => {
-      // Find already stored rows for this sector
-      const matchingRows = unassignedLoaded.filter(row => {
-        if (row.sectorGroup === sec) return true;
-        const ch = chantiersList.find(c => c.id === row.chantierId);
-        return ch ? isSectorMatching(ch.sector, sec) : false;
-      });
+  sectors.forEach(sec => {
+    // 1. Get open chantiers matching this sector
+    const openChantiersInSec = chantiersList.filter(c => c.status === 'ouvert' && isSectorMatching(c.sector, sec));
+    const finalSectorRows: any[] = [];
 
-    // Remove them from unassigned
-    matchingRows.forEach(row => {
+    // 2. Map each open chantier to existing rows, or generate empty ones prefilled with chantierId
+    openChantiersInSec.forEach(chan => {
+      const existingIdx = unassignedLoaded.findIndex(row => row.chantierId === chan.id);
+      if (existingIdx !== -1) {
+        const [matched] = unassignedLoaded.splice(existingIdx, 1);
+        finalSectorRows.push({ ...matched, sectorGroup: sec });
+      } else {
+        if (type === 'minage') {
+          const sizeVal: 9 | 12 = chan.galleryType === '9m2' ? 9 : 12;
+          const explosives = computeExplosives(sizeVal, 1);
+          finalSectorRows.push({
+            chantierId: chan.id, chiefMatricule: '', chiefName: '', minerMatricule: '', minerName: '',
+            assistantMatricule: '', assistantName: '', gallerySize: sizeVal, plannedHoles: explosives.plannedHoles, realHoles: explosives.plannedHoles,
+            plannedRounds: 1, realRounds: 1, meterage: 1.7, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
+            sectorGroup: sec, explosivesManualOverride: false
+          });
+        } else {
+          finalSectorRows.push({
+            chantierId: chan.id, driverMatricule: '', driverName: '', engineId: '', engineCode: '',
+            godets: 0, volumeEstimated: 0, hoursWorked: POST_HOURS[post].duration, remarks: '',
+            sectorGroup: sec
+          });
+        }
+      }
+    });
+
+    // 3. Find any remaining loaded rows belonging to this sector
+    const matchingRemainders = unassignedLoaded.filter(row => {
+      if (row.sectorGroup === sec) return true;
+      const ch = chantiersList.find(c => c.id === row.chantierId);
+      return ch ? isSectorMatching(ch.sector, sec) : false;
+    });
+
+    matchingRemainders.forEach(row => {
+      finalSectorRows.push({ ...row, sectorGroup: sec });
       const idx = unassignedLoaded.indexOf(row);
       if (idx !== -1) unassignedLoaded.splice(idx, 1);
     });
 
-    const minCount = defaultCounts[sec] || 2;
-    const finalSectorRows = [...matchingRows];
-    while (finalSectorRows.length < minCount) {
+    // 4. Fallback default empty row if absolutely no chantiers exist
+    if (finalSectorRows.length === 0) {
       if (type === 'minage') {
         const explosives = computeExplosives(12, 1);
         finalSectorRows.push({
@@ -267,10 +298,6 @@ const ensureMinimumRows = (
       }
     }
 
-    finalSectorRows.forEach(r => {
-      r.sectorGroup = sec;
-    });
-
     result.push(...finalSectorRows);
   });
 
@@ -278,14 +305,14 @@ const ensureMinimumRows = (
 };
 
 export const Planning: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   // App views: 'sheet' (Excel Mode) or 'history' (Consolidated lists)
   const [viewMode, setViewMode] = useState<'sheet' | 'history'>('sheet');
   const [activeSheetTab, setActiveSheetTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance'>('minage');
 
-  // Core planning filters: default date is tomorrow (addDays)
-  const [selectedDate, setSelectedDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
+  // Core planning filters: default date is today
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedPost, setSelectedPost] = useState<'Poste 1' | 'Poste 2' | 'Poste 3'>('Poste 1');
 
   // Reference tables from Firebase
@@ -304,6 +331,16 @@ export const Planning: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // Gap Report control states
+  const [isGapModalOpen, setIsGapModalOpen] = useState(false);
+  const [gapChanges, setGapChanges] = useState<any[]>([]);
+  const [gapInactive, setGapInactive] = useState<any[]>([]);
+  const [gapUnassigned, setGapUnassigned] = useState<any[]>([]);
+  const [pendingProposition, setPendingProposition] = useState<any>(null);
+
+  // Audit Log control states
+  const [isAuditDrawerOpen, setIsAuditDrawerOpen] = useState(false);
 
   // Planning Excel grids template state
   const [minageRowsByPost, setMinageRowsByPost] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]>>({
@@ -550,7 +587,7 @@ export const Planning: React.FC = () => {
     
     if (oldVal) {
       // Repasser en automatique, relancer compute
-      const computed = computeExplosives(clone[flatIdx].gallerySize, clone[flatIdx].plannedRounds);
+      const computed = computeExplosives(clone[flatIdx].gallerySize, 1);
       clone[flatIdx].plannedHoles = computed.plannedHoles;
       clone[flatIdx].anfo = computed.anfo;
       clone[flatIdx].tovex = computed.tovex;
@@ -560,10 +597,27 @@ export const Planning: React.FC = () => {
   };
 
   const updateMinageCell = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', index: number, field: keyof ExcelMinage, value: any) => {
-    const clone = [...(minageRowsByPost[post] || [])];
+    const originalRows = minageRowsByPost[post] || [];
+    const oldRounds = originalRows[index] ? (originalRows[index].plannedRounds || 1) : 1;
+
+    const clone = [...originalRows];
     if (!clone[index]) return;
     clone[index] = { ...clone[index], [field]: value };
     
+    if (field === 'chantierId') {
+      const selectedChantier = chantiers.find(c => c.id === value);
+      if (selectedChantier) {
+        const sizeVal: 9 | 12 = selectedChantier.galleryType === '9m2' ? 9 : 12;
+        clone[index].gallerySize = sizeVal;
+        if (!clone[index].explosivesManualOverride) {
+          const computed = computeExplosives(sizeVal, 1);
+          clone[index].plannedHoles = computed.plannedHoles;
+          clone[index].anfo = computed.anfo;
+          clone[index].tovex = computed.tovex;
+          clone[index].ammorces = computed.ammorces;
+        }
+      }
+    }
     if (field === 'chiefMatricule') {
       const emp = employees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
       clone[index].chiefName = emp ? `${emp.nom} ${emp.prenom}` : '';
@@ -576,14 +630,76 @@ export const Planning: React.FC = () => {
       const emp = employees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
       clone[index].assistantName = emp ? `${emp.nom} ${emp.prenom}` : '';
     }
+
+    // Automatically propagate shift-wide worker IDs/names to any subsequent (Volée 2) / (Volée 3) rows
+    if (['chiefMatricule', 'minerMatricule', 'assistantMatricule'].includes(field)) {
+      const parentRounds = clone[index].plannedRounds || 1;
+      if (parentRounds > 1) {
+        for (let i = index + 1; i < index + parentRounds; i++) {
+          if (clone[i] && clone[i].remarks && (clone[i].remarks.includes('(Volée 2)') || clone[i].remarks.includes('(Volée 3)'))) {
+            clone[i] = {
+              ...clone[i],
+              chiefMatricule: clone[index].chiefMatricule,
+              chiefName: clone[index].chiefName,
+              minerMatricule: clone[index].minerMatricule,
+              minerName: clone[index].minerName,
+              assistantMatricule: clone[index].assistantMatricule,
+              assistantName: clone[index].assistantName,
+            };
+          }
+        }
+      }
+    }
+
     if (field === 'plannedRounds') {
-      clone[index].meterage = Number(value) * 1.7;
+      const newRounds = Number(value);
+      clone[index].plannedRounds = newRounds;
+      clone[index].meterage = newRounds * 1.7;
+
+      // 1. Remove existing associated child rows (Volée 2/3) right below the parent row
+      if (oldRounds > 1) {
+        let checkIdx = index + 1;
+        while (clone[checkIdx] && clone[checkIdx].remarks && (clone[checkIdx].remarks.includes('(Volée 2)') || clone[checkIdx].remarks.includes('(Volée 3)'))) {
+          clone.splice(checkIdx, 1);
+        }
+      }
+
+      // 2. Insert new child rows if newRounds > 1 (handles copying worker info even if blank, which then propagates)
+      if (newRounds > 1) {
+        const currentMiner = clone[index].minerMatricule;
+        const currentHelper = clone[index].assistantMatricule;
+        for (let rNum = 2; rNum <= newRounds; rNum++) {
+          const defaultExplosives = computeExplosives(12, 1);
+          const newRow: ExcelMinage = {
+            chantierId: '', 
+            chiefMatricule: clone[index].chiefMatricule,
+            chiefName: clone[index].chiefName,
+            minerMatricule: currentMiner,
+            minerName: clone[index].minerName,
+            assistantMatricule: currentHelper,
+            assistantName: clone[index].assistantName,
+            gallerySize: 12,
+            plannedHoles: defaultExplosives.plannedHoles,
+            realHoles: defaultExplosives.plannedHoles,
+            plannedRounds: 1, 
+            realRounds: 1,
+            meterage: 1.7,
+            anfo: defaultExplosives.anfo,
+            tovex: defaultExplosives.tovex,
+            ammorces: defaultExplosives.ammorces,
+            remarks: `(Volée ${rNum})`,
+            sectorGroup: clone[index].sectorGroup,
+            explosivesManualOverride: false
+          };
+          clone.splice(index + rNum - 1, 0, newRow);
+        }
+      }
     }
 
     // Automatically compute explosives when gallerySize or plannedRounds change, unless override is active
     if (field === 'gallerySize' || field === 'plannedRounds') {
       if (!clone[index].explosivesManualOverride) {
-        const computed = computeExplosives(clone[index].gallerySize, clone[index].plannedRounds);
+        const computed = computeExplosives(clone[index].gallerySize, 1);
         clone[index].plannedHoles = computed.plannedHoles;
         clone[index].anfo = computed.anfo;
         clone[index].tovex = computed.tovex;
@@ -833,6 +949,31 @@ export const Planning: React.FC = () => {
     setDeblayageRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
 
+  const addStockRowToDeblayageSector = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', sec: string) => {
+    const currentRows = deblayageRowsByPost[post] || [];
+    let lastIndex = -1;
+    for (let i = 0; i < currentRows.length; i++) {
+      if (currentRows[i].sectorGroup === sec) {
+        lastIndex = i;
+      }
+    }
+
+    const newRow: ExcelDeblayage = {
+      chantierId: 'stock_TAILLE_STK',
+      driverMatricule: '', driverName: '', engineId: '', engineCode: '',
+      godets: 0, volumeEstimated: 0, hoursWorked: POST_HOURS[post].duration, remarks: 'Déblayage et nettoyage du stockage',
+      sectorGroup: sec
+    };
+
+    const clone = [...currentRows];
+    if (lastIndex !== -1) {
+      clone.splice(lastIndex + 1, 0, newRow);
+    } else {
+      clone.push(newRow);
+    }
+    setDeblayageRowsByPost(prev => ({ ...prev, [post]: clone }));
+  };
+
   const isDeblayageRowRemovable = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', flatIdx: number) => {
     const currentRows = deblayageRowsByPost[post] || [];
     const row = currentRows[flatIdx];
@@ -891,6 +1032,8 @@ export const Planning: React.FC = () => {
 
       const clonedMinage: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const clonedDeblayage: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelDeblayage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
+      const clonedExtraction: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelExtraction[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
+      const clonedMaintenance: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMaintenance[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const clonedSectorChiefs: Record<'Poste 1' | 'Poste 2' | 'Poste 3', Record<'Imiter 2' | 'Imiter 1' | 'Imiter Est', string>> = {
         'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
         'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
@@ -933,6 +1076,22 @@ export const Planning: React.FC = () => {
           });
           clonedDeblayage[p] = ensureMinimumRows(clonedDeblayage[p], 'deblayage', p, chantiers);
 
+          // Clone Extraction
+          clonedExtraction[p] = sanitizeExtractionRows(srcData.extraction, POST_HOURS[p]);
+
+          // Clone Maintenance
+          clonedMaintenance[p] = (srcData.maintenance || []).map((row: ExcelMaintenance) => {
+            const finalRow = { ...row };
+            if (row.agentMatricule) {
+              const emp = employees.find(e => e.matricule?.toUpperCase() === row.agentMatricule.toUpperCase());
+              finalRow.agentName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+            }
+            return finalRow;
+          });
+          if (clonedMaintenance[p].length === 0) {
+            clonedMaintenance[p] = getDefaultMaintenanceRows(p);
+          }
+
           // Clone Sector Chiefs
           const srcSectorChiefs = (docData.sectorChiefs || {})[srcKey] || {};
           clonedSectorChiefs[p] = {
@@ -943,32 +1102,16 @@ export const Planning: React.FC = () => {
         } else {
           clonedMinage[p] = ensureMinimumRows([], 'minage', p, chantiers);
           clonedDeblayage[p] = ensureMinimumRows([], 'deblayage', p, chantiers);
+          clonedExtraction[p] = getDefaultExtractionRows(p);
+          clonedMaintenance[p] = getDefaultMaintenanceRows(p);
         }
       });
 
       setMinageRowsByPost(clonedMinage);
       setDeblayageRowsByPost(clonedDeblayage);
       setSectorChiefs(clonedSectorChiefs);
-
-      // Current active selectedPost specifics (Extraction & Maintenance)
-      const currentSrcKey = postMapping[selectedPost];
-      const currentSrcData = docData.postes?.[currentSrcKey];
-      if (currentSrcData) {
-        if (currentSrcData.extraction && currentSrcData.extraction.length > 0) {
-          setExtractionRows(sanitizeExtractionRows(currentSrcData.extraction, POST_HOURS[selectedPost]));
-        }
-        if (currentSrcData.maintenance && currentSrcData.maintenance.length > 0) {
-          const clonedMaint = currentSrcData.maintenance.map((row: ExcelMaintenance) => {
-            const finalRow = { ...row };
-            if (row.agentMatricule) {
-              const emp = employees.find(e => e.matricule?.toUpperCase() === row.agentMatricule.toUpperCase());
-              finalRow.agentName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
-            }
-            return finalRow;
-          });
-          setMaintenanceRows(clonedMaint);
-        }
-      }
+      setExtractionRowsByPost(clonedExtraction);
+      setMaintenanceRowsByPost(clonedMaintenance);
 
       alert(`Ordonnancement complet du ${previousWeekDateStr} dupliqué et adapté (rotation intelligente des 3 postes effectuée) !`);
     } catch (err) {
@@ -976,6 +1119,348 @@ export const Planning: React.FC = () => {
       alert("Une erreur est survenue lors de la duplication.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateDayProposition = async () => {
+    setLoading(true);
+    try {
+      const parts = selectedDate.split('-');
+      if (parts.length !== 3) {
+        alert("Date non valide.");
+        setLoading(false);
+        return;
+      }
+      const currentDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const dayOfWeek = currentDate.getDay(); // 1 is Monday, etc.
+      const isMonday = dayOfWeek === 1;
+
+      let proposedMinage: ExcelMinage[] = [];
+      let proposedDeblayage: ExcelDeblayage[] = [];
+      let proposedExtraction: ExcelExtraction[] = [];
+      let proposedMaintenance: ExcelMaintenance[] = [];
+      
+      const newSectorChiefs = { ...sectorChiefs[selectedPost] };
+
+      const getEmpName = (mat: string) => {
+        if (!mat) return '';
+        const emp = employees.find(e => e.matricule?.toUpperCase() === mat.toUpperCase());
+        return emp ? `${emp.nom} ${emp.prenom}` : '';
+      };
+
+      if (isMonday) {
+        // Monday uses information directly from the weekly rotation plans configured on Saturday
+        const activeStaff = employees.filter(e => e.status === 'actif' && e.currentPost === selectedPost);
+        const sectors: ('Imiter 2' | 'Imiter 1' | 'Imiter Est')[] = ['Imiter 2', 'Imiter 1', 'Imiter Est'];
+
+        const findSectorChiefByPost1Rules = (sName: string, staff: any[]) => {
+          return staff.find(e => {
+            if (e.fonction !== 'CHEF') return false;
+            const fullName = `${e.nom || ''} ${e.prenom || ''}`.toLowerCase();
+            if (sName === 'Imiter 2') {
+              return fullName.includes('ben amar') || (fullName.includes('amar') && fullName.includes('mohamed'));
+            }
+            if (sName === 'Imiter 1') {
+              return fullName.includes('ouissadine') || fullName.includes('abdessalam');
+            }
+            if (sName === 'Imiter Est') {
+              return fullName.includes('sadik') || fullName.includes('said');
+            }
+            return false;
+          });
+        };
+
+        // Group chefs
+        sectors.forEach(sec => {
+          let matchingChef;
+          if (selectedPost === 'Poste 1') {
+            matchingChef = findSectorChiefByPost1Rules(sec, activeStaff);
+          }
+          if (!matchingChef) {
+            matchingChef = activeStaff.find(e => e.fonction === 'CHEF' && isSectorMatching(e.sector || '', sec));
+          }
+          if (matchingChef) {
+            newSectorChiefs[sec] = matchingChef.matricule;
+          }
+        });
+
+        // Seed Minage rows prefilled with active miners/assistants
+        proposedMinage = ensureMinimumRows([], 'minage', selectedPost, chantiers).map(row => {
+          const finalRow = { ...row };
+          const chan = chantiers.find(c => c.id === row.chantierId);
+          if (chan) {
+            const sec = row.sectorGroup || 'Imiter 2';
+            
+            // Find miners
+            const assignedMinersMatricules = proposedMinage.map(pm => pm.minerMatricule).filter(Boolean);
+            const minerCandidates = activeStaff.filter(e => e.fonction === 'MINEUR' && isSectorMatching(e.sector || '', sec) && !assignedMinersMatricules.includes(e.matricule));
+            if (minerCandidates.length > 0) {
+              finalRow.minerMatricule = minerCandidates[0].matricule;
+              finalRow.minerName = `${minerCandidates[0].nom} ${minerCandidates[0].prenom}`;
+            }
+
+            // Find assistants
+            const assignedAidesMatricules = proposedMinage.map(pm => pm.assistantMatricule).filter(Boolean);
+            const aideCandidates = activeStaff.filter(e => e.fonction === 'AIDE_MINEUR' && isSectorMatching(e.sector || '', sec) && !assignedAidesMatricules.includes(e.matricule));
+            if (aideCandidates.length > 0) {
+              finalRow.assistantMatricule = aideCandidates[0].matricule;
+              finalRow.assistantName = `${aideCandidates[0].nom} ${aideCandidates[0].prenom}`;
+            }
+          }
+          return finalRow;
+        });
+
+        // Seed Deblayage drivers & engines
+        proposedDeblayage = ensureMinimumRows([], 'deblayage', selectedPost, chantiers).map((row, idx) => {
+          const finalRow = { ...row };
+          const chan = chantiers.find(c => c.id === row.chantierId);
+          if (chan) {
+            const sec = row.sectorGroup || 'Imiter 2';
+            
+            // Find driver
+            const assignedDrivers = proposedDeblayage.map(pd => pd.driverMatricule).filter(Boolean);
+            const driverCandidates = activeStaff.filter(e => e.fonction === 'CONDUCTEUR_ENGIN' && isSectorMatching(e.sector || '', sec) && !assignedDrivers.includes(e.matricule));
+            if (driverCandidates.length > 0) {
+              finalRow.driverMatricule = driverCandidates[0].matricule;
+              finalRow.driverName = `${driverCandidates[0].nom} ${driverCandidates[0].prenom}`;
+            }
+
+            const availableEngines = engines.map(e => e.code || e.id || '');
+            if (availableEngines.length > 0) {
+              finalRow.engineCode = availableEngines[idx % availableEngines.length];
+              finalRow.engineId = finalRow.engineCode;
+            }
+          }
+          return finalRow;
+        });
+
+        // Seed Extraction
+        const treuillistes = activeStaff.filter(e => e.fonction === 'TREUILLISTE');
+        const defaultExt = getDefaultExtractionRows(selectedPost)[0];
+        if (treuillistes.length > 0) {
+          defaultExt.treuilliste = treuillistes[0].matricule;
+        }
+        const ouvs = activeStaff.filter(e => e.fonction === 'OUVRIER' || e.fonction === 'AIDE_MINEUR');
+        if (ouvs.length > 1) {
+          defaultExt.equipier1 = ouvs[0].matricule;
+          defaultExt.equipier2 = ouvs[1].matricule;
+        }
+        proposedExtraction = [defaultExt];
+
+        // Seed Maintenance
+        const techStaff = activeStaff.filter(e => ['MECANICIEN', 'ELECTRICIEN', 'CHAUDRONNIER'].includes(e.fonction));
+        proposedMaintenance = getDefaultMaintenanceRows(selectedPost).map(row => {
+          const finalRow = { ...row };
+          const matchingTech = techStaff.find(e => {
+            if (row.roleLabel.includes('MÉCANICIEN') && e.fonction === 'MECANICIEN') return true;
+            if (row.roleLabel.includes('ÉLECTRICIEN') && e.fonction === 'ELECTRICIEN') return true;
+            if (row.roleLabel.includes('CHAUDRONNIER') && e.fonction === 'CHAUDRONNIER') return true;
+            return false;
+          });
+          if (matchingTech) {
+            finalRow.agentMatricule = matchingTech.matricule;
+            finalRow.agentName = `${matchingTech.nom} ${matchingTech.prenom}`;
+          }
+          return finalRow;
+        });
+
+      } else {
+        // Tuesday to Sunday suggestions are formulated from J-1 yesterday
+        const prevDateObj = addDays(currentDate, -1);
+        const prevDateStr = format(prevDateObj, 'yyyy-MM-dd');
+
+        const docRef = doc(db, 'daily_planning_sheets', prevDateStr);
+        const docSnap = await getDoc(docRef);
+
+        let copiedMinage: ExcelMinage[] = [];
+        let copiedDeblayage: ExcelDeblayage[] = [];
+        let copiedExtraction: ExcelExtraction[] = [];
+        let copiedMaintenance: ExcelMaintenance[] = [];
+
+        if (docSnap.exists()) {
+          const docData = docSnap.data();
+          const pk = selectedPost === 'Poste 1' ? 'poste1' : selectedPost === 'Poste 2' ? 'poste2' : 'poste3';
+          const pData = docData.postes?.[pk] || {};
+          
+          copiedMinage = pData.minage || [];
+          copiedDeblayage = pData.deblayage || [];
+          copiedExtraction = pData.extraction || [];
+          copiedMaintenance = pData.maintenance || [];
+
+          const prevSectorChiefs = (docData.sectorChiefs || {})[selectedPost] || {};
+          Object.assign(newSectorChiefs, prevSectorChiefs);
+        }
+
+        const activeStaff = employees.filter(e => e.status === 'actif' && e.currentPost === selectedPost);
+        const findActiveMatricule = (mat: string) => {
+          if (!mat) return '';
+          const found = activeStaff.find(e => e.matricule?.toUpperCase() === mat.toUpperCase());
+          return found ? found.matricule : '';
+        };
+
+        proposedMinage = ensureMinimumRows(copiedMinage, 'minage', selectedPost, chantiers).map(row => {
+          const finalRow = { ...row };
+          finalRow.chiefMatricule = findActiveMatricule(row.chiefMatricule);
+          finalRow.chiefName = getEmpName(finalRow.chiefMatricule);
+          finalRow.minerMatricule = findActiveMatricule(row.minerMatricule);
+          finalRow.minerName = getEmpName(finalRow.minerMatricule);
+          finalRow.assistantMatricule = findActiveMatricule(row.assistantMatricule);
+          finalRow.assistantName = getEmpName(finalRow.assistantMatricule);
+          return finalRow;
+        });
+
+        proposedDeblayage = ensureMinimumRows(copiedDeblayage, 'deblayage', selectedPost, chantiers).map(row => {
+          const finalRow = { ...row };
+          finalRow.driverMatricule = findActiveMatricule(row.driverMatricule);
+          finalRow.driverName = getEmpName(finalRow.driverMatricule);
+          return finalRow;
+        });
+
+        proposedExtraction = sanitizeExtractionRows(copiedExtraction, POST_HOURS[selectedPost]).map(row => {
+          const finalRow = { ...row };
+          finalRow.treuilliste = findActiveMatricule(row.treuilliste);
+          finalRow.equipier1 = findActiveMatricule(row.equipier1);
+          finalRow.equipier2 = findActiveMatricule(row.equipier2);
+          finalRow.equipier3 = findActiveMatricule(row.equipier3);
+          finalRow.equipier4 = findActiveMatricule(row.equipier4);
+          return finalRow;
+        });
+
+        const srcMaint = copiedMaintenance.length > 0 ? copiedMaintenance : getDefaultMaintenanceRows(selectedPost);
+        proposedMaintenance = srcMaint.map(row => {
+          const finalRow = { ...row };
+          finalRow.agentMatricule = findActiveMatricule(row.agentMatricule);
+          finalRow.agentName = getEmpName(finalRow.agentMatricule);
+          return finalRow;
+        });
+      }
+
+      // Compute visual changes comparing current UI state to the fresh suggested values
+      const teamChanges: any[] = [];
+      const currentMinage = minageRowsByPost[selectedPost] || [];
+      const currentDeblayage = deblayageRowsByPost[selectedPost] || [];
+      const currentExtraction = extractionRowsByPost[selectedPost] || [];
+
+      const getChantierNameLocal = (id: string) => {
+        if (id && id.startsWith('stock_')) {
+          return id.replace('stock_', 'STOCK : ');
+        }
+        const ch = chantiers.find(c => c.id === id);
+        return ch ? ch.name : id || 'Autres / Non classés';
+      };
+
+      const addChange = (type: string, role: string, chantier: string, oldMat: string, newMat: string) => {
+        if (oldMat !== newMat) {
+          teamChanges.push({
+            type,
+            role,
+            chantierName: chantier,
+            oldName: oldMat ? getEmployeeName(oldMat) : '',
+            newName: newMat ? getEmployeeName(newMat) : ''
+          });
+        }
+      };
+
+      proposedMinage.forEach(row => {
+        const oldRow = currentMinage.find(cm => cm.chantierId === row.chantierId);
+        const nameChan = getChantierNameLocal(row.chantierId);
+        addChange('Minage', 'Mineur', nameChan, oldRow?.minerMatricule || '', row.minerMatricule);
+        addChange('Minage', 'Aide-Mineur', nameChan, oldRow?.assistantMatricule || '', row.assistantMatricule);
+      });
+
+      proposedDeblayage.forEach(row => {
+        const oldRow = currentDeblayage.find(cd => cd.chantierId === row.chantierId);
+        const nameChan = getChantierNameLocal(row.chantierId);
+        addChange('Déblayage', 'Conducteur', nameChan, oldRow?.driverMatricule || '', row.driverMatricule);
+      });
+
+      proposedExtraction.forEach(row => {
+        const oldRow = currentExtraction[0] || {};
+        addChange('Extraction', 'Treuilliste', 'Extraction Bure', oldRow.treuilliste || '', row.treuilliste);
+        addChange('Extraction', 'Équipier 1', 'Extraction Bure', oldRow.equipier1 || '', row.equipier1);
+        addChange('Extraction', 'Équipier 2', 'Extraction Bure', oldRow.equipier2 || '', row.equipier2);
+      });
+
+      const inactiveAssigned: any[] = [];
+      const verifyActiveStaff = (mat: string, role: string) => {
+        if (!mat) return;
+        const emp = employees.find(e => e.matricule?.toUpperCase() === mat.toUpperCase());
+        if (emp && emp.status !== 'actif') {
+          inactiveAssigned.push({ name: `${emp.nom} ${emp.prenom}`, matricule: emp.matricule, role });
+        }
+      };
+
+      proposedMinage.forEach(r => { verifyActiveStaff(r.minerMatricule, 'Mineur Minage'); verifyActiveStaff(r.assistantMatricule, 'Aide Minage'); });
+      proposedDeblayage.forEach(r => verifyActiveStaff(r.driverMatricule, 'Conducteur LHD'));
+      proposedExtraction.forEach(r => { verifyActiveStaff(r.treuilliste, 'Treuilliste'); verifyActiveStaff(r.equipier1, 'Extraction'); });
+      proposedMaintenance.forEach(r => verifyActiveStaff(r.agentMatricule, r.roleLabel));
+
+      const assignedMatricules: string[] = [];
+      const addAssigned = (m: string) => { if (m) assignedMatricules.push(m.toUpperCase()); };
+
+      proposedMinage.forEach(r => { addAssigned(r.minerMatricule); addAssigned(r.assistantMatricule); });
+      proposedDeblayage.forEach(r => addAssigned(r.driverMatricule));
+      proposedExtraction.forEach(r => { addAssigned(r.treuilliste); addAssigned(r.equipier1); addAssigned(r.equipier2); addAssigned(r.equipier3); addAssigned(r.equipier4); });
+      proposedMaintenance.forEach(r => addAssigned(r.agentMatricule));
+
+      const unassignedPanel = employees.filter(e => {
+        return e.status === 'actif' && e.currentPost === selectedPost && !assignedMatricules.includes(e.matricule?.toUpperCase());
+      }).map(e => ({
+        name: `${e.nom} ${e.prenom}`,
+        matricule: e.matricule || '',
+        sector: e.sector || 'Non assigné',
+        fonction: e.fonction || 'MINEUR'
+      }));
+
+      setGapChanges(teamChanges);
+      setGapInactive(inactiveAssigned);
+      setGapUnassigned(unassignedPanel);
+      
+      setPendingProposition({
+        minage: proposedMinage,
+        deblayage: proposedDeblayage,
+        extraction: proposedExtraction,
+        maintenance: proposedMaintenance,
+        sectorChiefs: newSectorChiefs
+      });
+
+      setIsGapModalOpen(true);
+
+    } catch (err) {
+      console.error("Erreur de génération automatique :", err);
+      alert("Une erreur s'est produite lors de la génération de la proposition.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyPendingProposition = async () => {
+    if (!pendingProposition) return;
+    try {
+      setMinageRowsByPost(prev => ({ ...prev, [selectedPost]: pendingProposition.minage }));
+      setDeblayageRowsByPost(prev => ({ ...prev, [selectedPost]: pendingProposition.deblayage }));
+      setExtractionRowsByPost(prev => ({ ...prev, [selectedPost]: pendingProposition.extraction }));
+      setMaintenanceRowsByPost(prev => ({ ...prev, [selectedPost]: pendingProposition.maintenance }));
+      
+      setSectorChiefs(prev => ({
+        ...prev,
+        [selectedPost]: pendingProposition.sectorChiefs
+      }));
+
+      setIsGapModalOpen(false);
+      setPendingProposition(null);
+
+      await logPlanningAction(
+        user?.email || 'Planificateur SMI',
+        'PROPOSITION DISPATCH',
+        selectedPost,
+        selectedDate,
+        `Application de l'assistance et ordonnancement de la journée (${gapChanges.length} permutations et ${gapUnassigned.length} membres gardés disponibles).`
+      );
+
+    } catch (err) {
+      console.error("Erreur d'application :", err);
+      alert("Impossible d'appliquer la proposition.");
     }
   };
 
@@ -1148,12 +1633,89 @@ export const Planning: React.FC = () => {
       }
 
       setSaveStatus('saved');
+      try {
+        await logPlanningAction(
+          user?.email || 'Planificateur SMI',
+          'SAUVEGARDE PLAN',
+          'TOUS LES POSTES',
+          selectedDate,
+          "Gravure et enregistrement définitif de la planification journalière dans la base de données SMI."
+        );
+      } catch (logErr) {
+        console.warn("Audit logs error writing: ", logErr);
+      }
       setTimeout(() => setSaveStatus('idle'), 2500);
     } catch (err) {
       console.error("Erreur de sauvegarde de planification :", err);
       setSaveStatus('error');
     }
   };
+
+  const handleDeleteHistoryRecord = async (record: any) => {
+    if (!profile || profile.role !== 'admin') {
+      alert("Seuls les administrateurs de la plateforme peuvent supprimer des cahiers.");
+      return;
+    }
+
+    const confirmWipe = window.confirm(
+      `Êtes-vous sûr de vouloir supprimer définitivement la planification du ${record.date} pour le ${record.post} ?\nCette action est irréversible.`
+    );
+    if (!confirmWipe) return;
+
+    try {
+      const docRef = doc(db, 'daily_planning_sheets', record.date);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const docData = docSnap.data();
+        const currentPostes = docData.postes || {};
+        const postKeyInDoc = record.post === 'Poste 1' ? 'poste1' : record.post === 'Poste 2' ? 'poste2' : 'poste3';
+
+        const updatedPostes = { ...currentPostes };
+        delete updatedPostes[postKeyInDoc];
+
+        const remainingKeys = Object.keys(updatedPostes);
+        if (remainingKeys.length === 0) {
+          await deleteDoc(docRef);
+        } else {
+          await setDoc(docRef, { postes: updatedPostes }, { merge: true });
+        }
+
+        // Clean up linked granular collections
+        const planColl = collection(db, 'planning');
+        const qExist = query(
+          planColl, 
+          where('date', '==', record.date),
+          where('post', '==', record.post)
+        );
+        const existSnap = await getDocs(qExist);
+        const batch = writeBatch(db);
+        existSnap.docs.forEach(docD => {
+          batch.delete(docD.ref);
+        });
+        await batch.commit();
+
+        await logPlanningAction(
+          user?.email || 'Admin',
+          'SUPPRESSION PLAN',
+          record.post,
+          record.date,
+          `Suppression définitive de la planification du ${record.date} pour le ${record.post}.`
+        );
+
+        alert("Planification supprimée avec succès !");
+      }
+    } catch (err) {
+      console.error("Erreur lors de la suppression de la planification :", err);
+      alert("Une erreur est survenue lors de la suppression.");
+    }
+  };
+
+  const nonEmptyChantiersCount = [
+    ...(minageRowsByPost['Poste 1'] || []),
+    ...(minageRowsByPost['Poste 2'] || []),
+    ...(minageRowsByPost['Poste 3'] || [])
+  ].filter(r => r.chantierId && (r.minerMatricule || r.assistantMatricule)).length;
 
   return (
     <div className="space-y-4">
@@ -1246,15 +1808,32 @@ export const Planning: React.FC = () => {
             {viewMode === 'sheet' && (
               <div className="flex flex-wrap justify-center lg:justify-end gap-1.5 w-full">
                 <button
+                  onClick={() => setIsAuditDrawerOpen(true)}
+                  className="bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Consulter le registre d'audit et historique des événements"
+                >
+                  🪵 Traces Audit
+                </button>
+                <ExcelExportButton
+                  selectedDate={selectedDate}
+                  minageRowsByPost={minageRowsByPost}
+                  deblayageRowsByPost={deblayageRowsByPost}
+                  extractionRowsByPost={extractionRowsByPost}
+                  maintenanceRowsByPost={maintenanceRowsByPost}
+                  sectorChiefs={sectorChiefs}
+                  chantiers={chantiers}
+                  employees={employees}
+                />
+                <button
                   onClick={duplicatePreviousWeek}
-                  className="bg-gray-50 hover:bg-gray-150 text-gray-850 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
+                  className="bg-gray-50 hover:bg-gray-150 text-gray-855 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
                   title="Importer et adapter la planification de la semaine passée J-7"
                 >
                   <Copy className="w-3 h-3 text-[#00BFFF]" /> J-7
                 </button>
                 <button
                   onClick={loadPlanningWorkbook}
-                  className="bg-gray-50 hover:bg-gray-150 text-gray-850 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
+                  className="bg-gray-50 hover:bg-gray-150 text-gray-855 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
                   title="Réinitialiser ou recharger depuis le cloud"
                 >
                   <RotateCcw className="w-3 h-3 text-[#00BFFF]" /> Recharger
@@ -1419,7 +1998,7 @@ export const Planning: React.FC = () => {
                                             {sec !== 'Autres / Non classés' && (
                                               <div className="flex items-center gap-2 bg-white border border-gray-200 px-3 py-1 rounded-lg shadow-sm">
                                                 <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                                                  👨‍✈️ Chef de Secteur / Poste :
+                                                  👨‍✈️ {p === 'Poste 1' ? 'Responsable de secteur' : 'Chef de poste'} :
                                                 </span>
                                                 <div className="w-56 text-black font-semibold text-[10.5px]">
                                                   <MatriculeAutocomplete
@@ -1448,11 +2027,26 @@ export const Planning: React.FC = () => {
                                     </tr>
 
                                     {/* Group matching rows */}
-                                    {sectorRowsWithIdx.map(({ row, idx: flatIdx }) => {
+                                    {sectorRowsWithIdx.map(({ row, idx: flatIdx }, sIdx) => {
                                       const globalIdx = globalIdxCounter++;
                                       const options = chantiers.filter(c => sec === 'Autres / Non classés' || isSectorMatching(c.sector, sec));
                                       const hasChantier = options.some(o => o.id === row.chantierId);
                                       const fallbackChantier = row.chantierId && !hasChantier ? chantiers.find(c => c.id === row.chantierId) : null;
+
+                                      // Evaluate row span dynamically for miner, assistant, rounds, and meters columns
+                                      const isChild = !!(row.remarks && row.remarks.includes('(Volée'));
+                                      let rowSpan = 1;
+                                      if (!isChild) {
+                                        let nextIdx = sIdx + 1;
+                                        while (
+                                          nextIdx < sectorRowsWithIdx.length &&
+                                          sectorRowsWithIdx[nextIdx].row.remarks &&
+                                          sectorRowsWithIdx[nextIdx].row.remarks.includes('(Volée')
+                                        ) {
+                                          rowSpan++;
+                                          nextIdx++;
+                                        }
+                                      }
 
                                       return (
                                         <tr 
@@ -1495,32 +2089,37 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Mineur */}
-                                          <td data-row={globalIdx} data-col={1} className="p-0.5 border-r border-gray-200 min-w-[180px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
-                                            <MatriculeAutocomplete
-                                              value={row.minerMatricule}
-                                              onChange={(matricule) => updateMinageCell(p, flatIdx, 'minerMatricule', matricule)}
-                                              employees={employees}
-                                              sector={sec !== 'Autres / Non classés' ? sec : undefined}
-                                              fonctions={['MINEUR']}
-                                              post={p}
-                                              placeholder="M-..."
-                                              onKeyDown={makeExcelKeyHandler(globalIdx, 1)}
-                                            />
-                                          </td>
+                                          {!isChild && (
+                                            <td rowSpan={rowSpan} data-row={globalIdx} data-col={1} className="p-0.5 border-r border-gray-200 min-w-[180px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40 align-middle">
+                                              <MatriculeAutocomplete
+                                                value={row.minerMatricule}
+                                                onChange={(matricule) => updateMinageCell(p, flatIdx, 'minerMatricule', matricule)}
+                                                employees={employees}
+                                                sector={sec !== 'Autres / Non classés' ? sec : undefined}
+                                                fonctions={['MINEUR']}
+                                                alternativeFonctions={['AIDE_MINEUR']}
+                                                post={p}
+                                                placeholder="M-..."
+                                                onKeyDown={makeExcelKeyHandler(globalIdx, 1)}
+                                              />
+                                            </td>
+                                          )}
 
                                           {/* Aide-Mineur */}
-                                          <td data-row={globalIdx} data-col={2} className="p-0.5 border-r border-gray-200 min-w-[180px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
-                                            <MatriculeAutocomplete
-                                              value={row.assistantMatricule}
-                                              onChange={(matricule) => updateMinageCell(p, flatIdx, 'assistantMatricule', matricule)}
-                                              employees={employees}
-                                              sector={sec !== 'Autres / Non classés' ? sec : undefined}
-                                              fonctions={['AIDE_MINEUR']}
-                                              post={p}
-                                              placeholder="M-..."
-                                              onKeyDown={makeExcelKeyHandler(globalIdx, 2)}
-                                            />
-                                          </td>
+                                          {!isChild && (
+                                            <td rowSpan={rowSpan} data-row={globalIdx} data-col={2} className="p-0.5 border-r border-gray-200 min-w-[180px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40 align-middle">
+                                              <MatriculeAutocomplete
+                                                value={row.assistantMatricule}
+                                                onChange={(matricule) => updateMinageCell(p, flatIdx, 'assistantMatricule', matricule)}
+                                                employees={employees}
+                                                sector={sec !== 'Autres / Non classés' ? sec : undefined}
+                                                fonctions={['AIDE_MINEUR']}
+                                                post={p}
+                                                placeholder="M-..."
+                                                onKeyDown={makeExcelKeyHandler(globalIdx, 2)}
+                                              />
+                                            </td>
+                                          )}
 
                                           {/* Section */}
                                           <td data-row={globalIdx} data-col={3} className="p-1 border-r border-gray-200 w-20 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
@@ -1535,38 +2134,30 @@ export const Planning: React.FC = () => {
                                             </select>
                                           </td>
 
-                                          {/* Volées prévues (Always frozen to 1) */}
-                                          <td data-row={globalIdx} data-col={4} className="p-1 border-r border-gray-200 w-16 text-center bg-gray-50/50 select-none relative group/volee">
-                                            <input
-                                              type="number"
-                                              value={1}
-                                              disabled
-                                              className="w-full bg-transparent text-center font-black text-[11px] outline-none border-0 text-slate-400 cursor-not-allowed select-none"
-                                            />
-                                            
-                                            {/* High-fidelity professional tooltip popover */}
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/volee:block w-72 bg-slate-950 text-slate-100 text-[10.5px] p-3 rounded-xl shadow-2xl z-50 border border-slate-800 pointer-events-none transition-all duration-200 text-left">
-                                              <div className="font-extrabold text-[#00BFFF] uppercase tracking-wider text-[9px] mb-1">
-                                                ℹ️ Spécifications de Tir & Forage
-                                              </div>
-                                              <p className="font-semibold leading-relaxed text-slate-250">
-                                                {row.gallerySize === 12 ? (
-                                                  <>Le gabarit de foration théorique pour <strong className="text-white">12m²</strong> est de <strong className="text-white font-black">38 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">32 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">32</strong> s'affiche pour le chargement et les amorces).</>
-                                                ) : (
-                                                  <>Le gabarit de foration théorique pour <strong className="text-white">9m²</strong> est de <strong className="text-white font-black">28 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">26 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">26</strong> s'affiche pour le chargement et les amorces).</>
-                                                )}
-                                              </p>
-                                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-950"></div>
-                                            </div>
-                                          </td>
+                                          {/* Volées prévues (Now editable!) */}
+                                          {!isChild && (
+                                            <td rowSpan={rowSpan} data-row={globalIdx} data-col={4} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40 align-middle">
+                                              <input
+                                                type="number"
+                                                min={1}
+                                                max={3}
+                                                value={row.plannedRounds || 1}
+                                                onChange={e => updateMinageCell(p, flatIdx, 'plannedRounds', Number(e.target.value))}
+                                                onKeyDown={makeExcelKeyHandler(globalIdx, 4)}
+                                                className="w-full bg-transparent text-center font-black text-[11px] outline-none border-0 text-gray-850"
+                                              />
+                                            </td>
+                                          )}
 
                                           {/* Mètres prévus */}
-                                          <td className="p-1 border-r border-gray-200 w-20 text-center font-mono font-extrabold text-blue-600 bg-gray-50/80 select-none">
-                                            {row.meterage.toFixed(1)} m
-                                          </td>
+                                          {!isChild && (
+                                            <td rowSpan={rowSpan} className="p-1 border-r border-gray-200 w-20 text-center font-mono font-extrabold text-blue-600 bg-gray-50/80 select-none align-middle animate-fade-in">
+                                              {row.meterage.toFixed(1)} m
+                                            </td>
+                                          )}
 
                                           {/* Trous prévus */}
-                                          <td data-row={globalIdx} data-col={5} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
+                                          <td data-row={globalIdx} data-col={5} className="p-1 border-r border-gray-200 w-16 text-center relative group/trous focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
                                             {row.explosivesManualOverride ? (
                                               <div className="flex items-center justify-center gap-1">
                                                 <input
@@ -1594,6 +2185,21 @@ export const Planning: React.FC = () => {
                                                 {row.plannedHoles}
                                               </div>
                                             )}
+
+                                            {/* High-fidelity professional tooltip popover */}
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/trous:block w-72 bg-slate-950 text-slate-100 text-[10.5px] p-3 rounded-xl shadow-2xl z-50 border border-slate-800 pointer-events-none transition-all duration-200 text-left">
+                                              <div className="font-extrabold text-[#00BFFF] uppercase tracking-wider text-[9px] mb-1">
+                                                ℹ️ Spécifications de Tir & Forage
+                                              </div>
+                                              <p className="font-semibold leading-relaxed text-slate-250">
+                                                {row.gallerySize === 12 ? (
+                                                  <>Le gabarit de foration théorique pour <strong className="text-white">12m²</strong> est de <strong className="text-white font-black">38 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">32 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">32</strong> s\'affiche pour le chargement et les amorces).</>
+                                                ) : (
+                                                  <>Le gabarit de foration théorique pour <strong className="text-white">9m²</strong> est de <strong className="text-white font-black">28 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">26 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">26</strong> s\'affiche pour le chargement et les amorces).</>
+                                                )}
+                                              </p>
+                                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-950"></div>
+                                            </div>
                                           </td>
 
                                           {/* ANFO */}
@@ -1794,6 +2400,15 @@ export const Planning: React.FC = () => {
                                             >
                                               + Ajouter Ligne
                                             </button>
+
+                                            <button
+                                              type="button"
+                                              onClick={() => addStockRowToDeblayageSector(p, sec)}
+                                              className="text-[9px] font-black text-amber-950 hover:bg-amber-200 bg-amber-100 border border-amber-250 px-2.5 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 uppercase tracking-wider"
+                                              title={`Ajouter un déblayage de stock à ${sec}`}
+                                            >
+                                              📦 + Stock Manuel
+                                            </button>
                                           </div>
                                         </div>
                                       </td>
@@ -1828,22 +2443,43 @@ export const Planning: React.FC = () => {
 
                                           {/* Chantier dropdown selection */}
                                           <td data-row={globalIdx} data-col={0} className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
-                                            <select
-                                              value={row.chantierId}
-                                              onChange={e => updateDeblayageCell(p, flatIdx, 'chantierId', e.target.value)}
-                                              onKeyDown={makeExcelKeyHandler(globalIdx, 0)}
-                                              className="w-full bg-transparent border-0 font-extrabold p-0.5 text-[11px] uppercase outline-none text-gray-800"
-                                            >
-                                              <option value="">(Vide)</option>
-                                              {fallbackChantier && (
-                                                <option value={fallbackChantier.id}>
-                                                  {fallbackChantier.name || fallbackChantier.id} (Hors-sec)
-                                                </option>
-                                              )}
-                                              {options.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name || c.id}</option>
-                                              ))}
-                                            </select>
+                                            {row.chantierId?.startsWith('stock_') ? (
+                                              <div className="flex items-center gap-1.5 w-full">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => updateDeblayageCell(p, flatIdx, 'chantierId', '')}
+                                                  className="text-[8.5px] bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-extrabold px-1.5 py-0.5 rounded uppercase shrink-0 transition-all cursor-pointer select-none"
+                                                  title="Revenir à un chantier standard"
+                                                >
+                                                  STOCK ✕
+                                                </button>
+                                                <input
+                                                  type="text"
+                                                  value={row.chantierId.replace('stock_', '')}
+                                                  onChange={e => updateDeblayageCell(p, flatIdx, 'chantierId', 'stock_' + e.target.value)}
+                                                  className="w-full bg-transparent font-extrabold p-0.5 text-[11px] uppercase outline-none text-amber-900 border-none"
+                                                  placeholder="Nom du stock..."
+                                                />
+                                              </div>
+                                            ) : (
+                                              <select
+                                                value={row.chantierId}
+                                                onChange={e => updateDeblayageCell(p, flatIdx, 'chantierId', e.target.value)}
+                                                onKeyDown={makeExcelKeyHandler(globalIdx, 0)}
+                                                className="w-full bg-transparent border-0 font-extrabold p-0.5 text-[11px] uppercase outline-none text-gray-800"
+                                              >
+                                                <option value="">(Vide)</option>
+                                                <option value="stock_NOUVEAU STOCK" className="text-amber-800 font-bold bg-amber-50">📦 + NOUVEAU STOCK</option>
+                                                {fallbackChantier && (
+                                                  <option value={fallbackChantier.id}>
+                                                    {fallbackChantier.name || fallbackChantier.id} (Hors-sec)
+                                                  </option>
+                                                )}
+                                                {options.map(c => (
+                                                  <option key={c.id} value={c.id}>{c.name || c.id}</option>
+                                                ))}
+                                              </select>
+                                            )}
                                           </td>
 
                                           {/* Driver */}
@@ -2250,7 +2886,13 @@ export const Planning: React.FC = () => {
                                         value={row.agentMatricule}
                                         onChange={(matricule) => updateMaintenanceCell(p, idx, 'agentMatricule', matricule)}
                                         employees={employees}
-                                        fonctions={['MECANICIEN', 'CHAUDRONNIER', 'ELECTRICIEN']}
+                                        fonctions={(() => {
+                                          const norm = (row.roleLabel || '').toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                                          if (norm.includes('MECANICIEN')) return ['MECANICIEN'];
+                                          if (norm.includes('ELECTRICIEN')) return ['ELECTRICIEN'];
+                                          if (norm.includes('CHAUDRONNIER')) return ['CHAUDRONNIER'];
+                                          return ['MECANICIEN', 'CHAUDRONNIER', 'ELECTRICIEN'];
+                                        })()}
                                         placeholder="M-..."
                                         post={p}
                                       />
@@ -2382,14 +3024,13 @@ export const Planning: React.FC = () => {
               <div className="border-r border-gray-200 pr-6">
                 <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Chantiers programmés</span>
                 <span className="text-base font-black text-slate-800 mt-0.5 block">
-                  {([...minageRowsByPost['Poste 1'], ...minageRowsByPost['Poste 2'], ...minageRowsByPost['Poste 3']].filter(r => r.chantierId !== '').length + 
-                    [...deblayageRowsByPost['Poste 1'], ...deblayageRowsByPost['Poste 2'], ...deblayageRowsByPost['Poste 3']].filter(r => r.chantierId !== '').length)} postes de fond
+                  {nonEmptyChantiersCount} {nonEmptyChantiersCount > 1 ? 'chantiers' : 'chantier'}
                 </span>
               </div>
               <div className="border-r border-gray-200 pr-6">
                 <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Objectif Avancement</span>
                 <span className="text-base font-black text-[#00BFFF] mt-0.5 block">
-                  {([...minageRowsByPost['Poste 1'], ...minageRowsByPost['Poste 2'], ...minageRowsByPost['Poste 3']].reduce((a, b) => a + (b.chantierId ? b.meterage : 0), 0)).toFixed(1)} mètres
+                  {(nonEmptyChantiersCount * 1.7).toFixed(1)} mètres
                 </span>
               </div>
               <div>
@@ -2416,7 +3057,15 @@ export const Planning: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-55 text-slate-700 border-b border-gray-200">
-                  {['Date programmée', 'Shift / Poste', 'Chantiers planifiés (Blasting)', 'Avancement ciblé', 'Sauvegardé par', 'Fiche'].map(h => (
+                  {[
+                    'Date programmée', 
+                    'Shift / Poste', 
+                    'Chantiers planifiés (Blasting)', 
+                    'Avancement ciblé', 
+                    'Sauvegardé par', 
+                    'Fiche',
+                    ...(profile && profile.role === 'admin' ? ['Actions'] : [])
+                  ].map(h => (
                     <th key={h} className="px-5 py-3 text-[9px] font-extrabold uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -2432,7 +3081,9 @@ export const Planning: React.FC = () => {
                       {record.minageRows ? record.minageRows.length : 0} chantiers tirs
                     </td>
                     <td className="px-5 py-3 font-extrabold text-blue-600">
-                      {record.minageRows ? record.minageRows.reduce((acc: number, r: any) => acc + (r.meterage || 0), 0).toFixed(1) : '0.0'} m
+                      {record.minageRows ? record.minageRows
+                        .filter((r: any) => !(r.remarks && r.remarks.includes('(Volée')))
+                        .reduce((acc: number, r: any) => acc + (r.meterage || 0), 0).toFixed(1) : '0.0'} m
                     </td>
                     <td className="px-5 py-3 text-slate-500 font-bold uppercase text-[10px]">
                       {record.operator ? record.operator.split('@')[0] : 'SMI USER'}
@@ -2442,11 +3093,22 @@ export const Planning: React.FC = () => {
                         <CheckCircle className="w-3.5 h-3.5 text-green-600" /> Planifié Souterrain
                       </div>
                     </td>
+                    {profile && profile.role === 'admin' && (
+                      <td className="px-5 py-3">
+                        <button
+                          onClick={() => handleDeleteHistoryRecord(record)}
+                          className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all flex items-center gap-1 cursor-pointer"
+                          title="Supprimer définitivement ce cahier"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-500" /> Supprimer
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {planningsHistory.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="text-center p-16 italic text-gray-300 uppercase font-black text-[10px]">
+                    <td colSpan={profile && profile.role === 'admin' ? 7 : 6} className="text-center p-16 italic text-gray-300 uppercase font-black text-[10px]">
                       Aucun grand livre de planification enregistré.
                     </td>
                   </tr>
@@ -2456,6 +3118,25 @@ export const Planning: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Gap Report Dialog Modal */}
+      <GapReportModal
+        isOpen={isGapModalOpen}
+        onClose={() => setIsGapModalOpen(false)}
+        onConfirm={applyPendingProposition}
+        selectedDate={selectedDate}
+        selectedPost={selectedPost}
+        teamChanges={gapChanges}
+        inactiveAssigned={gapInactive}
+        unassignedPersonnel={gapUnassigned}
+      />
+
+      {/* Real-time Trace Audit Logs Drawer */}
+      <AuditLogsDrawer
+        isOpen={isAuditDrawerOpen}
+        onClose={() => setIsAuditDrawerOpen(false)}
+        selectedDate={selectedDate}
+      />
     </div>
   );
 };

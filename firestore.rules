@@ -80,13 +80,20 @@ service cloud.firestore {
     // Daily Planning Sheets
     match /daily_planning_sheets/{sheetId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() 
+      allow create, update: if isSignedIn() 
         && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary'])
         && request.resource.data.date == sheetId;
+      allow delete: if isSignedIn() && hasRole(['admin']);
     }
 
     // Rotations History
     match /rotations_history/{rotationId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+    }
+
+    // Rotations Drafts
+    match /rotations_drafts/{draftId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
     }

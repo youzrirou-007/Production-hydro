@@ -7,6 +7,7 @@ interface MatriculeAutocompleteProps {
   employees: any[];         // liste personnel
   sector?: string;          // secteur attendu (ex: "Imiter 2")
   fonctions?: string[];     // fonctions attendues (ex: ["CHEF"])
+  alternativeFonctions?: string[]; // alternative roles allowed to avoid blockages
   post?: 'Poste 1' | 'Poste 2' | 'Poste 3'; // poste attendu
   placeholder?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -18,6 +19,7 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
   employees,
   sector,
   fonctions,
+  alternativeFonctions,
   post,
   placeholder = "Saisir r...",
   onKeyDown
@@ -33,22 +35,55 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
 
   // Adjust direction dynamically depending on proximity to bottom
   useEffect(() => {
-    if (isOpen && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      // If less than 170px below and screen has some space above, render upward
-      if (spaceBelow < 170 && rect.top > 170) {
-        setDirection('up');
-      } else {
-        setDirection('down');
+    if (!isOpen) return;
+
+    const updateDirection = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        
+        // Also check parent scroll container bottom if applicable
+        const parentScroll = containerRef.current.closest('.overflow-x-auto');
+        let parentSpaceBelow = 999;
+        if (parentScroll) {
+          const parentRect = parentScroll.getBoundingClientRect();
+          parentSpaceBelow = parentRect.bottom - rect.bottom;
+        }
+
+        // If less than 220px below in either viewport or parent scroll, flip upward to prevent clipping:
+        if (spaceBelow < 220 || parentSpaceBelow < 220) {
+          setDirection('up');
+        } else {
+          setDirection('down');
+        }
       }
-    }
+    };
+
+    updateDirection();
+
+    // Listen to scroll events on window & any parent scrollable elements
+    window.addEventListener('scroll', updateDirection, true);
+    window.addEventListener('resize', updateDirection);
+
+    return () => {
+      window.removeEventListener('scroll', updateDirection, true);
+      window.removeEventListener('resize', updateDirection);
+    };
   }, [isOpen]);
 
   // Handle outside clicks
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        // If they click on the scrollbar track of the parent scrollable container,
+        // let's avoid closing the dropdown immediately, which gives a horrible UX.
+        const target = e.target as HTMLElement;
+        if (target && target.closest('.overflow-x-auto')) {
+          if (target.classList.contains('overflow-x-auto') || (target.tagName === 'DIV' && target.scrollWidth > target.clientWidth)) {
+            // It's a scrollbar click, don't close!
+            return;
+          }
+        }
         setIsOpen(false);
       }
     };
@@ -74,6 +109,11 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
 
   // Helper checks for levels of filters
   const matchesFunction = (emp: any) => !fonctions || fonctions.includes(emp.fonction);
+  const matchesAlternativeFunction = (emp: any) => !!alternativeFonctions && alternativeFonctions.includes(emp.fonction);
+  const matchesAllowedFonctions = (emp: any) => {
+    if (!fonctions && !alternativeFonctions) return true;
+    return (fonctions?.includes(emp.fonction) || alternativeFonctions?.includes(emp.fonction));
+  };
   const matchesSector = (emp: any) => !sector || emp.sector === sector;
   const matchesPost = (emp: any) => !post || emp.currentPost === post;
   const isActive = (emp: any) => emp.status === 'actif';
@@ -94,12 +134,20 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
     isActive(emp) && matchesFunction(emp) && !matchesSector(emp) && matchesText(emp)
   );
 
-  // 4. Group D: other registered workers that match our text query (but not in A, B, C)
+  // 3b. Group Alt: alternative roles (active, matches alternative function)
+  const groupAlt = employees.filter(emp =>
+    isActive(emp) && matchesAlternativeFunction(emp) && matchesText(emp)
+  );
+
+  // 4. Group D: other registered workers that match our text query and are inside allowed functions (but not in A, B, C, Alt)
   const groupD = query ? employees.filter(emp => 
+    isActive(emp) &&
     matchesText(emp) && 
+    matchesAllowedFonctions(emp) &&
     !groupA.some(x => x.id === emp.id) &&
     !groupB.some(x => x.id === emp.id) &&
-    !groupC.some(x => x.id === emp.id)
+    !groupC.some(x => x.id === emp.id) &&
+    !groupAlt.some(x => x.id === emp.id)
   ) : [];
 
   // Determine if typed matricule is invalid/absent or inactive
@@ -117,7 +165,9 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
   // Build combined suggestions tree for the dropdown
   // We limit the total suggestions rendered to keep dropdown quick
   const hasPrimarySuggestions = groupA.length > 0;
-  const hasSecondarySuggestions = groupB.length > 0 || groupC.length > 0 || groupD.length > 0;
+  const hasOtherRolesGlobal = groupB.length > 0 || groupC.length > 0;
+  const hasAlternativeSuggestions = groupAlt.length > 0;
+  const hasSecondarySuggestions = hasOtherRolesGlobal || groupD.length > 0 || hasAlternativeSuggestions;
 
   return (
     <div ref={containerRef} className="relative w-full min-w-[140px]">
@@ -199,7 +249,7 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                       <User className="w-3 h-3 text-emerald-600 shrink-0" />
                       {emp.nom} {emp.prenom}
                     </div>
-                    <div className="text-[9px] text-slate-500 font-medium">
+                    <div className="text-[9px] text-slate-550 font-medium">
                       {emp.fonction} • {emp.sector} • <span className="text-emerald-700 font-bold">{emp.currentPost}</span>
                     </div>
                   </div>
@@ -211,28 +261,87 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
             </div>
           )}
 
-          {/* OTHER SUGGESTIONS / RELAXED FALLBACK SECTION */}
-          {(groupB.length > 0 || groupC.length > 0 || groupD.length > 0) && (
+          {/* OTHER PRIMARY ROLE EMPLOYEES (Global search before alternative functions) */}
+          {hasOtherRolesGlobal && (
             <div>
-              <div className="bg-slate-100/80 px-2 py-1 text-[8.5px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                <span>Autres suggestions (recherche globale)</span>
+              <div className="bg-slate-100/90 px-2 py-1 text-[8.5px] font-black text-slate-600 uppercase tracking-wider border-b border-slate-150">
+                <span>Autres {fonctions ? fonctions.join('/') : 'profils'} (Recherche globale)</span>
               </div>
-              {[...groupB, ...groupC, ...groupD].slice(0, 10).map((emp) => (
+              {[...groupB, ...groupC].slice(0, 10).map((emp) => (
                 <button
-                  key={`sec-${emp.id}`}
+                  key={`other-prim-${emp.id}`}
                   type="button"
                   onClick={() => handleSelect(emp)}
                   className="w-full text-left px-2.5 py-1.5 hover:bg-slate-100 transition-colors flex items-center justify-between text-[11px] group"
                 >
-                  <div className="truncate pr-2 opacity-75 group-hover:opacity-100">
-                    <div className="font-bold text-slate-600 group-hover:text-slate-800 uppercase truncate">
+                  <div className="truncate pr-2 opacity-90 group-hover:opacity-100">
+                    <div className="font-bold text-slate-750 group-hover:text-slate-900 uppercase truncate">
                       {emp.nom} {emp.prenom} {emp.status !== 'actif' && ' (INACTIF)'}
                     </div>
-                    <div className="text-[9px] text-slate-400 font-medium">
+                    <div className="text-[9px] text-slate-500 font-medium">
                       {emp.fonction} • {emp.sector || 'Sans Secteur'} • <span className="text-slate-500">{emp.currentPost || 'Pas de poste'}</span>
                     </div>
                   </div>
-                  <span className="font-mono text-[9.5px] font-black bg-slate-50 group-hover:bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
+                  <span className="font-mono text-[9.5px] font-black bg-slate-50 group-hover:bg-slate-200 text-slate-550 px-1.5 py-0.5 rounded shrink-0">
+                    {emp.matricule}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* ALTERNATIVE SUGGESTIONS SECTION (Lower priority) */}
+          {hasAlternativeSuggestions && (
+            <div>
+              <div className="bg-amber-50 px-2 py-1 text-[8.5px] font-black text-amber-800 uppercase tracking-wider border-b border-amber-100 flex justify-between items-center">
+                <span>Alternatives acceptées ({alternativeFonctions ? alternativeFonctions.join('/') : 'Aide-Mineur'})</span>
+              </div>
+              {groupAlt.slice(0, 6).map((emp) => (
+                <button
+                  key={`alt-${emp.id}`}
+                  type="button"
+                  onClick={() => handleSelect(emp)}
+                  className="w-full text-left px-2.5 py-1.5 hover:bg-amber-50/50 transition-colors flex items-center justify-between text-[11px] group"
+                >
+                  <div className="truncate pr-2">
+                    <div className="font-bold text-amber-900 uppercase truncate flex items-center gap-1.5">
+                      <User className="w-3 h-3 text-amber-650 shrink-0" />
+                      {emp.nom} {emp.prenom}
+                    </div>
+                    <div className="text-[9px] text-amber-700/80 font-medium">
+                      {emp.fonction} • {emp.sector || 'SMI'} • <span className="text-slate-500">{emp.currentPost || 'Libre'}</span>
+                    </div>
+                  </div>
+                  <span className="font-mono text-[9.5px] font-black bg-amber-100 group-hover:bg-amber-250 text-amber-900 px-1.5 py-0.5 rounded shrink-0">
+                    {emp.matricule}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* OTHER DEVIANT/REGISTERED SUPPORT WORKERS */}
+          {groupD.length > 0 && (
+            <div>
+              <div className="bg-slate-50 px-2 py-1 text-[8.5px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                <span>Autres profils d'appui enregistrés</span>
+              </div>
+              {groupD.slice(0, 10).map((emp) => (
+                <button
+                  key={`sec-${emp.id}`}
+                  type="button"
+                  onClick={() => handleSelect(emp)}
+                  className="w-full text-left px-2.5 py-1.5 hover:bg-slate-50 transition-colors flex items-center justify-between text-[11px] group"
+                >
+                  <div className="truncate pr-2 opacity-75 group-hover:opacity-100">
+                    <div className="font-bold text-slate-600 group-hover:text-slate-800 uppercase truncate">
+                      {emp.nom} {emp.prenom}
+                    </div>
+                    <div className="text-[9px] text-slate-400 font-medium">
+                      {emp.fonction}
+                    </div>
+                  </div>
+                  <span className="font-mono text-[9.5px] font-black bg-slate-50 group-hover:bg-slate-200 text-slate-550 px-1.5 py-0.5 rounded shrink-0">
                     {emp.matricule}
                   </span>
                 </button>
@@ -246,6 +355,6 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
 
   // Flattened helpful array for enter-to-select support
   function suggestionsList() {
-    return [...groupA, ...groupB, ...groupC, ...groupD];
+    return [...groupA, ...groupB, ...groupC, ...groupAlt, ...groupD];
   }
 };
