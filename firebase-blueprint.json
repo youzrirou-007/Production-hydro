@@ -189,6 +189,18 @@
         "userEmail": { "type": "string" },
         "timestamp": { "type": "string" }
       }
+    },
+    "DeletedPlanningLog": {
+      "title": "DeletedPlanningLog",
+      "description": "Log of deleted planning books",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "deletedBy": { "type": "string" },
+        "deletedAt": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["date", "deletedBy", "deletedAt"]
     }
   },
   "firestore": {
@@ -204,6 +216,7 @@
     "/rotations_history": { "schema": "RotationHistory", "description": "Weekly rotation logs" },
     "/daily_planning_sheets": { "schema": "DailyPlanningSheet", "description": "Daily planning sheet records" },
     "/planning": { "schema": "Planning", "description": "Planning assignments" },
-    "/production_history": { "schema": "ProductionHistory", "description": "Workbook validation and action logs" }
+    "/production_history": { "schema": "ProductionHistory", "description": "Workbook validation and action logs" },
+    "/deleted_plannings_log": { "schema": "DeletedPlanningLog", "description": "Deleted planning logs" }
   }
 }

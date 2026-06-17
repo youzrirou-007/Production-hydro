@@ -317,6 +317,11 @@ export const Planning: React.FC = () => {
 
   // Reference tables from Firebase
   const [planningsHistory, setPlanningsHistory] = useState<any[]>([]);
+  const [deletedLogs, setDeletedLogs] = useState<any[]>([]);
+  const [activeHistoryTab, setActiveHistoryTab] = useState<'books' | 'deletions'>('books');
+  const [recordToDelete, setRecordToDelete] = useState<any | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletionNotification, setDeletionNotification] = useState<{ date: string; deletedBy: string } | null>(null);
   const [chantiers, setChantiers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [engines, setEngines] = useState<any[]>([]);
@@ -341,6 +346,12 @@ export const Planning: React.FC = () => {
 
   // Audit Log control states
   const [isAuditDrawerOpen, setIsAuditDrawerOpen] = useState(false);
+
+  // Duplication with previous day states (J-1)
+  const [isDuplicationWarningModalOpen, setIsDuplicationWarningModalOpen] = useState(false);
+  const [duplicatedFromDayData, setDuplicatedFromDayData] = useState<any | null>(null);
+  const [isEcartAccepted, setIsEcartAccepted] = useState(false);
+  const [yesterdayDateStr, setYesterdayDateStr] = useState('');
 
   // Planning Excel grids template state
   const [minageRowsByPost, setMinageRowsByPost] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]>>({
@@ -417,30 +428,35 @@ export const Planning: React.FC = () => {
         const dData = dDoc.data();
         const date = dData.date || dDoc.id;
         const mainStatus = dData.status || 'brouillon';
+        
+        let consolidatedMinage: any[] = [];
+        let consolidatedDeblayage: any[] = [];
+        let consolidatedExtraction: any[] = [];
+        let consolidatedMaintenance: any[] = [];
+        
         if (dData.postes) {
-          Object.entries(dData.postes).forEach(([pKey, pVal]: [string, any]) => {
-            const pName = pKey === 'poste1' ? 'Poste 1' : pKey === 'poste2' ? 'Poste 2' : 'Poste 3';
-            historyList.push({
-              id: `${dDoc.id}_${pKey}`,
-              date,
-              post: pName,
-              status: pVal.status || mainStatus,
-              minageRows: pVal.minage || [],
-              deblayageRows: pVal.deblayage || [],
-              extractionRows: pVal.extraction || [],
-              maintenanceRows: pVal.maintenance || [],
-              operator: dData.operator || pVal.operator || 'SMI USER',
-              timestamp: dData.timestamp || pVal.timestamp || ''
-            });
+          Object.values(dData.postes).forEach((pVal: any) => {
+            if (pVal.minage) consolidatedMinage.push(...pVal.minage);
+            if (pVal.deblayage) consolidatedDeblayage.push(...pVal.deblayage);
+            if (pVal.extraction) consolidatedExtraction.push(...pVal.extraction);
+            if (pVal.maintenance) consolidatedMaintenance.push(...pVal.maintenance);
           });
         }
+        
+        historyList.push({
+          id: dDoc.id,
+          date,
+          status: mainStatus,
+          minageRows: consolidatedMinage,
+          deblayageRows: consolidatedDeblayage,
+          extractionRows: consolidatedExtraction,
+          maintenanceRows: consolidatedMaintenance,
+          operator: dData.operator || 'SMI USER',
+          timestamp: dData.timestamp || ''
+        });
       });
-      // Sort history list by date desc, then post asc
-      historyList.sort((a, b) => {
-        const dateCompare = b.date.localeCompare(a.date);
-        if (dateCompare !== 0) return dateCompare;
-        return a.post.localeCompare(b.post);
-      });
+      // Sort history list by date desc
+      historyList.sort((a, b) => b.date.localeCompare(a.date));
       setPlanningsHistory(historyList);
     });
 
@@ -479,8 +495,40 @@ export const Planning: React.FC = () => {
     return () => { unsubHist(); unsubChan(); unsubRH(); unsubEngs(); unsubSettings(); };
   }, []);
 
+  // Synchronize Deletion Logs Tracker ONLY when user profile is loaded
+  useEffect(() => {
+    if (!profile) return;
+
+    const allowedRoles = ['admin', 'direction', 'chief', 'responsible', 'secretary'];
+    if (!allowedRoles.includes(profile.role)) return;
+
+    const qDelLogs = query(collection(db, 'deleted_plannings_log'));
+    const unsubDelLogs = onSnapshot(qDelLogs, (snapshot) => {
+      const logsList: any[] = [];
+      snapshot.docs.forEach(dDoc => {
+        const dData = dDoc.data();
+        logsList.push({
+          id: dDoc.id,
+          date: dData.date || 'Inconnu',
+          deletedBy: dData.deletedBy || 'Inconnu',
+          deletedAt: dData.deletedAt || '',
+          details: dData.details || ''
+        });
+      });
+      // Sort logs by deletedAt descending
+      logsList.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+      setDeletedLogs(logsList);
+    }, (err) => {
+      console.warn("Permission logs on deleted_plannings_log:", err.message);
+    });
+
+    return () => unsubDelLogs();
+  }, [profile]);
+
   // Sync Excel grid content whenever selected date, shift, or catalogs change
   useEffect(() => {
+    setDuplicatedFromDayData(null);
+    setIsEcartAccepted(false);
     loadPlanningWorkbook();
   }, [selectedDate, selectedPost, employees, chantiers, engines, platformSettings]);
 
@@ -557,17 +605,130 @@ export const Planning: React.FC = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<any>) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
+    const isEnter = e.key === 'Enter';
+    const isTab = e.key === 'Tab';
+    const isArrowUp = e.key === 'ArrowUp';
+    const isArrowDown = e.key === 'ArrowDown';
+    const isArrowLeft = e.key === 'ArrowLeft';
+    const isArrowRight = e.key === 'ArrowRight';
+
+    if (!isEnter && !isTab && !isArrowUp && !isArrowDown && !isArrowLeft && !isArrowRight) {
+      return; 
+    }
+
+    const currentInput = e.target as HTMLInputElement | HTMLSelectElement;
+    if (!currentInput) return;
+
+    // Support number increments with arrow keys ONLY if it's a number type, unless we explicitly want Row navigation
+    const isNumberInput = currentInput instanceof HTMLInputElement && currentInput.type === 'number';
+    if (isNumberInput && (isArrowUp || isArrowDown)) {
+      if (!e.shiftKey) {
+        return;
+      }
+    }
+
+    // Fast coordinate table grid resolution
+    const currentTd = currentInput.closest('td');
+    const currentTr = currentInput.closest('tr');
+    const table = currentTr?.closest('table');
+
+    if (currentTd && currentTr && table) {
+      // Arrow keys/Enter/Tab grid cell navigation
+      const trList = Array.from(table.querySelectorAll('tbody tr')) as HTMLTableRowElement[];
+      const rowIndex = trList.indexOf(currentTr);
+      const colCells = Array.from(currentTr.querySelectorAll('td')) as HTMLTableCellElement[];
+      const colIndex = colCells.indexOf(currentTd);
+
+      if (isArrowDown || isEnter) {
+        e.preventDefault();
+        let nextRowIndex = rowIndex + 1;
+        let focused = false;
+        while (nextRowIndex < trList.length) {
+          const nextTr = trList[nextRowIndex];
+          const nextTdList = Array.from(nextTr.querySelectorAll('td')) as HTMLTableCellElement[];
+          const nextTd = nextTdList[colIndex];
+          if (nextTd) {
+            const tgt = nextTd.querySelector('input:not([disabled]), select:not([disabled])') as HTMLInputElement | HTMLSelectElement;
+            if (tgt) {
+              tgt.focus();
+              if (tgt instanceof HTMLInputElement) tgt.select();
+              focused = true;
+              break;
+            }
+          }
+          nextRowIndex++;
+        }
+        return;
+      } else if (isArrowUp) {
+        e.preventDefault();
+        let prevRowIndex = rowIndex - 1;
+        while (prevRowIndex >= 0) {
+          const prevTr = trList[prevRowIndex];
+          const prevTdList = Array.from(prevTr.querySelectorAll('td')) as HTMLTableCellElement[];
+          const prevTd = prevTdList[colIndex];
+          if (prevTd) {
+            const tgt = prevTd.querySelector('input:not([disabled]), select:not([disabled])') as HTMLInputElement | HTMLSelectElement;
+            if (tgt) {
+              tgt.focus();
+              if (tgt instanceof HTMLInputElement) tgt.select();
+              break;
+            }
+          }
+          prevRowIndex--;
+        }
+        return;
+      } else if (isArrowRight) {
+        const shouldMove = currentInput instanceof HTMLSelectElement || 
+                           (currentInput instanceof HTMLInputElement && 
+                            (!currentInput.value || currentInput.selectionStart === currentInput.value.length));
+        if (shouldMove) {
+          e.preventDefault();
+          let nextColIndex = colIndex + 1;
+          while (nextColIndex < colCells.length) {
+            const nextTd = colCells[nextColIndex];
+            const tgt = nextTd?.querySelector('input:not([disabled]), select:not([disabled])') as HTMLInputElement | HTMLSelectElement;
+            if (tgt) {
+              tgt.focus();
+              if (tgt instanceof HTMLInputElement) tgt.select();
+              break;
+            }
+            nextColIndex++;
+          }
+        }
+        return;
+      } else if (isArrowLeft) {
+        const shouldMove = currentInput instanceof HTMLSelectElement || 
+                           (currentInput instanceof HTMLInputElement && 
+                            (!currentInput.value || currentInput.selectionStart === 0));
+        if (shouldMove) {
+          e.preventDefault();
+          let prevColIndex = colIndex - 1;
+          while (prevColIndex >= 0) {
+            const prevTd = colCells[prevColIndex];
+            const tgt = prevTd?.querySelector('input:not([disabled]), select:not([disabled])') as HTMLInputElement | HTMLSelectElement;
+            if (tgt) {
+              tgt.focus();
+              if (tgt instanceof HTMLInputElement) tgt.select();
+              break;
+            }
+            prevColIndex--;
+          }
+        }
+        return;
+      }
+    }
+
+    // Standard linear sequential input transition if not in structure or for Tab / Shift+Tab keys
+    if (isTab || isEnter || isArrowDown || isArrowUp) {
       e.preventDefault();
-      const current = e.target as HTMLElement;
-      const container = current.closest('[data-card-container="true"]');
-      if (!container) return;
+      const container = currentInput.closest('[data-card-container="true"]') || currentInput.closest('tbody') || currentInput.closest('table') || document.body;
       const inputs = Array.from(
         container.querySelectorAll('input:not([disabled]), select:not([disabled])')
       ) as HTMLElement[];
-      const idx = inputs.indexOf(current);
+      const idx = inputs.indexOf(currentInput);
       if (idx !== -1) {
-        const nextIdx = e.shiftKey ? idx - 1 : idx + 1;
+        const isReverse = e.shiftKey || isArrowUp;
+        const nextIdx = isReverse ? idx - 1 : idx + 1;
         if (nextIdx >= 0 && nextIdx < inputs.length) {
           inputs[nextIdx].focus();
           if (inputs[nextIdx] instanceof HTMLInputElement) {
@@ -790,37 +951,7 @@ export const Planning: React.FC = () => {
   };
 
   const makeExcelKeyHandler = (rowIndex: number, colIndex: number) => (e: React.KeyboardEvent<any>) => {
-    let targetRow = rowIndex;
-    let targetCol = colIndex;
-
-    const isNumberInput = e.target instanceof HTMLInputElement && e.target.type === 'number';
-    if (isNumberInput && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-      // Let standard browser arrow keys change the field value, do not move spreadsheet cell focus
-      return;
-    }
-
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      targetRow = rowIndex - 1;
-    } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
-      e.preventDefault();
-      targetRow = rowIndex + 1;
-    } else if (e.key === 'ArrowLeft') {
-      // If user is inside an input, let them navigate text instead of moving to the next cell
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
-        return;
-      }
-      targetCol = colIndex - 1;
-    } else if (e.key === 'ArrowRight') {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
-        return;
-      }
-      targetCol = colIndex + 1;
-    } else {
-      return;
-    }
-
-    focusOnCell(targetRow, targetCol);
+    handleKeyDown(e);
   };
 
   const getMobilisedMatricules = () => {
@@ -1120,6 +1251,399 @@ export const Planning: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const triggerDuplicatePreviousDay = () => {
+    const parts = selectedDate.split('-');
+    if (parts.length !== 3) {
+      alert("Date non valide.");
+      return;
+    }
+    const sourceDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const targetDateObj = addDays(sourceDateObj, -1);
+    const yDateStr = format(targetDateObj, 'yyyy-MM-dd');
+    setYesterdayDateStr(yDateStr);
+    setIsDuplicationWarningModalOpen(true);
+  };
+
+  const confirmDuplicateYesterday = async () => {
+    setIsDuplicationWarningModalOpen(false);
+    setLoading(true);
+    try {
+      const docRef = doc(db, 'daily_planning_sheets', yesterdayDateStr);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        alert(`Aucune planification trouvée pour le jour précédent (J-1 : ${yesterdayDateStr}).`);
+        setLoading(false);
+        return;
+      }
+
+      const docData = docSnap.data();
+
+      // Store fetched raw data for real-time difference engine
+      setDuplicatedFromDayData(docData);
+      setIsEcartAccepted(false);
+
+      const clonedMinage: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
+      const clonedDeblayage: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelDeblayage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
+      const clonedExtraction: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelExtraction[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
+      const clonedMaintenance: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMaintenance[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
+      const clonedSectorChiefs: Record<'Poste 1' | 'Poste 2' | 'Poste 3', Record<'Imiter 2' | 'Imiter 1' | 'Imiter Est', string>> = {
+        'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+        'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+        'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' }
+      };
+
+      const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
+      const dbPostMapping = {
+        'Poste 1': 'poste1',
+        'Poste 2': 'poste2',
+        'Poste 3': 'poste3'
+      };
+
+      posts.forEach(p => {
+        const srcKey = dbPostMapping[p];
+        const srcData = docData.postes?.[srcKey];
+        if (srcData) {
+          // Clone Minage direct
+          clonedMinage[p] = (srcData.minage || []).map((row: ExcelMinage) => {
+            const finalRow = { ...row };
+            if (row.chiefMatricule) {
+              const emp = employees.find(e => e.matricule?.toUpperCase() === row.chiefMatricule.toUpperCase());
+              finalRow.chiefName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+            }
+            if (row.minerMatricule) {
+              const emp = employees.find(e => e.matricule?.toUpperCase() === row.minerMatricule.toUpperCase());
+              finalRow.minerName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+            }
+            if (row.assistantMatricule) {
+              const emp = employees.find(e => e.matricule?.toUpperCase() === row.assistantMatricule.toUpperCase());
+              finalRow.assistantName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+            }
+            return finalRow;
+          });
+          clonedMinage[p] = ensureMinimumRows(clonedMinage[p], 'minage', p, chantiers);
+
+          // Clone Deblayage direct
+          clonedDeblayage[p] = (srcData.deblayage || []).map((row: ExcelDeblayage) => {
+            const finalRow = { ...row };
+            if (row.driverMatricule) {
+              const emp = employees.find(e => e.matricule?.toUpperCase() === row.driverMatricule.toUpperCase());
+              finalRow.driverName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+            }
+            return finalRow;
+          });
+          clonedDeblayage[p] = ensureMinimumRows(clonedDeblayage[p], 'deblayage', p, chantiers);
+
+          // Clone Extraction direct
+          clonedExtraction[p] = sanitizeExtractionRows(srcData.extraction, POST_HOURS[p]);
+
+          // Clone Maintenance direct
+          clonedMaintenance[p] = (srcData.maintenance || []).map((row: ExcelMaintenance) => {
+            const finalRow = { ...row };
+            if (row.agentMatricule) {
+              const emp = employees.find(e => e.matricule?.toUpperCase() === row.agentMatricule.toUpperCase());
+              finalRow.agentName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+            }
+            return finalRow;
+          });
+          if (clonedMaintenance[p].length === 0) {
+            clonedMaintenance[p] = getDefaultMaintenanceRows(p);
+          }
+
+          // Clone Sector Chiefs direct
+          const srcSectorChiefs = (docData.sectorChiefs || {})[srcKey] || {};
+          clonedSectorChiefs[p] = {
+            'Imiter 2': srcSectorChiefs['Imiter 2'] || '',
+            'Imiter 1': srcSectorChiefs['Imiter 1'] || '',
+            'Imiter Est': srcSectorChiefs['Imiter Est'] || ''
+          };
+        } else {
+          clonedMinage[p] = ensureMinimumRows([], 'minage', p, chantiers);
+          clonedDeblayage[p] = ensureMinimumRows([], 'deblayage', p, chantiers);
+          clonedExtraction[p] = getDefaultExtractionRows(p);
+          clonedMaintenance[p] = getDefaultMaintenanceRows(p);
+        }
+      });
+
+      setMinageRowsByPost(clonedMinage);
+      setDeblayageRowsByPost(clonedDeblayage);
+      setSectorChiefs(clonedSectorChiefs);
+      setExtractionRowsByPost(clonedExtraction);
+      setMaintenanceRowsByPost(clonedMaintenance);
+
+      alert(`Données du J-1 (${yesterdayDateStr}) importées avec succès ! Le secrétaire de permanence doit maintenant ajuster les planifications de la journée si nécessaire.`);
+    } catch (err) {
+      console.error("Erreur de duplication J-1: ", err);
+      alert("Une erreur est survenue lors de la duplication de la journée d'hier.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPlanningDifferences = (): { type: string; post: string; desc: string }[] => {
+    if (!duplicatedFromDayData) return [];
+
+    const diffs: { type: string; post: string; desc: string }[] = [];
+    const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
+    const dbPostMapping = {
+      'Poste 1': 'poste1',
+      'Poste 2': 'poste2',
+      'Poste 3': 'poste3'
+    };
+
+    posts.forEach(p => {
+      const srcKey = dbPostMapping[p];
+      const srcPost = duplicatedFromDayData.postes?.[srcKey] || {};
+
+      // 1. Sector Chiefs
+      const srcSectorChiefs = (duplicatedFromDayData.sectorChiefs || {})[srcKey] || {};
+      const currentSectorChiefs = sectorChiefs[p] || {};
+      ['Imiter 1', 'Imiter 2', 'Imiter Est'].forEach(sec => {
+        const oldC = srcSectorChiefs[sec] || '';
+        const newC = currentSectorChiefs[sec] || '';
+        if (oldC.trim().toUpperCase() !== newC.trim().toUpperCase()) {
+          const oldName = getEmployeeName(oldC) || 'Aucun';
+          const newName = getEmployeeName(newC) || 'Aucun';
+          diffs.push({
+            type: 'Chef de Secteur',
+            post: p,
+            desc: `Secteur ${sec} : ${oldName} ➔ ${newName}`
+          });
+        }
+      });
+
+      // 2. Minage
+      const oldMinage = srcPost.minage || [];
+      const currentMinage = minageRowsByPost[p] || [];
+      const filterMin = (list: any[]) => list.filter((r: any) => r.chantierId !== '' && (r.minerMatricule?.trim() || r.assistantMatricule?.trim()));
+      const fOldMin = filterMin(oldMinage);
+      const fCurMin = filterMin(currentMinage);
+
+      const maxMinLen = Math.max(fOldMin.length, fCurMin.length);
+      for (let i = 0; i < maxMinLen; i++) {
+        const oldRow = fOldMin[i];
+        const newRow = fCurMin[i];
+
+        if (oldRow && !newRow) {
+          const chName = chantiers.find(c => c.id === oldRow.chantierId)?.name || 'Chantier';
+          diffs.push({
+            type: 'Minage',
+            post: p,
+            desc: `Supprimé : Chantier ${chName} (${getEmployeeName(oldRow.minerMatricule)})`
+          });
+        } else if (!oldRow && newRow) {
+          const chName = chantiers.find(c => c.id === newRow.chantierId)?.name || 'Chantier';
+          diffs.push({
+            type: 'Minage',
+            post: p,
+            desc: `Nouveau : Chantier ${chName} attribué à ${getEmployeeName(newRow.minerMatricule)}`
+          });
+        } else if (oldRow && newRow) {
+          const chOldName = chantiers.find(c => c.id === oldRow.chantierId)?.name || 'Chantier';
+          const chNewName = chantiers.find(c => c.id === newRow.chantierId)?.name || 'Chantier';
+          
+          if (oldRow.chantierId !== newRow.chantierId) {
+            diffs.push({
+              type: 'Minage',
+              post: p,
+              desc: `Ligne ${i + 1} : Chantier modifié ${chOldName} ➔ ${chNewName}`
+            });
+          }
+          if (oldRow.minerMatricule?.trim().toUpperCase() !== newRow.minerMatricule?.trim().toUpperCase()) {
+            diffs.push({
+              type: 'Minage',
+              post: p,
+              desc: `Chantier ${chNewName} : Mineur changé | ${getEmployeeName(oldRow.minerMatricule) || 'Aucun'} ➔ ${getEmployeeName(newRow.minerMatricule)}`
+            });
+          }
+          if (oldRow.assistantMatricule?.trim().toUpperCase() !== newRow.assistantMatricule?.trim().toUpperCase()) {
+            diffs.push({
+              type: 'Minage',
+              post: p,
+              desc: `Chantier ${chNewName} : Aide-Mineur changé | ${getEmployeeName(oldRow.assistantMatricule) || 'Aucun'} ➔ ${getEmployeeName(newRow.assistantMatricule)}`
+            });
+          }
+          if (Number(oldRow.plannedRounds) !== Number(newRow.plannedRounds)) {
+            diffs.push({
+              type: 'Minage',
+              post: p,
+              desc: `Chantier ${chNewName} : Volées prévues | ${oldRow.plannedRounds} ➔ ${newRow.plannedRounds}`
+            });
+          }
+          if (Number(oldRow.plannedHoles) !== Number(newRow.plannedHoles)) {
+            diffs.push({
+              type: 'Minage',
+              post: p,
+              desc: `Chantier ${chNewName} : Trous perforés | ${oldRow.plannedHoles} ➔ ${newRow.plannedHoles}`
+            });
+          }
+          if (Number(oldRow.realHoles) !== Number(newRow.realHoles)) {
+            diffs.push({
+              type: 'Minage',
+              post: p,
+              desc: `Chantier ${chNewName} : Trous chargés | ${oldRow.realHoles} ➔ ${newRow.realHoles}`
+            });
+          }
+        }
+      }
+
+      // 3. Deblayage
+      const oldDeb = srcPost.deblayage || [];
+      const currentDeb = deblayageRowsByPost[p] || [];
+      const filterDeb = (list: any[]) => list.filter((r: any) => r.driverMatricule !== '');
+      const fOldDeb = filterDeb(oldDeb);
+      const fCurDeb = filterDeb(currentDeb);
+
+      const maxDebLen = Math.max(fOldDeb.length, fCurDeb.length);
+      for (let i = 0; i < maxDebLen; i++) {
+        const oldRow = fOldDeb[i];
+        const newRow = fCurDeb[i];
+
+        if (oldRow && !newRow) {
+          diffs.push({
+            type: 'Déblayage',
+            post: p,
+            desc: `Supprimé : Agent ${getEmployeeName(oldRow.driverMatricule)}`
+          });
+        } else if (!oldRow && newRow) {
+          diffs.push({
+            type: 'Déblayage',
+            post: p,
+            desc: `Nouveau : Agent ${getEmployeeName(newRow.driverMatricule)} affecté (${newRow.engineCode || 'Sans Engin'})`
+          });
+        } else if (oldRow && newRow) {
+          if (oldRow.driverMatricule?.trim().toUpperCase() !== newRow.driverMatricule?.trim().toUpperCase()) {
+            diffs.push({
+              type: 'Déblayage',
+              post: p,
+              desc: `Ligne ${i + 1} : Conducteur changé | ${getEmployeeName(oldRow.driverMatricule)} ➔ ${getEmployeeName(newRow.driverMatricule)}`
+            });
+          }
+          if (oldRow.engineId !== newRow.engineId || oldRow.engineCode !== newRow.engineCode) {
+            diffs.push({
+              type: 'Déblayage',
+              post: p,
+              desc: `Chauffeur ${getEmployeeName(newRow.driverMatricule)} : Engin | ${oldRow.engineCode || 'Aucun'} ➔ ${newRow.engineCode || 'Aucun'}`
+            });
+          }
+          if (oldRow.chantierId !== newRow.chantierId) {
+            const chOld = chantiers.find(c => c.id === oldRow.chantierId)?.name || 'Chantier';
+            const chNew = chantiers.find(c => c.id === newRow.chantierId)?.name || 'Chantier';
+            diffs.push({
+              type: 'Déblayage',
+              post: p,
+              desc: `Chauffeur ${getEmployeeName(newRow.driverMatricule)} : Destination | ${chOld} ➔ ${chNew}`
+            });
+          }
+          if (Number(oldRow.godets) !== Number(newRow.godets)) {
+            diffs.push({
+              type: 'Déblayage',
+              post: p,
+              desc: `Chauffeur ${getEmployeeName(newRow.driverMatricule)} : Godets | ${oldRow.godets} ➔ ${newRow.godets}`
+            });
+          }
+          if (Number(oldRow.hoursWorked) !== Number(newRow.hoursWorked)) {
+            diffs.push({
+              type: 'Déblayage',
+              post: p,
+              desc: `Chauffeur ${getEmployeeName(newRow.driverMatricule)} : Heures | ${oldRow.hoursWorked}h ➔ ${newRow.hoursWorked}h`
+            });
+          }
+        }
+      }
+
+      // 4. Extraction
+      const oldExt = srcPost.extraction || [];
+      const currentExt = extractionRowsByPost[p] || [];
+      const fOldExt = oldExt[0] || {};
+      const fCurExt = currentExt[0] || {};
+
+      if (fOldExt && fCurExt) {
+        if (fOldExt.treuilliste !== fCurExt.treuilliste) {
+          diffs.push({
+            type: 'Extraction',
+            post: p,
+            desc: `Treuilliste : ${getEmployeeName(fOldExt.treuilliste) || 'Aucun'} ➔ ${getEmployeeName(fCurExt.treuilliste)}`
+          });
+        }
+        if (fOldExt.wagonsTarget !== fCurExt.wagonsTarget) {
+          diffs.push({
+            type: 'Extraction',
+            post: p,
+            desc: `Cible wagons : ${fOldExt.wagonsTarget} ➔ ${fCurExt.wagonsTarget}`
+          });
+        }
+        if (fOldExt.sterileBureImiterEst !== fCurExt.sterileBureImiterEst) {
+          diffs.push({
+            type: 'Extraction',
+            post: p,
+            desc: `Stérile prévu (Wg) : ${fOldExt.sterileBureImiterEst} ➔ ${fCurExt.sterileBureImiterEst}`
+          });
+        }
+        ['equipier1', 'equipier2', 'equipier3', 'equipier4'].forEach((eq, idx) => {
+          if (fOldExt[eq] !== fCurExt[eq]) {
+            diffs.push({
+              type: 'Extraction',
+              post: p,
+              desc: `Équipier ${idx + 1} : ${getEmployeeName(fOldExt[eq]) || 'Aucun'} ➔ ${getEmployeeName(fCurExt[eq])}`
+            });
+          }
+        });
+      }
+
+      // 5. Maintenance
+      const oldMaint = srcPost.maintenance || [];
+      const currentMaint = maintenanceRowsByPost[p] || [];
+      const filterMaint = (list: any[]) => list.filter((r: any) => r.agentMatricule !== '');
+      const fOldMaint = filterMaint(oldMaint);
+      const fCurMaint = filterMaint(currentMaint);
+
+      const maxMaintLen = Math.max(fOldMaint.length, fCurMaint.length);
+      for (let i = 0; i < maxMaintLen; i++) {
+        const oldRow = fOldMaint[i];
+        const newRow = fCurMaint[i];
+
+        if (oldRow && !newRow) {
+          diffs.push({
+            type: 'Maintenance',
+            post: p,
+            desc: `Supprimé : Agent ${getEmployeeName(oldRow.agentMatricule)}`
+          });
+        } else if (!oldRow && newRow) {
+          diffs.push({
+            type: 'Maintenance',
+            post: p,
+            desc: `Nouveau : Agent ${getEmployeeName(newRow.agentMatricule)} (${newRow.roleLabel})`
+          });
+        } else if (oldRow && newRow) {
+          if (oldRow.agentMatricule?.trim().toUpperCase() !== newRow.agentMatricule?.trim().toUpperCase()) {
+            diffs.push({
+              type: 'Maintenance',
+              post: p,
+              desc: `Ligne ${i + 1} : Agent changé | ${getEmployeeName(oldRow.agentMatricule)} ➔ ${getEmployeeName(newRow.agentMatricule)}`
+            });
+          }
+          if (oldRow.engineCode !== newRow.engineCode) {
+            diffs.push({
+              type: 'Maintenance',
+              post: p,
+              desc: `Agent ${getEmployeeName(newRow.agentMatricule)} : Engin | ${oldRow.engineCode || 'Aucun'} ➔ ${newRow.engineCode || 'Aucun'}`
+            });
+          }
+          if (oldRow.workDescription !== newRow.workDescription) {
+            diffs.push({
+              type: 'Maintenance',
+              post: p,
+              desc: `Agent ${getEmployeeName(newRow.agentMatricule)} : Description | "${oldRow.workDescription}" ➔ "${newRow.workDescription}"`
+            });
+          }
+        }
+      }
+    });
+
+    return diffs;
   };
 
   const generateDayProposition = async () => {
@@ -1466,6 +1990,11 @@ export const Planning: React.FC = () => {
 
   // Master Workbook Persistence and Sync to granular discrete planning collection
   const savePlanningWorkbook = async () => {
+    if (duplicatedFromDayData && !isEcartAccepted) {
+      alert(`⚠️ ÉCARTS NON VALIDÉS : Vous avez dupliqué la planification d'hier (${yesterdayDateStr}) mais vous n'avez pas encore validé les écarts ou changements.\n\nVeuillez vérifier la liste d'analyse des écarts en bas de page et cliquer sur le bouton "Valider les écarts de planification J-1" pour autoriser l'enregistrement.`);
+      setSaveStatus('idle');
+      return;
+    }
     setSaveStatus('saving');
     try {
       const docRef = doc(db, 'daily_planning_sheets', selectedDate);
@@ -1494,7 +2023,7 @@ export const Planning: React.FC = () => {
         });
 
         const pMinage = pMinageObj.filter(r => r.chantierId !== '');
-        const pDeblayage = deblayageRowsByPost[p].filter(r => r.driverMatricule !== '');
+        const pDeblayage = deblayageRowsByPost[p].filter(r => r.chantierId !== '');
         
         if (!newPostesObj[pk]) {
           newPostesObj[pk] = {
@@ -1652,62 +2181,104 @@ export const Planning: React.FC = () => {
   };
 
   const handleDeleteHistoryRecord = async (record: any) => {
-    if (!profile || profile.role !== 'admin') {
-      alert("Seuls les administrateurs de la plateforme peuvent supprimer des cahiers.");
+    const allowedRoles = ['admin', 'direction', 'chief', 'responsible', 'secretary'];
+    if (!profile || !allowedRoles.includes(profile.role)) {
+      alert("Seuls les administrateurs et planificateurs de la plateforme peuvent supprimer des cahiers.");
       return;
     }
 
-    const confirmWipe = window.confirm(
-      `Êtes-vous sûr de vouloir supprimer définitivement la planification du ${record.date} pour le ${record.post} ?\nCette action est irréversible.`
-    );
-    if (!confirmWipe) return;
+    setRecordToDelete(record);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteRecord = async () => {
+    if (!recordToDelete) return;
+
+    // Save record properties locally before state resets
+    const recordDate = recordToDelete.date;
+    const operatorEmail = user?.email || 'Admin/Planificateur';
+    
+    // Safely compute details
+    let minageCount = 0;
+    let totalMeterage = 0;
+    if (recordToDelete.minageRows && Array.isArray(recordToDelete.minageRows)) {
+      minageCount = recordToDelete.minageRows.length;
+      recordToDelete.minageRows.forEach((r: any) => {
+        if (r) {
+          const isVolee = r.remarks && typeof r.remarks === 'string' && r.remarks.includes('(Volée');
+          if (!isVolee) {
+            totalMeterage += (Number(r.meterage) || 0);
+          }
+        }
+      });
+    }
+    const logDetails = `${minageCount} chantiers tirs, ${totalMeterage.toFixed(1)}m avancement`;
 
     try {
-      const docRef = doc(db, 'daily_planning_sheets', record.date);
-      const docSnap = await getDoc(docRef);
+      // 1. Delete main daily planning sheet document
+      const docRef = doc(db, 'daily_planning_sheets', recordDate);
+      await deleteDoc(docRef);
 
-      if (docSnap.exists()) {
-        const docData = docSnap.data();
-        const currentPostes = docData.postes || {};
-        const postKeyInDoc = record.post === 'Poste 1' ? 'poste1' : record.post === 'Poste 2' ? 'poste2' : 'poste3';
+      // Successfully deleted on server! We can immediately dismiss the modal so the user doesn't wait
+      setIsDeleteModalOpen(false);
+      setRecordToDelete(null);
 
-        const updatedPostes = { ...currentPostes };
-        delete updatedPostes[postKeyInDoc];
+      // Trigger custom UI validation notification in Hydromines sky blue
+      setDeletionNotification({
+        date: recordDate,
+        deletedBy: operatorEmail.split('@')[0]
+      });
+      setTimeout(() => {
+        setDeletionNotification(null);
+      }, 5000);
 
-        const remainingKeys = Object.keys(updatedPostes);
-        if (remainingKeys.length === 0) {
-          await deleteDoc(docRef);
-        } else {
-          await setDoc(docRef, { postes: updatedPostes }, { merge: true });
-        }
-
-        // Clean up linked granular collections
+      // 2. Clear out sub-planning collection records in a safe background task
+      try {
         const planColl = collection(db, 'planning');
-        const qExist = query(
-          planColl, 
-          where('date', '==', record.date),
-          where('post', '==', record.post)
-        );
+        const qExist = query(planColl, where('date', '==', recordDate));
         const existSnap = await getDocs(qExist);
-        const batch = writeBatch(db);
-        existSnap.docs.forEach(docD => {
-          batch.delete(docD.ref);
-        });
-        await batch.commit();
-
-        await logPlanningAction(
-          user?.email || 'Admin',
-          'SUPPRESSION PLAN',
-          record.post,
-          record.date,
-          `Suppression définitive de la planification du ${record.date} pour le ${record.post}.`
-        );
-
-        alert("Planification supprimée avec succès !");
+        if (!existSnap.empty) {
+          const batch = writeBatch(db);
+          existSnap.docs.forEach(docD => {
+            batch.delete(docD.ref);
+          });
+          await batch.commit();
+        }
+      } catch (cleanErr) {
+        console.warn("Error cleaning up planning assignments:", cleanErr);
       }
+
+      // 3. Write deletion trace to journal collection
+      try {
+        await addDoc(collection(db, 'deleted_plannings_log'), {
+          date: recordDate,
+          deletedBy: operatorEmail,
+          deletedAt: new Date().toISOString(),
+          details: `Suppression définitive du cahier : ${logDetails}`
+        });
+      } catch (logCollErr) {
+        console.error("Error writing to deleted_plannings_log:", logCollErr);
+      }
+
+      // 4. Log to regular planning action audit trail
+      try {
+        await logPlanningAction(
+          operatorEmail,
+          'SUPPRESSION PLAN',
+          'TOUS LES POSTES',
+          recordDate,
+          `Suppression définitive de toute la planification journalière pour le ${recordDate}.`
+        );
+      } catch (logErr) {
+        console.warn("Audit logs error writing on delete: ", logErr);
+      }
+
     } catch (err) {
       console.error("Erreur lors de la suppression de la planification :", err);
       alert("Une erreur est survenue lors de la suppression.");
+      // Just in case, close modal
+      setIsDeleteModalOpen(false);
+      setRecordToDelete(null);
     }
   };
 
@@ -1824,6 +2395,13 @@ export const Planning: React.FC = () => {
                   chantiers={chantiers}
                   employees={employees}
                 />
+                <button
+                  onClick={triggerDuplicatePreviousDay}
+                  className="bg-sky-50 hover:bg-sky-100 text-[#00BFFF] border border-sky-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer shadow-xs font-sans"
+                  title="Dupliquer la planification complète du jour précédent J-1"
+                >
+                  <Copy className="w-3 h-3 text-[#00BFFF]" /> Dupliquer J-1
+                </button>
                 <button
                   onClick={duplicatePreviousWeek}
                   className="bg-gray-50 hover:bg-gray-150 text-gray-855 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
@@ -3016,6 +3594,92 @@ export const Planning: React.FC = () => {
                 </div>
               );
             })()}
+
+            {/* ANALYSIS OF J-1 DUPLICATION DEVIATIONS (ÉCARTS) */}
+            {duplicatedFromDayData && (
+              <div className="my-5 border border-sky-200 bg-sky-50/20 text-slate-900 p-5 rounded-2xl shadow-xs font-sans animate-fade-in">
+                <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-sky-100 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                    </span>
+                    <span className="text-[11px] font-black uppercase tracking-wider text-sky-950 flex items-center gap-1.5">
+                      📊 ANALYSE COMPARATIVE DES ÉCARTS DE PLANIFICATION VS LA VEILLE (J-1 : {yesterdayDateStr})
+                    </span>
+                  </div>
+                  <span className="text-[9.5px] px-2.5 py-1 bg-sky-100 text-sky-900 font-extrabold uppercase rounded-full">
+                    Origine : Importation {yesterdayDateStr}
+                  </span>
+                </div>
+
+                {(() => {
+                  const differencesList = getPlanningDifferences();
+                  if (differencesList.length === 0) {
+                    return (
+                      <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl text-center text-emerald-950 text-[10.5px]">
+                        <p className="font-extrabold text-[11px] mb-1">✅ PLANIFICATION IDENTIQUE À LA VEILLE</p>
+                        <p className="font-medium text-emerald-800">
+                          Tous les effectifs, postes, et affectations de chantiers sont strictement identiques à J-1.
+                          Ajustez au besoin ou validez les écarts (identiques) pour autoriser l'enregistrement.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="text-[10px] text-slate-500 font-bold mb-1">
+                        Le secrétaire a adapté la planification de J-1. Voici le résumé des {differencesList.length} écart(s) détecté(s) avant validation finale :
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-48 overflow-y-auto pr-1">
+                        {differencesList.map((diff, index) => (
+                          <div key={index} className="bg-white border border-gray-200 p-2.5 rounded-lg flex gap-2 items-start text-[9.5px]">
+                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 font-black uppercase text-[7.5px] rounded select-none border border-slate-200 mt-0.5 shrink-0">
+                              {diff.post}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <span className="font-black text-sky-800 block text-[8px] uppercase tracking-wider mb-0.5">
+                                {diff.type}
+                              </span>
+                              <p className="text-slate-700 font-medium leading-relaxed" title={diff.desc}>
+                                {diff.desc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Validation status bar for J-1 Duplication deviations */}
+                <div className="mt-4 pt-3 border-t border-sky-100 flex flex-col sm:flex-row items-center justify-between gap-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-[#00BFFF] font-black uppercase">Statut réglementaire SMI :</span>
+                    <span className={`px-2 py-0.5 text-[8.5px] font-black uppercase rounded-full border ${
+                      isEcartAccepted 
+                        ? 'bg-emerald-100 border-emerald-200 text-emerald-950' 
+                        : 'bg-amber-100 border-amber-200 text-amber-950 animate-pulse'
+                    }`}>
+                      {isEcartAccepted ? '✓ Écarts validés par secrétaire de permanence' : '⚠ Validation des écarts requise'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsEcartAccepted(prev => !prev)}
+                    className={`w-full sm:w-auto px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                      isEcartAccepted 
+                        ? 'bg-emerald-600 hover:bg-emerald-700 border-emerald-500 text-white' 
+                        : 'bg-amber-600 hover:bg-amber-700 border-amber-500 text-white animate-bounce'
+                    }`}
+                  >
+                    {isEcartAccepted ? '✓ Écarts Validés (Annuler)' : 'Valider les écarts de planification J-1'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* INTEGRATED FULL-WIDTH BOTTOM SUMMARY BAR */}
@@ -3051,70 +3715,326 @@ export const Planning: React.FC = () => {
           </div>
         </div>
       ) : (
-        /* CONSOLIDATED HISTORY LIST VIEW */
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-55 text-slate-700 border-b border-gray-200">
-                  {[
-                    'Date programmée', 
-                    'Shift / Poste', 
-                    'Chantiers planifiés (Blasting)', 
-                    'Avancement ciblé', 
-                    'Sauvegardé par', 
-                    'Fiche',
-                    ...(profile && profile.role === 'admin' ? ['Actions'] : [])
-                  ].map(h => (
-                    <th key={h} className="px-5 py-3 text-[9px] font-extrabold uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-150 text-[11px]">
-                {planningsHistory.map((record) => (
-                  <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-5 py-3 font-mono font-bold text-slate-800">{record.date}</td>
-                    <td className="px-5 py-3">
-                      <span className="bg-gray-100 text-slate-700 px-2.5 py-0.5 font-extrabold uppercase border border-gray-200 rounded">{record.post}</span>
-                    </td>
-                    <td className="px-5 py-3 text-red-600 font-extrabold">
-                      {record.minageRows ? record.minageRows.length : 0} chantiers tirs
-                    </td>
-                    <td className="px-5 py-3 font-extrabold text-blue-600">
-                      {record.minageRows ? record.minageRows
-                        .filter((r: any) => !(r.remarks && r.remarks.includes('(Volée')))
-                        .reduce((acc: number, r: any) => acc + (r.meterage || 0), 0).toFixed(1) : '0.0'} m
-                    </td>
-                    <td className="px-5 py-3 text-slate-500 font-bold uppercase text-[10px]">
-                      {record.operator ? record.operator.split('@')[0] : 'SMI USER'}
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50/50 border border-green-200 text-green-700 font-extrabold uppercase text-[8.5px] rounded-lg">
-                        <CheckCircle className="w-3.5 h-3.5 text-green-600" /> Planifié Souterrain
-                      </div>
-                    </td>
-                    {profile && profile.role === 'admin' && (
-                      <td className="px-5 py-3">
-                        <button
-                          onClick={() => handleDeleteHistoryRecord(record)}
-                          className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all flex items-center gap-1 cursor-pointer"
-                          title="Supprimer définitivement ce cahier"
-                        >
-                          <Trash2 className="w-3 h-3 text-red-500" /> Supprimer
-                        </button>
-                      </td>
+        /* CONSOLIDATED HISTORY LIST VIEW & DELETIONS JOURNAL SUB-TABS */
+        <div className="space-y-4">
+          {/* Sub-tabs switcher with a distinct HydroMines look */}
+          <div className="flex border border-gray-200 bg-gray-50/50 p-1.5 rounded-xl gap-1.5 w-fit">
+            <button
+              onClick={() => setActiveHistoryTab('books')}
+              className={`px-4 py-2 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+                activeHistoryTab === 'books'
+                  ? 'bg-white text-gray-950 shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              📚 Registre des Cahiers ({planningsHistory.length})
+            </button>
+            <button
+              onClick={() => setActiveHistoryTab('deletions')}
+              className={`px-4 py-2 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+                activeHistoryTab === 'deletions'
+                  ? 'bg-red-50 text-red-650 shadow-sm border border-red-200'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              🗑️ Journal de suppressions ({deletedLogs.length})
+            </button>
+          </div>
+
+          {activeHistoryTab === 'books' ? (
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-55 text-slate-700 border-b border-gray-200">
+                      {[
+                        'Date programmée', 
+                        'Couverture', 
+                        'Chantiers planifiés', 
+                        'Avancement ciblé', 
+                        'Sauvegardé par', 
+                        'Fiche',
+                        'Consulter',
+                        ...(profile && ['admin', 'direction', 'chief', 'responsible', 'secretary'].includes(profile.role) ? ['Actions'] : [])
+                      ].map(h => (
+                        <th key={h} className="px-5 py-3 text-[9px] font-extrabold uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-150 text-[11px]">
+                    {planningsHistory.map((record) => (
+                      <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-5 py-3 font-mono font-bold text-slate-800">{record.date}</td>
+                        <td className="px-5 py-3">
+                          <span className="bg-sky-50 text-sky-700 px-2.5 py-1 font-extrabold uppercase border border-sky-200 rounded text-[9px]">Journée entière (Consolidée)</span>
+                        </td>
+                        <td className="px-5 py-3 text-red-605 font-extrabold">
+                          {record.minageRows ? record.minageRows.length : 0} chantiers tirs
+                        </td>
+                        <td className="px-5 py-3 font-extrabold text-blue-650">
+                          {record.minageRows ? record.minageRows
+                            .filter((r: any) => !(r.remarks && r.remarks.includes('(Volée')))
+                            .reduce((acc: number, r: any) => acc + (r.meterage || 0), 0).toFixed(1) : '0.0'} m
+                        </td>
+                        <td className="px-5 py-3 text-slate-500 font-bold uppercase text-[10px]">
+                          {record.operator ? record.operator.split('@')[0] : 'SMI USER'}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50/50 border border-green-200 text-green-700 font-extrabold uppercase text-[8.5px] rounded-lg">
+                            <CheckCircle className="w-3.5 h-3.5 text-green-600" /> Planifié Souterrain
+                          </div>
+                        </td>
+                        <td className="px-5 py-3">
+                          <button
+                            onClick={() => {
+                              setSelectedDate(record.date);
+                              setViewMode('sheet');
+                            }}
+                            className="bg-sky-50 hover:bg-[#00BFFF]/20 text-[#00BFFF] border border-[#00BFFF]/30 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all flex items-center gap-1 cursor-pointer"
+                            title="Ouvrir cette fiche sur la grille"
+                          >
+                            👁️ Ouvrir Grille
+                          </button>
+                        </td>
+                        {profile && ['admin', 'direction', 'chief', 'responsible', 'secretary'].includes(profile.role) && (
+                          <td className="px-5 py-3">
+                            <button
+                              onClick={() => handleDeleteHistoryRecord(record)}
+                              className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase transition-all flex items-center gap-1 cursor-pointer"
+                              title="Supprimer définitivement ce cahier"
+                            >
+                              <Trash2 className="w-3 h-3 text-red-500" /> Supprimer
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                    {planningsHistory.length === 0 && (
+                      <tr>
+                        <td colSpan={profile && ['admin', 'direction', 'chief', 'responsible', 'secretary'].includes(profile.role) ? 8 : 7} className="text-center p-16 italic text-gray-300 uppercase font-black text-[10px]">
+                          Aucun grand livre de planification enregistré.
+                        </td>
+                      </tr>
                     )}
-                  </tr>
-                ))}
-                {planningsHistory.length === 0 && (
-                  <tr>
-                    <td colSpan={profile && profile.role === 'admin' ? 7 : 6} className="text-center p-16 italic text-gray-300 uppercase font-black text-[10px]">
-                      Aucun grand livre de planification enregistré.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            /* COMPREHENSIVE DELETIONS JOURNAL TABLE */
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-md overflow-hidden animate-fade-in">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-red-50/30 text-rose-950 border-b border-rose-100">
+                      {[
+                        'Date de Planification',
+                        'Moment de suppression d\'Ordonnance',
+                        'Agent qui a supprimé',
+                        'Détails / Contenu supprimé'
+                      ].map(h => (
+                        <th key={h} className="px-5 py-3 text-[9px] font-extrabold uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-150 text-[11px]">
+                    {deletedLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-red-50/10 transition-colors">
+                        <td className="px-5 py-3 font-mono font-bold text-red-600">{log.date}</td>
+                        <td className="px-5 py-3 text-slate-500 font-medium">
+                          {log.deletedAt ? new Date(log.deletedAt).toLocaleString('fr-FR') : 'Inconnu'}
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="bg-amber-50 text-amber-800 border border-amber-250 px-2.5 py-0.5 font-extrabold uppercase rounded text-[9px]">
+                            {log.deletedBy.split('@')[0]}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-gray-600 font-semibold italic">
+                          {log.details || 'Planification globale supprimée.'}
+                        </td>
+                      </tr>
+                    ))}
+                    {deletedLogs.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="text-center p-16 italic text-gray-300 uppercase font-black text-[10px]">
+                          Aucune trace de suppression dans le journal.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* GORGEOUS CUSTOM DELETE WARNING MODAL IN HYDROMINES BLUE */}
+      {isDeleteModalOpen && recordToDelete && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl border border-red-200 shadow-2xl max-w-md w-full overflow-hidden transform transition-all">
+            {/* Warning Header featuring Hydromines Accent */}
+            <div className="bg-gradient-to-r from-red-600 to-[#00BFFF] p-5 text-white flex items-center gap-4">
+              <div className="bg-white/20 p-2.5 rounded-xl border border-white/20">
+                <Trash2 className="w-8 h-8 text-white animate-pulse" />
+              </div>
+              <div>
+                <h3 className="font-extrabold uppercase tracking-wider text-[12px] text-white">RELIQUAT D'ORDONNANCEMENT</h3>
+                <p className="text-[9px] text-[#00BFFF] font-black uppercase tracking-widest">SMI - HydroMines Planificateur</p>
+              </div>
+            </div>
+
+            {/* Modal Contents */}
+            <div className="p-6 space-y-4">
+              <p className="text-[11.5px] text-gray-700 leading-relaxed font-semibold">
+                Êtes-vous absolument sûr de vouloir détruire définitivement la planification journalière complète du <strong className="text-red-600 font-black underline">{recordToDelete.date}</strong> ?
+              </p>
+
+              <div className="bg-slate-50 border border-slate-150 p-3.5 rounded-xl space-y-2 text-[10.5px]">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 font-bold uppercase text-[9px]">Scope de Blasting :</span>
+                  <span className="text-slate-900 font-black uppercase">
+                    {recordToDelete.minageRows ? recordToDelete.minageRows.length : 0} Chantiers tirs
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 font-bold uppercase text-[9px]">Avancement Foré :</span>
+                  <span className="text-[#00BFFF] font-black">
+                    {recordToDelete.minageRows ? recordToDelete.minageRows
+                      .filter((r: any) => !(r.remarks && r.remarks.includes('(Volée')))
+                      .reduce((acc: number, r: any) => acc + (r.meterage || 0), 0).toFixed(1) : '0.0'} m
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 font-bold uppercase text-[9px]">Opérateur initial :</span>
+                  <span className="text-slate-700 font-black uppercase text-[9px]">
+                    {recordToDelete.operator ? recordToDelete.operator.split('@')[0] : 'SMI USER'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-red-50 border border-red-100 p-3.5 rounded-xl text-[10px] text-red-700 flex gap-2.5 items-start">
+                <span className="text-base leading-none">⚠️</span>
+                <p className="font-extrabold uppercase tracking-wide leading-relaxed">
+                  Cette action est définitive et supprimera tous les postes associés. Elle sera également consignée dans le Journal de suppressions.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Controls */}
+            <div className="bg-gray-50 border-t border-gray-150 px-6 py-4 flex flex-col sm:flex-row gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setRecordToDelete(null);
+                }}
+                className="order-2 sm:order-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDeleteRecord}
+                className="order-1 sm:order-2 px-5 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-650 text-white font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" /> Oui, Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SYSTEM CONFIRMATION TRANSIENT NOTIFICATION IN HYDROMINES SLATE/CYAN BRANDING */}
+      {deletionNotification && (
+        <div className="fixed top-6 right-6 z-50 max-w-sm w-full bg-slate-900 text-white border border-[#00BFFF] p-4 rounded-2xl shadow-[0_4px_30px_rgba(0,191,255,0.4)] animate-slide-in flex gap-3.5 items-center">
+          <div className="bg-[#00BFFF]/20 p-2 rounded-lg border border-[#00BFFF]/30 text-[#00BFFF]">
+            <CheckCircle className="w-5 h-5 text-[#00BFFF]" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-[10px] font-black text-[#00BFFF] uppercase tracking-wider">HydroMines - Validation</h4>
+            <p className="text-[9.5px] text-gray-200 font-bold mt-0.5 leading-relaxed">
+              La planification du <span className="underline font-extrabold text-[#00BFFF]">{deletionNotification.date}</span> a été supprimée définitivement par <span className="font-extrabold text-[#00BFFF]">{deletionNotification.deletedBy}</span>.
+            </p>
+          </div>
+          <button
+            onClick={() => setDeletionNotification(null)}
+            className="text-gray-400 hover:text-white text-xs font-bold px-1.5 py-0.5 hover:bg-white/10 rounded cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* WARNING MODAL FOR J-1 PLANNING DUPLICATION */}
+      {isDuplicationWarningModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className="bg-white rounded-3xl border border-sky-300 shadow-2xl max-w-lg w-full overflow-hidden transform transition-all">
+            {/* Elegant Sky Blue / Water Head */}
+            <div className="bg-gradient-to-r from-sky-600 to-[#00BFFF] p-6 text-white flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-2xl border border-white/25">
+                <Copy className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h3 className="font-extrabold uppercase tracking-wider text-[12px] text-white">DUPLICATION DE SÉCURITÉ J-1</h3>
+                <p className="text-[9px] text-[#00BFFF] font-black uppercase tracking-widest">Ajustements Réels Exigés</p>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div className="bg-[#00BFFF]/5 p-4 rounded-2xl border border-sky-100 flex gap-3 text-[11px] text-sky-950 font-semibold leading-relaxed">
+                <span className="text-xl">📋</span>
+                <p>
+                  Vous clônez la planification complète de la veille (<strong className="text-sky-800 underline font-black">{yesterdayDateStr}</strong>) vers la date d'aujourd'hui (<strong className="text-[#00BFFF] font-black">{selectedDate}</strong>).
+                </p>
+              </div>
+
+              <div className="space-y-2.5 text-[10px] text-gray-700 leading-relaxed font-medium">
+                <p className="uppercase text-[9px] font-black tracking-wider text-slate-400">Règles réglementaires SMI :</p>
+                <div className="flex items-start gap-2">
+                  <span className="text-sky-500 font-bold">1.</span>
+                  <p>
+                    Le secrétaire de permanence <strong>doit s'assurer</strong> que la planification d'aujourd'hui est réellement identique à celle d'hier.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-sky-500 font-bold">2.</span>
+                  <p>
+                    Si non, le secrétaire <strong>doit impérativement ajuster la planification</strong> en écrivant les affectations réelles sur la grille.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-sky-500 font-bold">3.</span>
+                  <p>
+                    Le panneau d'analyse en bas de page résumera <strong>tous les écarts</strong> par rapport à hier pour validation avant enregistrement.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-900 text-[9.5px] font-bold flex gap-2.5 items-start animate-pulse">
+                <span className="text-base leading-none">⚠️</span>
+                <p className="leading-relaxed font-extrabold uppercase">
+                  Le système requiert de valider ces écarts après duplication avant que l'enregistrement final ne soit autorisé.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex flex-col sm:flex-row gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setIsDuplicationWarningModalOpen(false);
+                }}
+                className="order-2 sm:order-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDuplicateYesterday}
+                className="order-1 sm:order-2 px-5 py-2 bg-gradient-to-r from-sky-600 to-[#00BFFF] text-white font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" /> Oui, Je Valide & Duplique
+              </button>
+            </div>
           </div>
         </div>
       )}

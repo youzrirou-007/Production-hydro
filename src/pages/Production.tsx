@@ -36,6 +36,7 @@ import { collection, query, onSnapshot, setDoc, doc, arrayUnion, orderBy, where,
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, subDays } from 'date-fns';
+import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 // ----------------------------------------------------
 // DEFAULT SECTORS & FALLBACK DATA FOR INDUSTRIAL EDGE
@@ -332,13 +333,20 @@ export const Production: React.FC = () => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [engines, setEngines] = useState<any[]>([]);
   const [plannings, setPlannings] = useState<any[]>([]);
+  const [allPlanningSheets, setAllPlanningSheets] = useState<any[]>([]);
+  const [allProductionDocs, setAllProductionDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'copied' | 'no_data' | 'error'>('idle');
   const [isTemplateLoaded, setIsTemplateLoaded] = useState(false);
   const [templateDateHint, setTemplateDateHint] = useState('');
   const [noPlanFound, setNoPlanFound] = useState(false);
+  const [planFoundType, setPlanFoundType] = useState<'same_date' | 'yesterday' | 'none'>('none');
   const [structureEditMode, setStructureEditMode] = useState<boolean>(false);
+  
+  // Pont d'Exportation de Planification states
+  const [syncingBridge, setSyncingBridge] = useState<boolean>(false);
+  const [bridgeSuccessDate, setBridgeSuccessDate] = useState<string>('');
 
   // Excel grids state for Poste 1
   const [p1MinageRows, setP1MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
@@ -599,8 +607,16 @@ export const Production: React.FC = () => {
       return [];
     }
     return plannedList.map((plannedItem: any, idx) => {
-      const sector = plannedItem?.sector || '';
-      const planValue = { ...plannedItem };
+      // Decode sector supporting both 'sector' & 'sectorGroup'
+      let sector = plannedItem?.sector || plannedItem?.sectorGroup || '';
+      if (!sector && plannedItem?.chantierId) {
+        const foundChan = chantiers.find((c: any) => c.id === plannedItem.chantierId);
+        if (foundChan) {
+          sector = foundChan.sector || '';
+        }
+      }
+
+      const planValue = { ...plannedItem, sector };
       const reelValue: any = {
         ...defaultCreatorWithSector(sector),
         chantierId: plannedItem?.chantierId || '',
@@ -610,19 +626,23 @@ export const Production: React.FC = () => {
       if (typeName === 'minage') {
         const gSize = plannedItem?.gallerySize || (plannedItem?.galleryType === '9m2' ? 9 : 12);
         reelValue.gallerySize = gSize;
-        reelValue.minerMatricule = '';
-        reelValue.minerName = '';
-        reelValue.assistantMatricule = '';
-        reelValue.assistantName = '';
+        reelValue.minerMatricule = plannedItem?.minerMatricule || '';
+        reelValue.minerName = plannedItem?.minerName || '';
+        reelValue.assistantMatricule = plannedItem?.assistantMatricule || '';
+        reelValue.assistantName = plannedItem?.assistantName || '';
       } else if (typeName === 'deblayage') {
-        reelValue.driverMatricule = '';
-        reelValue.driverName = '';
+        reelValue.driverMatricule = plannedItem?.driverMatricule || '';
+        reelValue.driverName = plannedItem?.driverName || '';
         reelValue.engineId = plannedItem?.engineId || '';
         reelValue.engineCode = plannedItem?.engineCode || '';
+        reelValue.godets = plannedItem?.godets || 0;
+        reelValue.volumeEstimated = plannedItem?.volumeEstimated || 0;
       } else if (typeName === 'maintenance') {
-        reelValue.agentMatricule = '';
-        reelValue.agentName = '';
+        reelValue.agentMatricule = plannedItem?.agentMatricule || '';
+        reelValue.agentName = plannedItem?.agentName || '';
         reelValue.roleLabel = plannedItem?.roleLabel || '';
+        reelValue.engineId = plannedItem?.engineId || '';
+        reelValue.engineCode = plannedItem?.engineCode || '';
       }
       
       return {
@@ -638,14 +658,22 @@ export const Production: React.FC = () => {
     return arr.filter((item: any) => {
       if (!item) return false;
       if (type === 'minage') {
-        return !!item.chantierId;
+        // Enforce having an assigned miner or assistant, or planned holes/rounds/meterage to show active chantiers
+        const hasChantier = !!(item.chantierId || item.chantierName);
+        const hasCrew = !!(item.minerMatricule || item.minerName || item.assistantMatricule || item.assistantName);
+        const hasPlannedWork = !!(item.plannedHoles > 0 || item.plannedRounds > 0 || item.meterage > 0);
+        return hasChantier && (hasCrew || hasPlannedWork);
       }
       if (type === 'deblayage') {
-        return !!item.chantierId;
+        // Ensure there is an active driver or engine or planned volume
+        const hasChantier = !!(item.chantierId || item.chantierName);
+        const hasCrewOrEngine = !!(item.driverMatricule || item.driverName || item.engineId || item.engineCode);
+        const hasPlannedVolume = !!(item.godets > 0 || item.volumeEstimated > 0);
+        return hasChantier && (hasCrewOrEngine || hasPlannedVolume);
       }
       if (type === 'extraction') {
         // Safe check for planning fields
-        return !!(item.treuilliste1 || item.treuilliste || item.chantierName || item.wagonsTarget > 0);
+        return !!(item.treuilliste1 || item.treuilliste || item.equipier1 || item.equipier2 || item.chantierName || (item.wagonsTarget && item.wagonsTarget > 0));
       }
       if (type === 'maintenance') {
         return !!(item.agentMatricule || item.roleLabel);
@@ -766,7 +794,32 @@ export const Production: React.FC = () => {
       console.warn("Permission logs on Snapshot setting platform:", err.message);
     });
 
-    return () => { unsubHist(); unsubChan(); unsubRH(); unsubEngs(); unsubPlan(); unsubSettings(); };
+    // 7. Daily Planning Sheets (for notifications of unfilled plannings)
+    const qDailyPlannings = query(collection(db, 'daily_planning_sheets'));
+    const unsubDailyPlannings = onSnapshot(qDailyPlannings, (snapshot) => {
+      setAllPlanningSheets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => {
+      console.warn("Permission logs on Snapshot daily_planning_sheets:", err.message);
+    });
+
+    // 8. Production (for checking unfilled plannings)
+    const qProduction = query(collection(db, 'production'));
+    const unsubProduction = onSnapshot(qProduction, (snapshot) => {
+      setAllProductionDocs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => {
+      console.warn("Permission logs on Snapshot production:", err.message);
+    });
+
+    return () => { 
+      unsubHist(); 
+      unsubChan(); 
+      unsubRH(); 
+      unsubEngs(); 
+      unsubPlan(); 
+      unsubSettings(); 
+      unsubDailyPlannings();
+      unsubProduction();
+    };
   }, []);
 
   // Check if draft exists when date changes
@@ -1209,25 +1262,39 @@ export const Production: React.FC = () => {
 
       } else {
         // No production, try loaded daily_planning_sheets
-        const planDocRef = doc(db, 'daily_planning_sheets', yesterdayDateStr);
-        const planSnap = await getDoc(planDocRef);
+        // Try same target date first (1-to-1 linking), then fallback to yesterday Date (prior date planning)
+        let planSnap = await getDoc(doc(db, 'daily_planning_sheets', selectedDate));
+        let activePlanDateStr = selectedDate;
+        let isSameDate = true;
+
+        if (!planSnap.exists()) {
+          planSnap = await getDoc(doc(db, 'daily_planning_sheets', yesterdayDateStr));
+          activePlanDateStr = yesterdayDateStr;
+          isSameDate = false;
+        }
 
         if (planSnap.exists()) {
           const planData = planSnap.data();
           setIsTemplateLoaded(true);
+          setPlanFoundType(isSameDate ? 'same_date' : 'yesterday');
+          setTemplateDateHint(format(new Date(activePlanDateStr + "T12:00:00"), 'dd/MM/yyyy'));
 
           // Post 1
           const p1Plan = planData?.postes?.poste1;
           if (p1Plan) {
-            setP1MinageRows(generateFromPlan(filterRealPlannedRows(p1Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 1', 'minage'));
-            setP1DeblayageRows(generateFromPlan(filterRealPlannedRows(p1Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 1', 'deblayage'));
-            setP1ExtractionRows(generateFromPlan(filterRealPlannedRows(p1Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 1', 'extraction'));
-            setP1MaintenanceRows(generateFromPlan(filterRealPlannedRows(p1Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 1', 'maintenance'));
+            const p1Min = generateFromPlan(filterRealPlannedRows(p1Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 1', 'minage');
+            setP1MinageRows(p1Min.length > 0 ? p1Min : generateSaisieLibreDefaults('Poste 1').minage);
+            const p1Deb = generateFromPlan(filterRealPlannedRows(p1Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 1', 'deblayage');
+            setP1DeblayageRows(p1Deb.length > 0 ? p1Deb : generateSaisieLibreDefaults('Poste 1').deblayage);
+            const p1Ext = generateFromPlan(filterRealPlannedRows(p1Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 1', 'extraction');
+            setP1ExtractionRows(p1Ext.length > 0 ? p1Ext : generateSaisieLibreDefaults('Poste 1').extraction);
+            const p1Maint = generateFromPlan(filterRealPlannedRows(p1Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 1', 'maintenance');
+            setP1MaintenanceRows(p1Maint.length > 0 ? p1Maint : generateSaisieLibreDefaults('Poste 1').maintenance);
             setP1ChiefMatricule(p1Plan.chiefMatricule || '');
             setP1ChiefName(p1Plan.chiefName || '');
             setP1SecondChiefMatricule(p1Plan.secondChiefMatricule || '');
             setP1SecondChiefName(p1Plan.secondChiefName || '');
-            setP1SectorChefs(buildDefaultSectorChefs('Poste 1', yesterdayDateStr));
+            setP1SectorChefs(buildDefaultSectorChefs('Poste 1', activePlanDateStr));
           } else {
             const defaults = generateSaisieLibreDefaults('Poste 1');
             setP1MinageRows(defaults.minage);
@@ -1236,21 +1303,25 @@ export const Production: React.FC = () => {
             setP1MaintenanceRows(defaults.maintenance);
             setP1ChiefMatricule(''); setP1ChiefName('');
             setP1SecondChiefMatricule(''); setP1SecondChiefName('');
-            setP1SectorChefs(buildDefaultSectorChefs('Poste 1', yesterdayDateStr));
+            setP1SectorChefs(buildDefaultSectorChefs('Poste 1', activePlanDateStr));
           }
 
           // Post 2
           const p2Plan = planData?.postes?.poste2;
           if (p2Plan) {
-            setP2MinageRows(generateFromPlan(filterRealPlannedRows(p2Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 2', 'minage'));
-            setP2DeblayageRows(generateFromPlan(filterRealPlannedRows(p2Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 2', 'deblayage'));
-            setP2ExtractionRows(generateFromPlan(filterRealPlannedRows(p2Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 2', 'extraction'));
-            setP2MaintenanceRows(generateFromPlan(filterRealPlannedRows(p2Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 2', 'maintenance'));
+            const p2Min = generateFromPlan(filterRealPlannedRows(p2Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 2', 'minage');
+            setP2MinageRows(p2Min.length > 0 ? p2Min : generateSaisieLibreDefaults('Poste 2').minage);
+            const p2Deb = generateFromPlan(filterRealPlannedRows(p2Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 2', 'deblayage');
+            setP2DeblayageRows(p2Deb.length > 0 ? p2Deb : generateSaisieLibreDefaults('Poste 2').deblayage);
+            const p2Ext = generateFromPlan(filterRealPlannedRows(p2Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 2', 'extraction');
+            setP2ExtractionRows(p2Ext.length > 0 ? p2Ext : generateSaisieLibreDefaults('Poste 2').extraction);
+            const p2Maint = generateFromPlan(filterRealPlannedRows(p2Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 2', 'maintenance');
+            setP2MaintenanceRows(p2Maint.length > 0 ? p2Maint : generateSaisieLibreDefaults('Poste 2').maintenance);
             setP2ChiefMatricule(p2Plan.chiefMatricule || '');
             setP2ChiefName(p2Plan.chiefName || '');
             setP2SecondChiefMatricule(p2Plan.secondChiefMatricule || '');
             setP2SecondChiefName(p2Plan.secondChiefName || '');
-            setP2SectorChefs(buildDefaultSectorChefs('Poste 2', yesterdayDateStr));
+            setP2SectorChefs(buildDefaultSectorChefs('Poste 2', activePlanDateStr));
           } else {
             const defaults = generateSaisieLibreDefaults('Poste 2');
             setP2MinageRows(defaults.minage);
@@ -1259,21 +1330,25 @@ export const Production: React.FC = () => {
             setP2MaintenanceRows(defaults.maintenance);
             setP2ChiefMatricule(''); setP2ChiefName('');
             setP2SecondChiefMatricule(''); setP2SecondChiefName('');
-            setP2SectorChefs(buildDefaultSectorChefs('Poste 2', yesterdayDateStr));
+            setP2SectorChefs(buildDefaultSectorChefs('Poste 2', activePlanDateStr));
           }
 
           // Post 3
           const p3Plan = planData?.postes?.poste3;
           if (p3Plan) {
-            setP3MinageRows(generateFromPlan(filterRealPlannedRows(p3Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 3', 'minage'));
-            setP3DeblayageRows(generateFromPlan(filterRealPlannedRows(p3Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 3', 'deblayage'));
-            setP3ExtractionRows(generateFromPlan(filterRealPlannedRows(p3Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 3', 'extraction'));
-            setP3MaintenanceRows(generateFromPlan(filterRealPlannedRows(p3Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 3', 'maintenance'));
+            const p3Min = generateFromPlan(filterRealPlannedRows(p3Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 3', 'minage');
+            setP3MinageRows(p3Min.length > 0 ? p3Min : generateSaisieLibreDefaults('Poste 3').minage);
+            const p3Deb = generateFromPlan(filterRealPlannedRows(p3Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 3', 'deblayage');
+            setP3DeblayageRows(p3Deb.length > 0 ? p3Deb : generateSaisieLibreDefaults('Poste 3').deblayage);
+            const p3Ext = generateFromPlan(filterRealPlannedRows(p3Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 3', 'extraction');
+            setP3ExtractionRows(p3Ext.length > 0 ? p3Ext : generateSaisieLibreDefaults('Poste 3').extraction);
+            const p3Maint = generateFromPlan(filterRealPlannedRows(p3Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 3', 'maintenance');
+            setP3MaintenanceRows(p3Maint.length > 0 ? p3Maint : generateSaisieLibreDefaults('Poste 3').maintenance);
             setP3ChiefMatricule(p3Plan.chiefMatricule || '');
             setP3ChiefName(p3Plan.chiefName || '');
             setP3SecondChiefMatricule(p3Plan.secondChiefMatricule || '');
             setP3SecondChiefName(p3Plan.secondChiefName || '');
-            setP3SectorChefs(buildDefaultSectorChefs('Poste 3', yesterdayDateStr));
+            setP3SectorChefs(buildDefaultSectorChefs('Poste 3', activePlanDateStr));
           } else {
             const defaults = generateSaisieLibreDefaults('Poste 3');
             setP3MinageRows(defaults.minage);
@@ -1282,13 +1357,14 @@ export const Production: React.FC = () => {
             setP3MaintenanceRows(defaults.maintenance);
             setP3ChiefMatricule(''); setP3ChiefName('');
             setP3SecondChiefMatricule(''); setP3SecondChiefName('');
-            setP3SectorChefs(buildDefaultSectorChefs('Poste 3', yesterdayDateStr));
+            setP3SectorChefs(buildDefaultSectorChefs('Poste 3', activePlanDateStr));
           }
 
         } else {
           // Both do not exist -> Free Entry
           setNoPlanFound(true);
           setIsTemplateLoaded(false);
+          setPlanFoundType('none');
 
           const default1 = generateSaisieLibreDefaults('Poste 1');
           setP1MinageRows(default1.minage);
@@ -1297,7 +1373,7 @@ export const Production: React.FC = () => {
           setP1MaintenanceRows(default1.maintenance);
           setP1ChiefMatricule(''); setP1ChiefName('');
           setP1SecondChiefMatricule(''); setP1SecondChiefName('');
-          setP1SectorChefs(buildDefaultSectorChefs('Poste 1', yesterdayDateStr));
+          setP1SectorChefs(buildDefaultSectorChefs('Poste 1', selectedDate));
 
           const default2 = generateSaisieLibreDefaults('Poste 2');
           setP2MinageRows(default2.minage);
@@ -1306,7 +1382,7 @@ export const Production: React.FC = () => {
           setP2MaintenanceRows(default2.maintenance);
           setP2ChiefMatricule(''); setP2ChiefName('');
           setP2SecondChiefMatricule(''); setP2SecondChiefName('');
-          setP2SectorChefs(buildDefaultSectorChefs('Poste 2', yesterdayDateStr));
+          setP2SectorChefs(buildDefaultSectorChefs('Poste 2', selectedDate));
 
           const default3 = generateSaisieLibreDefaults('Poste 3');
           setP3MinageRows(default3.minage);
@@ -1315,10 +1391,13 @@ export const Production: React.FC = () => {
           setP3MaintenanceRows(default3.maintenance);
           setP3ChiefMatricule(''); setP3ChiefName('');
           setP3SecondChiefMatricule(''); setP3SecondChiefName('');
-          setP3SectorChefs(buildDefaultSectorChefs('Poste 3', yesterdayDateStr));
+          setP3SectorChefs(buildDefaultSectorChefs('Poste 3', selectedDate));
         }
       }
-      setTemplateDateHint(format(yesterdayDateObj, 'dd/MM/yyyy'));
+      // Keep old setTemplateDateHint for backward compatibility state trackers if any
+      if (!isTemplateLoaded && planFoundType === 'none') {
+        setTemplateDateHint(format(yesterdayDateObj, 'dd/MM/yyyy'));
+      }
     } catch (err) {
       console.error("Erreur de chargement du classeur : ", err);
     } finally {
@@ -1887,6 +1966,99 @@ export const Production: React.FC = () => {
     }
   };
 
+  const exportPlanningToProduction = async (targetDate: string) => {
+    if (!targetDate) return;
+    setSyncingBridge(true);
+    setBridgeSuccessDate('');
+    try {
+      // 1. Fetch the daily planning sheet for targetDate
+      const planSnap = await getDoc(doc(db, 'daily_planning_sheets', targetDate));
+      if (!planSnap.exists()) {
+        alert(`❌ Aucune planification trouvée pour le ${formatFrenchDate(targetDate)}. Veuillez d'avance enregistrer une planification pour ce jour.`);
+        setSyncingBridge(false);
+        return;
+      }
+
+      const planData = planSnap.data();
+      const postesObj: any = {};
+      const postsList = ['Poste 1', 'Poste 2', 'Poste 3'];
+
+      postsList.forEach(pName => {
+        const pKey = pName === 'Poste 1' ? 'poste1' : pName === 'Poste 2' ? 'poste2' : 'poste3';
+        const pPlan = planData?.postes?.[pKey];
+
+        const minageRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.minage || [], 'minage'), createEmptyMinage, pName, 'minage') : [];
+        const deblayageRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.deblayage || [], 'deblayage'), createEmptyDeblayage, pName, 'deblayage') : [];
+        const extractionRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.extraction || [], 'extraction'), createEmptyExtraction, pName, 'extraction') : [];
+        const maintenanceRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.maintenance || [], 'maintenance'), createEmptyMaintenance, pName, 'maintenance') : [];
+
+        // Apply fallback standard rows inside each worksheet if they contain 0 rows (e.g. empty June 14 plan)
+        const finalMinage = minageRows.length > 0 ? minageRows : generateSaisieLibreDefaults(pName).minage;
+        const finalDeblayage = deblayageRows.length > 0 ? deblayageRows : generateSaisieLibreDefaults(pName).deblayage;
+        const finalExtraction = extractionRows.length > 0 ? extractionRows : generateSaisieLibreDefaults(pName).extraction;
+        const finalMaintenance = maintenanceRows.length > 0 ? maintenanceRows : generateSaisieLibreDefaults(pName).maintenance;
+
+        // Inject sector chiefs
+        const sectorChefs = pPlan?.sectorChefs || buildDefaultSectorChefs(pName, targetDate);
+
+        // Map and format for production compatibility
+        const mappedMinage = finalMinage.map((row: any) => {
+          const rowSecName = row.reel?.sector || 'Autres / Non Classés';
+          const secChief = sectorChefs[rowSecName] || { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' };
+          return {
+            ...row,
+            reel: {
+              ...(row.reel || {}),
+              chiefMatricule: secChief.chiefMatricule || '',
+              chiefName: secChief.secondChiefName ? `${secChief.chiefName} / ${secChief.secondChiefName}` : secChief.chiefName || ''
+            }
+          };
+        });
+
+        postesObj[pKey] = {
+          chiefMatricule: pPlan?.chiefMatricule || '',
+          chiefName: pPlan?.chiefName || '',
+          secondChiefMatricule: pPlan?.secondChiefMatricule || '',
+          secondChiefName: pPlan?.secondChiefName || '',
+          status: 'planifie',
+          minage: mappedMinage,
+          deblayage: finalDeblayage,
+          extraction: finalExtraction,
+          maintenance: finalMaintenance,
+          sectorChefs: sectorChefs
+        };
+      });
+
+      const payload = {
+        date: targetDate,
+        status: 'scelle', // Treat as initialized/sealed template ready for editing
+        operator: user?.email || 'Pont d\'Export SMI',
+        timestamp: new Date().toISOString(),
+        postes: postesObj
+      };
+
+      // Save to production!
+      await setDoc(doc(db, 'production', targetDate), payload, { merge: true });
+
+      setBridgeSuccessDate(targetDate);
+      
+      // If we are currently viewed on this date, reload the sheet view to reflect the newly exported data
+      if (selectedDate === targetDate) {
+        await loadGlobalWorkbook(true);
+      }
+      
+      setTimeout(() => {
+        setBridgeSuccessDate('');
+      }, 5000);
+
+    } catch (err) {
+      console.error("Error running SMI Data sync-bridge: ", err);
+      alert("❌ Une erreur est survenue lors de l'exportation de la planification.");
+    } finally {
+      setSyncingBridge(false);
+    }
+  };
+
   const standardizeHours = (postName: string) => {
     let start = '07:00';
     let end = '14:00';
@@ -2152,6 +2324,9 @@ export const Production: React.FC = () => {
       .filter(item => {
         const rowSec = (item.row.reel.sector || item.row.plan.sector || '').trim().toLowerCase();
         const targetSec = sectorName.trim().toLowerCase();
+        if (targetSec === 'autres / non classés') {
+          return !['imiter 2', 'imiter 1', 'imiter est'].includes(rowSec);
+        }
         return rowSec === targetSec;
       });
 
@@ -2828,125 +3003,161 @@ export const Production: React.FC = () => {
     );
   };
 
+  const unfilledPlannings = allPlanningSheets
+    .filter(plan => {
+      const planDate = plan.id;
+      // Filter out any planning that already has an associated production document
+      const prodExists = allProductionDocs.some(prod => prod.id === planDate);
+      return !prodExists;
+    })
+    .sort((a, b) => b.id.localeCompare(a.id));
+
+  const formatFrenchDate = (dateStr: string) => {
+    try {
+      const [year, month, day] = dateStr.split('-');
+      const months = [
+        'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+      ];
+      return `${parseInt(day, 10)} ${months[parseInt(month, 10) - 1]}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   const anomalies = calculateAnomalies();
 
   return (
-    <div className="bg-white min-h-screen p-6 rounded-none space-y-8 select-none border border-slate-100">
+    <div className="space-y-4 font-sans select-none pb-12">
       
-      {/* BRAND HEADER BANNER WITH PURE HYDRO-MINES LUXURY OUTLINE */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b-[3px] border-[#8B0000] pb-6 gap-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#8B0000] flex items-center justify-center text-white font-black text-xl rounded-none select-none">
-              HM
+      {/* Unified Elegant Header Banner with Enlarged Logo and Centered Title - Style MATCHING Planning.tsx */}
+      <div id="unified-production-banner" className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+          {/* Logo Column */}
+          <div className="flex-shrink-0 animate-fade-in">
+            <img 
+              src={logoImg} 
+              alt="HydroMines Logo" 
+              className="h-24 w-24 md:h-28 md:w-28 object-contain rounded-xl border border-gray-150 p-1.5 bg-white shadow-sm" 
+              referrerPolicy="no-referrer" 
+            />
+          </div>
+
+          {/* Centered Column: Title, Subtitle, Date selectors */}
+          <div className="flex-1 text-center space-y-2 max-w-2xl">
+            <h3 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 uppercase">
+              Registre de Poste - Suivi du Réel
+            </h3>
+            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Rapport Journalier d'Exploitation • Validation physique et suivi de l'avancement d'exploitation
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <div className="inline-flex items-center gap-2 bg-sky-50/60 border border-sky-100 px-3 py-1.5 rounded-xl shadow-xs">
+                <span className="text-[10px] font-black uppercase text-[#00BFFF] tracking-wider">
+                  📅 Registre du :
+                </span>
+                <input 
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="bg-white hover:bg-gray-50 text-slate-950 font-extrabold text-[12px] uppercase border border-gray-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#00BFFF]/30 cursor-pointer"
+                />
+              </div>
+
+              {noPlanFound ? (
+                <div id="no-plan-found-badge" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-850 bg-amber-50 border border-amber-200 rounded-xl shadow-xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                  Saisie Libre (Aucun Plan Théorique)
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 bg-emerald-50/55 border border-emerald-100 px-3 py-1.5 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">
+                    {planFoundType === 'same_date' ? `🔗 Lié au Plan du Jour (${templateDateHint})` : `🔗 Lié au Plan d'Hier (${templateDateHint})`}
+                  </span>
+                </div>
+              )}
             </div>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight uppercase font-sans select-none leading-none">
-                <span className="text-[#00BFFF]">hydro</span><span className="text-[#8B0000]">mines</span>
-              </h1>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                système d'enregistrement de fond et registre de poste
-              </p>
+          </div>
+
+          {/* Right Column: Real-time Status counters and view toggle pills */}
+          <div className="flex flex-col items-center lg:items-end gap-3 w-full lg:w-auto">
+            <div className="flex items-center gap-2">
+              <div className="bg-slate-50 px-3.5 py-1.5 border border-gray-150 text-right shadow-xs rounded-xl">
+                <span className="text-[8px] font-black text-slate-500 uppercase block tracking-wider">Métrage Arraché</span>
+                <span className="text-sm font-black text-slate-850 mt-0.5 block font-mono">
+                  {(
+                    p1MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? (r.reel.realMeterage === undefined ? r.reel.meterage : r.reel.realMeterage) : 0), 0) +
+                    p2MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? (r.reel.realMeterage === undefined ? r.reel.meterage : r.reel.realMeterage) : 0), 0) +
+                    p3MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? (r.reel.realMeterage === undefined ? r.reel.meterage : r.reel.realMeterage) : 0), 0)
+                  ).toFixed(1)} m
+                </span>
+              </div>
+              <div className="bg-slate-50 px-3.5 py-1.5 border border-gray-150 text-right shadow-xs rounded-xl">
+                <span className="text-[8px] font-black text-slate-500 uppercase block tracking-wider">Total Wagons</span>
+                <span className="text-sm font-black text-slate-850 mt-0.5 block font-mono">
+                  {p1ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
+                   p2ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
+                   p3ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0)} u
+                </span>
+              </div>
+            </div>
+
+            {/* S Mode vs Archive Mode tabs as PILLED selectors */}
+            <div className="flex gap-1 p-1 bg-gray-150 rounded-xl w-full max-w-xs md:max-w-none">
+              <button 
+                onClick={() => setViewMode('sheet')}
+                className={`flex-1 px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
+                  viewMode === 'sheet' 
+                    ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50'
+                }`}
+              >
+                📊 Saisie Réel
+              </button>
+              <button 
+                onClick={() => setViewMode('history')}
+                className={`flex-1 px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
+                  viewMode === 'history' 
+                    ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50'
+                }`}
+              >
+                📋 Archives ({dataHistory.length})
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Real-time Status indicators */}
-        <div className="flex items-center gap-3">
-          <div className="bg-slate-50 px-4 py-2 border border-slate-300/80 text-right shadow-sm rounded-none">
-            <span className="text-[10px] font-black text-slate-500 uppercase block leading-none tracking-wider">Métrage Jour</span>
-            <span className="text-xl font-black text-slate-800 mt-1 block font-mono">
-              {(
-                p1MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? r.reel.meterage : 0), 0) +
-                p2MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? r.reel.meterage : 0), 0) +
-                p3MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? r.reel.meterage : 0), 0)
-              ).toFixed(1)} m
-            </span>
-          </div>
-          <div className="bg-slate-50 px-4 py-2 border border-slate-300/80 text-right shadow-sm rounded-none">
-            <span className="text-[10px] font-black text-slate-500 uppercase block leading-none tracking-wider">Total Wagons</span>
-            <span className="text-xl font-black text-slate-800 mt-1 block font-mono">
-              {p1ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
-               p2ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
-               p3ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0)} u
-            </span>
-          </div>
-          <div className="hidden sm:flex flex-col justify-center">
-            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider text-right">SMI Cadran</span>
-            <span className="text-[10px] text-emerald-650 font-black uppercase text-right flex items-center gap-1">
+        {/* RE-LOADING AND SAVING FLOATING STRIP */}
+        <div className="border-t border-gray-100 pt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-650 bg-emerald-55 border border-emerald-100 px-2 py-1 rounded-lg font-black uppercase">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Actif en Ligne
             </span>
+            <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
+              Enregistrements d'avancement SMI • Sécurisés par Firestore
+            </span>
           </div>
-        </div>
-      </div>
 
-      {/* CAHIER CONTROL STRIP (DATE & VIEW OPTION) */}
-      <div className="bg-[#8B0000]/5 p-4 border border-[#8B0000]/10 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-[#8B0000]" />
-              <span className="text-xs font-black uppercase text-[#8B0000]">Cahier d'Enregistrement :</span>
-              <input 
-                type="date"
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-                className="bg-white text-slate-800 font-black text-xs border border-slate-300 rounded-none px-3 py-1.5 focus:border-[#8B0000] focus:ring-1 focus:ring-[#8B0000] outline-none"
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadGlobalWorkbook}
+              className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              title="Rafraîchir les données du serveur"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-[#00BFFF]" /> Recharger
+            </button>
             
-            {noPlanFound && (
-              <div id="no-plan-found-badge" className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-amber-805 bg-amber-50 border border-amber-200 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-                Aucune planification trouvée pour cette date (Saisie Libre)
-              </div>
-            )}
-          </div>
-          
-          <div className="h-6 w-px bg-slate-200 hidden md:block" />
-
-          {/* S Mode vs Archive Mode tabs */}
-          <div className="flex gap-1 bg-slate-100 p-1 border border-slate-200">
-            <button 
-              onClick={() => setViewMode('sheet')}
-              className={`px-4 py-1.5 font-black text-[10px] uppercase tracking-wider transition-all ${
-                viewMode === 'sheet' 
-                  ? 'bg-[#8B0000] text-white' 
-                  : 'bg-transparent text-slate-600 hover:text-[#8B0000]'
-              }`}
+            <button
+              onClick={saveWorkbook}
+              disabled={saveStatus === 'saving'}
+              className="bg-gradient-to-r from-sky-600 to-[#00BFFF] hover:opacity-90 text-white font-black px-5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md cursor-pointer"
             >
-              📊 Registre Saisie Interactive
-            </button>
-            <button 
-              onClick={() => setViewMode('history')}
-              className={`px-4 py-1.5 font-black text-[10px] uppercase tracking-wider transition-all ${
-                viewMode === 'history' 
-                  ? 'bg-[#8B0000] text-white' 
-                  : 'bg-transparent text-slate-600 hover:text-[#8B0000]'
-              }`}
-            >
-              📋 Archives des fiches ({dataHistory.length})
+              <Save className="w-4 h-4" /> 
+              {saveStatus === 'saving' ? 'Gravure en cours...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver au Registre SMI'}
             </button>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={loadGlobalWorkbook}
-            className="border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold px-4 py-1.5 text-xs transition-all flex items-center gap-1.5 rounded-none"
-            title="Rafraîchir les données du serveur"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-[#00BFFF]" /> Recharger
-          </button>
-          
-          <button
-            onClick={saveWorkbook}
-            disabled={saveStatus === 'saving'}
-            className="bg-[#00BFFF] hover:bg-[#00BFFF]/90 text-white font-black px-6 py-2 text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-md"
-          >
-            <Save className="w-4 h-4" /> 
-            {saveStatus === 'saving' ? 'Gravure en cours...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver au Registre SMI'}
-          </button>
         </div>
       </div>
 
@@ -2957,6 +3168,114 @@ export const Production: React.FC = () => {
         </div>
       ) : viewMode === 'sheet' ? (
         <div className="space-y-6">
+          
+          {/* Alerte Planifications non-saisies (par exemple le 14 juin) */}
+          {unfilledPlannings.length > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-xs animate-fade-in">
+              <div className="flex gap-3.5 items-center">
+                <div className="p-2 bg-amber-100 rounded-xl text-amber-700 animate-pulse">
+                  <AlertTriangle className="w-5 h-5 shrink-0" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase text-amber-955 tracking-wider">
+                    ⚠️ Planification(s) non renseignée(s) détectée(s) ({unfilledPlannings.length})
+                  </h4>
+                  <p className="text-[11px] text-amber-900 font-bold mt-0.5">
+                    Certaines planifications enregistrées n'ont pas encore de registre de poste finalisé. Cliquez sur une date ci-dessous pour l'ouvrir directement et remplir les réalisés :
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-black max-w-full md:max-w-[50%] shrink-0">
+                {unfilledPlannings.map(plan => (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDate(plan.id);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg font-extrabold uppercase text-[10px] tracking-wider transition-all border shadow-xs cursor-pointer ${
+                      selectedDate === plan.id
+                        ? 'bg-amber-600 text-white border-amber-700 hover:bg-amber-700'
+                        : 'bg-white hover:bg-amber-100 text-amber-800 border-amber-200 hover:border-amber-300'
+                    }`}
+                  >
+                    📅 {formatFrenchDate(plan.id)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PASSERELLE SMI DETACHEE - PONT DE DONNEES ET D'EXPORTATION AUTOMATIQUE (PLANNING ➔ REGISTRE) */}
+          <div className="bg-white text-slate-800 border border-slate-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 relative overflow-hidden animate-fade-in">
+            {/* Ambient Background Glow */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#00BFFF]/5 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-sky-50 border border-key-150 rounded-xl">
+                  <Sparkles className="w-5 h-5 text-[#00BFFF] animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                    <span className="text-[#00BFFF]">Passerelle SMI</span> : Synchronisation Pont de Données (Planning ➔ Registre)
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5 tracking-wider">
+                    Système détaché d'exportation de données et de pré-population des réalisés
+                  </p>
+                </div>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Pont d'Échange Actif
+              </div>
+            </div>
+
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              <p className="text-[11px] text-slate-600 font-bold max-w-xl leading-relaxed">
+                Cette passerelle résout directement les divergences de saisie. En sélectionnant une date ci-dessous, le pont de données va extraire la planification enregistrée sur Firestore et l'injecter au registre de réel, tout en filtrant intelligemment les chantiers inoccupés sans mineur et aide-mineur pour éviter de polluer l'affichage.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3 bg-slate-50 border border-slate-200/60 p-3 rounded-xl shrink-0">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[8px] font-black uppercase tracking-wider text-[#00BFFF]">Date à synchroniser :</span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="bg-white text-slate-900 font-extrabold text-[11px] border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-[#00BFFF]/50 cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Action :</span>
+                  <button
+                    type="button"
+                    onClick={() => exportPlanningToProduction(selectedDate)}
+                    disabled={syncingBridge}
+                    className="bg-[#00BFFF] hover:bg-sky-500 disabled:bg-slate-300 disabled:text-slate-400 text-white font-black px-4 py-1.5 rounded-lg text-[10px] uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    {syncingBridge ? (
+                      <>
+                        <Clock className="w-3.5 h-3.5 animate-spin text-white" /> Exécution...
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="w-3.5 h-3.5 text-white" /> Force-Exporter
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {bridgeSuccessDate && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-emerald-700 text-[10px] font-bold uppercase animate-fade-in">
+                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span>Succès : La planification du {formatFrenchDate(bridgeSuccessDate)} a été poussée avec succès vers le registre de fond ! Les lignes vides sans mineur ont été automatiquement masquées.</span>
+              </div>
+            )}
+          </div>
           
           {draftAvailable && (
             <div className="bg-amber-50 border-l-4 border-amber-500 p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-sm rounded-none border border-amber-200">
@@ -2989,10 +3308,12 @@ export const Production: React.FC = () => {
           )}
 
           {isTemplateLoaded && (
-            <div className="bg-sky-50 border-l-4 border-[#00BFFF] p-4 flex gap-3 items-center">
+            <div className="bg-sky-50/50 border border-sky-200/50 rounded-2xl p-4 flex gap-3.5 items-center shadow-xs animate-fade-in mb-4">
               <Info className="w-5 h-5 text-[#00BFFF] shrink-0" />
               <div>
-                <h4 className="text-xs font-black uppercase text-sky-900 tracking-wider">Plan d'Hier Chargé</h4>
+                <h4 className="text-xs font-black uppercase text-sky-900 tracking-wider">
+                  {planFoundType === 'same_date' ? "Plan théorique du Jour Chargé" : "Plan théorique d'Hier Chargé"}
+                </h4>
                 <p className="text-[11px] text-sky-800 font-bold mt-0.5">
                   Ce registre n'est pas encore enregistré. Les lignes ont été pré-remplies automatiquement à partir de la planification du <span className="underline">{templateDateHint}</span> pour vous permettre de simplement saisir les réalisés.
                 </p>
@@ -3000,23 +3321,23 @@ export const Production: React.FC = () => {
             </div>
           )}
 
-          {/* SPREADSHEET TABS */}
-          <div className="border border-slate-200 p-4 bg-slate-50/50 space-y-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between border-b border-slate-200 pb-2 gap-2">
-              <div className="flex flex-wrap items-center gap-2">
+          {/* SPREADSHEET TABS - Redesigned matching Planning.tsx rounded-2xl style */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-5">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-gray-100 pb-3 gap-4">
+              <div className="flex flex-wrap gap-1.5 p-1 bg-gray-100 rounded-xl">
                 {[
-                  { id: 'minage', label: '🔨 Sheet 1 - Forage & Minage', activeStyle: 'bg-[#8B0000] text-white' },
-                  { id: 'deblayage', label: 'LHD - Déblayage & Charge', activeStyle: 'bg-[#00BFFF] text-white' },
-                  { id: 'extraction', label: '🚃 Sheet 3 - Extraction & Wagons', activeStyle: 'bg-[#8B0000] text-white' },
-                  { id: 'maintenance', label: '🔧 Sheet 4 - Brigade Technique', activeStyle: 'bg-slate-800 text-white' },
+                  { id: 'minage', label: '🔨 Sheet 1 - Forage & Minage' },
+                  { id: 'deblayage', label: 'LHD - Déblayage & Charge' },
+                  { id: 'extraction', label: '🚃 Sheet 3 - Extraction' },
+                  { id: 'maintenance', label: '🔧 Sheet 4 - Brigade Tech' },
                 ].map(sheet => (
                   <button
                     key={sheet.id}
                     onClick={() => setActiveSheetTab(sheet.id as any)}
-                    className={`px-4 py-2 font-black text-xs uppercase tracking-wide transition-all ${
+                    className={`px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
                       activeSheetTab === sheet.id 
-                        ? sheet.activeStyle 
-                        : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                        ? 'bg-white text-gray-950 shadow-xs border border-gray-200/60' 
+                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50'
                     }`}
                   >
                     {sheet.label}
@@ -3024,8 +3345,8 @@ export const Production: React.FC = () => {
                 ))}
               </div>
 
-              {/* Mode d'Ajustement Structurel Optionnel (pour cas exceptionnels) */}
-              <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 border border-slate-205 rounded-none shadow-xs">
+              {/* Mode d'Ajustement Structurel Optionnel */}
+              <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-1.5 border border-slate-150 rounded-xl shadow-xs self-start lg:self-auto">
                 <span className="text-[10px] font-black uppercase text-slate-600 tracking-wider">Ajustements Exceptionnels :</span>
                 <label className="relative inline-flex items-center cursor-pointer select-none">
                   <input 
@@ -3034,38 +3355,38 @@ export const Production: React.FC = () => {
                     onChange={e => setStructureEditMode(e.target.checked)}
                     className="sr-only peer" 
                   />
-                  <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00BFFF]"></div>
+                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00BFFF]"></div>
                   <span className="ml-2 text-[10px] font-black text-slate-700 uppercase tracking-wide">
-                    {structureEditMode ? 'Actif (Ajouter/Supprimer activés)' : 'Inactif'}
+                    {structureEditMode ? 'Actif' : 'Inactif'}
                   </span>
                 </label>
               </div>
             </div>
 
             {/* ASSISTANTS DE SAISIE POUR LE SECRETARIAT */}
-            <div className="bg-white border border-slate-200/80 p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               <div className="space-y-1">
                 <span className="text-[10px] uppercase font-black tracking-widest text-[#8B0000] flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#00BFFF]" /> Assistants de Saisie (Espace Secrétariat SMI)
+                  <Sparkles className="w-3.5 h-3.5 text-[#00BFFF]" /> Assistants de Saisie (Secrétariat SMI)
                 </span>
-                <p className="text-[10px] text-slate-500 font-bold">
-                  Utilisez ces raccourcis premium pour accélérer considérablement le remplissage de vos fiches de poste quotidiennes.
+                <p className="text-[10px] text-slate-500 font-medium">
+                  Utilisez ces raccourcis d'ingénierie pour accélérer considérablement le remplissage de vos fiches de poste quotidiennes.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                 <button
                   type="button"
                   onClick={copyYesterdayShiftTeam}
                   disabled={copyStatus === 'copying'}
-                  className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all border ${
+                  className={`px-3.5 py-2 text-[9px] font-black uppercase tracking-wider flex items-center gap-2 transition-all rounded-lg border shadow-xs cursor-pointer ${
                     copyStatus === 'copied' 
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold'
                       : copyStatus === 'no_data'
-                      ? 'bg-amber-50 text-amber-800 border-amber-300'
+                      ? 'bg-amber-50 text-amber-800 border-amber-300 font-bold'
                       : copyStatus === 'error'
-                      ? 'bg-red-50 text-red-800 border-red-300'
-                      : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100 font-bold'
+                      ? 'bg-red-50 text-red-800 border-red-300 font-bold'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 font-bold'
                   }`}
                   title="Copie automatiquement l'effectif / personnel du même poste de la veille pour éviter la saisie manuelle répétitive."
                 >
@@ -3074,13 +3395,13 @@ export const Production: React.FC = () => {
                   {copyStatus === 'copied' && '✓ Personnel d\'hier copié !'}
                   {copyStatus === 'no_data' && `⚠️ Pas d'équipe enregistrée le ${format(subDays(new Date(selectedDate + "T12:00:00"), 1), 'dd/MM/yyyy')}`}
                   {copyStatus === 'error' && '❌ Erreur de copie'}
-                  {copyStatus === 'idle' && `Copier l'équipe du même poste d'hier (${format(subDays(new Date(selectedDate + "T12:00:00"), 1), 'dd/MM')})`}
+                  {copyStatus === 'idle' && `Copier l'équipe d'hier (${format(subDays(new Date(selectedDate + "T12:00:00"), 1), 'dd/MM')})`}
                 </button>
 
                 <button
                   type="button"
                   onClick={standardizeHours}
-                  className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-300 px-4 py-1.5 text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all"
+                  className="bg-white hover:bg-slate-50 text-slate-705 border border-slate-200 px-3.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-xs cursor-pointer"
                   title="Pré-remplit les colonnes Horaires avec les heures de début/fin standards pour le poste actif."
                 >
                   <Clock3 className="w-3.5 h-3.5 text-[#00BFFF]" />
@@ -4133,13 +4454,13 @@ export const Production: React.FC = () => {
 
           {/* REALTIME SYSTEM ANOMALIES & AUDITS FOR THE RESPONSIBLES (RED AND AMBER WARNINGS) */}
           {anomalies.length > 0 && (
-            <div className="bg-[#8B0000]/5 border border-[#8B0000]/10 p-4 space-y-2">
-              <h4 className="text-xs font-black text-[#8B0000] uppercase tracking-widest flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-[#8B0000]" /> Détecteur d'Incohérences & Anomalies de production en temps réel :
+            <div className="bg-rose-50/40 border border-rose-200/60 p-5 rounded-2xl space-y-3 shadow-xs animate-fade-in">
+              <h4 className="text-xs font-black text-rose-950 uppercase tracking-widest flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-700 animate-pulse" /> Détecteur d'Incohérences & Anomalies de production en temps réel :
               </h4>
-              <ul className="space-y-1 text-xs font-bold text-slate-700 list-disc list-inside">
+              <ul className="space-y-1.5 text-[11px] font-bold text-slate-700 list-disc list-inside">
                 {anomalies.map((an, ind) => (
-                  <li key={ind} className={an.level === 'danger' ? 'text-red-700' : 'text-amber-700'}>
+                  <li key={ind} className={an.level === 'danger' ? 'text-red-700 font-extrabold' : 'text-amber-700'}>
                     {an.msg}
                   </li>
                 ))}
@@ -4148,18 +4469,18 @@ export const Production: React.FC = () => {
           )}
 
           {/* LOWER FOOTER COMMAND TRAY AND PERSISTENCE CONTROL */}
-          <div className="bg-slate-900 text-white p-5 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="bg-slate-950 border border-slate-900/60 text-white p-5 md:p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Compte de session SMI</p>
-              <h4 className="text-xs font-black text-[#00BFFF] mt-0.5 uppercase tracking-wide">
-                AUTHENTIFIÉ : {user?.email || 'Secrétaire de Bureau Technique'}
+              <p className="text-[9px] font-black text-[#00BFFF] uppercase tracking-widest">Compte de session SMI</p>
+              <h4 className="text-xs font-black text-white mt-1.5 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> Authentifié : {user?.email || 'Secrétaire de Bureau Technique'}
               </h4>
             </div>
 
             <button
               onClick={saveWorkbook}
               disabled={saveStatus === 'saving'}
-              className="w-full md:w-auto bg-[#00BFFF] hover:bg-sky-500 text-white font-black py-3 px-8 text-xs uppercase tracking-widest transition-all shadow-md hover:scale-[1.02] active:scale-95"
+              className="w-full md:w-auto bg-[#00BFFF] hover:bg-sky-500 text-white font-black py-3 px-8 text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-95 cursor-pointer"
             >
               {saveStatus === 'saving' ? 'Gravure en cours ...' : saveStatus === 'saved' ? '✓ GRAVÉ AVEC SUCCÈS !' : 'Enregistrer et figer la production du Poste'}
             </button>
@@ -4167,12 +4488,12 @@ export const Production: React.FC = () => {
         </div>
       ) : (
         /* SOUCHIER / CONSOLIDATED HISTORIC LIST */
-        <div className="bg-white border-2 border-slate-200">
-          <div className="p-4 border-b border-slate-250 bg-slate-50">
-            <h3 className="text-sm font-black uppercase text-[#8B0000] tracking-wider">
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-gray-100 bg-slate-50/50">
+            <h3 className="text-sm font-black uppercase text-slate-900 tracking-wider">
               📋 Livre d'Or des Fiches de Poste Consolidées
             </h3>
-            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
               Historique des cahiers scellés dans la base de données de fond
             </p>
           </div>
@@ -4180,39 +4501,39 @@ export const Production: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse bg-white">
               <thead>
-                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 text-[10px] uppercase font-black">
-                  <th className="px-6 py-4 border-r border-slate-200">Date du cahier</th>
-                  <th className="px-6 py-4 border-r border-slate-200">Poste concerné</th>
-                  <th className="px-6 py-4 border-r border-slate-200 text-right">Métrage Minage</th>
-                  <th className="px-6 py-4 border-r border-slate-200 text-right">Total Wagons</th>
-                  <th className="px-6 py-4 border-r border-slate-200">Dernier Enregistrement</th>
-                  <th className="px-6 py-4">Statut</th>
+                <tr className="bg-slate-50 border-b border-gray-150 text-slate-700 text-[10px] uppercase font-black">
+                  <th className="px-6 py-4">Date du cahier</th>
+                  <th className="px-6 py-4">Poste concerné</th>
+                  <th className="px-6 py-4 text-right">Métrage Minage</th>
+                  <th className="px-6 py-4 text-right">Total Wagons</th>
+                  <th className="px-6 py-4">Dernier Enregistrement</th>
+                  <th className="px-6 py-4 text-center">Statut</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-150 text-xs">
+              <tbody className="divide-y divide-gray-100 text-xs font-medium text-slate-700">
                 {dataHistory.map((rec) => (
                   <tr key={rec.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-mono font-bold text-slate-800">{rec.date}</td>
-                    <td className="px-6 py-4 border-r border-slate-200">
-                      <span className="bg-[#8B0000]/5 text-[#8B0000] border border-[#8B0000]/15 px-3 py-1 font-black uppercase text-[10px]">
+                    <td className="px-6 py-4 font-mono font-black text-slate-900">{rec.date}</td>
+                    <td className="px-6 py-4">
+                      <span className="bg-slate-100 text-slate-800 border border-slate-200 px-2.5 py-1 rounded-lg font-black uppercase text-[9px] tracking-wider">
                         {rec.post}
                       </span>
                     </td>
-                    <td className="px-6 py-4 border-r border-slate-200 text-right font-black text-rose-800">{rec.totalMeterage?.toFixed(1)} m</td>
-                    <td className="px-6 py-4 border-r border-slate-200 text-right font-black text-blue-900">{rec.totalWagons || 0} u</td>
-                    <td className="px-6 py-4 border-r border-slate-200 text-slate-500 font-semibold">
+                    <td className="px-6 py-4 text-right font-black text-emerald-850 font-mono text-xs">{rec.totalMeterage?.toFixed(1)} m</td>
+                    <td className="px-6 py-4 text-right font-black text-sky-850 font-mono text-xs">{rec.totalWagons || 0} u</td>
+                    <td className="px-6 py-4 font-semibold text-slate-500">
                       {rec.lastUpdated ? format(new Date(rec.lastUpdated), 'dd/MM/yyyy HH:mm') : '--'}
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-50 border border-teal-500/20 text-teal-800 font-extrabold text-[10px] uppercase">
-                        <CheckCircle className="w-3.5 h-3.5 text-teal-600" /> SCELLÉ AVEC SUCCÈS
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-500/20 text-emerald-800 rounded-lg font-extrabold text-[9px] uppercase tracking-wider">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-650" /> Scellé
                       </span>
                     </td>
                   </tr>
                 ))}
                 {dataHistory.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="text-center py-20 italic text-slate-400 font-bold uppercase tracking-widest">
+                    <td colSpan={6} className="text-center py-20 italic text-slate-400 font-bold uppercase tracking-widest font-mono text-[10px]">
                       Aucune fiche scellée trouvée dans les registres.
                     </td>
                   </tr>

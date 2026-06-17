@@ -83,7 +83,14 @@ service cloud.firestore {
       allow create, update: if isSignedIn() 
         && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary'])
         && request.resource.data.date == sheetId;
-      allow delete: if isSignedIn() && hasRole(['admin']);
+      allow delete: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+    }
+
+    // Deleted Plannings Log
+    match /deleted_plannings_log/{logId} {
+      allow read: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+      allow create: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+      allow update, delete: if false;
     }
 
     // Rotations History
