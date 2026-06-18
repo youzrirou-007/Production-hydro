@@ -896,7 +896,7 @@ export const Production: React.FC = () => {
       const draft = localStorage.getItem(`draft_production_${selectedDate}`);
       if (draft) {
         e.preventDefault();
-        e.returnValue = "Vous avez des modifications non enregistrées sur ce Registre de Poste. Souhaitez-vous vraiment quitter ?";
+        e.returnValue = "Vous avez des modifications non enregistrées sur ce Registre Journalier. Souhaitez-vous vraiment quitter ?";
         return e.returnValue;
       }
     };
@@ -3097,7 +3097,7 @@ export const Production: React.FC = () => {
           {/* Centered Column: Title, Subtitle, Date selectors */}
           <div className="flex-1 text-center space-y-2 max-w-2xl">
             <h3 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 uppercase">
-              Registre de Poste - Suivi du Réel
+              Registre Journalier - Suivi du Réel
             </h3>
             <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Rapport Journalier d'Exploitation • Validation physique et suivi de l'avancement d'exploitation
@@ -3213,42 +3213,28 @@ export const Production: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="py-24 text-center text-xs font-bold text-[#8B0000] uppercase tracking-widest animate-pulse flex flex-col items-center justify-center gap-3">
+        <div className="py-24 text-center text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse flex flex-col items-center justify-center gap-3">
           <Clock className="w-8 h-8 text-[#00BFFF] animate-spin" />
-          Synchronisation du registre de fond avec la base de données...
+          Synchronisation du registre journalier avec la base de données...
         </div>
       ) : viewMode === 'sheet' ? (
         <div className="space-y-6">
           
-          {/* Alerte Planifications non-saisies (par exemple le 14 juin) */}
           {unfilledPlannings.length > 0 && (
-            <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shadow-xs animate-fade-in">
-              <div className="flex gap-3.5 items-center">
-                <div className="p-2 bg-amber-100 rounded-xl text-amber-700 animate-pulse">
-                  <AlertTriangle className="w-5 h-5 shrink-0" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black uppercase text-amber-955 tracking-wider">
-                    ⚠️ Planification(s) non renseignée(s) détectée(s) ({unfilledPlannings.length})
-                  </h4>
-                  <p className="text-[11px] text-amber-900 font-bold mt-0.5">
-                    Certaines planifications enregistrées n'ont pas encore de registre de poste finalisé. Cliquez sur une date ci-dessous pour l'ouvrir directement et remplir les réalisés :
-                  </p>
-                </div>
+            <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-3 flex flex-col md:flex-row gap-3 items-center justify-between shadow-xs animate-fade-in">
+              <div className="flex gap-2.5 items-center">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="text-[11px] text-amber-900 font-bold">
+                  En attente de registre ({unfilledPlannings.length}) :
+                </span>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs font-black max-w-full md:max-w-[50%] shrink-0">
+              <div className="flex flex-wrap gap-1.5 text-xs font-black shrink-0">
                 {unfilledPlannings.map(plan => (
                   <button
                     key={plan.id}
                     type="button"
-                    onClick={() => {
-                      setSelectedDate(plan.id);
-                    }}
-                    className={`px-3 py-1.5 rounded-lg font-extrabold uppercase text-[10px] tracking-wider transition-all border shadow-xs cursor-pointer ${
-                      selectedDate === plan.id
-                        ? 'bg-amber-600 text-white border-amber-700 hover:bg-amber-700'
-                        : 'bg-white hover:bg-amber-100 text-amber-800 border-amber-200 hover:border-amber-300'
-                    }`}
+                    onClick={() => setSelectedDate(plan.id)}
+                    className="px-2 py-1 bg-white hover:bg-amber-100 text-amber-800 border border-amber-200 hover:border-amber-300 rounded-lg font-extrabold uppercase text-[9px] tracking-wider transition-all cursor-pointer shadow-2xs"
                   >
                     📅 {formatFrenchDate(plan.id)}
                   </button>
@@ -3257,100 +3243,84 @@ export const Production: React.FC = () => {
             </div>
           )}
 
-          {/* PASSERELLE SMI DETACHEE - PONT DE DONNEES ET D'EXPORTATION AUTOMATIQUE (PLANNING ➔ REGISTRE) */}
-          <div className="bg-white text-slate-800 border border-slate-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 relative overflow-hidden animate-fade-in">
-            {/* Ambient Background Glow */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#00BFFF]/5 rounded-full blur-3xl pointer-events-none" />
-            
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-sky-50 border border-key-150 rounded-xl">
-                  <Sparkles className="w-5 h-5 text-[#00BFFF] animate-pulse" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                    <span className="text-[#00BFFF]">Passerelle SMI</span> : Synchronisation Pont de Données (Planning ➔ Registre)
+          {/* PASSERELLE SMI DETACHEE - Only displays if automatic planning load has failed (i.e. exactPlanMissing is true) */}
+          {exactPlanMissing && (
+            <div className="bg-white text-slate-800 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3 relative overflow-hidden animate-fade-in">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-1 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#00BFFF]" />
+                  <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-900">
+                    <span className="text-[#00BFFF]">Passerelle SMI</span> : Synchronisation Pont de Données
                   </h4>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5 tracking-wider">
-                    Système détaché d'exportation de données et de pré-population des réalisés
-                  </p>
+                </div>
+                <div className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md">
+                  Pont d'Échange Actif
                 </div>
               </div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Pont d'Échange Actif
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-[11px] text-slate-600 font-bold">
+                  Chargement automatique impossible. Utilisez la passerelle pour forcer l'importation de la journée choisie.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200/60 p-2 rounded-xl shrink-0">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] font-black uppercase tracking-wider text-[#00BFFF]">Date :</span>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="bg-white text-slate-900 font-extrabold text-[10px] border border-slate-200 rounded-md px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-[#00BFFF]/50 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Action :</span>
+                    <button
+                      type="button"
+                      onClick={() => exportPlanningToProduction(selectedDate)}
+                      disabled={syncingBridge}
+                      className="bg-[#00BFFF] hover:bg-sky-500 disabled:bg-slate-300 disabled:text-slate-400 text-white font-black px-3 py-1 cursor-pointer rounded-lg text-[9px] uppercase tracking-wider transition-all shadow-xs flex items-center gap-1 disabled:cursor-not-allowed"
+                    >
+                      {syncingBridge ? <Clock className="w-3 animate-spin"/> : <RotateCcw className="w-3"/>}
+                      Force-Exporter
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {bridgeSuccessDate && (
+                <div className="p-2 bg-emerald-50 border border-emerald-150 rounded-xl flex items-center gap-2 text-emerald-700 text-[9px] font-extrabold uppercase animate-fade-in">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Succès : Planification du {formatFrenchDate(bridgeSuccessDate)} synchronisée !</span>
+                </div>
+              )}
             </div>
-
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-              <p className="text-[11px] text-slate-600 font-bold max-w-xl leading-relaxed">
-                Cette passerelle résout directement les divergences de saisie. En sélectionnant une date ci-dessous, le pont de données va extraire la planification enregistrée sur Firestore et l'injecter au registre de réel, tout en filtrant intelligemment les chantiers inoccupés sans mineur et aide-mineur pour éviter de polluer l'affichage.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3 bg-slate-50 border border-slate-200/60 p-3 rounded-xl shrink-0">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[8px] font-black uppercase tracking-wider text-[#00BFFF]">Date à synchroniser :</span>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="bg-white text-slate-900 font-extrabold text-[11px] border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-[#00BFFF]/50 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Action :</span>
-                  <button
-                    type="button"
-                    onClick={() => exportPlanningToProduction(selectedDate)}
-                    disabled={syncingBridge}
-                    className="bg-[#00BFFF] hover:bg-sky-500 disabled:bg-slate-300 disabled:text-slate-400 text-white font-black px-4 py-1.5 rounded-lg text-[10px] uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
-                  >
-                    {syncingBridge ? (
-                      <>
-                        <Clock className="w-3.5 h-3.5 animate-spin text-white" /> Exécution...
-                      </>
-                    ) : (
-                      <>
-                        <RotateCcw className="w-3.5 h-3.5 text-white" /> Force-Exporter
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {bridgeSuccessDate && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-emerald-700 text-[10px] font-bold uppercase animate-fade-in">
-                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span>Succès : La planification du {formatFrenchDate(bridgeSuccessDate)} a été poussée avec succès vers le registre de fond ! Les lignes vides sans mineur ont été automatiquement masquées.</span>
-              </div>
-            )}
-          </div>
+          )}
           
           {draftAvailable && (
-            <div className="bg-amber-50 border-l-4 border-amber-500 p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-sm rounded-none border border-amber-200">
-              <div className="flex gap-3 items-center">
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+            <div className="bg-amber-50/60 border-l-4 border-amber-500 p-3 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs rounded-xl border border-amber-200 animate-fade-in">
+              <div className="flex gap-2.5 items-center">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                 <div>
-                  <h4 className="text-xs font-black uppercase text-amber-950 tracking-wider">📝 Brouillon de saisie locale détecté</h4>
-                  <p className="text-[11px] text-amber-900 font-bold mt-0.5">
-                    Le système d'enregistrement Hydromines a automatiquement récupéré des modifications locales non sauvegardées pour le <span className="underline">{selectedDate}</span>. Voulez-vous restaurer votre session de travail ?
+                  <h4 className="text-[11px] font-black uppercase text-amber-955 tracking-wider">📝 Brouillon détecté</h4>
+                  <p className="text-[10px] text-amber-800 font-bold mt-0.5">
+                    Des modifications locales non sauvegardées existent pour le {selectedDate}.
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2 text-xs font-black shrink-0 mt-2 sm:mt-0">
+              <div className="flex gap-1.5 text-xs font-black shrink-0">
                 <button
                   type="button"
                   onClick={restoreDraft}
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 font-bold uppercase text-[10px] tracking-wider transition-colors cursor-pointer"
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded-lg font-bold uppercase text-[9px] tracking-wider transition-colors cursor-pointer"
                 >
-                  Restaurer le Brouillon
+                  Restaurer
                 </button>
                 <button
                   type="button"
                   onClick={discardDraft}
-                  className="bg-transparent hover:bg-slate-200 text-slate-500 px-3 py-1.5 font-bold uppercase text-[10px] tracking-wider transition-colors cursor-pointer"
+                  className="bg-transparent hover:bg-slate-200 text-slate-500 px-2 py-1 rounded-lg font-bold uppercase text-[9px] tracking-wider transition-colors cursor-pointer"
                 >
                   Ignorer
                 </button>
@@ -3359,39 +3329,39 @@ export const Production: React.FC = () => {
           )}
 
           {isTemplateLoaded && (
-            <div className="bg-sky-50/50 border border-sky-200/50 rounded-2xl p-4 flex gap-3.5 items-center shadow-xs animate-fade-in mb-4">
-              <Info className="w-5 h-5 text-[#00BFFF] shrink-0" />
+            <div className="bg-sky-50/50 border border-sky-200/40 rounded-2xl p-3 flex gap-2.5 items-center shadow-xs animate-fade-in mb-4">
+              <Info className="w-4 h-4 text-[#00BFFF] shrink-0" />
               <div>
-                <h4 className="text-xs font-black uppercase text-sky-900 tracking-wider">
-                  {planFoundType === 'same_date' ? "Plan théorique du Jour Chargé" : "Plan théorique d'Hier Chargé"}
+                <h4 className="text-[11px] font-black uppercase text-sky-900 tracking-wider">
+                  Plan de référence pré-chargé ({templateDateHint})
                 </h4>
-                <p className="text-[11px] text-sky-800 font-bold mt-0.5">
-                  Ce registre n'est pas encore enregistré. Les lignes ont été pré-remplies automatiquement à partir de la planification du <span className="underline">{templateDateHint}</span> pour vous permettre de simplement saisir les réalisés.
+                <p className="text-[10px] text-sky-800/80 font-bold mt-0.5">
+                  Lignes pré-remplies automatiquement à partir de la planification du {templateDateHint}.
                 </p>
               </div>
             </div>
           )}
 
           {exactPlanMissing && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-sm rounded-xl border border-red-200 mb-4 animate-fade-in" id="exact_plan_missing_alert">
-              <div className="flex gap-3 items-center">
-                <AlertTriangle className="w-5 h-5 text-red-650 shrink-0 animate-pulse" />
+            <div className="bg-red-50/60 border-l-4 border-red-500 p-3 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs rounded-xl border border-red-200 mb-4 animate-fade-in" id="exact_plan_missing_alert">
+              <div className="flex gap-2.5 items-center">
+                <AlertTriangle className="w-4 h-4 text-red-650 shrink-0 animate-pulse" />
                 <div>
-                  <h4 className="text-xs font-black uppercase text-red-950 tracking-wider">⚠️ Absence de plan de référence</h4>
-                  <p className="text-[11px] text-red-900 font-bold mt-0.5">
-                    Aucune planification trouvée pour le {formatFrenchDate(selectedDate)}. Le réalisé saisi ne sera lié à aucun plan de référence.
+                  <h4 className="text-[11px] font-black uppercase text-red-955 tracking-wider">⚠️ Aucun plan de référence</h4>
+                  <p className="text-[10px] text-red-900 font-bold mt-0.5">
+                    Aucune planification pour le {formatFrenchDate(selectedDate)}.
                   </p>
                 </div>
               </div>
               {!forceFreeEntryApproved && (
-                <div className="shrink-0 mt-2 sm:mt-0">
+                <div className="shrink-0">
                   <button
                     type="button"
                     onClick={() => setForceFreeEntryApproved(true)}
-                    className="bg-red-600 hover:bg-red-700 text-white font-extrabold uppercase text-[10px] tracking-wider px-4 py-2 rounded-lg transition-colors cursor-pointer shadow-xs"
+                    className="bg-red-650 hover:bg-red-700 text-white font-extrabold uppercase text-[9px] tracking-wider px-3 py-1 rounded-lg transition-colors cursor-pointer shadow-xs"
                     id="btn_confirm_free_entry"
                   >
-                    Continuer en saisie libre, sans plan de référence
+                    Saisie libre sans plan
                   </button>
                 </div>
               )}
@@ -3400,22 +3370,22 @@ export const Production: React.FC = () => {
 
           <div className="relative">
             {exactPlanMissing && !forceFreeEntryApproved && (
-              <div className="absolute inset-x-0 top-0 bottom-0 bg-slate-900/40 backdrop-blur-xs rounded-2xl z-40 flex flex-col items-center justify-center p-6 text-center" id="free_entry_blocker_overlay" style={{ minHeight: '300px' }}>
-                <div className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full border border-gray-100 flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                    <AlertTriangle className="w-6 h-6 text-red-650" />
+              <div className="absolute inset-x-0 top-0 bottom-0 bg-slate-900/30 backdrop-blur-xs rounded-2xl z-40 flex flex-col items-center justify-center p-4 text-center" id="free_entry_blocker_overlay" style={{ minHeight: '260px' }}>
+                <div className="bg-white p-5 rounded-2xl shadow-xl max-w-sm w-full border border-gray-100 flex flex-col items-center">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-3">
+                    <AlertTriangle className="w-5 h-5 text-red-650" />
                   </div>
-                  <h3 className="text-sm font-black text-gray-950 uppercase tracking-wider mb-2">Saisie Libre Requise</h3>
-                  <p className="text-xs text-gray-600 font-medium mb-5 leading-relaxed">
-                    Aucun plan n'existe pour le {formatFrenchDate(selectedDate)}. Pour commencer la saisie sans plan de référence, veuillez confirmer ci-dessous.
+                  <h3 className="text-xs font-black text-gray-950 uppercase tracking-wider mb-1.5">Aucun plan de référence</h3>
+                  <p className="text-[11px] text-gray-600 font-bold mb-4 leading-relaxed">
+                    Saisie libre sans planification pour la journée du {formatFrenchDate(selectedDate)}.
                   </p>
                   <button
                     type="button"
                     onClick={() => setForceFreeEntryApproved(true)}
-                    className="w-full bg-red-600 hover:bg-red-750 text-white font-extrabold uppercase text-[11px] tracking-wider py-2.5 px-4 rounded-xl transition-colors cursor-pointer shadow-md"
+                    className="w-full bg-red-650 hover:bg-red-750 text-white font-extrabold uppercase text-[10px] tracking-wider py-2 px-4 rounded-xl transition-colors cursor-pointer shadow-md"
                     id="btn_confirm_free_entry_overlay"
                   >
-                    Continuer en saisie libre
+                    Confirmer la saisie libre
                   </button>
                 </div>
               </div>
