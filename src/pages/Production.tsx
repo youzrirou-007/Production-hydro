@@ -78,6 +78,7 @@ interface ExcelMinage {
   realHoles: number; // trous forés
   plannedRounds: number;
   realRounds: number; // Nombre de volées
+  barType?: '1.8m' | '2.4m';
   meterage: number; // realRounds * 1.7
   realMeterage: number; // métrage arraché (new field)
   anfo: number; // ANFO kg
@@ -551,8 +552,8 @@ export const Production: React.FC = () => {
     plan.treuilliste = planTreuilliste;
     reel.treuilliste = reelTreuilliste;
 
-    if (!plan.wagonsTarget) plan.wagonsTarget = 48;
-    if (!reel.wagonsTarget) reel.wagonsTarget = plan.wagonsTarget || 48;
+    if (plan.wagonsTarget === undefined || plan.wagonsTarget === null) plan.wagonsTarget = 48;
+    if (reel.wagonsTarget === undefined || reel.wagonsTarget === null) reel.wagonsTarget = (plan.wagonsTarget !== undefined && plan.wagonsTarget !== null) ? plan.wagonsTarget : 48;
 
     return [{
       rowId: first.rowId || 'extraction_single_fixed',
@@ -626,6 +627,7 @@ export const Production: React.FC = () => {
       if (typeName === 'minage') {
         const gSize = plannedItem?.gallerySize || (plannedItem?.galleryType === '9m2' ? 9 : 12);
         reelValue.gallerySize = gSize;
+        reelValue.barType = plannedItem?.barType || '1.8m';
         reelValue.minerMatricule = plannedItem?.minerMatricule || '';
         reelValue.minerName = plannedItem?.minerName || '';
         reelValue.assistantMatricule = plannedItem?.assistantMatricule || '';
@@ -643,6 +645,16 @@ export const Production: React.FC = () => {
         reelValue.roleLabel = plannedItem?.roleLabel || '';
         reelValue.engineId = plannedItem?.engineId || '';
         reelValue.engineCode = plannedItem?.engineCode || '';
+      } else if (typeName === 'extraction') {
+        reelValue.treuilliste = plannedItem?.treuilliste || '';
+        reelValue.equipier1 = plannedItem?.equipier1 || '';
+        reelValue.equipier2 = plannedItem?.equipier2 || '';
+        reelValue.equipier3 = plannedItem?.equipier3 || '';
+        reelValue.equipier4 = plannedItem?.equipier4 || '';
+        reelValue.wagonsTarget = plannedItem?.wagonsTarget !== undefined && plannedItem?.wagonsTarget !== null ? Number(plannedItem.wagonsTarget) : 48;
+        reelValue.wagonsActual = plannedItem?.wagonsActual !== undefined && plannedItem?.wagonsActual !== null ? Number(plannedItem.wagonsActual) : 0;
+        reelValue.sterileBureImiterEst = plannedItem?.sterileBureImiterEst !== undefined && plannedItem?.sterileBureImiterEst !== null ? Number(plannedItem.sterileBureImiterEst) : 0;
+        reelValue.installationName = plannedItem?.installationName || plannedItem?.chantierName || 'Bure';
       }
       
       return {
@@ -658,10 +670,18 @@ export const Production: React.FC = () => {
     return arr.filter((item: any) => {
       if (!item) return false;
       if (type === 'minage') {
+        const plannedHoles = item.plannedHoles !== undefined && item.plannedHoles !== null ? Number(item.plannedHoles) : 0;
+        const plannedRounds = item.plannedRounds !== undefined && item.plannedRounds !== null ? Number(item.plannedRounds) : 0;
+        const meterage = item.meterage !== undefined && item.meterage !== null ? Number(item.meterage) : 0;
+        
+        if (plannedHoles === 0 && plannedRounds === 0 && meterage === 0) {
+          return false;
+        }
+
         // Enforce having an assigned miner or assistant, or planned holes/rounds/meterage to show active chantiers
         const hasChantier = !!(item.chantierId || item.chantierName);
         const hasCrew = !!(item.minerMatricule || item.minerName || item.assistantMatricule || item.assistantName);
-        const hasPlannedWork = !!(item.plannedHoles > 0 || item.plannedRounds > 0 || item.meterage > 0);
+        const hasPlannedWork = !!(plannedHoles > 0 || plannedRounds > 0 || meterage > 0);
         return hasChantier && (hasCrew || hasPlannedWork);
       }
       if (type === 'deblayage') {
@@ -732,6 +752,8 @@ export const Production: React.FC = () => {
 
   // Local draft state to prevent losing inputted data
   const [draftAvailable, setDraftAvailable] = useState<boolean>(false);
+  const [exactPlanMissing, setExactPlanMissing] = useState<boolean>(false);
+  const [forceFreeEntryApproved, setForceFreeEntryApproved] = useState<boolean>(false);
 
   // Dynamically merged vectors with fallbacks for high uptime
   const activeSectors = chantiers.length > 0 ? chantiers : DEFAULT_SECTORS;
@@ -964,7 +986,7 @@ export const Production: React.FC = () => {
     const minageImiter2: ExcelMinage[] = Array.from({ length: lengthImiter2 }, (_, i) => {
       const matchingPlan = plansImiter2[i];
       if (matchingPlan) {
-        const m = (matchingPlan.plannedRounds || 1) * 1.7;
+        const m = (matchingPlan.plannedRounds || 1) * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
         return {
           sector: 'Imiter 2',
           chantierId: matchingPlan.chantierId || '',
@@ -979,6 +1001,7 @@ export const Production: React.FC = () => {
           realHoles: matchingPlan.plannedHoles || 32,
           plannedRounds: matchingPlan.plannedRounds || 1,
           realRounds: matchingPlan.plannedRounds || 1,
+          barType: matchingPlan.barType || '1.8m',
           meterage: m,
           realMeterage: m,
           anfo: matchingPlan.explosives?.anfo || 50,
@@ -993,7 +1016,7 @@ export const Production: React.FC = () => {
         chiefName: '',
         minerMatricule: '', minerName: '',
         assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: 32, realHoles: 32,
-        plannedRounds: 1, realRounds: 1, meterage: 1.7, realMeterage: 1.7, anfo: 0, tovex: 0, ammorces: 0
+        plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, realMeterage: 1.7, anfo: 0, tovex: 0, ammorces: 0
       };
     });
 
@@ -1001,7 +1024,7 @@ export const Production: React.FC = () => {
     const minageImiter1: ExcelMinage[] = Array.from({ length: lengthImiter1 }, (_, i) => {
       const matchingPlan = plansImiter1[i];
       if (matchingPlan) {
-        const m = (matchingPlan.plannedRounds || 1) * 1.7;
+        const m = (matchingPlan.plannedRounds || 1) * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
         return {
           sector: 'Imiter 1',
           chantierId: matchingPlan.chantierId || '',
@@ -1016,6 +1039,7 @@ export const Production: React.FC = () => {
           realHoles: matchingPlan.plannedHoles || 32,
           plannedRounds: matchingPlan.plannedRounds || 1,
           realRounds: matchingPlan.plannedRounds || 1,
+          barType: matchingPlan.barType || '1.8m',
           meterage: m,
           realMeterage: m,
           anfo: matchingPlan.explosives?.anfo || 50,
@@ -1030,7 +1054,7 @@ export const Production: React.FC = () => {
         chiefName: '',
         minerMatricule: '', minerName: '',
         assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: 32, realHoles: 32,
-        plannedRounds: 1, realRounds: 1, meterage: 1.7, realMeterage: 1.7, anfo: 0, tovex: 0, ammorces: 0
+        plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, realMeterage: 1.7, anfo: 0, tovex: 0, ammorces: 0
       };
     });
 
@@ -1038,7 +1062,7 @@ export const Production: React.FC = () => {
     const minageImiterEst: ExcelMinage[] = Array.from({ length: lengthImiterEst }, (_, i) => {
       const matchingPlan = plansImiterEst[i];
       if (matchingPlan) {
-        const m = (matchingPlan.plannedRounds || 1) * 1.7;
+        const m = (matchingPlan.plannedRounds || 1) * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
         return {
           sector: 'Imiter Est',
           chantierId: matchingPlan.chantierId || '',
@@ -1053,6 +1077,7 @@ export const Production: React.FC = () => {
           realHoles: matchingPlan.plannedHoles || 32,
           plannedRounds: matchingPlan.plannedRounds || 1,
           realRounds: matchingPlan.plannedRounds || 1,
+          barType: matchingPlan.barType || '1.8m',
           meterage: m,
           realMeterage: m,
           anfo: matchingPlan.explosives?.anfo || 50,
@@ -1067,7 +1092,7 @@ export const Production: React.FC = () => {
         chiefName: '',
         minerMatricule: '', minerName: '',
         assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: 32, realHoles: 32,
-        plannedRounds: 1, realRounds: 1, meterage: 1.7, realMeterage: 1.7, anfo: 0, tovex: 0, ammorces: 0
+        plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, realMeterage: 1.7, anfo: 0, tovex: 0, ammorces: 0
       };
     });
 
@@ -1170,6 +1195,28 @@ export const Production: React.FC = () => {
   };
 
   const loadGlobalWorkbook = async (force: boolean = false) => {
+    // 1. Check if an exploitable exact plan exists for D (even if a production doc or draft already exists)
+    try {
+      const planRefForD = doc(db, 'daily_planning_sheets', selectedDate);
+      const planSnapForD = await getDoc(planRefForD);
+      let exactPlanExistsAndExploitable = false;
+      if (planSnapForD.exists()) {
+        const pd = planSnapForD.data();
+        const hasMinage = !!(pd?.postes?.poste1?.minage?.length || pd?.postes?.poste2?.minage?.length || pd?.postes?.poste3?.minage?.length);
+        const hasDeblayage = !!(pd?.postes?.poste1?.deblayage?.length || pd?.postes?.poste2?.deblayage?.length || pd?.postes?.poste3?.deblayage?.length);
+        const hasExtraction = !!(pd?.postes?.poste1?.extraction?.length || pd?.postes?.poste2?.extraction?.length || pd?.postes?.poste3?.extraction?.length);
+        const hasMaintenance = !!(pd?.postes?.poste1?.maintenance?.length || pd?.postes?.poste2?.maintenance?.length || pd?.postes?.poste3?.maintenance?.length);
+        
+        if (hasMinage || hasDeblayage || hasExtraction || hasMaintenance) {
+          exactPlanExistsAndExploitable = true;
+        }
+      }
+      setExactPlanMissing(!exactPlanExistsAndExploitable);
+      setForceFreeEntryApproved(false);
+    } catch (e) {
+      console.warn("Error checking exact plan existence: ", e);
+    }
+
     const savedDraft = localStorage.getItem(`draft_production_${selectedDate}`);
     if (!force && savedDraft) {
       const confirmReload = window.confirm("⚠️ Attention : Vous avez des saisies de brouillon locales non enregistrées. Recharger les données depuis le serveur principal écrasera vos modifications actuelles si vous ne les restaurez pas via la barre d'alerte. Voulez-vous vraiment continuer ?");
@@ -1483,8 +1530,8 @@ export const Production: React.FC = () => {
         gallerySize: row.plan.gallerySize || row.reel.gallerySize || 12,
         realHoles: row.plan.plannedHoles || row.reel.realHoles || 0,
         realRounds: row.plan.plannedRounds || row.reel.realRounds || 0,
-        realMeterage: row.plan.plannedRounds ? (row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
-        meterage: row.plan.plannedRounds ? (row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
+        realMeterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
+        meterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
       };
       clone[originalIndex] = { ...row, reel: updatedReel };
       setMinageRows(clone);
@@ -1514,8 +1561,8 @@ export const Production: React.FC = () => {
           gallerySize: row.plan.gallerySize || row.reel.gallerySize || 12,
           realHoles: row.plan.plannedHoles || row.reel.realHoles || 0,
           realRounds: row.plan.plannedRounds || row.reel.realRounds || 0,
-          realMeterage: row.plan.plannedRounds ? (row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
-          meterage: row.plan.plannedRounds ? (row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
+          realMeterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
+          meterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
         };
         return { ...row, reel: updatedReel };
       });
@@ -1634,9 +1681,9 @@ export const Production: React.FC = () => {
         equipier2: row.plan.equipier2 || row.reel.equipier2 || '',
         equipier3: row.plan.equipier3 || row.reel.equipier3 || '',
         equipier4: row.plan.equipier4 || row.reel.equipier4 || '',
-        wagonsActual: row.plan.wagonsActual || row.reel.wagonsActual || 0,
-        wagonsTarget: row.plan.wagonsTarget || row.reel.wagonsTarget || 48,
-        sterileBureImiterEst: row.plan.sterileBureImiterEst || row.reel.sterileBureImiterEst || 0,
+        wagonsActual: (row.plan.wagonsActual !== undefined && row.plan.wagonsActual !== null) ? row.plan.wagonsActual : (row.reel.wagonsActual || 0),
+        wagonsTarget: (row.plan.wagonsTarget !== undefined && row.plan.wagonsTarget !== null) ? row.plan.wagonsTarget : ((row.reel.wagonsTarget !== undefined && row.reel.wagonsTarget !== null) ? row.reel.wagonsTarget : 48),
+        sterileBureImiterEst: (row.plan.sterileBureImiterEst !== undefined && row.plan.sterileBureImiterEst !== null) ? row.plan.sterileBureImiterEst : (row.reel.sterileBureImiterEst || 0),
         startTime: row.plan.startTime || row.reel.startTime,
         endTime: row.plan.endTime || row.reel.endTime,
       };
@@ -1665,9 +1712,9 @@ export const Production: React.FC = () => {
           equipier2: row.plan.equipier2 || row.reel.equipier2 || '',
           equipier3: row.plan.equipier3 || row.reel.equipier3 || '',
           equipier4: row.plan.equipier4 || row.reel.equipier4 || '',
-          wagonsActual: row.plan.wagonsActual || row.reel.wagonsActual || 0,
-          wagonsTarget: row.plan.wagonsTarget || row.reel.wagonsTarget || 48,
-          sterileBureImiterEst: row.plan.sterileBureImiterEst || row.reel.sterileBureImiterEst || 0,
+          wagonsActual: (row.plan.wagonsActual !== undefined && row.plan.wagonsActual !== null) ? row.plan.wagonsActual : (row.reel.wagonsActual || 0),
+          wagonsTarget: (row.plan.wagonsTarget !== undefined && row.plan.wagonsTarget !== null) ? row.plan.wagonsTarget : ((row.reel.wagonsTarget !== undefined && row.reel.wagonsTarget !== null) ? row.reel.wagonsTarget : 48),
+          sterileBureImiterEst: (row.plan.sterileBureImiterEst !== undefined && row.plan.sterileBureImiterEst !== null) ? row.plan.sterileBureImiterEst : (row.reel.sterileBureImiterEst || 0),
           startTime: row.plan.startTime || row.reel.startTime,
           endTime: row.plan.endTime || row.reel.endTime,
         };
@@ -1768,7 +1815,8 @@ export const Production: React.FC = () => {
       updatedReel.assistantName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
     }
     if (field === 'realRounds') {
-      const computed = Number(value) * 1.7;
+      const advanceFactor = rowWrapper.plan?.barType === '2.4m' || rowWrapper.reel?.barType === '2.4m' ? 2.3 : 1.7;
+      const computed = Number(value) * advanceFactor;
       updatedReel.meterage = computed;
       updatedReel.realMeterage = computed;
     }
@@ -2270,9 +2318,11 @@ export const Production: React.FC = () => {
         if (row.wagonsActual > 0) {
           const avgMin = 360 / row.wagonsActual;
           if (avgMin > 10) {
+            const rowTarget = (row.wagonsTarget !== undefined && row.wagonsTarget !== null) ? Number(row.wagonsTarget) : 48;
+            const pctStr = rowTarget > 0 ? ((row.wagonsActual / rowTarget) * 100).toFixed(0) + '%' : 'Cible non définie';
             logs.push({
               level: 'warning',
-              msg: `🛠️ Extraction (${shiftName}) : Cadence de ${avgMin.toFixed(1)} mins/wagon (Standard requis: 8 mins). Rendement d'extraction actuel : ${((row.wagonsActual / (row.wagonsTarget || 48)) * 100).toFixed(0)}%.`
+              msg: `🛠️ Extraction (${shiftName}) : Cadence de ${avgMin.toFixed(1)} mins/wagon (Standard requis: 8 mins). Rendement d'extraction actuel : ${pctStr}.`
             });
           }
         }
@@ -2286,7 +2336,8 @@ export const Production: React.FC = () => {
           const cName = chantierObj ? chantierObj.name : 'Chantier';
           
           if (blast) {
-            const inSituVol = blast.realRounds * 1.7 * (blast.gallerySize || 12);
+            const advanceFactor = blast.barType === '2.4m' ? 2.3 : 1.7;
+            const inSituVol = blast.realRounds * advanceFactor * (blast.gallerySize || 12);
             const looseVol = inSituVol * 1.5;
             const expectedBuckets = Math.ceil(looseVol / 1.5);
 
@@ -3321,8 +3372,57 @@ export const Production: React.FC = () => {
             </div>
           )}
 
-          {/* SPREADSHEET TABS - Redesigned matching Planning.tsx rounded-2xl style */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-5">
+          {exactPlanMissing && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-sm rounded-xl border border-red-200 mb-4 animate-fade-in" id="exact_plan_missing_alert">
+              <div className="flex gap-3 items-center">
+                <AlertTriangle className="w-5 h-5 text-red-650 shrink-0 animate-pulse" />
+                <div>
+                  <h4 className="text-xs font-black uppercase text-red-950 tracking-wider">⚠️ Absence de plan de référence</h4>
+                  <p className="text-[11px] text-red-900 font-bold mt-0.5">
+                    Aucune planification trouvée pour le {formatFrenchDate(selectedDate)}. Le réalisé saisi ne sera lié à aucun plan de référence.
+                  </p>
+                </div>
+              </div>
+              {!forceFreeEntryApproved && (
+                <div className="shrink-0 mt-2 sm:mt-0">
+                  <button
+                    type="button"
+                    onClick={() => setForceFreeEntryApproved(true)}
+                    className="bg-red-600 hover:bg-red-700 text-white font-extrabold uppercase text-[10px] tracking-wider px-4 py-2 rounded-lg transition-colors cursor-pointer shadow-xs"
+                    id="btn_confirm_free_entry"
+                  >
+                    Continuer en saisie libre, sans plan de référence
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="relative">
+            {exactPlanMissing && !forceFreeEntryApproved && (
+              <div className="absolute inset-x-0 top-0 bottom-0 bg-slate-900/40 backdrop-blur-xs rounded-2xl z-40 flex flex-col items-center justify-center p-6 text-center" id="free_entry_blocker_overlay" style={{ minHeight: '300px' }}>
+                <div className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full border border-gray-100 flex flex-col items-center">
+                  <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                    <AlertTriangle className="w-6 h-6 text-red-650" />
+                  </div>
+                  <h3 className="text-sm font-black text-gray-950 uppercase tracking-wider mb-2">Saisie Libre Requise</h3>
+                  <p className="text-xs text-gray-600 font-medium mb-5 leading-relaxed">
+                    Aucun plan n'existe pour le {formatFrenchDate(selectedDate)}. Pour commencer la saisie sans plan de référence, veuillez confirmer ci-dessous.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setForceFreeEntryApproved(true)}
+                    className="w-full bg-red-600 hover:bg-red-750 text-white font-extrabold uppercase text-[11px] tracking-wider py-2.5 px-4 rounded-xl transition-colors cursor-pointer shadow-md"
+                    id="btn_confirm_free_entry_overlay"
+                  >
+                    Continuer en saisie libre
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SPREADSHEET TABS - Redesigned matching Planning.tsx rounded-2xl style */}
+            <div className={`bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-5 transition-all duration-300 ${exactPlanMissing && !forceFreeEntryApproved ? 'pointer-events-none select-none blur-[1px]' : ''}`}>
             <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-gray-100 pb-3 gap-4">
               <div className="flex flex-wrap gap-1.5 p-1 bg-gray-100 rounded-xl">
                 {[
@@ -3866,7 +3966,8 @@ export const Production: React.FC = () => {
                           const idx = 0;
                           
                           const freqMin = row.wagonsActual > 0 ? (360 / row.wagonsActual).toFixed(1) + ' min' : '0 min';
-                          const pct = ((row.wagonsActual / (row.wagonsTarget || 48)) * 100).toFixed(0);
+                          const targetVal = row.wagonsTarget !== undefined && row.wagonsTarget !== null ? Number(row.wagonsTarget) : 48;
+                          const pct = targetVal > 0 ? ((row.wagonsActual / targetVal) * 100).toFixed(0) : '0';
 
                           const pTreuillisteName = getEmployeeName(plan.treuilliste);
                           const rTreuillisteName = getEmployeeName(row.treuilliste);
@@ -3890,9 +3991,28 @@ export const Production: React.FC = () => {
                           const eq4Mismatch = !!(row.equipier4 && plan.equipier4 && row.equipier4.trim().toUpperCase() !== plan.equipier4.trim().toUpperCase());
                           const hasMismatch = treuillisteMismatch || eq1Mismatch || eq2Mismatch || eq3Mismatch || eq4Mismatch;
 
-                          const wagonsTarget = row.wagonsTarget || 48;
+                          const wagonsTarget = (row.wagonsTarget !== undefined && row.wagonsTarget !== null) ? Number(row.wagonsTarget) : 48;
                           const realWagons = row.wagonsActual || 0;
                           const realPct = wagonsTarget > 0 ? (realWagons / wagonsTarget) * 100 : 0;
+                          const diffWagonsPct = wagonsTarget > 0 ? ((realWagons - wagonsTarget) / wagonsTarget) * 100 : 0;
+
+                          let speedLabel = 'SOUS-KPI';
+                          let speedColor = 'bg-rose-950/50 text-rose-300 border-rose-800 animate-pulse';
+                          if (wagonsTarget === 0) {
+                            if (realWagons === 0) {
+                              speedLabel = "PAS D'EXTRACTION PRÉVUE";
+                              speedColor = 'bg-slate-800/80 text-slate-400 border-slate-700';
+                            } else {
+                              speedLabel = 'EXTRACTION NON PLANIFIÉE';
+                              speedColor = 'bg-emerald-950/50 text-emerald-300 border-emerald-800';
+                            }
+                          } else if (diffWagonsPct >= 0) {
+                            speedLabel = 'CIBLE ATTEINTE';
+                            speedColor = 'bg-emerald-950/50 text-emerald-300 border-emerald-800';
+                          } else if (diffWagonsPct >= -15) {
+                            speedLabel = 'CORRECT';
+                            speedColor = 'bg-blue-950/50 text-blue-300 border-blue-800';
+                          }
 
                           const getHoursBetween = (start: string, end: string) => {
                             if (!start || !end) return 6.5;
@@ -4134,12 +4254,18 @@ export const Production: React.FC = () => {
                                       <div className="space-y-1.5 font-bold">
                                         <div className="flex justify-between text-slate-300">
                                           <span className="text-[8px] font-black uppercase">Réalisation Objectif</span>
-                                          <span className="font-mono text-white font-extrabold">{realWagons} / {wagonsTarget} Wg ({realPct.toFixed(1)}%)</span>
+                                          <span className="font-mono text-white font-extrabold">{realWagons} / {wagonsTarget} Wg</span>
                                         </div>
-                                        <div className="w-full bg-slate-800 h-2 border border-white/10 rounded overflow-hidden">
+                                        <div className="flex items-center justify-between gap-1 mt-1">
+                                          <span className="text-[8px] text-slate-400 font-bold uppercase">Écart vs Objectif</span>
+                                          <span className={`inline-flex px-2 py-0.5 border text-[9px] font-black uppercase rounded ${speedColor}`}>
+                                            {wagonsTarget === 0 ? (realWagons === 0 ? "PAS D'EXTRACTION PRÉVUE" : `+${realWagons} Wg — ${speedLabel}`) : `${diffWagonsPct > 0 ? '+' : ''}${diffWagonsPct.toFixed(1)}% — ${speedLabel}`}
+                                          </span>
+                                        </div>
+                                        <div className="w-full bg-slate-800 h-2 border border-white/10 rounded overflow-hidden mt-1">
                                           <div 
-                                            className={`h-full transition-all duration-300 ${realPct >= 100 ? 'bg-emerald-500' : realPct >= 50 ? 'bg-[#00BFFF]' : 'bg-[#8B0000]'}`} 
-                                            style={{ width: `${Math.min(100, realPct)}%` }}
+                                            className={`h-full transition-all duration-300 ${wagonsTarget === 0 ? (realWagons === 0 ? 'bg-slate-600' : 'bg-emerald-500') : (diffWagonsPct >= 0 ? 'bg-emerald-500' : diffWagonsPct >= -15 ? 'bg-[#00BFFF]' : 'bg-[#8B0000]')}`} 
+                                            style={{ width: `${wagonsTarget === 0 ? (realWagons === 0 ? 0 : 100) : Math.min(100, Math.max(0, realPct))}%` }}
                                           ></div>
                                         </div>
                                       </div>
@@ -4205,7 +4331,7 @@ export const Production: React.FC = () => {
                           <th className="p-3 text-center border border-slate-350 bg-slate-700 font-bold">Objectif du Poste (u)</th>
                           <th className="p-3 text-center border border-slate-350 text-amber-100 bg-amber-950/30 font-bold">Stérile Extrait (Wagons)</th>
                           <th className="p-3 text-center border border-slate-350 bg-slate-700">Total Wagons Transférés (u)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-blue-950/30 text-blue-100">Taux Réalisation Objectif (%)</th>
+                          <th className="p-3 text-center border border-slate-350 bg-blue-950/30 text-blue-100">Écart vs Objectif (%)</th>
                           <th className="p-3 text-center border border-slate-350 bg-red-950/25 text-[#8B0000]">Ratio Stérile (%)</th>
                         </tr>
                       </thead>
@@ -4219,19 +4345,19 @@ export const Production: React.FC = () => {
 
                           const stats = shiftsList.map(s => {
                             const wagons = s.rows.reduce((sum, r) => sum + (Number(r.reel.wagonsActual) || 0), 0);
-                            const target = s.rows.reduce((sum, r) => sum + (Number(r.reel.wagonsTarget) || 48), 0);
+                            const target = s.rows.reduce((sum, r) => sum + (r.reel.wagonsTarget !== undefined && r.reel.wagonsTarget !== null ? Number(r.reel.wagonsTarget) : 48), 0);
                             const sterile = s.rows.reduce((sum, r) => sum + (Number(r.reel.sterileBureImiterEst) || 0), 0);
                             const totalWag = wagons + sterile;
-                            const pct = target > 0 ? ((wagons / target) * 105).toFixed(1) : '0'; // Adjust target ratio calculation
+                            const diffWagonsPct = target > 0 ? ((wagons - target) / target) * 100 : 0;
                             const sterilePct = totalWag > 0 ? ((sterile / totalWag) * 100).toFixed(1) : '0';
-                            return { name: s.name, wagons, target, sterile, totalWag, pct, sterilePct };
+                            return { name: s.name, wagons, target, sterile, totalWag, diffWagonsPct, sterilePct };
                           });
 
                           const totalWagons = stats.reduce((sum, e) => sum + e.wagons, 0);
                           const totalTarget = stats.reduce((sum, e) => sum + e.target, 0);
                           const totalSterile = stats.reduce((sum, e) => sum + e.sterile, 0);
                           const totalTransferred = totalWagons + totalSterile;
-                          const totalPct = totalTarget > 0 ? ((totalWagons / totalTarget) * 100).toFixed(1) : '0';
+                          const totalDiffWagonsPct = totalTarget > 0 ? ((totalWagons - totalTarget) / totalTarget) * 100 : 0;
                           const totalSterilePct = totalTransferred > 0 ? ((totalSterile / totalTransferred) * 100).toFixed(1) : '0';
 
                           return (
@@ -4243,7 +4369,27 @@ export const Production: React.FC = () => {
                                   <td className="p-3 text-center border border-slate-200 font-mono">{s.target}</td>
                                   <td className="p-3 text-center border border-slate-200 font-mono text-amber-800 bg-amber-50/30">{s.sterile} Wg.</td>
                                   <td className="p-3 text-center border border-slate-200 font-mono text-slate-600">{s.totalWag}</td>
-                                  <td className="p-3 text-center border border-slate-200 font-mono text-blue-800 bg-blue-50/20">{s.pct}%</td>
+                                  <td className="p-3 text-center border border-slate-200 font-mono">
+                                    {s.target === 0 ? (
+                                      s.wagons === 0 ? (
+                                        <span className="inline-flex px-1.5 py-0.5 border text-[10px] font-bold rounded bg-slate-50 text-slate-500 border-slate-200">
+                                          PAS D'EXTRACTION PRÉVUE
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex px-1.5 py-0.5 border text-[10px] font-bold rounded bg-emerald-50 text-emerald-800 border-emerald-250">
+                                          +{s.wagons} Wg (EXTRACTION NON PLANIFIÉE)
+                                        </span>
+                                      )
+                                    ) : (
+                                      <span className={`inline-flex px-1.5 py-0.5 border text-[10px] font-bold rounded ${
+                                        s.diffWagonsPct >= 0 
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-250' 
+                                          : (s.diffWagonsPct >= -15 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-rose-50 text-rose-700 border-rose-200')
+                                      }`}>
+                                        {s.diffWagonsPct > 0 ? '+' : ''}{s.diffWagonsPct.toFixed(1)}%
+                                      </span>
+                                    )}
+                                  </td>
                                   <td className="p-3 text-center border border-slate-200 font-mono text-red-750 bg-red-50/25">{s.sterilePct}%</td>
                                 </tr>
                               ))}
@@ -4255,7 +4401,27 @@ export const Production: React.FC = () => {
                                 <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalTarget}</td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-amber-950 bg-amber-100/30 text-xs">{totalSterile} Wg.</td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalTransferred}</td>
-                                <td className="p-3 text-center border border-slate-200 font-mono text-blue-950 bg-blue-100/30 text-xs font-black">{totalPct}%</td>
+                                <td className="p-3 text-center border border-slate-200 font-mono text-xs font-black">
+                                  {totalTarget === 0 ? (
+                                    totalWagons === 0 ? (
+                                      <span className="inline-flex px-1.5 py-0.5 border text-[10px] font-black rounded bg-slate-50 text-slate-500 border-slate-200">
+                                        PAS D'EXTRACTION PRÉVUE
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex px-1.5 py-0.5 border text-[10px] font-black rounded bg-emerald-50 text-emerald-800 border-emerald-250">
+                                        +{totalWagons} Wg (EXTRACTION NON PLANIFIÉE)
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className={`inline-flex px-1.5 py-0.5 border text-[10px] font-black rounded ${
+                                      totalDiffWagonsPct >= 0 
+                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-250' 
+                                        : (totalDiffWagonsPct >= -15 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-rose-50 text-rose-700 border-rose-200')
+                                    }`}>
+                                      {totalDiffWagonsPct > 0 ? '+' : ''}{totalDiffWagonsPct.toFixed(1)}%
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-red-950 bg-red-100/30 text-xs font-black">{totalSterilePct}%</td>
                               </tr>
                             </>
@@ -4451,6 +4617,7 @@ export const Production: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
 
           {/* REALTIME SYSTEM ANOMALIES & AUDITS FOR THE RESPONSIBLES (RED AND AMBER WARNINGS) */}
           {anomalies.length > 0 && (

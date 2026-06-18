@@ -16,6 +16,7 @@ interface ExcelMinage {
   realHoles: number;
   plannedRounds: number;
   realRounds: number;
+  barType?: '1.8m' | '2.4m';
   meterage: number;
   anfo: number;
   tovex: number;

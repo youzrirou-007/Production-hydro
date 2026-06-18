@@ -1,228 +1,639 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Search, Filter, Calendar, MapPin, Layers, Clock, ChevronDown, Download } from 'lucide-react';
-import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
+import { 
+  Calendar, 
+  MapPin, 
+  Layers, 
+  Clock, 
+  Download, 
+  HardHat, 
+  Bomb, 
+  Truck, 
+  Cpu, 
+  AlertTriangle, 
+  CheckCircle,
+  HelpCircle,
+  Gauge,
+  Workflow
+} from 'lucide-react';
+import { collection, query, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
+import { ExcelExportButton } from '../components/ExcelExportButton';
 
 export const DailyReport: React.FC = () => {
-  const [data, setData] = useState<any[]>([]);
-  const [chantiers, setChantiers] = useState<any[]>([]);
-  const [filterChantier, setFilterChantier] = useState('all');
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [activeTab, setActiveTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance'>('minage');
+  const [dayProduction, setDayProduction] = useState<any | null>(null);
+  const [chantiers, setChantiers] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Subscribe to chantiers, personnel, and daily production
   useEffect(() => {
-    // Load Chantiers for filter
+    // 1. Chantiers
     const qChan = query(collection(db, 'chantiers'));
     const unsubChan = onSnapshot(qChan, (snap) => {
-      setChantiers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setChantiers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    // Load Production Data
-    const qProd = query(collection(db, 'production'));
-    const unsubProd = onSnapshot(qProd, (snap) => {
-      const allRows: any[] = [];
-      snap.docs.forEach(docSnap => {
-        const docData = docSnap.data();
-        const date = docData.date || docSnap.id;
-        if (docData.postes) {
-          Object.entries(docData.postes).forEach(([pKey, pVal]: [string, any]) => {
-            const postName = pKey === 'poste1' ? 'Poste 1' : pKey === 'poste2' ? 'Poste 2' : 'Poste 3';
-            if (pVal.minage && Array.isArray(pVal.minage)) {
-              pVal.minage.forEach((row: any) => {
-                if (row.chantierId) {
-                  allRows.push({
-                    id: `${docSnap.id}_${pKey}_minage_${row.chantierId}`,
-                    date,
-                    post: postName,
-                    chantierId: row.chantierId,
-                    chantierName: row.chantierName || 'Slick',
-                    chiefName: row.chiefName || pVal.chiefName || '',
-                    minerName: row.minerName || '',
-                    assistantName: row.assistantName || '',
-                    gallerySize: row.gallerySize || 12,
-                    holeCount: row.realHoles || 0,
-                    rounds: row.realRounds || 0,
-                    meterage: row.realMeterage || 0,
-                    meteragePlanned: row.meterage || 0,
-                    explosives: row.explosives || { anfo: 0, tovex: 0, ammorces: 0 },
-                    timestamp: docData.timestamp || ''
-                  });
-                }
-              });
-            }
-          });
-        }
-      });
-      // Sort all rows by date desc, then shift asc
-      allRows.sort((a, b) => {
-        const dCompare = b.date.localeCompare(a.date);
-        if (dCompare !== 0) return dCompare;
-        return a.post.localeCompare(b.post);
-      });
-      setData(allRows);
+    // 2. Personnel
+    const qRH = query(collection(db, 'personnel'));
+    const unsubRH = onSnapshot(qRH, (snap) => {
+      setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      unsubChan();
+      unsubRH();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!filterDate) return;
+    setLoading(true);
+    const docRef = doc(db, 'production', filterDate);
+    const unsub = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        setDayProduction(snap.data());
+      } else {
+        setDayProduction(null);
+      }
+      setLoading(false);
+    }, (err) => {
+      console.error("Error loading daily report production: ", err);
       setLoading(false);
     });
 
-    return () => { unsubChan(); unsubProd(); };
-  }, []);
+    return unsub;
+  }, [filterDate]);
 
-  const filteredData = data.map(item => {
-    const matchedChan = chantiers.find(c => c.id === item.chantierId);
-    return {
-      ...item,
-      chantierName: matchedChan ? matchedChan.name : item.chantierName
-    };
-  }).filter(r => {
-    const matchesChantier = filterChantier === 'all' || r.chantierId === filterChantier;
-    const matchesDate = !filterDate || r.date === filterDate;
-    return matchesChantier && matchesDate;
-  });
-
-  const getYieldInfo = (meterage: number, rounds: number) => {
-    if (!rounds || rounds === 0) return { label: 'N/A', color: 'text-gray-300' };
-    const yieldValue = meterage / rounds;
-    if (yieldValue >= 1.5) return { label: 'BON RENDEMENT', color: 'text-green-600' };
-    if (yieldValue <= 1.3) return { label: 'FAIBLE RENDEMENT', color: 'text-red-600' };
-    return { label: 'NORMAL', color: 'text-blue-600' };
+  // Helper name resolutions
+  const getChantierName = (id: string) => {
+    if (!id) return 'N/A';
+    if (id.startsWith('stock_')) {
+      return id.replace('stock_', 'STOCK : ').toUpperCase();
+    }
+    const match = chantiers.find(c => c.id === id);
+    return match ? match.name : id;
   };
 
-  const totalDayMeterage = filteredData.reduce((acc, r) => acc + (r.meterage || 0), 0);
-  const totalDayAnfo = filteredData.reduce((acc, r) => acc + (r.explosives?.anfo || 0), 0);
-  const totalDayTovex = filteredData.reduce((acc, r) => acc + (r.explosives?.tovex || 0), 0);
-  const totalDayAmorces = filteredData.reduce((acc, r) => acc + (r.explosives?.ammorces || 0), 0);
+  const getPersonnelName = (matricule: string) => {
+    if (!matricule) return '';
+    const match = employees.find(e => e.matricule?.toUpperCase() === matricule.toUpperCase());
+    return match ? `${match.nom} ${match.prenom}` : matricule;
+  };
+
+  // Safe rows extractions for all 4 sheets
+  const getRowsForSheet = (sheetName: 'minage' | 'deblayage' | 'extraction' | 'maintenance') => {
+    if (!dayProduction || !dayProduction.postes) return { poste1: [], poste2: [], poste3: [] };
+    const p1 = dayProduction.postes.poste1?.[sheetName] || [];
+    const p2 = dayProduction.postes.poste2?.[sheetName] || [];
+    const p3 = dayProduction.postes.poste3?.[sheetName] || [];
+    return { poste1: p1, poste2: p2, poste3: p3 };
+  };
+
+  const minageData = getRowsForSheet('minage');
+  const deblayageData = getRowsForSheet('deblayage');
+  const extractionData = getRowsForSheet('extraction');
+  const maintenanceData = getRowsForSheet('maintenance');
+
+  // Mapped datasets for the Excel Export Button
+  const minageRowsByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', any[]> = {
+    'Poste 1': minageData.poste1,
+    'Poste 2': minageData.poste2,
+    'Poste 3': minageData.poste3,
+  };
+
+  const deblayageRowsByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', any[]> = {
+    'Poste 1': deblayageData.poste1,
+    'Poste 2': deblayageData.poste2,
+    'Poste 3': deblayageData.poste3,
+  };
+
+  const extractionRowsByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', any[]> = {
+    'Poste 1': extractionData.poste1,
+    'Poste 2': extractionData.poste2,
+    'Poste 3': extractionData.poste3,
+  };
+
+  const maintenanceRowsByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', any[]> = {
+    'Poste 1': maintenanceData.poste1,
+    'Poste 2': maintenanceData.poste2,
+    'Poste 3': maintenanceData.poste3,
+  };
+
+  const sectorChiefs: Record<'Poste 1' | 'Poste 2' | 'Poste 3', any> = {
+    'Poste 1': dayProduction?.postes?.poste1?.sectorChefs || {},
+    'Poste 2': dayProduction?.postes?.poste2?.sectorChefs || {},
+    'Poste 3': dayProduction?.postes?.poste3?.sectorChefs || {},
+  };
+
+  // Calculations for KPI Cards
+  // Sheet 1 - Minage Totals
+  const sumMinageMeterage = [...minageData.poste1, ...minageData.poste2, ...minageData.poste3].reduce((acc, r) => acc + (Number(r.reel?.realMeterage || r.realMeterage) || 0), 0);
+  const sumMinageAnfo = [...minageData.poste1, ...minageData.poste2, ...minageData.poste3].reduce((acc, r) => acc + (Number(r.reel?.anfo || r.anfo) || 0), 0);
+  const sumMinageTovex = [...minageData.poste1, ...minageData.poste2, ...minageData.poste3].reduce((acc, r) => acc + (Number(r.reel?.tovex || r.tovex) || 0), 0);
+  const sumMinageAmorces = [...minageData.poste1, ...minageData.poste2, ...minageData.poste3].reduce((acc, r) => acc + (Number(r.reel?.ammorces || r.ammorces) || 0), 0);
+  const sumMinageRounds = [...minageData.poste1, ...minageData.poste2, ...minageData.poste3].reduce((acc, r) => acc + (Number(r.reel?.realRounds || r.realRounds) || 0), 0);
+  const globalMinageYield = sumMinageRounds > 0 ? (sumMinageMeterage / sumMinageRounds) : 0;
+
+  // Sheet 2 - Deblayage Totals
+  const sumDeblayageGodets = [...deblayageData.poste1, ...deblayageData.poste2, ...deblayageData.poste3].reduce((acc, r) => acc + (Number(r.reel?.godets || r.godets) || 0), 0);
+  const sumDeblayageVolume = [...deblayageData.poste1, ...deblayageData.poste2, ...deblayageData.poste3].reduce((acc, r) => acc + (Number(r.reel?.volumeEstimated || r.volumeEstimated) || 0), 0);
+  const sumDeblayageGasoil = [...deblayageData.poste1, ...deblayageData.poste2, ...deblayageData.poste3].reduce((acc, r) => acc + (Number(r.reel?.gasoil || r.gasoil) || 0), 0);
+
+  // Sheet 3 - Extraction Totals
+  const sumExtractionWagonsActual = [...extractionData.poste1, ...extractionData.poste2, ...extractionData.poste3].reduce((acc, r) => acc + (Number(r.reel?.wagonsActual) || Number(r.wagonsActual) || 0), 0);
+  const sumExtractionWagonsTarget = [...extractionData.poste1, ...extractionData.poste2, ...extractionData.poste3].reduce((acc, r) => {
+    const tReel = r.reel?.wagonsTarget !== undefined && r.reel?.wagonsTarget !== null ? Number(r.reel.wagonsTarget) : undefined;
+    const tPlan = r.wagonsTarget !== undefined && r.wagonsTarget !== null ? Number(r.wagonsTarget) : undefined;
+    const target = tReel !== undefined ? tReel : (tPlan !== undefined ? tPlan : 48);
+    return acc + target;
+  }, 0);
+  const sumExtractionSterile = [...extractionData.poste1, ...extractionData.poste2, ...extractionData.poste3].reduce((acc, r) => acc + (Number(r.reel?.sterileBureImiterEst) || Number(r.sterileBureImiterEst) || 0), 0);
+  const globalExtractionPct = sumExtractionWagonsTarget > 0 ? (sumExtractionWagonsActual / sumExtractionWagonsTarget) * 100 : 0;
+  const globalExtractionDiffPct = sumExtractionWagonsTarget > 0 ? ((sumExtractionWagonsActual - sumExtractionWagonsTarget) / sumExtractionWagonsTarget) * 100 : 0;
+
+  // Sheet 4 - Maintenance Totals
+  const sumMaintenanceHours = [...maintenanceData.poste1, ...maintenanceData.poste2, ...maintenanceData.poste3].reduce((acc, r) => acc + (Number(r.reel?.hoursSpent || r.hoursSpent) || 0), 0);
+  const countMaintenanceTasks = [...maintenanceData.poste1, ...maintenanceData.poste2, ...maintenanceData.poste3].length;
+
+  const tabs = [
+    { id: 'minage' as const, label: '🔨 1. Forage & Minage', color: 'border-b-amber-500' },
+    { id: 'deblayage' as const, label: '🚜 2. LHD & Charge', color: 'border-b-blue-500' },
+    { id: 'extraction' as const, label: '🚃 3. Extraction & Treuil', color: 'border-b-emerald-500' },
+    { id: 'maintenance' as const, label: '🔧 4. Brigade Technique', color: 'border-b-purple-500' },
+  ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-end border-b-4 border-[#141414] pb-4">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans">
+      
+      {/* Title & Date Picker Action Ribbon */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-2 border-gray-150 pb-5">
         <div>
-          <h3 className="text-5xl font-black tracking-tighter text-[#141414] uppercase italic">Rapport Consolidé</h3>
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-[#00BFFF]">Master Data SMI • Performance & Consommations</p>
+          <h1 className="text-3xl font-black text-gray-950 uppercase tracking-tight italic flex items-center gap-2">
+            📊 Rapport Consolidé de Production
+          </h1>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+            SMI (Imiter Minière) • Syntheses d'exploitation Journalière
+          </p>
         </div>
-        <div className="flex gap-4">
-          <div className="bg-white border-2 border-[#141414] px-4 py-2 flex items-center gap-3">
-            <Calendar className="w-4 h-4 text-[#141414]/40" />
+        
+        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+          {/* Custom Modern Date Selector */}
+          <div className="bg-white border border-gray-200 hover:border-gray-300 rounded-xl px-4 py-2 flex items-center gap-2.5 shadow-xs transition-all">
+            <Calendar className="w-4 h-4 text-[#00BFFF]" />
             <input 
               type="date" 
               value={filterDate}
               onChange={e => setFilterDate(e.target.value)}
-              className="text-xs font-black uppercase outline-none"
+              className="text-xs font-black uppercase text-slate-800 outline-none cursor-pointer bg-transparent"
             />
           </div>
-          <div className="bg-white border-2 border-[#141414] px-4 py-2 flex items-center gap-3">
-            <MapPin className="w-4 h-4 text-[#141414]/40" />
-            <select 
-              value={filterChantier}
-              onChange={e => setFilterChantier(e.target.value)}
-              className="text-xs font-black uppercase outline-none bg-transparent"
+
+          {/* Premium Excel Export Button integrated */}
+          {dayProduction ? (
+            <ExcelExportButton
+              selectedDate={filterDate}
+              minageRowsByPost={minageRowsByPost}
+              deblayageRowsByPost={deblayageRowsByPost}
+              extractionRowsByPost={extractionRowsByPost}
+              maintenanceRowsByPost={maintenanceRowsByPost}
+              sectorChiefs={sectorChiefs}
+              chantiers={chantiers}
+              employees={employees}
+            />
+          ) : (
+            <button 
+              disabled 
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-[9px] font-black uppercase text-gray-400 bg-gray-50 border border-gray-200 rounded-lg cursor-not-allowed"
+              title="Saisir d'abord une production pour activer l'export"
             >
-              <option value="all">Tous les Chantiers</option>
-              {chantiers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+              <Download className="w-3.5 h-3.5" /> Pas de données à exporter
+            </button>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-24 text-center flex flex-col items-center justify-center space-y-3">
+          <Workflow className="w-10 h-10 text-gray-300 animate-spin" />
+          <p className="text-xs uppercase font-black text-gray-400 tracking-wider">Chargement des registres...</p>
+        </div>
+      ) : !dayProduction ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8 flex flex-col items-center text-center max-w-xl mx-auto shadow-xs">
+          <AlertTriangle className="w-12 h-12 text-amber-500 mb-3 animate-pulse" />
+          <h3 className="text-sm font-black uppercase tracking-wider text-amber-950">Aucun Registre de Production</h3>
+          <p className="text-xs mt-2 text-amber-900 font-bold leading-relaxed">
+            Aucune donnée de production n'a été scellée en base pour le <span className="underline">{format(new Date(filterDate + "T12:00:00"), 'dd/MM/yyyy')}</span>. 
+            Veuillez d'abord déclarer et sceller les postages du jour via l'onglet <strong>Saisie de Poste</strong>.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          
+          {/* Consolidated Summaries - KPI Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* KPI 1 : Minage */}
+            <div className={`p-4 bg-white border border-gray-150 rounded-2xl hover:shadow-md transition-all cursor-pointer ${activeTab === 'minage' ? 'ring-2 ring-amber-500' : ''}`} onClick={() => setActiveTab('minage')}>
+              <div className="flex justify-between items-start">
+                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">🔨 Forage & Volée</p>
+                <div className="bg-amber-50 p-1.5 rounded-lg border border-amber-100">
+                  <Bomb className="w-4 h-4 text-amber-600" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <h4 className="text-2xl font-black text-gray-900">{sumMinageMeterage.toFixed(1)} m</h4>
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold mt-1">
+                  <span>{sumMinageAnfo} kg ANFO</span>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-emerald-700 font-extrabold">{globalMinageYield.toFixed(2)} m/v</span>
+                </div>
+              </div>
+            </div>
+
+            {/* KPI 2 : Deblayage */}
+            <div className={`p-4 bg-white border border-gray-150 rounded-2xl hover:shadow-md transition-all cursor-pointer ${activeTab === 'deblayage' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setActiveTab('deblayage')}>
+              <div className="flex justify-between items-start">
+                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">🚜 Charge & LHD</p>
+                <div className="bg-blue-50 p-1.5 rounded-lg border border-blue-100">
+                  <Truck className="w-4 h-4 text-blue-600" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <h4 className="text-2xl font-black text-gray-900">{sumDeblayageVolume.toFixed(1)} m³</h4>
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold mt-1">
+                  <span>{sumDeblayageGodets} Godets</span>
+                  <span className="text-gray-300">•</span>
+                  <span>{sumDeblayageGasoil} L Gasoil</span>
+                </div>
+              </div>
+            </div>
+
+            {/* KPI 3 : Extraction */}
+            <div className={`p-4 bg-white border border-gray-150 rounded-2xl hover:shadow-md transition-all cursor-pointer ${activeTab === 'extraction' ? 'ring-2 ring-emerald-500' : ''}`} onClick={() => setActiveTab('extraction')}>
+              <div className="flex justify-between items-start">
+                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">🚃 Treuil & Wagons</p>
+                <div className="bg-emerald-50 p-1.5 rounded-lg border border-emerald-100">
+                  <Gauge className="w-4 h-4 text-emerald-600" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <h4 className="text-2xl font-black text-gray-900">{sumExtractionWagonsActual} Wagons</h4>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold mt-1">
+                  <span className={`${globalExtractionDiffPct >= 0 ? "text-emerald-700" : (globalExtractionDiffPct >= -15 ? "text-blue-700" : "text-rose-700")} font-extrabold`}>
+                    {globalExtractionDiffPct > 0 ? '+' : ''}{globalExtractionDiffPct.toFixed(1)}% vs. Obj
+                  </span>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-gray-500">{sumExtractionSterile} Stérile</span>
+                </div>
+              </div>
+            </div>
+
+            {/* KPI 4 : Maintenance */}
+            <div className={`p-4 bg-white border border-gray-150 rounded-2xl hover:shadow-md transition-all cursor-pointer ${activeTab === 'maintenance' ? 'ring-2 ring-purple-500' : ''}`} onClick={() => setActiveTab('maintenance')}>
+              <div className="flex justify-between items-start">
+                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400">🔧 Brigade Technique</p>
+                <div className="bg-purple-50 p-1.5 rounded-lg border border-purple-100">
+                  <Cpu className="w-4 h-4 text-purple-600" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <h4 className="text-2xl font-black text-gray-900">{sumMaintenanceHours.toFixed(1)} h</h4>
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold mt-1">
+                  <span>{countMaintenanceTasks} Interventions</span>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-emerald-700 font-extrabold">Active</span>
+                </div>
+              </div>
+            </div>
+
           </div>
-          <button className="bg-[#141414] text-white p-4 hover:bg-[#00BFFF] transition-all">
-            <Download className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-[#141414] p-6 text-white border-l-8 border-[#00BFFF]">
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Métrage Cumulé</p>
-            <h4 className="text-3xl font-black">{totalDayMeterage.toFixed(1)} m</h4>
-        </div>
-        <div className="bg-white p-6 border-2 border-[#141414]/5 shadow-sm">
-            <p className="text-[10px] font-black uppercase text-[#141414]/40 mb-2">Total ANFO</p>
-            <h4 className="text-3xl font-black text-[#8B0000]">{totalDayAnfo} kg</h4>
-        </div>
-        <div className="bg-white p-6 border-2 border-[#141414]/5 shadow-sm">
-            <p className="text-[10px] font-black uppercase text-[#141414]/40 mb-2">ANFO / mètre</p>
-            <h4 className="text-3xl font-black text-[#141414]">{(totalDayAnfo / (totalDayMeterage || 1)).toFixed(2)}</h4>
-        </div>
-        <div className="bg-white p-6 border-2 border-[#141414]/5 shadow-sm">
-            <p className="text-[10px] font-black uppercase text-[#141414]/40 mb-2">Total Amorces</p>
-            <h4 className="text-3xl font-black text-[#00BFFF]">{totalDayAmorces}</h4>
-        </div>
-      </div>
+          {/* Subheader and Consolidated Tabs Selector */}
+          <div className="flex border-b border-gray-200 bg-white p-1 rounded-2xl shadow-xs gap-1.5">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 py-3 text-[10px] md:text-[11px] font-extrabold uppercase tracking-wider transition-all duration-300 rounded-xl text-center cursor-pointer ${
+                  activeTab === tab.id 
+                    ? 'bg-slate-900 text-white shadow-xs' 
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-slate-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-      <div className="bg-white border-4 border-[#141414] p-0 shadow-[16px_16px_0px_rgba(20,20,20,0.1)] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#141414] text-white">
-                {['Shift', 'Chantier', 'Équipe (Chef/Min/Aid)', 'Forage (Trs/Vol)', 'Métrage Actual', 'KPI Rendement', 'Explosifs (Anf/Tov/Am)', 'Ratio Exp/m'].map(h => (
-                  <th key={h} className="px-4 py-5 text-[9px] font-black uppercase tracking-[0.1em] whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#141414]/10">
-              {filteredData.map((r, i) => {
-                const yieldInfo = getYieldInfo(r.meterage, r.rounds);
-                return (
-                  <tr key={i} className="hover:bg-[#F5F5F0] transition-colors">
-                    <td className="px-4 py-4 text-[10px] font-black uppercase">{r.post}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase text-[#00BFFF]">{r.chantierName}</span>
-                        <span className="text-[8px] font-bold text-gray-400">Section: {r.gallerySize}m²</span>
+          {/* Detailed Data Tables grouped by Post (Shift 1, 2, 3) */}
+          <div className="space-y-6">
+            
+            {/* Iterate through shifts list */}
+            {([
+              { id: 'poste1', label: 'Poste 1 (Matin)', keySuffix: 'p1' },
+              { id: 'poste2', label: 'Poste 2 (Après-midi)', keySuffix: 'p2' },
+              { id: 'poste3', label: 'Poste 3 (Nuit)', keySuffix: 'p3' },
+            ] as const).map(shift => {
+              const currentPostData = dayProduction.postes?.[shift.id] || {};
+              const records = currentPostData?.[activeTab] || [];
+
+              return (
+                <div key={shift.id} className="bg-white border border-gray-150 rounded-2xl shadow-xs overflow-hidden">
+                  
+                  {/* Shift Subheader bar */}
+                  <div className="bg-gray-50 border-b border-gray-150 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-[#00BFFF]" />
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-900">{shift.label}</span>
+                    </div>
+                    {currentPostData.chiefName && (
+                      <div className="text-[10px] font-bold text-gray-509 uppercase flex items-center gap-1.5 bg-white px-3 py-1 border border-gray-150 rounded-lg">
+                        <HardHat className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Chef de Poste : <strong>{currentPostData.chiefName} ({currentPostData.chiefMatricule})</strong></span>
                       </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[9px] font-black uppercase truncate max-w-[150px]">{r.chiefName}</span>
-                        <span className="text-[8px] font-bold text-gray-400 uppercase truncate max-w-[150px]">{r.minerName} / {r.assistantName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black">{r.holeCount} trs</span>
-                        <span className="text-xs text-gray-300">/</span>
-                        <span className="text-[10px] font-black text-[#141414]">{r.rounds} vol</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                       <div className="flex flex-col">
-                          <span className="text-sm font-black text-[#141414]">{r.meterage}m</span>
-                          <span className="text-[8px] font-bold text-gray-400 uppercase">Plan: {r.meteragePlanned?.toFixed(1)}m</span>
-                       </div>
-                    </td>
-                    <td className="px-4 py-4">
-                        <span className={cn("text-[9px] font-black uppercase tracking-tighter border-2 px-2 py-1", yieldInfo.color)}>
-                          {yieldInfo.label}
-                        </span>
-                    </td>
-                    <td className="px-4 py-4">
-                       <div className="grid grid-cols-3 gap-2">
-                          <div className="text-center bg-red-50 p-1">
-                            <p className="text-[7px] text-[#8B0000] font-bold">ANF</p>
-                            <p className="text-[10px] font-black">{r.explosives?.anfo}</p>
-                          </div>
-                          <div className="text-center bg-red-50 p-1">
-                            <p className="text-[7px] text-[#8B0000] font-bold">TOV</p>
-                            <p className="text-[10px] font-black">{r.explosives?.tovex}</p>
-                          </div>
-                          <div className="text-center bg-red-50 p-1">
-                            <p className="text-[7px] text-[#8B0000] font-bold">AMO</p>
-                            <p className="text-[10px] font-black">{r.explosives?.ammorces}</p>
-                          </div>
-                       </div>
-                    </td>
-                    <td className="px-4 py-4 text-[10px] font-black">
-                      {(r.explosives?.anfo / (r.meterage || 1)).toFixed(2)} kg/m
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    )}
+                  </div>
+
+                  {/* Operational Tab Renders */}
+                  {records.length === 0 ? (
+                    <div className="p-8 text-center bg-gray-50/15 border-dashed border-2 border-gray-100 m-4 rounded-xl">
+                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-wide">
+                        Aucun enregistrement scellé pour ce shift
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      
+                      {/* Forage & Minage Tab Render */}
+                      {activeTab === 'minage' && (
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-100/50 text-[9px] uppercase font-black tracking-wider text-gray-505 border-b border-gray-200">
+                              <th className="p-3 w-12 text-center text-gray-400">#</th>
+                              <th className="p-3">Chantier / Galerie</th>
+                              <th className="p-3">Mineur & Aide</th>
+                              <th className="p-3 text-center">Trous Forés</th>
+                              <th className="p-3 text-center">Volées (u.)</th>
+                              <th className="p-3 text-center">Métrage (m)</th>
+                              <th className="p-3 text-center">KPI Rendement (m/v)</th>
+                              <th className="p-3 text-center">Consommation Explosifs</th>
+                              <th className="p-3">Remarques Terrain</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700">
+                            {records.map((r: any, idx: number) => {
+                              const row = r.reel || r;
+                              const plan = r.plan || {};
+                              const rYield = row.realRounds > 0 ? (row.realMeterage / row.realRounds) : 0;
+                              let statusLabel = 'NORMAL';
+                              let statusColor = 'bg-blue-50 text-blue-700 border-blue-200';
+                              if (row.realRounds > 0) {
+                                if (rYield >= 1.5) {
+                                  statusLabel = 'PERFORMANT';
+                                  statusColor = 'bg-emerald-50 text-emerald-800 border-emerald-250';
+                                } else if (rYield <= 1.3) {
+                                  statusLabel = 'SOUS-KPI';
+                                  statusColor = 'bg-red-50 text-red-800 border-red-200 animate-pulse';
+                                }
+                              }
+
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="p-3 text-center text-gray-400 font-mono text-[9px] bg-gray-50/20">{idx + 1}</td>
+                                  <td className="p-3">
+                                    <div className="text-[11px] font-extrabold text-[#00BFFF]">{getChantierName(row.chantierId)}</div>
+                                    <div className="text-[8.5px] text-gray-450 font-normal">Section : {row.gallerySize || 12}m² • {row.barType || '1.8m'}</div>
+                                  </td>
+                                  <td className="p-3">
+                                    <div className="text-gray-900 block truncate max-w-[140px] uppercase">{getPersonnelName(row.minerMatricule)}</div>
+                                    <div className="text-gray-400 text-[8.5px] font-semibold uppercase truncate max-w-[140px]">Aid : {getPersonnelName(row.assistantMatricule) || 'N/A'}</div>
+                                  </td>
+                                  <td className="p-3 text-center font-mono text-[11px] text-gray-800">{row.realHoles || 0} trs</td>
+                                  <td className="p-3 text-center font-mono text-[11px] text-gray-800">{row.realRounds || 0} vol</td>
+                                  <td className="p-3 text-center font-mono text-[11px] font-extrabold text-slate-900 bg-amber-50/20">{row.realMeterage || 0} m</td>
+                                  <td className="p-3 text-center">
+                                    <span className={`inline-flex px-2 py-0.5 border text-[8.5px] font-black uppercase rounded ${statusColor}`}>
+                                      {rYield > 0 ? `${rYield.toFixed(2)} m/v` : '0.00'} — {statusLabel}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <div className="inline-grid grid-cols-3 gap-1 font-mono text-[9px] uppercase border border-gray-200/60 p-1 bg-gray-50/40 rounded">
+                                      <span className="text-red-750 px-1 font-extrabold" title="ANFO kg">ANF: {row.anfo || 0}</span>
+                                      <span className="text-amber-805 px-1 font-extrabold" title="Tovex u.">TOV: {row.tovex || 0}</span>
+                                      <span className="text-blue-805 px-1 font-extrabold" title="Amorces u.">AMO: {row.ammorces || 0}</span>
+                                    </div>
+                                  </td>
+                                  <td className="p-3 text-[10px] text-gray-500 max-w-[160px] truncate" title={row.remarks}>{row.remarks || '-'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+
+                      {/* LHD & Charge Tab Render */}
+                      {activeTab === 'deblayage' && (
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-100/50 text-[9px] uppercase font-black tracking-wider text-gray-550 border-b border-gray-200">
+                              <th className="p-3 w-12 text-center text-gray-400">#</th>
+                              <th className="p-3">Chantier de Charge</th>
+                              <th className="p-3">Conducteur Engin</th>
+                              <th className="p-3 text-center">Engin LHD</th>
+                              <th className="p-3 text-center">Nombre Godets</th>
+                              <th className="p-3 text-center">Métrage Estimé (m³)</th>
+                              <th className="p-3 text-center">Métrage Réel (m³)</th>
+                              <th className="p-3 text-center">Écart vs Estimé (%)</th>
+                              <th className="p-3 text-center">Gasoil (L)</th>
+                              <th className="p-3 text-center border-r border-gray-100">Lubrifiants Qty</th>
+                              <th className="p-3">Remarques Terrain</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700">
+                            {records.map((r: any, idx: number) => {
+                              const row = r.reel || r;
+                              const plan = r.plan || {};
+                              const targetVol = plan.volumeEstimated || 0;
+                              const realVol = row.volumeEstimated || 0;
+                              const diffVolAbs = realVol - targetVol;
+                              const diffVolPct = targetVol > 0 ? (diffVolAbs / targetVol) * 100 : 0;
+
+                              let diffVolColor = "bg-slate-50 text-slate-700 border-slate-200";
+                              if (targetVol > 0) {
+                                if (diffVolPct >= 0) {
+                                  diffVolColor = "bg-emerald-50 text-emerald-800 border-emerald-200";
+                                } else {
+                                  diffVolColor = "bg-rose-50 text-rose-800 border-rose-200 animate-pulse";
+                                }
+                              } else if (realVol > 0) {
+                                diffVolColor = "bg-emerald-50 text-emerald-800 border-emerald-200";
+                              }
+
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="p-3 text-center text-gray-400 font-mono text-[9px] bg-gray-50/20">{idx + 1}</td>
+                                  <td className="p-3 font-extrabold text-blue-750">{getChantierName(row.chantierId)}</td>
+                                  <td className="p-3 text-gray-900 uppercase">{getPersonnelName(row.driverMatricule)} ({row.driverMatricule})</td>
+                                  <td className="p-3 text-center">
+                                    <span className="font-mono font-extrabold bg-blue-50 text-blue-700 border border-blue-150 px-2 py-0.5 rounded text-[9.5px]">
+                                      {row.engineCode || row.engineId || '-'}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-center font-mono text-[11px] text-gray-800">{row.godets || 0}</td>
+                                  <td className="p-3 text-center font-mono text-[11px] text-slate-500 bg-slate-50/20">{targetVol.toFixed(1)} m³</td>
+                                  <td className="p-3 text-center font-mono text-[11px] font-extrabold text-slate-900 bg-emerald-50/20">{realVol.toFixed(1)} m³</td>
+                                  <td className="p-3 text-center">
+                                    <span className={`inline-flex px-2 py-0.5 border text-[8.5px] font-black uppercase rounded ${diffVolColor}`}>
+                                      {targetVol === 0 ? (realVol === 0 ? "CONFORME" : `+${realVol.toFixed(1)} m³ (HORS-PLAN)`) : `${diffVolAbs >= 0 ? '+' : ''}${diffVolAbs.toFixed(1)} m³ (${diffVolPct >= 0 ? '+' : ''}${diffVolPct.toFixed(1)}%)`}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-center font-mono text-[#00BFFF]">{row.gasoil || 0} L</td>
+                                  <td className="p-3 text-center">
+                                    <div className="flex flex-col gap-0.5 font-mono text-[8.5px] text-gray-500">
+                                      {row.lubrifiant1Qty > 0 && (
+                                        <span>{row.lubrifiant1} : <strong>{row.lubrifiant1Qty}L</strong></span>
+                                      )}
+                                      {row.lubrifiant2Qty > 0 && (
+                                        <span>{row.lubrifiant2} : <strong>{row.lubrifiant2Qty}L</strong></span>
+                                      )}
+                                      {!row.lubrifiant1Qty && !row.lubrifiant2Qty && <span className="text-gray-300">-</span>}
+                                    </div>
+                                  </td>
+                                  <td className="p-3 text-[10px] text-gray-400 max-w-[180px] truncate" title={row.remarks}>{row.remarks || '-'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+
+                      {/* Extraction & Treuils Tab Render */}
+                      {activeTab === 'extraction' && (
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-100/50 text-[9px] uppercase font-black tracking-wider text-gray-550 border-b border-gray-200">
+                              <th className="p-3 w-12 text-center text-gray-400">#</th>
+                              <th className="p-3">Installation Treuil</th>
+                              <th className="p-3">Opérateurs Terrain (Treuilliste / Équipiers)</th>
+                              <th className="p-3 text-center">Cible (Wagons)</th>
+                              <th className="p-3 text-center">Réalisé (Wag)</th>
+                              <th className="p-3 text-center">Stérile Bure (Wg)</th>
+                              <th className="p-3 text-center">Total Tirés (Wg)</th>
+                              <th className="p-3 text-center">Écart vs Objectif (%)</th>
+                              <th className="p-3">Remarques & Directives</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700">
+                            {records.map((r: any, idx: number) => {
+                              const tReel = r.reel?.wagonsTarget !== undefined && r.reel?.wagonsTarget !== null ? Number(r.reel.wagonsTarget) : undefined;
+                              const tPlan = r.wagonsTarget !== undefined && r.wagonsTarget !== null ? Number(r.wagonsTarget) : undefined;
+                              const target = tReel !== undefined ? tReel : (tPlan !== undefined ? tPlan : 48);
+                              const actual = Number(r.reel?.wagonsActual || r.wagonsActual || 0);
+                              const sterile = Number(r.reel?.sterileBureImiterEst || r.sterileBureImiterEst || 0);
+                              const total = actual + sterile;
+                              const diffWagonsPct = target > 0 ? ((actual - target) / target) * 100 : 0;
+
+                              let speedLabel = 'SOUS-KPI';
+                              let speedColor = 'bg-red-50 text-red-800 border-red-200 animate-pulse';
+                              if (target === 0) {
+                                if (actual === 0) {
+                                  speedLabel = "PAS D'EXTRACTION PRÉVUE";
+                                  speedColor = 'bg-slate-50 text-slate-500 border-slate-200';
+                                } else {
+                                  speedLabel = 'EXTRACTION NON PLANIFIÉE';
+                                  speedColor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                                }
+                              } else if (diffWagonsPct >= 0) {
+                                speedLabel = 'CIBLE ATTEINTE';
+                                speedColor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                              } else if (diffWagonsPct >= -15) {
+                                speedLabel = 'CORRECT';
+                                speedColor = 'bg-blue-50 text-blue-700 border-blue-250';
+                              }
+
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="p-3 text-center text-gray-400 font-mono text-[9px] bg-gray-50/20">{idx + 1}</td>
+                                  <td className="p-3 font-extrabold text-emerald-800 uppercase">{r.installationName || r.chantierName || 'Bure'}</td>
+                                  <td className="p-3">
+                                    <div className="text-gray-900 uppercase">Treuilliste : {getPersonnelName(r.treuilliste)}</div>
+                                    <div className="text-[8.5px] text-gray-450 uppercase mt-0.5 leading-tight">
+                                      Équipiers : {[r.equipier1, r.equipier2, r.equipier3, r.equipier4].filter(Boolean).map(getPersonnelName).join(' / ') || 'N/A'}
+                                    </div>
+                                  </td>
+                                  <td className="p-3 text-center font-mono text-[11px] text-gray-400">{target}</td>
+                                  <td className="p-3 text-center font-mono text-[11px] font-extrabold text-emerald-950 bg-emerald-50/30">{actual}</td>
+                                  <td className="p-3 text-center font-mono text-[11px] text-amber-705 bg-amber-50/10">{sterile}</td>
+                                  <td className="p-3 text-center font-mono text-[11px] text-slate-800 bg-gray-50/20">{total}</td>
+                                  <td className="p-3 text-center">
+                                    <span className={`inline-flex px-2 py-0.5 border text-[8.5px] font-black uppercase rounded ${speedColor}`}>
+                                      {target === 0 ? (actual === 0 ? "PAS D'EXTRACTION PRÉVUE" : `+${actual} Wg — ${speedLabel}`) : `${diffWagonsPct > 0 ? '+' : ''}${diffWagonsPct.toFixed(1)}% — ${speedLabel}`}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-[10px] text-gray-400 max-w-[200px] truncate" title={r.remarks}>{r.remarks || '-'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+
+                      {/* Maintenance Brigade Tech Tab Render */}
+                      {activeTab === 'maintenance' && (
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-gray-100/50 text-[9px] uppercase font-black tracking-wider text-gray-550 border-b border-gray-200">
+                              <th className="p-3 w-12 text-center text-gray-400">#</th>
+                              <th className="p-3">Rôle Fixe SMI</th>
+                              <th className="p-3">Matricule & Spécialiste</th>
+                              <th className="p-3 text-center">Engin Affecté</th>
+                              <th className="p-3 text-center">Heures Consacrées</th>
+                              <th className="p-3">Description Diagnostic / Tâches Planifiées Real</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700">
+                            {records.map((r: any, idx: number) => {
+                              const row = r.reel || r;
+                              const plan = r.plan || {};
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="p-3 text-center text-gray-400 font-mono text-[9px] bg-gray-50/20">{idx + 1}</td>
+                                  <td className="p-3 font-extrabold text-purple-750 uppercase">{row.roleLabel || '-'}</td>
+                                  <td className="p-3 text-slate-900 uppercase">
+                                    {getPersonnelName(row.agentMatricule || row.mechanicMatricule)} ({row.agentMatricule || row.mechanicMatricule || '-'})
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <span className="font-mono bg-purple-50 text-purple-750 border border-purple-150 px-2 py-0.5 rounded text-[9.5px]">
+                                      {row.engineCode || row.engineId || '-'}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-center font-mono text-[11px] text-purple-900 font-extrabold bg-purple-50/20">
+                                    {row.hoursSpent || 0} h
+                                  </td>
+                                  <td className="p-3 text-[10.5px] text-gray-600 font-normal leading-relaxed">{row.workDescription || '-'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+
+                    </div>
+                  )}
+
+                </div>
+              );
+            })}
+
+          </div>
+
         </div>
-      </div>
+      )}
+
     </div>
   );
 };
-
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
-}

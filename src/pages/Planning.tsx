@@ -49,6 +49,7 @@ interface ExcelMinage {
   realHoles: number;
   plannedRounds: number;
   realRounds: number;
+  barType?: '1.8m' | '2.4m';
   meterage: number; // calculated target avancement
   anfo: number;
   tovex: number;
@@ -253,7 +254,7 @@ const ensureMinimumRows = (
           finalSectorRows.push({
             chantierId: chan.id, chiefMatricule: '', chiefName: '', minerMatricule: '', minerName: '',
             assistantMatricule: '', assistantName: '', gallerySize: sizeVal, plannedHoles: explosives.plannedHoles, realHoles: explosives.plannedHoles,
-            plannedRounds: 1, realRounds: 1, meterage: 1.7, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
+            plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
             sectorGroup: sec, explosivesManualOverride: false
           });
         } else {
@@ -286,7 +287,7 @@ const ensureMinimumRows = (
         finalSectorRows.push({
           chantierId: '', chiefMatricule: '', chiefName: '', minerMatricule: '', minerName: '',
           assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: explosives.plannedHoles, realHoles: explosives.plannedHoles,
-          plannedRounds: 1, realRounds: 1, meterage: 1.7, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
+          plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
           sectorGroup: sec, explosivesManualOverride: false
         });
       } else {
@@ -812,10 +813,32 @@ export const Planning: React.FC = () => {
       }
     }
 
+    if (field === 'barType') {
+      const newBarType = value as '1.8m' | '2.4m';
+      clone[index].barType = newBarType;
+      const rounds = clone[index].plannedRounds || 1;
+      const advanceFactor = newBarType === '2.4m' ? 2.3 : 1.7;
+      clone[index].meterage = rounds * advanceFactor;
+      
+      // Update any child rows to also have the same barType and meterage
+      if (rounds > 1) {
+        for (let i = index + 1; i < index + rounds; i++) {
+          if (clone[i] && clone[i].remarks && (clone[i].remarks.includes('(Volée 2)') || clone[i].remarks.includes('(Volée 3)'))) {
+            clone[i] = {
+              ...clone[i],
+              barType: newBarType,
+              meterage: advanceFactor
+            };
+          }
+        }
+      }
+    }
+
     if (field === 'plannedRounds') {
       const newRounds = Number(value);
       clone[index].plannedRounds = newRounds;
-      clone[index].meterage = newRounds * 1.7;
+      const advanceFactor = clone[index].barType === '2.4m' ? 2.3 : 1.7;
+      clone[index].meterage = newRounds * advanceFactor;
 
       // 1. Remove existing associated child rows (Volée 2/3) right below the parent row
       if (oldRounds > 1) {
@@ -844,7 +867,8 @@ export const Planning: React.FC = () => {
             realHoles: defaultExplosives.plannedHoles,
             plannedRounds: 1, 
             realRounds: 1,
-            meterage: 1.7,
+            barType: clone[index].barType || '1.8m',
+            meterage: advanceFactor,
             anfo: defaultExplosives.anfo,
             tovex: defaultExplosives.tovex,
             ammorces: defaultExplosives.ammorces,
@@ -1021,7 +1045,7 @@ export const Planning: React.FC = () => {
     const newRow: ExcelMinage = {
       chantierId: '', chiefMatricule: '', chiefName: '', minerMatricule: '', minerName: '',
       assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: defaultExplosives.plannedHoles, realHoles: defaultExplosives.plannedHoles,
-      plannedRounds: 1, realRounds: 1, meterage: 1.7, anfo: defaultExplosives.anfo, tovex: defaultExplosives.tovex, ammorces: defaultExplosives.ammorces, remarks: '',
+      plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, anfo: defaultExplosives.anfo, tovex: defaultExplosives.tovex, ammorces: defaultExplosives.ammorces, remarks: '',
       sectorGroup: sec, explosivesManualOverride: false
     };
 
@@ -2526,6 +2550,7 @@ export const Planning: React.FC = () => {
                                 <th className="p-2 border-r border-gray-100 min-w-[144px] bg-gradient-to-r from-red-600/20 via-red-500/10 to-transparent text-red-950 font-black">Mineur (Matricule / Nom)</th>
                                 <th className="p-2 border-r border-gray-100 min-w-[144px] bg-gradient-to-r from-[#00BFFF]/20 via-[#00BFFF]/10 to-transparent text-sky-950 font-black">Aide-Mineur</th>
                                 <th className="p-2 border-r border-gray-100 w-20 text-center bg-gradient-to-r from-red-600/20 via-red-500/10 to-transparent text-red-950 font-black">Section</th>
+                                <th className="p-2 border-r border-gray-200 w-24 text-center bg-sky-50/35">Type Barre</th>
                                 <th className="p-2 border-r border-gray-200 w-16 text-center bg-sky-50/35">Volées prévues</th>
                                 <th className="p-2 border-r border-gray-200 w-20 text-center bg-red-50/35">Mètres prévus</th>
                                 <th className="p-2 border-r border-gray-200 w-16 text-center bg-sky-50/35">Trous prévus</th>
@@ -2547,7 +2572,7 @@ export const Planning: React.FC = () => {
                                   <React.Fragment key={sec}>
                                     {/* Sector Header Badge Row */}
                                     <tr className="bg-gray-50/80 border-y border-gray-200 select-none">
-                                      <td colSpan={11} className="py-2.5 px-3">
+                                      <td colSpan={12} className="py-2.5 px-3">
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                           <div className="flex flex-wrap items-center gap-2">
                                             {(() => {
@@ -2711,6 +2736,20 @@ export const Planning: React.FC = () => {
                                               <option value={12}>12 m²</option>
                                             </select>
                                           </td>
+
+                                          {/* Type Barre */}
+                                          {!isChild && (
+                                            <td rowSpan={rowSpan} className="p-1 border-r border-gray-200 w-24 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40 align-middle">
+                                              <select
+                                                value={row.barType || '1.8m'}
+                                                onChange={e => updateMinageCell(p, flatIdx, 'barType', e.target.value)}
+                                                className="w-full bg-transparent border-none text-center outline-none font-bold text-gray-800 text-[11px]"
+                                              >
+                                                <option value="1.8m">1.8m (1.7)</option>
+                                                <option value="2.4m">2.4m (2.3)</option>
+                                              </select>
+                                            </td>
+                                          )}
 
                                           {/* Volées prévues (Now editable!) */}
                                           {!isChild && (
