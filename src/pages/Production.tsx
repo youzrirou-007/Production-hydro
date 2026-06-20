@@ -322,11 +322,15 @@ export const Production: React.FC = () => {
     sectors: string[];
     engines: string[];
     oils: string[];
+    defaultWagonsTarget?: number;
   }>({
     sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est'],
     engines: ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
-    oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression']
+    oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
+    defaultWagonsTarget: 48
   });
+
+  const [isMonthClosed, setIsMonthClosed] = useState(false);
 
   // Master lists from Firebase
   const [dataHistory, setDataHistory] = useState<any[]>([]);
@@ -513,7 +517,7 @@ export const Production: React.FC = () => {
     equipier3: '',
     equipier4: '',
     wagonsActual: 0,
-    wagonsTarget: 48,
+    wagonsTarget: platformSettings.defaultWagonsTarget ?? 48,
     sterileBureImiterEst: 0,
     startTime: start,
     endTime: end,
@@ -552,8 +556,8 @@ export const Production: React.FC = () => {
     plan.treuilliste = planTreuilliste;
     reel.treuilliste = reelTreuilliste;
 
-    if (plan.wagonsTarget === undefined || plan.wagonsTarget === null) plan.wagonsTarget = 48;
-    if (reel.wagonsTarget === undefined || reel.wagonsTarget === null) reel.wagonsTarget = (plan.wagonsTarget !== undefined && plan.wagonsTarget !== null) ? plan.wagonsTarget : 48;
+    if (plan.wagonsTarget === undefined || plan.wagonsTarget === null) plan.wagonsTarget = platformSettings.defaultWagonsTarget ?? 48;
+    if (reel.wagonsTarget === undefined || reel.wagonsTarget === null) reel.wagonsTarget = (plan.wagonsTarget !== undefined && plan.wagonsTarget !== null) ? plan.wagonsTarget : (platformSettings.defaultWagonsTarget ?? 48);
 
     return [{
       rowId: first.rowId || 'extraction_single_fixed',
@@ -651,7 +655,7 @@ export const Production: React.FC = () => {
         reelValue.equipier2 = plannedItem?.equipier2 || '';
         reelValue.equipier3 = plannedItem?.equipier3 || '';
         reelValue.equipier4 = plannedItem?.equipier4 || '';
-        reelValue.wagonsTarget = plannedItem?.wagonsTarget !== undefined && plannedItem?.wagonsTarget !== null ? Number(plannedItem.wagonsTarget) : 48;
+        reelValue.wagonsTarget = plannedItem?.wagonsTarget !== undefined && plannedItem?.wagonsTarget !== null ? Number(plannedItem.wagonsTarget) : (platformSettings.defaultWagonsTarget ?? 48);
         reelValue.wagonsActual = plannedItem?.wagonsActual !== undefined && plannedItem?.wagonsActual !== null ? Number(plannedItem.wagonsActual) : 0;
         reelValue.sterileBureImiterEst = plannedItem?.sterileBureImiterEst !== undefined && plannedItem?.sterileBureImiterEst !== null ? Number(plannedItem.sterileBureImiterEst) : 0;
         reelValue.installationName = plannedItem?.installationName || plannedItem?.chantierName || 'Bure';
@@ -809,7 +813,8 @@ export const Production: React.FC = () => {
         setPlatformSettings({
           sectors: data.sectors || ['Imiter 1', 'Imiter 2', 'Imiter Est'],
           engines: data.engines || ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
-          oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression']
+          oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
+          defaultWagonsTarget: data.defaultWagonsTarget !== undefined ? data.defaultWagonsTarget : 48
         });
       }
     }, (err) => {
@@ -843,6 +848,23 @@ export const Production: React.FC = () => {
       unsubProduction();
     };
   }, []);
+
+  // Realtime mouth closure detector
+  useEffect(() => {
+    if (!selectedDate) return;
+    const monthStr = selectedDate.substring(0, 7); // 'YYYY-MM'
+    const unsubClosure = onSnapshot(doc(db, 'settings', 'closures'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setIsMonthClosed(!!data[monthStr]);
+      } else {
+        setIsMonthClosed(false);
+      }
+    }, (err) => {
+      console.warn("Error reading closures settings:", err);
+    });
+    return () => unsubClosure();
+  }, [selectedDate]);
 
   // Check if draft exists when date changes
   useEffect(() => {
@@ -956,6 +978,24 @@ export const Production: React.FC = () => {
   };
 
   // Initialize/Load workbook from firestore whenever Date changes
+  useEffect(() => {
+    const handleDateChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.date) {
+        setSelectedDate(customEvent.detail.date);
+      }
+    };
+    window.addEventListener('production-date-changed', handleDateChange);
+
+    const pendingDate = window.sessionStorage.getItem('goto-production-date');
+    if (pendingDate) {
+      setSelectedDate(pendingDate);
+      window.sessionStorage.removeItem('goto-production-date');
+    }
+
+    return () => window.removeEventListener('production-date-changed', handleDateChange);
+  }, []);
+
   useEffect(() => {
     loadGlobalWorkbook();
   }, [selectedDate, employees, chantiers, engines]);
@@ -1195,9 +1235,12 @@ export const Production: React.FC = () => {
   };
 
   const loadGlobalWorkbook = async (force: boolean = false) => {
-    // 1. Check if an exploitable exact plan exists for D (even if a production doc or draft already exists)
+    // 1. Check if an exploitable exact plan exists for YESTERDAY (D-1) as today's (selectedDate) production is based on yesterday's plan
     try {
-      const planRefForD = doc(db, 'daily_planning_sheets', selectedDate);
+      const yesterdayDateObj = subDays(new Date(selectedDate + "T12:00:00"), 1);
+      const yesterdayDateStr = format(yesterdayDateObj, 'yyyy-MM-dd');
+
+      const planRefForD = doc(db, 'daily_planning_sheets', yesterdayDateStr);
       const planSnapForD = await getDoc(planRefForD);
       let exactPlanExistsAndExploitable = false;
       if (planSnapForD.exists()) {
@@ -1309,21 +1352,14 @@ export const Production: React.FC = () => {
 
       } else {
         // No production, try loaded daily_planning_sheets
-        // Try same target date first (1-to-1 linking), then fallback to yesterday Date (prior date planning)
-        let planSnap = await getDoc(doc(db, 'daily_planning_sheets', selectedDate));
-        let activePlanDateStr = selectedDate;
-        let isSameDate = true;
-
-        if (!planSnap.exists()) {
-          planSnap = await getDoc(doc(db, 'daily_planning_sheets', yesterdayDateStr));
-          activePlanDateStr = yesterdayDateStr;
-          isSameDate = false;
-        }
+        // Force loading only from yesterday's planning (D-1) as today's production is linked to yesterday's plan
+        const planSnap = await getDoc(doc(db, 'daily_planning_sheets', yesterdayDateStr));
+        const activePlanDateStr = yesterdayDateStr;
 
         if (planSnap.exists()) {
           const planData = planSnap.data();
           setIsTemplateLoaded(true);
-          setPlanFoundType(isSameDate ? 'same_date' : 'yesterday');
+          setPlanFoundType('yesterday');
           setTemplateDateHint(format(new Date(activePlanDateStr + "T12:00:00"), 'dd/MM/yyyy'));
 
           // Post 1
@@ -1946,6 +1982,10 @@ export const Production: React.FC = () => {
 
   // Save Workbook
   const saveWorkbook = async () => {
+    if (isMonthClosed) {
+      alert("⚠️ ERREUR : Ce mois est clôturé et verrouillé. Aucune modification n'est permise.");
+      return;
+    }
     setSaveStatus('saving');
     try {
       const postsList = ['Poste 1', 'Poste 2', 'Poste 3'];
@@ -3055,13 +3095,25 @@ export const Production: React.FC = () => {
   };
 
   const unfilledPlannings = allPlanningSheets
-    .filter(plan => {
-      const planDate = plan.id;
-      // Filter out any planning that already has an associated production document
-      const prodExists = allProductionDocs.some(prod => prod.id === planDate);
-      return !prodExists;
+    .map(plan => {
+      const planDate = plan.id; // e.g. '2026-06-18' (planned day)
+      // Math: expected production day is planDate + 1 day
+      const parts = planDate.split('-');
+      if (parts.length !== 3) return null;
+      const pDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const expectedProdDate = format(subDays(pDateObj, -1), 'yyyy-MM-dd'); // using math to add 1 day correctly
+      
+      const prodExists = allProductionDocs.some(prod => prod.id === expectedProdDate);
+      return {
+        id: planDate,
+        planDate,
+        expectedProdDate,
+        exists: prodExists,
+        planData: plan
+      };
     })
-    .sort((a, b) => b.id.localeCompare(a.id));
+    .filter((item): item is { id: string; planDate: string; expectedProdDate: string; exists: boolean; planData: any } => item !== null && !item.exists)
+    .sort((a, b) => b.expectedProdDate.localeCompare(a.expectedProdDate));
 
   const formatFrenchDate = (dateStr: string) => {
     try {
@@ -3080,6 +3132,11 @@ export const Production: React.FC = () => {
 
   return (
     <div className="space-y-4 font-sans select-none pb-12">
+      {isMonthClosed && (
+        <div className="font-sans py-2.5 px-4 bg-red-600 text-white font-extrabold uppercase rounded-xl text-center text-xs tracking-wider flex items-center justify-center gap-2 shadow-md animate-pulse">
+          ⛔ Mois de {selectedDate.substring(0, 7)} Clôturé — Modification Impossible
+        </div>
+      )}
       
       {/* Unified Elegant Header Banner with Enlarged Logo and Centered Title - Style MATCHING Planning.tsx */}
       <div id="unified-production-banner" className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
@@ -3202,11 +3259,11 @@ export const Production: React.FC = () => {
             
             <button
               onClick={saveWorkbook}
-              disabled={saveStatus === 'saving'}
-              className="bg-gradient-to-r from-sky-600 to-[#00BFFF] hover:opacity-90 text-white font-black px-5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md cursor-pointer"
+              disabled={saveStatus === 'saving' || isMonthClosed}
+              className={`font-black px-5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md cursor-pointer ${isMonthClosed ? 'bg-red-700 text-white cursor-not-allowed opacity-50' : 'bg-gradient-to-r from-sky-600 to-[#00BFFF] hover:opacity-90 text-white'}`}
             >
               <Save className="w-4 h-4" /> 
-              {saveStatus === 'saving' ? 'Gravure en cours...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver au Registre SMI'}
+              {isMonthClosed ? '🔒 MOIS CLÔTURÉ (Lecture seule)' : saveStatus === 'saving' ? 'Gravure en cours...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver au Registre SMI'}
             </button>
           </div>
         </div>
@@ -3225,18 +3282,19 @@ export const Production: React.FC = () => {
               <div className="flex gap-2.5 items-center">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                 <span className="text-[11px] text-amber-900 font-bold">
-                  En attente de registre ({unfilledPlannings.length}) :
+                  En attente de réalisé ({unfilledPlannings.length}) :
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5 text-xs font-black shrink-0">
                 {unfilledPlannings.map(plan => (
                   <button
-                    key={plan.id}
+                    key={plan.expectedProdDate}
                     type="button"
-                    onClick={() => setSelectedDate(plan.id)}
+                    onClick={() => setSelectedDate(plan.expectedProdDate)}
                     className="px-2 py-1 bg-white hover:bg-amber-100 text-amber-800 border border-amber-200 hover:border-amber-300 rounded-lg font-extrabold uppercase text-[9px] tracking-wider transition-all cursor-pointer shadow-2xs"
+                    title={`Basé sur la planification du ${formatFrenchDate(plan.planDate)}`}
                   >
-                    📅 {formatFrenchDate(plan.id)}
+                    📅 {formatFrenchDate(plan.expectedProdDate)}
                   </button>
                 ))}
               </div>
@@ -4616,10 +4674,10 @@ export const Production: React.FC = () => {
 
             <button
               onClick={saveWorkbook}
-              disabled={saveStatus === 'saving'}
-              className="w-full md:w-auto bg-[#00BFFF] hover:bg-sky-500 text-white font-black py-3 px-8 text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-95 cursor-pointer"
+              disabled={saveStatus === 'saving' || isMonthClosed}
+              className={`w-full md:w-auto font-black py-3 px-8 text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-95 cursor-pointer ${isMonthClosed ? 'bg-red-700 text-white cursor-not-allowed opacity-50' : 'bg-[#00BFFF] hover:bg-sky-500 text-white'}`}
             >
-              {saveStatus === 'saving' ? 'Gravure en cours ...' : saveStatus === 'saved' ? '✓ GRAVÉ AVEC SUCCÈS !' : 'Enregistrer et figer la production du Poste'}
+              {isMonthClosed ? '🔒 MOIS CLÔTURÉ (Lecture seule)' : saveStatus === 'saving' ? 'Gravure en cours ...' : saveStatus === 'saved' ? '✓ GRAVÉ AVEC SUCCÈS !' : 'Enregistrer et figer la production du Poste'}
             </button>
           </div>
         </div>

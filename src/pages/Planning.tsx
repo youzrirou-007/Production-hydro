@@ -23,7 +23,8 @@ import {
   TrendingUp,
   Copy,
   Trash2,
-  ClipboardList
+  ClipboardList,
+  AlertCircle
 } from 'lucide-react';
 import { collection, query, onSnapshot, setDoc, doc, getDocs, deleteDoc, where, writeBatch, addDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -330,13 +331,42 @@ export const Planning: React.FC = () => {
     sectors: string[];
     engines: string[];
     oils: string[];
+    defaultWagonsTarget?: number;
   }>({
     sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est'],
     engines: ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
-    oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression']
+    oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
+    defaultWagonsTarget: 48
   });
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // Traceability & signature states
+  const [signatureInfo, setSignatureInfo] = useState<{
+    savedBy?: string;
+    savedAt?: string;
+    lastModifiedBy?: string;
+    lastModifiedAt?: string;
+  } | null>(null);
+  const [isPlanningSavedInDb, setIsPlanningSavedInDb] = useState(false);
+  const [validationInfo, setValidationInfo] = useState<{
+    validatedBy?: string;
+    validatedByUid?: string;
+    validatedAt?: string;
+    status?: string;
+  } | null>(null);
+  const [modRequests, setModRequests] = useState<any[]>([]);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 10000); // updates every 10 seconds to keep minutes countdown accurate
+    return () => clearInterval(timer);
+  }, []);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [requestReason, setRequestReason] = useState('');
+  const [productionDates, setProductionDates] = useState<Set<string>>(new Set());
 
   // Gap Report control states
   const [isGapModalOpen, setIsGapModalOpen] = useState(false);
@@ -366,6 +396,16 @@ export const Planning: React.FC = () => {
     'Poste 3': []
   });
   const [sectorChiefs, setSectorChiefs] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', Record<'Imiter 2' | 'Imiter 1' | 'Imiter Est', string>>>({
+    'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+    'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+    'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' }
+  });
+  const [sectorBoutefeus, setSectorBoutefeus] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', Record<'Imiter 2' | 'Imiter 1' | 'Imiter Est', string>>>({
+    'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+    'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+    'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' }
+  });
+  const [sectorBoutefeuTasks, setSectorBoutefeuTasks] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', Record<'Imiter 2' | 'Imiter 1' | 'Imiter Est', string>>>({
     'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
     'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
     'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' }
@@ -409,7 +449,7 @@ export const Planning: React.FC = () => {
         equipier2: '',
         equipier3: '',
         equipier4: '',
-        wagonsTarget: 48,
+        wagonsTarget: platformSettings.defaultWagonsTarget ?? 48,
         wagonsActual: 0,
         sterileBureImiterEst: 0,
         startTime: defaults.start,
@@ -437,10 +477,22 @@ export const Planning: React.FC = () => {
         
         if (dData.postes) {
           Object.values(dData.postes).forEach((pVal: any) => {
-            if (pVal.minage) consolidatedMinage.push(...pVal.minage);
-            if (pVal.deblayage) consolidatedDeblayage.push(...pVal.deblayage);
-            if (pVal.extraction) consolidatedExtraction.push(...pVal.extraction);
-            if (pVal.maintenance) consolidatedMaintenance.push(...pVal.maintenance);
+            if (pVal.minage) {
+              const activeMinage = pVal.minage.filter((r: any) => r.chantierId && r.chantierId.trim() !== '');
+              consolidatedMinage.push(...activeMinage);
+            }
+            if (pVal.deblayage) {
+              const activeDeblayage = pVal.deblayage.filter((r: any) => r.chantierId && r.chantierId.trim() !== '');
+              consolidatedDeblayage.push(...activeDeblayage);
+            }
+            if (pVal.extraction) {
+              const activeExtraction = pVal.extraction.filter((r: any) => r.chantierName && r.chantierName.trim() !== '');
+              consolidatedExtraction.push(...activeExtraction);
+            }
+            if (pVal.maintenance) {
+              const activeMaintenance = pVal.maintenance.filter((r: any) => r.agentMatricule && r.agentMatricule.trim() !== '');
+              consolidatedMaintenance.push(...activeMaintenance);
+            }
           });
         }
         
@@ -486,14 +538,31 @@ export const Planning: React.FC = () => {
         setPlatformSettings({
           sectors: data.sectors || ['Imiter 1', 'Imiter 2', 'Imiter Est'],
           engines: data.engines || ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
-          oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression']
+          oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
+          defaultWagonsTarget: data.defaultWagonsTarget !== undefined ? data.defaultWagonsTarget : 48
         });
       }
     }, (err) => {
       console.warn("Permission logs on Snapshot setting platform:", err.message);
     });
 
-    return () => { unsubHist(); unsubChan(); unsubRH(); unsubEngs(); unsubSettings(); };
+    // 6. Real-time tracking of filled production/registry dates
+    const unsubProd = onSnapshot(collection(db, 'production'), (snapshot) => {
+      const dates = new Set<string>();
+      snapshot.docs.forEach(docSnap => {
+        const dData = docSnap.data();
+        if (dData.date) {
+          dates.add(dData.date);
+        } else {
+          dates.add(docSnap.id);
+        }
+      });
+      setProductionDates(dates);
+    }, (err) => {
+      console.warn("Permission warning or error reading production sub:", err.message);
+    });
+
+    return () => { unsubHist(); unsubChan(); unsubRH(); unsubEngs(); unsubSettings(); unsubProd(); };
   }, []);
 
   // Synchronize Deletion Logs Tracker ONLY when user profile is loaded
@@ -533,6 +602,25 @@ export const Planning: React.FC = () => {
     loadPlanningWorkbook();
   }, [selectedDate, selectedPost, employees, chantiers, engines, platformSettings]);
 
+  // Realtime subscription to modification requests subcollection for the selected day
+  useEffect(() => {
+    if (!selectedDate) {
+      setModRequests([]);
+      return;
+    }
+    const q = collection(db, 'daily_planning_sheets', selectedDate, 'modification_requests');
+    const unsub = onSnapshot(q, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(docSnap => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      setModRequests(list);
+    }, (err) => {
+      console.error("Error listening modification_requests subcollection :", err);
+    });
+    return () => unsub();
+  }, [selectedDate]);
+
   const loadPlanningWorkbook = async () => {
     setLoading(true);
     try {
@@ -547,6 +635,22 @@ export const Planning: React.FC = () => {
       };
       setSectorChiefs(finalSectorChiefs);
 
+      const loadedSectorBoutefeus = docSnap.exists() ? (docSnap.data().sectorBoutefeus || {}) : {};
+      const finalSectorBoutefeus = {
+        'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '', ...loadedSectorBoutefeus['Poste 1'] },
+        'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '', ...loadedSectorBoutefeus['Poste 2'] },
+        'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '', ...loadedSectorBoutefeus['Poste 3'] }
+      };
+      setSectorBoutefeus(finalSectorBoutefeus);
+
+      const loadedSectorBoutefeuTasks = docSnap.exists() ? (docSnap.data().sectorBoutefeuTasks || {}) : {};
+      const finalSectorBoutefeuTasks = {
+        'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '', ...loadedSectorBoutefeuTasks['Poste 1'] },
+        'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '', ...loadedSectorBoutefeuTasks['Poste 2'] },
+        'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '', ...loadedSectorBoutefeuTasks['Poste 3'] }
+      };
+      setSectorBoutefeuTasks(finalSectorBoutefeuTasks);
+
       const loadedMinageByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const loadedDeblayageByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelDeblayage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const loadedExtractionByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelExtraction[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
@@ -556,6 +660,23 @@ export const Planning: React.FC = () => {
 
       if (docSnap.exists()) {
         const docData = docSnap.data();
+        setIsPlanningSavedInDb(true);
+        setSignatureInfo({
+          savedBy: docData.savedBy || docData.operator,
+          savedAt: docData.savedAt || docData.timestamp,
+          lastModifiedBy: docData.lastModifiedBy || docData.operator,
+          lastModifiedAt: docData.lastModifiedAt || docData.timestamp
+        });
+        if (docData.status === 'valide' || docData.validatedAt) {
+          setValidationInfo({
+            validatedBy: docData.validatedBy,
+            validatedByUid: docData.validatedByUid,
+            validatedAt: docData.validatedAt,
+            status: docData.status
+          });
+        } else {
+          setValidationInfo(null);
+        }
         posts.forEach(p => {
           const pk = p === 'Poste 1' ? 'poste1' : p === 'Poste 2' ? 'poste2' : 'poste3';
           const pData = docData.postes?.[pk];
@@ -592,6 +713,9 @@ export const Planning: React.FC = () => {
       setDeblayageRowsByPost(loadedDeblayageByPost);
       setExtractionRowsByPost(loadedExtractionByPost);
       setMaintenanceRowsByPost(loadedMaintenanceByPost);
+      setSignatureInfo(null);
+      setValidationInfo(null);
+      setIsPlanningSavedInDb(false);
     } catch (err) {
       console.error("Erreur de chargement du classeur : ", err);
     } finally {
@@ -1151,132 +1275,6 @@ export const Planning: React.FC = () => {
     }));
   };
 
-  const duplicatePreviousWeek = async () => {
-    setLoading(true);
-    try {
-      const parts = selectedDate.split('-');
-      if (parts.length !== 3) {
-        alert("Date non valide.");
-        setLoading(false);
-        return;
-      }
-      const sourceDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-      const targetDateObj = addDays(sourceDateObj, -7);
-      const previousWeekDateStr = format(targetDateObj, 'yyyy-MM-dd');
-
-      const docRef = doc(db, 'daily_planning_sheets', previousWeekDateStr);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        alert(`Aucune planification trouvée pour la semaine précédente (J-7 : ${previousWeekDateStr}).`);
-        setLoading(false);
-        return;
-      }
-
-      const docData = docSnap.data();
-
-      // Rotating mapping:
-      // Target Poste 1 ← Source J-7 Poste 3 (poste3)
-      // Target Poste 2 ← Source J-7 Poste 1 (poste1)
-      // Target Poste 3 ← Source J-7 Poste 2 (poste2)
-      const postMapping: Record<'Poste 1' | 'Poste 2' | 'Poste 3', string> = {
-        'Poste 1': 'poste3',
-        'Poste 2': 'poste1',
-        'Poste 3': 'poste2'
-      };
-
-      const clonedMinage: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
-      const clonedDeblayage: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelDeblayage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
-      const clonedExtraction: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelExtraction[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
-      const clonedMaintenance: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMaintenance[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
-      const clonedSectorChiefs: Record<'Poste 1' | 'Poste 2' | 'Poste 3', Record<'Imiter 2' | 'Imiter 1' | 'Imiter Est', string>> = {
-        'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
-        'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
-        'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' }
-      };
-
-      const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
-
-      posts.forEach(p => {
-        const srcKey = postMapping[p];
-        const srcData = docData.postes?.[srcKey];
-        if (srcData) {
-          // Clone Minage
-          clonedMinage[p] = (srcData.minage || []).map((row: ExcelMinage) => {
-            const finalRow = { ...row };
-            if (row.chiefMatricule) {
-              const emp = employees.find(e => e.matricule?.toUpperCase() === row.chiefMatricule.toUpperCase());
-              finalRow.chiefName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
-            }
-            if (row.minerMatricule) {
-              const emp = employees.find(e => e.matricule?.toUpperCase() === row.minerMatricule.toUpperCase());
-              finalRow.minerName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
-            }
-            if (row.assistantMatricule) {
-              const emp = employees.find(e => e.matricule?.toUpperCase() === row.assistantMatricule.toUpperCase());
-              finalRow.assistantName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
-            }
-            return finalRow;
-          });
-          clonedMinage[p] = ensureMinimumRows(clonedMinage[p], 'minage', p, chantiers);
-
-          // Clone Deblayage
-          clonedDeblayage[p] = (srcData.deblayage || []).map((row: ExcelDeblayage) => {
-            const finalRow = { ...row };
-            if (row.driverMatricule) {
-              const emp = employees.find(e => e.matricule?.toUpperCase() === row.driverMatricule.toUpperCase());
-              finalRow.driverName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
-            }
-            return finalRow;
-          });
-          clonedDeblayage[p] = ensureMinimumRows(clonedDeblayage[p], 'deblayage', p, chantiers);
-
-          // Clone Extraction
-          clonedExtraction[p] = sanitizeExtractionRows(srcData.extraction, POST_HOURS[p]);
-
-          // Clone Maintenance
-          clonedMaintenance[p] = (srcData.maintenance || []).map((row: ExcelMaintenance) => {
-            const finalRow = { ...row };
-            if (row.agentMatricule) {
-              const emp = employees.find(e => e.matricule?.toUpperCase() === row.agentMatricule.toUpperCase());
-              finalRow.agentName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
-            }
-            return finalRow;
-          });
-          if (clonedMaintenance[p].length === 0) {
-            clonedMaintenance[p] = getDefaultMaintenanceRows(p);
-          }
-
-          // Clone Sector Chiefs
-          const srcSectorChiefs = (docData.sectorChiefs || {})[srcKey] || {};
-          clonedSectorChiefs[p] = {
-            'Imiter 2': srcSectorChiefs['Imiter 2'] || '',
-            'Imiter 1': srcSectorChiefs['Imiter 1'] || '',
-            'Imiter Est': srcSectorChiefs['Imiter Est'] || ''
-          };
-        } else {
-          clonedMinage[p] = ensureMinimumRows([], 'minage', p, chantiers);
-          clonedDeblayage[p] = ensureMinimumRows([], 'deblayage', p, chantiers);
-          clonedExtraction[p] = getDefaultExtractionRows(p);
-          clonedMaintenance[p] = getDefaultMaintenanceRows(p);
-        }
-      });
-
-      setMinageRowsByPost(clonedMinage);
-      setDeblayageRowsByPost(clonedDeblayage);
-      setSectorChiefs(clonedSectorChiefs);
-      setExtractionRowsByPost(clonedExtraction);
-      setMaintenanceRowsByPost(clonedMaintenance);
-
-      alert(`Ordonnancement complet du ${previousWeekDateStr} dupliqué et adapté (rotation intelligente des 3 postes effectuée) !`);
-    } catch (err) {
-      console.error("Erreur de duplication : ", err);
-      alert("Une erreur est survenue lors de la duplication.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const triggerDuplicatePreviousDay = () => {
     const parts = selectedDate.split('-');
     if (parts.length !== 3) {
@@ -1284,6 +1282,13 @@ export const Planning: React.FC = () => {
       return;
     }
     const sourceDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    
+    // Check if the selected target date is a Monday (1)
+    if (sourceDateObj.getDay() === 1) {
+      alert("⚠️ Les lundis, la composition des équipes et la rotation des postes changent de manière réglementaire à SMI Imiter. La planification du lundi doit impérativement être configurée manuellement. La duplication du dimanche vers le lundi est désactivée.");
+      return;
+    }
+
     const targetDateObj = addDays(sourceDateObj, -1);
     const yDateStr = format(targetDateObj, 'yyyy-MM-dd');
     setYesterdayDateStr(yDateStr);
@@ -1314,6 +1319,16 @@ export const Planning: React.FC = () => {
       const clonedExtraction: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelExtraction[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const clonedMaintenance: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMaintenance[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const clonedSectorChiefs: Record<'Poste 1' | 'Poste 2' | 'Poste 3', Record<'Imiter 2' | 'Imiter 1' | 'Imiter Est', string>> = {
+        'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+        'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+        'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' }
+      };
+      const clonedSectorBoutefeus: Record<'Poste 1' | 'Poste 2' | 'Poste 3', Record<'Imiter 2' | 'Imiter 1' | 'Imiter Est', string>> = {
+        'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+        'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
+        'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' }
+      };
+      const clonedSectorBoutefeuTasks: Record<'Poste 1' | 'Poste 2' | 'Poste 3', Record<'Imiter 2' | 'Imiter 1' | 'Imiter Est', string>> = {
         'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
         'Poste 2': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' },
         'Poste 3': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' }
@@ -1383,6 +1398,22 @@ export const Planning: React.FC = () => {
             'Imiter 1': srcSectorChiefs['Imiter 1'] || '',
             'Imiter Est': srcSectorChiefs['Imiter Est'] || ''
           };
+
+          // Clone Sector Boutefeus direct
+          const srcSectorBoutefeus = (docData.sectorBoutefeus || {})[srcKey] || {};
+          clonedSectorBoutefeus[p] = {
+            'Imiter 2': srcSectorBoutefeus['Imiter 2'] || '',
+            'Imiter 1': srcSectorBoutefeus['Imiter 1'] || '',
+            'Imiter Est': srcSectorBoutefeus['Imiter Est'] || ''
+          };
+
+          // Clone Sector Boutefeu Tasks direct
+          const srcSectorBoutefeuTasks = (docData.sectorBoutefeuTasks || {})[srcKey] || {};
+          clonedSectorBoutefeuTasks[p] = {
+            'Imiter 2': srcSectorBoutefeuTasks['Imiter 2'] || '',
+            'Imiter 1': srcSectorBoutefeuTasks['Imiter 1'] || '',
+            'Imiter Est': srcSectorBoutefeuTasks['Imiter Est'] || ''
+          };
         } else {
           clonedMinage[p] = ensureMinimumRows([], 'minage', p, chantiers);
           clonedDeblayage[p] = ensureMinimumRows([], 'deblayage', p, chantiers);
@@ -1394,6 +1425,8 @@ export const Planning: React.FC = () => {
       setMinageRowsByPost(clonedMinage);
       setDeblayageRowsByPost(clonedDeblayage);
       setSectorChiefs(clonedSectorChiefs);
+      setSectorBoutefeus(clonedSectorBoutefeus);
+      setSectorBoutefeuTasks(clonedSectorBoutefeuTasks);
       setExtractionRowsByPost(clonedExtraction);
       setMaintenanceRowsByPost(clonedMaintenance);
 
@@ -2033,16 +2066,21 @@ export const Planning: React.FC = () => {
       posts.forEach(p => {
         const pk = p === 'Poste 1' ? 'poste1' : p === 'Poste 2' ? 'poste2' : 'poste3';
         const chiefMat = sectorChiefs[p] || { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' };
+        const bfMat = sectorBoutefeus[p] || { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' };
         
-        // Synthesize and attach chiefs row-by-row for backward-compatibility with downstream pipelines
+        // Synthesize and attach chiefs & boutefeus row-by-row for backward-compatibility with downstream pipelines
         const pMinageObj = minageRowsByPost[p].map(r => {
           const sec = r.sectorGroup || 'Imiter 2';
           const chiefM = chiefMat[sec] || '';
           const emp = employees.find(e => e.matricule?.toUpperCase() === chiefM.trim().toUpperCase());
+          const bfM = bfMat[sec] || '';
+          const bfEmp = employees.find(e => e.matricule?.toUpperCase() === bfM.trim().toUpperCase());
           return {
             ...r,
             chiefMatricule: chiefM,
-            chiefName: emp ? `${emp.nom} ${emp.prenom}` : ''
+            chiefName: emp ? `${emp.nom} ${emp.prenom}` : '',
+            boutefeuMatricule: bfM,
+            boutefeuName: bfEmp ? `${bfEmp.nom} ${bfEmp.prenom}` : ''
           };
         });
 
@@ -2069,20 +2107,51 @@ export const Planning: React.FC = () => {
           minage: pMinage,
           deblayage: pDeblayage,
           extraction: extractionRowsByPost[p] || [],
-          maintenance: (maintenanceRowsByPost[p] || []).filter(r => r.agentMatricule !== '')
+          maintenance: (maintenanceRowsByPost[p] || []).filter(r => r.agentMatricule !== ''),
+          sectorChiefs: sectorChiefs[p] || {},
+          sectorBoutefeus: sectorBoutefeus[p] || {},
+          sectorBoutefeuTasks: sectorBoutefeuTasks[p] || {}
         };
       });
 
+      const operatorName = profile?.name || user?.email || 'Planificateur de Direction SMI';
+      const nowStr = new Date().toISOString();
+
+      const savedByVal = docData.savedBy || operatorName;
+      const savedAtVal = docData.savedAt || nowStr;
+      
+      const savedStatus = docData.status === 'valide' ? 'valide' : 'planifie';
+      const validatedByVal = docData.validatedBy || null;
+      const validatedByUidVal = docData.validatedByUid || null;
+      const validatedAtVal = docData.validatedAt || null;
+
       const updateData = {
         date: selectedDate,
-        status: 'planifie',
-        operator: user?.email || 'Planificateur de Direction SMI',
-        timestamp: new Date().toISOString(),
+        status: savedStatus,
+        operator: operatorName,
+        timestamp: nowStr,
         sectorChiefs: sectorChiefs,
-        postes: newPostesObj
+        sectorBoutefeus: sectorBoutefeus,
+        sectorBoutefeuTasks: sectorBoutefeuTasks,
+        postes: newPostesObj,
+        savedBy: savedByVal,
+        savedAt: savedAtVal,
+        lastModifiedBy: operatorName,
+        lastModifiedAt: nowStr,
+        validatedBy: validatedByVal,
+        validatedByUid: validatedByUidVal,
+        validatedAt: validatedAtVal
       };
 
       await setDoc(docRef, updateData, { merge: true });
+
+      setSignatureInfo({
+        savedBy: savedByVal,
+        savedAt: savedAtVal,
+        lastModifiedBy: operatorName,
+        lastModifiedAt: nowStr
+      });
+      setIsPlanningSavedInDb(true);
 
       // Clean J-1 discrete logs to prevent duplicates
       const planColl = collection(db, 'planning');
@@ -2204,6 +2273,58 @@ export const Planning: React.FC = () => {
     }
   };
 
+  const validatePlanningWorkbook = async () => {
+    if (!isPlanningSavedInDb) {
+      alert("⚠️ Veuillez d'abord enregistrer la planification avant de la valider.");
+      return;
+    }
+    const confirmVal = window.confirm("✓ Voulez-vous vraiment valider cette planification ?\n\nAprès validation, une fenêtre d'édition libre de 24 heures sera ouverte. Au-delà, toute modification demandera une approbation.");
+    if (!confirmVal) return;
+
+    try {
+      setSaveStatus('saving');
+      const docRef = doc(db, 'daily_planning_sheets', selectedDate);
+      const validatorName = profile?.name || user?.displayName || user?.email || 'Planificateur de Direction SMI';
+      const validatorUid = user?.uid || '';
+      const nowStr = new Date().toISOString();
+
+      const updateValData = {
+        status: 'valide',
+        validatedBy: validatorName,
+        validatedByUid: validatorUid,
+        validatedAt: nowStr
+      };
+
+      await setDoc(docRef, updateValData, { merge: true });
+
+      setValidationInfo({
+        validatedBy: validatorName,
+        validatedByUid: validatorUid,
+        validatedAt: nowStr,
+        status: 'valide'
+      });
+      setSaveStatus('saved');
+      
+      try {
+        await logPlanningAction(
+          user?.email || 'Planificateur SMI',
+          'VALIDATION PLAN',
+          'TOUS LES POSTES',
+          selectedDate,
+          `Validation officielle de la planification journalière par ${validatorName}.`
+        );
+      } catch (logErr) {
+        console.warn("Audit logs error writing: ", logErr);
+      }
+
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err: any) {
+      console.error("Erreur de validation : ", err);
+      alert(`Erreur de validation : ${err.message}`);
+      setSaveStatus('error');
+    }
+  };
+
   const handleDeleteHistoryRecord = async (record: any) => {
     const allowedRoles = ['admin', 'direction', 'chief', 'responsible', 'secretary'];
     if (!profile || !allowedRoles.includes(profile.role)) {
@@ -2306,11 +2427,193 @@ export const Planning: React.FC = () => {
     }
   };
 
+  const submitModificationRequest = async () => {
+    if (!requestReason.trim()) {
+      alert("La raison de la modification est obligatoire.");
+      return;
+    }
+
+    try {
+      const parentDocRef = doc(db, 'daily_planning_sheets', selectedDate);
+      const subCollRef = collection(parentDocRef, 'modification_requests');
+      
+      const email = user?.email || 'Secrétaire';
+      const uid = user?.uid || 'unknown-uid';
+      
+      await addDoc(subCollRef, {
+        requestedBy: email,
+        requestedByUid: uid,
+        requestedAt: new Date().toISOString(),
+        reason: requestReason,
+        status: 'pending'
+      });
+
+      // Write trace in audit log
+      await logPlanningAction(
+        email,
+        'DEMANDE MODIFICATION',
+        'TOUS LES POSTES',
+        selectedDate,
+        `Demande de modification soumise pour le ${selectedDate}. Raison : ${requestReason}`
+      );
+
+      setIsRequestModalOpen(false);
+      setRequestReason('');
+    } catch (err) {
+      console.error("Error submitting modification request :", err);
+      alert("Une erreur est survenue lors de la soumission de la demande.");
+    }
+  };
+
   const nonEmptyChantiersCount = [
     ...(minageRowsByPost['Poste 1'] || []),
     ...(minageRowsByPost['Poste 2'] || []),
     ...(minageRowsByPost['Poste 3'] || [])
   ].filter(r => r.chantierId && (r.minerMatricule || r.assistantMatricule)).length;
+
+  // Evaluate Niveau 2 lock status
+  const isLockedByNiveau2 = (() => {
+    if (!validationInfo || validationInfo.status !== 'valide' || !validationInfo.validatedAt) {
+      return false;
+    }
+    const elapsedMs = currentTime - new Date(validationInfo.validatedAt).getTime();
+    const exceeds24h = elapsedMs > 24 * 60 * 60 * 1000;
+    
+    // Check if there is an active approved reopening request
+    const hasActiveReopen = modRequests.some(r => {
+      if (r.status !== 'approved') return false;
+      const reopenTime = r.reopenUntil ? new Date(r.reopenUntil).getTime() : 0;
+      return currentTime < reopenTime;
+    });
+
+    return exceeds24h && !hasActiveReopen;
+  })();
+
+  const renderPlanningStatusBanner = () => {
+    if (!isPlanningSavedInDb) return null;
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const formattedDate = selectedDate.split('-').reverse().join('/');
+
+    // 1. Check if we are locked by Niveau 2 (validated and > 24 hours past validation, without active approved request)
+    if (isLockedByNiveau2) {
+      const valDateFormatted = validationInfo?.validatedAt 
+        ? format(new Date(validationInfo.validatedAt), 'dd/MM/yyyy à HH:mm') 
+        : '';
+        
+      const pendingReq = modRequests.find(r => r.status === 'pending');
+      const rejectedReq = modRequests.find(r => r.status === 'rejected');
+
+      return (
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-red-955 text-[11px] font-medium leading-normal mb-1 select-none">
+          <div className="flex items-center gap-3">
+            <span className="text-xl shrink-0">🔒</span>
+            <div>
+              <span className="font-black text-red-800 uppercase text-[9px] tracking-widest block mb-0.5">Planification verrouillée — Niveau 2</span>
+              Planification verrouillée — validée le <strong>{valDateFormatted}</strong> par <strong>{validationInfo?.validatedBy || 'Administrateur'}</strong>. Toute modification requiert une approbation direction ou admin.
+            </div>
+          </div>
+          
+          <div className="flex flex-col items-stretch md:items-end gap-1.5 shrink-0">
+            {pendingReq ? (
+              <span className="bg-amber-105 text-amber-800 font-extrabold px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wide border border-amber-200 bg-amber-50 flex items-center gap-1.5">
+                ⏳ Demande de modification en attente d'approbation
+              </span>
+            ) : rejectedReq ? (
+              <div className="flex flex-col items-stretch md:items-end gap-1">
+                <span className="bg-red-100 text-red-800 font-extrabold px-3 py-1 bg-red-100 border border-red-200 rounded-lg text-[9px] uppercase tracking-wide">
+                  ❌ Demande rejetée par l'admin
+                </span>
+                <span className="text-[9px] text-gray-500 italic max-w-xs truncate" title={rejectedReq.rejectReason}>
+                  Motif : {rejectedReq.rejectReason || 'Non spécifié'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRequestReason('');
+                    setIsRequestModalOpen(true);
+                  }}
+                  className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-2.5 py-1 rounded text-[9.5px] uppercase tracking-wider shadow-xs shrink-0 cursor-pointer mt-1"
+                >
+                  Faire une nouvelle demande
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setRequestReason('');
+                  setIsRequestModalOpen(true);
+                }}
+                className="bg-red-650 hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider shadow-sm hover:shadow active:translate-y-px transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                📝 Demander une modification
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // 2. Check if we have an active approved reopening request window
+    const activeReopenRequest = modRequests.find(r => {
+      if (r.status !== 'approved') return false;
+      const reopenUntilTime = r.reopenUntil ? new Date(r.reopenUntil).getTime() : 0;
+      return reopenUntilTime > currentTime;
+    });
+
+    if (activeReopenRequest) {
+      const diffMs = new Date(activeReopenRequest.reopenUntil).getTime() - currentTime;
+      const diffMinutes = Math.max(0, Math.ceil(diffMs / 1000 / 60));
+      return (
+        <div className="bg-sky-50 border-2 border-sky-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-sky-955 text-[11px] font-medium leading-normal mb-1">
+          <div className="flex items-center gap-3">
+            <span className="text-xl shrink-0">🔓</span>
+            <div>
+              <span className="font-black text-sky-700 uppercase text-[9px] tracking-widest block mb-0.5">Fenêtre temporaire de modification active</span>
+              Planification réouverte temporairement par <strong>{activeReopenRequest.approvedBy || 'Admin'}</strong>.<br />
+              Toutes les modifications sont autorisées et seront tracées. Temps d'uniquement 2 heures accordé. Reste : <strong>{diffMinutes} minute{diffMinutes > 1 ? 's' : ''}</strong>.
+            </div>
+          </div>
+          <span className="bg-[#00BFFF]/10 text-sky-800 font-black px-3 py-1.5 rounded-lg text-[9.5px] uppercase border border-[#00BFFF]/20 animate-pulse self-center">
+            ⚡ EDITION RE-AUTORISÉE ({diffMinutes} min)
+          </span>
+        </div>
+      );
+    }
+
+    // 3. Fallback to normal status banners if not locked
+    let message = "";
+    let icon = "📋";
+    if (selectedDate < todayStr) {
+      message = `⚠️ La planification du ${formattedDate} est déjà enregistrée. Toute modification sera tracée.`;
+      icon = "🗄️";
+    } else if (selectedDate === todayStr) {
+      message = "Planning en cours d'exécution pour aujourd'hui.";
+      icon = "⚡";
+    } else {
+      message = "Un planning futur est déjà programmé pour cette date.";
+      icon = "📅";
+    }
+
+    const isPast = selectedDate < todayStr;
+    const bannerClass = isPast 
+      ? "bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-3 text-amber-900 text-[11px] font-medium leading-normal select-none mb-1"
+      : "bg-[#00BFFF]/5 border border-[#00BFFF]/20 rounded-xl p-3.5 flex items-center gap-3 text-sky-955 text-[11px] font-medium leading-normal select-none mb-1";
+      
+    const headerClass = isPast 
+      ? "font-black text-amber-800 uppercase text-[8.5px] tracking-widest block mb-0.5"
+      : "font-black text-sky-900 uppercase text-[8.5px] tracking-widest block mb-0.5";
+
+    return (
+      <div className={bannerClass}>
+        <span className="text-base">{icon}</span>
+        <div>
+          <span className={headerClass}>Statut de la planification</span>
+          {message}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -2421,18 +2724,13 @@ export const Planning: React.FC = () => {
                 />
                 <button
                   onClick={triggerDuplicatePreviousDay}
-                  className="bg-sky-50 hover:bg-sky-100 text-[#00BFFF] border border-sky-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer shadow-xs font-sans"
+                  disabled={isLockedByNiveau2}
+                  className={`border px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 shadow-xs font-sans ${isLockedByNiveau2 ? 'bg-gray-100 text-gray-450 border-gray-200 cursor-not-allowed opacity-60' : 'bg-sky-50 hover:bg-sky-100 text-[#00BFFF] border-sky-200 cursor-pointer'}`}
                   title="Dupliquer la planification complète du jour précédent J-1"
                 >
                   <Copy className="w-3 h-3 text-[#00BFFF]" /> Dupliquer J-1
                 </button>
-                <button
-                  onClick={duplicatePreviousWeek}
-                  className="bg-gray-50 hover:bg-gray-150 text-gray-855 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
-                  title="Importer et adapter la planification de la semaine passée J-7"
-                >
-                  <Copy className="w-3 h-3 text-[#00BFFF]" /> J-7
-                </button>
+
                 <button
                   onClick={loadPlanningWorkbook}
                   className="bg-gray-50 hover:bg-gray-150 text-gray-855 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
@@ -2442,12 +2740,40 @@ export const Planning: React.FC = () => {
                 </button>
                 <button
                   onClick={savePlanningWorkbook}
-                  disabled={saveStatus === 'saving'}
-                  className="bg-[#00BFFF] hover:bg-sky-500 text-white font-extrabold px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px cursor-pointer"
+                  disabled={saveStatus === 'saving' || isLockedByNiveau2}
+                  className={`font-extrabold px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px ${
+                    isLockedByNiveau2 
+                      ? 'bg-gray-200 text-gray-400 border border-gray-250 cursor-not-allowed opacity-60' 
+                      : 'bg-[#00BFFF] hover:bg-sky-500 text-white cursor-pointer'
+                  }`}
                 >
                   <Save className="w-3.5 h-3.5" /> 
                   {saveStatus === 'saving' ? '...' : saveStatus === 'saved' ? 'Enregistré !' : 'Graver'}
                 </button>
+                {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && (
+                  <button
+                    onClick={validatePlanningWorkbook}
+                    disabled={saveStatus === 'saving'}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px cursor-pointer"
+                    title="Valider officiellement cette planification"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Valider
+                  </button>
+                )}
+                {validationInfo?.status === 'valide' && (
+                  <div className="bg-emerald-50 text-emerald-850 border border-emerald-250 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1.5 shadow-sm select-none">
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>
+                      ✓ Validée {validationInfo.validatedAt ? (() => {
+                        try {
+                          return `le ${format(new Date(validationInfo.validatedAt), 'dd/MM/yyyy à HH:mm')}`;
+                        } catch {
+                          return '';
+                        }
+                      })() : ''} par {validationInfo.validatedBy}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2461,9 +2787,35 @@ export const Planning: React.FC = () => {
       ) : viewMode === 'sheet' ? (
         <div className="space-y-4">
           
+          {/* Signature & Audit Info Badge Bar */}
+          {signatureInfo && (
+            <div className="mx-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] text-gray-500/80 bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 shadow-xs">
+              <div className="flex items-center gap-1.5 select-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>
+                  Fiche initialisée par : <strong className="text-slate-800 font-extrabold">{signatureInfo.savedBy}</strong> {signatureInfo.savedAt ? (() => {
+                    try { return `le ${format(new Date(signatureInfo.savedAt), 'dd/MM/yyyy à HH:mm')}`; } catch { return ''; }
+                  })() : ''}
+                </span>
+              </div>
+              {signatureInfo.lastModifiedBy && (
+                <div className="flex items-center gap-1.5 select-none sm:border-l sm:border-slate-200 sm:pl-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                  <span>
+                    Dernière modification par : <strong className="text-slate-800 font-extrabold">{signatureInfo.lastModifiedBy}</strong> {signatureInfo.lastModifiedAt ? (() => {
+                      try { return `le ${format(new Date(signatureInfo.lastModifiedAt), 'dd/MM/yyyy à HH:mm')}`; } catch { return ''; }
+                    })() : ''}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* SPREADSHEET WORKSPACE */}
           <div className="w-full space-y-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
             
+            {renderPlanningStatusBanner()}
+
             {/* Sheet Tabs */}
             <div className="flex flex-wrap items-center justify-center border-b border-gray-250 pb-2.5 gap-2">
               {[
@@ -2516,6 +2868,7 @@ export const Planning: React.FC = () => {
               })}
             </div>
 
+            <fieldset key={`${selectedDate}-${isLockedByNiveau2}`} disabled={isLockedByNiveau2} className={isLockedByNiveau2 ? "pointer-events-none opacity-90 select-none cursor-not-allowed" : ""}>
             {/* SHEET 1: BLASTING & MINAGE INTERACTIVE EXCEL GRID (3 SHIFTS VERTICALLY STACKED) */}
             {activeSheetTab === 'minage' && (
               <div className="space-y-8">
@@ -2546,10 +2899,10 @@ export const Planning: React.FC = () => {
                             <thead>
                               <tr className="bg-slate-50 text-gray-700 text-[9px] font-black uppercase tracking-wider border-b border-gray-200 sticky top-0 z-10 select-none">
                                 <th className="p-2 border-r border-gray-200 text-center w-8 select-none bg-slate-100/50">#</th>
-                                <th className="p-2 border-r border-gray-100 min-w-[124px] bg-gradient-to-r from-[#00BFFF]/20 via-[#00BFFF]/10 to-transparent text-sky-950 font-black">Chantier</th>
-                                <th className="p-2 border-r border-gray-100 min-w-[144px] bg-gradient-to-r from-red-600/20 via-red-500/10 to-transparent text-red-950 font-black">Mineur (Matricule / Nom)</th>
-                                <th className="p-2 border-r border-gray-100 min-w-[144px] bg-gradient-to-r from-[#00BFFF]/20 via-[#00BFFF]/10 to-transparent text-sky-950 font-black">Aide-Mineur</th>
-                                <th className="p-2 border-r border-gray-100 w-20 text-center bg-gradient-to-r from-red-600/20 via-red-500/10 to-transparent text-red-950 font-black">Section</th>
+                                <th className="p-2 min-w-[124px] bg-gradient-to-r from-sky-400/25 to-rose-500/20 text-sky-950 font-black">Chantier</th>
+                                <th className="p-2 min-w-[144px] bg-gradient-to-r from-rose-500/20 to-sky-400/20 text-red-950 font-black">Mineur (Matricule / Nom)</th>
+                                <th className="p-2 min-w-[144px] bg-gradient-to-r from-sky-400/20 to-red-600/15 text-sky-950 font-black">Aide-Mineur</th>
+                                <th className="p-2 border-r border-gray-200 w-20 text-center bg-gradient-to-r from-red-600/15 to-transparent text-red-950 font-black">Section</th>
                                 <th className="p-2 border-r border-gray-200 w-24 text-center bg-sky-50/35">Type Barre</th>
                                 <th className="p-2 border-r border-gray-200 w-16 text-center bg-sky-50/35">Volées prévues</th>
                                 <th className="p-2 border-r border-gray-200 w-20 text-center bg-red-50/35">Mètres prévus</th>
@@ -2623,6 +2976,39 @@ export const Planning: React.FC = () => {
                                                   />
                                                 </div>
                                               </div>
+                                            )}
+
+                                            {/* Sector Boutefeu Selection */}
+                                            {sec !== 'Autres / Non classés' && (
+                                              p !== 'Poste 3' ? (
+                                                <div className="flex items-center gap-2 bg-amber-50/75 border border-amber-200 px-3 py-1 rounded-lg shadow-sm">
+                                                  <span className="text-[9px] font-black text-amber-850 uppercase tracking-widest flex items-center gap-1 select-none">
+                                                    💣 Boutefeu :
+                                                  </span>
+                                                  <div className="w-56 text-black font-semibold text-[10.5px]">
+                                                    <MatriculeAutocomplete
+                                                      value={sectorBoutefeus[p]?.[sec as 'Imiter 2' | 'Imiter 1' | 'Imiter Est'] || ''}
+                                                      onChange={(matricule) => {
+                                                        setSectorBoutefeus(prev => ({
+                                                          ...prev,
+                                                          [p]: {
+                                                            ...(prev[p] || {}),
+                                                            [sec]: matricule
+                                                          }
+                                                        }));
+                                                      }}
+                                                      employees={employees}
+                                                      fonctions={['BOUTEFEU']}
+                                                      post={p}
+                                                      placeholder="Saisir Boutefeu..."
+                                                    />
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg text-slate-500 text-[9px] font-black uppercase tracking-widest select-none">
+                                                  💤 Hors poste Boutefeu
+                                                </div>
+                                              )
                                             )}
                                           </div>
                                         </div>
@@ -2935,6 +3321,28 @@ export const Planning: React.FC = () => {
                             </tbody>
                           </table>
                         </div>
+
+                        {/* Dynamic Explosives Summary Bento Cards Per Post */}
+                        <div className="mt-4 border-t border-dashed border-gray-200 pt-3 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 p-3.5 rounded-lg select-none">
+                          <span className="text-[10.5px] font-black uppercase text-slate-600 tracking-wider flex items-center gap-1.5">
+                            🧨 Bilan Estimé des Explosifs ({p}) :
+                          </span>
+                          <div className="flex flex-wrap items-center gap-4">
+                            <div className="flex items-center gap-1.5 bg-white border border-gray-200 py-1 px-2.5 rounded shadow-xs">
+                              <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider">ANFO</span>
+                              <strong className="text-xs font-black text-slate-800">{rowsForPost.reduce((sum, r) => sum + (Number(r.anfo) || 0), 0)} kg</strong>
+                            </div>
+                            <div className="flex items-center gap-1.5 bg-white border border-gray-200 py-1 px-2.5 rounded shadow-xs">
+                              <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider">Tovex</span>
+                              <strong className="text-xs font-black text-[#8B0000]">{rowsForPost.reduce((sum, r) => sum + (Number(r.tovex) || 0), 0).toFixed(1)} sauc.</strong>
+                            </div>
+                            <div className="flex items-center gap-1.5 bg-white border border-gray-200 py-1 px-2.5 rounded shadow-xs">
+                              <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider">Amorces / Déto</span>
+                              <strong className="text-xs font-black text-[#00BFFF]">{rowsForPost.reduce((sum, r) => sum + (Number(r.ammorces) || 0), 0)} u.</strong>
+                            </div>
+                          </div>
+                        </div>
+
                       </div>
                     );
                   });
@@ -2972,9 +3380,9 @@ export const Planning: React.FC = () => {
                             <thead>
                               <tr className="bg-slate-50 text-gray-700 text-[9px] font-black uppercase tracking-wider border-b border-gray-200 sticky top-0 z-10 select-none">
                                 <th className="p-2 border-r border-gray-200 text-center w-8 select-none bg-slate-100/50">#</th>
-                                <th className="p-2 border-r border-gray-100 min-w-[124px] bg-gradient-to-r from-[#00BFFF]/20 via-[#00BFFF]/10 to-transparent text-sky-950 font-black">Chantier de nettoyage</th>
-                                <th className="p-2 border-r border-gray-100 min-w-[160px] bg-gradient-to-r from-red-600/20 via-red-500/10 to-transparent text-red-950 font-black">Conducteur engin (Matricule / Nom)</th>
-                                <th className="p-2 border-r border-gray-100 min-w-[140px] bg-gradient-to-r from-[#00BFFF]/20 via-[#00BFFF]/10 to-transparent text-sky-950 font-black">Machine / Engin</th>
+                                <th className="p-2 min-w-[124px] bg-gradient-to-r from-sky-400/25 to-rose-500/20 text-sky-950 font-black">Chantier de nettoyage</th>
+                                <th className="p-2 min-w-[160px] bg-gradient-to-r from-rose-500/20 to-sky-400/20 text-red-950 font-black">Conducteur engin (Matricule / Nom)</th>
+                                <th className="p-2 border-r border-gray-200 min-w-[140px] bg-gradient-to-r from-sky-400/20 to-transparent text-sky-950 font-black">Machine / Engin</th>
                                 <th className="p-2 border-r border-gray-200 w-20 text-center bg-sky-50/35">Godets planifiés</th>
                                 <th className="p-2 border-r border-gray-200 w-24 text-center bg-red-50/35">Volume estimé (m³)</th>
                                 <th className="p-2 text-center w-24 bg-sky-50/35">Heures travail</th>
@@ -3580,12 +3988,7 @@ export const Planning: React.FC = () => {
                 })()}
               </div>
             )}
-
-            {/* Auto Legend Info */}
-            <div className="flex justify-between items-center text-[9px] text-slate-400 mt-2.5 font-sans bg-gray-50/50 p-2.5 border border-gray-150 rounded-lg">
-              <span>* Les prévisions de chargement s'injectent instantanément dans les fiches de Saisie Surface correspondantes.</span>
-              <span>* Matrice automatisée : Le nom et la fonction de l'effectif se cherchent en temps réel en tapant le matricule.</span>
-            </div>
+            </fieldset>
 
             {/* REAL-TIME WORKER DUPLICATE WARNING SYSTEM */}
             {(() => {
@@ -3602,33 +4005,136 @@ export const Planning: React.FC = () => {
               if (duplicates.length === 0) return null;
 
               return (
-                <div id="duplicate-warnings-banner" className="my-3 border border-red-200 bg-red-50/60 text-red-950 p-4 rounded-xl shadow-none">
-                  <div className="flex items-center gap-2 pb-1.5 border-b border-red-200 mb-2">
-                    <span className="animate-pulse inline-block w-2.5 h-2.5 rounded-full bg-red-600"></span>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-red-800">
-                      ⚠️ ALERTE DE DOUBLE AFFECTATION D'EFFECTIF (CONFLIT DE PLANNING)
+                <div id="duplicate-warnings-banner" className="my-3 border border-amber-200 bg-amber-50/60 text-amber-955 p-4 rounded-xl shadow-none">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-amber-250 mb-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-none"></span>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                      ℹ️ Agent affecté sur plusieurs postes
                     </span>
                   </div>
-                  <div className="divide-y divide-red-200/50 max-h-24 overflow-y-auto pr-1">
-                    {duplicates.map(([mat, occurrences]) => (
-                      <div key={mat} className="py-1 text-[9.5px] font-medium flex items-start gap-1 justify-between">
-                        <div>
-                          Le matricule <strong className="font-mono bg-red-100 px-1 text-red-900 border border-red-200 rounded">{mat}</strong> ({occurrences[0].name}) 
-                          est affecté <strong className="text-red-900">{occurrences.length} fois</strong> en même temps :
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-0.5 justify-end">
-                          {occurrences.map((occ, oIdx) => (
-                            <span 
-                              key={oIdx} 
-                              className="inline-block px-1.5 py-0.5 bg-red-600 text-white text-[7.5px] font-extrabold uppercase rounded"
-                              title={`${occ.role} à ${occ.location}`}
-                            >
+                  <div className="max-h-32 overflow-y-auto pr-1 divide-y divide-amber-200/40">
+                    {duplicates.map(([mat, occurrences]) => {
+                      const firstOcc = occurrences[0];
+                      return (
+                        <div key={mat} className="py-1.5 text-[9.5px] font-medium text-amber-905 leading-relaxed">
+                          Le matricule <strong className="font-mono bg-amber-100 px-1 text-amber-950 border border-amber-200 rounded font-black">{mat}</strong> ({firstOcc.name}) est affecté sur plusieurs postes : {occurrences.map((occ, oIdx) => (
+                            <strong key={oIdx} className="text-amber-950">
+                              {oIdx > 0 ? ' et ' : ''}
                               {occ.sheet} ({occ.location})
-                            </span>
-                          ))}
+                            </strong>
+                          ))}. Vérifiez si c'est intentionnel.
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* BOUTEFEU COMPLIANCE WARNINGS */}
+            {(() => {
+              const alerts: { level: 'info' | 'warning' | 'danger'; msg: string }[] = [];
+
+              // Helper to check if a sector has active minage rows in a post
+              const isSectorActiveForMinage = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', sector: string) => {
+                const rows = minageRowsByPost[post] || [];
+                return rows.some(r => r.chantierId && (r.sectorGroup === sector));
+              };
+
+              const sectorsList = ['Imiter 2', 'Imiter 1', 'Imiter Est'] as const;
+
+              // --- Poste 1 ---
+              const p1Bfts = sectorsList
+                .map(sec => sectorBoutefeus['Poste 1']?.[sec as 'Imiter 2' | 'Imiter 1' | 'Imiter Est'] || '')
+                .filter(Boolean);
+              const uniqueP1Bfts = Array.from(new Set(p1Bfts));
+
+              // Check active sectors missing blasters
+              sectorsList.forEach(sec => {
+                if (isSectorActiveForMinage('Poste 1', sec) && !sectorBoutefeus['Poste 1']?.[sec as 'Imiter 2' | 'Imiter 1' | 'Imiter Est']) {
+                  alerts.push({
+                    level: 'danger',
+                    msg: `⚠️ Sécurité explosive (P1) : Le secteur actif "${sec}" n'a pas de Boutefeu affecté pour le transport des explosifs.`
+                  });
+                }
+              });
+
+              // Norm warning
+              const hasActiveP1Minage = sectorsList.some(sec => isSectorActiveForMinage('Poste 1', sec));
+              if (hasActiveP1Minage) {
+                if (uniqueP1Bfts.length < 2) {
+                  alerts.push({
+                    level: 'warning',
+                    msg: `💡 Effectif Boutefeu (P1) : Moins de 2 Boutefeus distincts sont planifiés au Poste 1 (${uniqueP1Bfts.length} trouvé(s)). La norme est de 2.`
+                  });
+                } else if (uniqueP1Bfts.length > 2) {
+                  alerts.push({
+                    level: 'info',
+                    msg: `ℹ️ Répartition Boutefeu (P1) : ${uniqueP1Bfts.length} Boutefeus différents sont programmés au Poste 1 (La norme habituelle est de 2).`
+                  });
+                }
+              }
+
+              // --- Poste 2 ---
+              const p2Bfts = sectorsList
+                .map(sec => sectorBoutefeus['Poste 2']?.[sec as 'Imiter 2' | 'Imiter 1' | 'Imiter Est'] || '')
+                .filter(Boolean);
+              const uniqueP2Bfts = Array.from(new Set(p2Bfts));
+
+              sectorsList.forEach(sec => {
+                if (isSectorActiveForMinage('Poste 2', sec) && !sectorBoutefeus['Poste 2']?.[sec as 'Imiter 2' | 'Imiter 1' | 'Imiter Est']) {
+                  alerts.push({
+                    level: 'danger',
+                    msg: `⚠️ Sécurité explosive (P2) : Le secteur actif "${sec}" n'a pas de Boutefeu affecté pour le transport des explosifs.`
+                  });
+                }
+              });
+
+              const hasActiveP2Minage = sectorsList.some(sec => isSectorActiveForMinage('Poste 2', sec));
+              if (hasActiveP2Minage) {
+                if (uniqueP2Bfts.length < 1) {
+                  alerts.push({
+                    level: 'danger',
+                    msg: `⚠️ Effectif Boutefeu (P2) : Aucun Boutefeu n'est planifié au Poste 2 alors que des tirs de mines sont actifs.`
+                  });
+                } else if (uniqueP2Bfts.length > 1) {
+                  alerts.push({
+                    level: 'warning',
+                    msg: `💡 Effectif Boutefeu (P2) : Plus de 1 Boutefeu distinct est planifié pour le Poste 2 (La norme habituelle est de 1 seul).`
+                  });
+                }
+              }
+
+              // --- Poste 3 ---
+              const p3Bfts = sectorsList
+                .map(sec => sectorBoutefeus['Poste 3']?.[sec as 'Imiter 2' | 'Imiter 1' | 'Imiter Est'] || '')
+                .filter(Boolean);
+              if (p3Bfts.length > 0) {
+                alerts.push({
+                  level: 'warning',
+                  msg: `💤 Alerte logistique (P3) : Des Boutefeus sont planifiés au Poste 3. Notez qu'ils ne travaillent pas sur ce poste normalement chez nous.`
+                });
+              }
+
+              if (alerts.length === 0) return null;
+
+              return (
+                <div id="boutefeu-warnings-banner" className="my-3 border border-amber-200 bg-amber-50/50 p-4 rounded-xl">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-amber-200 mb-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-850 flex items-center gap-1">
+                      💣 CONFORMITÉ LOGISTIQUE BOUTEFEUS
+                    </span>
+                  </div>
+                  <div className="max-h-36 overflow-y-auto pr-1 space-y-1">
+                    {alerts.map((al, idx) => {
+                      const colorClass = al.level === 'danger' ? 'text-red-700 bg-red-50 border border-red-200 font-bold' : al.level === 'warning' ? 'text-amber-800 bg-amber-100/40 border border-amber-200 font-bold' : 'text-slate-800 bg-sky-50 border border-sky-100';
+                      return (
+                        <div key={idx} className={`p-2 rounded text-[9.5px] uppercase tracking-wide leading-relaxed ${colorClass}`}>
+                          {al.msg}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -3744,13 +4250,30 @@ export const Planning: React.FC = () => {
               </div>
             </div>
 
-            <button 
-              onClick={savePlanningWorkbook}
-              disabled={saveStatus === 'saving'}
-              className="w-full md:w-auto bg-[#00BFFF] hover:bg-sky-500 text-white py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md hover:shadow-lg active:translate-y-px cursor-pointer"
-            >
-              {saveStatus === 'saving' ? 'Validation ...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver l\'Ordonnancement Complet'}
-            </button>
+             <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+              <button 
+                onClick={savePlanningWorkbook}
+                disabled={saveStatus === 'saving' || isLockedByNiveau2}
+                className={`w-full md:w-auto py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md active:translate-y-px flex items-center justify-center gap-1.5 ${
+                  isLockedByNiveau2 
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60 border border-gray-250 shadow-none' 
+                    : 'bg-[#00BFFF] hover:bg-sky-500 text-white cursor-pointer hover:shadow-lg'
+                }`}
+              >
+                <Save className="w-4 h-4" />
+                {saveStatus === 'saving' ? 'Validation ...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver l\'Ordonnancement Complet'}
+              </button>
+              {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && (
+                <button
+                  onClick={validatePlanningWorkbook}
+                  disabled={saveStatus === 'saving'}
+                  className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md hover:shadow-lg active:translate-y-px cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  ✓ Valider la planification
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ) : (
@@ -3819,8 +4342,21 @@ export const Planning: React.FC = () => {
                           {record.operator ? record.operator.split('@')[0] : 'SMI USER'}
                         </td>
                         <td className="px-5 py-3">
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50/50 border border-green-200 text-green-700 font-extrabold uppercase text-[8.5px] rounded-lg">
-                            <CheckCircle className="w-3.5 h-3.5 text-green-600" /> Planifié Souterrain
+                          <div className="flex flex-col gap-1">
+                            <div className="inline-flex items-center gap-1 w-max px-2 py-0.5 bg-green-50 border border-green-200 text-green-700 font-extrabold uppercase text-[8px] rounded">
+                              <CheckCircle className="w-3 h-3 text-green-600" /> Planifié
+                            </div>
+                            {productionDates.has(record.date) ? (
+                              <div className="inline-flex items-center gap-1 w-max px-2 py-0.5 bg-emerald-50 border border-emerald-250 text-emerald-800 font-extrabold uppercase text-[8px] rounded">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Réalisé saisi
+                              </div>
+                            ) : (
+                              <div className="inline-flex items-center gap-1 w-max px-2 py-0.5 bg-amber-50 border border-amber-250 text-amber-800 font-extrabold uppercase text-[8px] rounded">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                En attente de saisie
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-5 py-3">
@@ -4074,6 +4610,72 @@ export const Planning: React.FC = () => {
                 <Check className="w-3.5 h-3.5" /> Oui, Je Valide & Duplique
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FOR MODIFICATION REQUEST UNDER VERROUILLAGE NIVEAU 2 */}
+      {isRequestModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className="bg-white rounded-3xl border border-red-200 shadow-2xl max-w-lg w-full overflow-hidden transform transition-all">
+            {/* Header branding */}
+            <div className="bg-gradient-to-r from-red-600 to-[#8B0000] p-6 text-white flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-2xl border border-white/25">
+                <AlertCircle className="w-8 h-8 text-white animate-pulse" />
+              </div>
+              <div>
+                <h3 className="font-extrabold uppercase tracking-wider text-[12px] text-white">Demande de Déverrouillage Exceptionnel</h3>
+                <p className="text-[9px] text-red-200 font-bold uppercase tracking-widest">Planification {selectedDate.split('-').reverse().join('/')}</p>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={(e) => { e.preventDefault(); submitModificationRequest(); }}>
+              <div className="p-6 space-y-4">
+                <div className="bg-red-50/50 p-4 rounded-2xl border border-red-100 flex gap-3 text-[11px] text-red-950 font-semibold leading-relaxed">
+                  <span className="text-xl">⚠️</span>
+                  <p>
+                    Cette planification a été verrouillée car <strong>plus de 24 heures</strong> se sont écoulées depuis sa validation officielle. Toute modification ultérieure doit faire l'objet d'un motif motivé et être approuvée par un administrateur.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[9.5px] font-black text-slate-400 uppercase tracking-wider">
+                    Raison obligatoire de la modification <span className="text-red-600 font-extrabold">*</span>
+                  </label>
+                  <textarea
+                    required
+                    value={requestReason}
+                    onChange={(e) => setRequestReason(e.target.value)}
+                    placeholder="Ex: Rectification de l'affectation du boutefeu pour le Poste 2 suite à un congé de dernière minute..."
+                    className="w-full text-[11px] p-3 border-2 border-slate-200 rounded-xl focus:border-[#8B0000] focus:ring-1 focus:ring-[#8B0000]/10 h-28 resize-none font-medium outline-none text-slate-800 placeholder-slate-400 bg-white"
+                  />
+                  <p className="text-[8.5px] text-slate-400 italic">
+                    Une notification instantanée sera transmise dans l'espace d'administration. Une fois approuvée, une fenêtre d'édition libre de 2 heures vous sera accordée.
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex flex-col sm:flex-row gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRequestModalOpen(false);
+                    setRequestReason('');
+                  }}
+                  className="order-2 sm:order-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="order-1 sm:order-2 px-5 py-2 bg-gradient-to-r from-red-600 to-[#8B0000] text-white font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 hover:shadow-lg active:translate-y-px"
+                >
+                  <Check className="w-3.5 h-3.5" /> Transmettre la Demande
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -20,6 +20,7 @@ import { collection, query, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { format, subDays } from 'date-fns';
 import { ExcelExportButton } from '../components/ExcelExportButton';
+import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 export const DailyReport: React.FC = () => {
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -28,6 +29,30 @@ export const DailyReport: React.FC = () => {
   const [chantiers, setChantiers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [allPlanningSheets, setAllPlanningSheets] = useState<any[]>([]);
+  const [allProductionDocs, setAllProductionDocs] = useState<any[]>([]);
+
+  // Subscribe to all planning sheets and production documents for unfilled check
+  useEffect(() => {
+    const qDailyPlannings = query(collection(db, 'daily_planning_sheets'));
+    const unsubDailyPlannings = onSnapshot(qDailyPlannings, (snapshot) => {
+      setAllPlanningSheets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => {
+      console.warn("Permission logs on Snapshot daily_planning_sheets:", err.message);
+    });
+
+    const qProduction = query(collection(db, 'production'));
+    const unsubProduction = onSnapshot(qProduction, (snapshot) => {
+      setAllProductionDocs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => {
+      console.warn("Permission logs on Snapshot production:", err.message);
+    });
+
+    return () => {
+      unsubDailyPlannings();
+      unsubProduction();
+    };
+  }, []);
 
   // Subscribe to chantiers, personnel, and daily production
   useEffect(() => {
@@ -166,53 +191,128 @@ export const DailyReport: React.FC = () => {
     { id: 'maintenance' as const, label: '🔧 4. Brigade Technique', color: 'border-b-purple-500' },
   ];
 
+  const unfilledReports = allPlanningSheets
+    .map(plan => {
+      const planDate = plan.id; // e.g. '2026-06-18' (planned day)
+      // Math: expected production day is planDate + 1 day
+      const parts = planDate.split('-');
+      if (parts.length !== 3) return null;
+      const pDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const expectedProdDate = format(subDays(pDateObj, -1), 'yyyy-MM-dd'); // using math to add 1 day correctly
+      
+      const prodExists = allProductionDocs.some(prod => prod.id === expectedProdDate);
+      return {
+        planDate,
+        expectedProdDate,
+        exists: prodExists
+      };
+    })
+    .filter((item): item is { planDate: string; expectedProdDate: string; exists: boolean } => item !== null && !item.exists)
+    .sort((a, b) => b.expectedProdDate.localeCompare(a.expectedProdDate));
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans">
       
+      {unfilledReports.length > 0 && (
+        <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-3.5 flex flex-col md:flex-row gap-4 items-center justify-between shadow-xs animate-fade-in">
+          <div className="flex gap-2.5 items-center">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+            <div>
+              <span className="text-[11px] text-amber-950 font-black uppercase block">
+                ⚠️ En attente de réalisé ({unfilledReports.length}) :
+              </span>
+              <span className="text-[10px] text-amber-850 font-bold">
+                Des journées programmées n'ont pas encore de rapport journalier de production associé.
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5 text-xs font-black shrink-0">
+            {unfilledReports.slice(0, 5).map(item => (
+              <button
+                key={item.expectedProdDate}
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: { tab: 'production', date: item.expectedProdDate } }));
+                }}
+                className="px-2.5 py-1.5 bg-white hover:bg-amber-100 text-amber-900 border border-amber-250 hover:border-amber-300 rounded-lg font-extrabold uppercase text-[9px] tracking-wider transition-all cursor-pointer shadow-2xs"
+                title={`Saisir le réalisé du ${format(new Date(item.expectedProdDate + "T12:00:00"), 'dd/MM/yyyy')} basé sur la planification du ${format(new Date(item.planDate + "T12:00:00"), 'dd/MM/yyyy')}`}
+              >
+                📅 Ajouter Réalisé {format(new Date(item.expectedProdDate + "T12:00:00"), 'dd/MM/yyyy')}
+              </button>
+            ))}
+            {unfilledReports.length > 5 && (
+              <span className="text-[9px] text-amber-500 font-extrabold uppercase self-center pl-1">
+                +{unfilledReports.length - 5} de plus
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* Title & Date Picker Action Ribbon */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-2 border-gray-150 pb-5">
-        <div>
-          <h1 className="text-3xl font-black text-gray-950 uppercase tracking-tight italic flex items-center gap-2">
-            📊 Rapport Consolidé de Production
-          </h1>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-            SMI (Imiter Minière) • Syntheses d'exploitation Journalière
-          </p>
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="flex flex-col md:flex-row items-center gap-5">
+          <div className="flex-shrink-0 animate-fade-in">
+            <img 
+              src={logoImg} 
+              alt="HydroMines Logo" 
+              className="h-24 w-24 md:h-28 md:w-28 object-contain rounded-xl border border-gray-150 p-1.5 bg-white shadow-sm" 
+              referrerPolicy="no-referrer" 
+            />
+          </div>
+          <div className="text-center md:text-left">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight flex items-center justify-center md:justify-start gap-2 leading-none text-slate-900">
+              <span className="text-[#00BFFF]">Hydro</span>
+              <span className="text-[#8B0000]">Mines</span>
+              <span className="text-slate-300 font-light mx-0.5">|</span>
+              <span className="text-slate-850 font-extrabold text-xl md:text-2xl">Rapport Consolidé</span>
+            </h1>
+            <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest mt-2 flex items-center justify-center md:justify-start gap-1.5 leading-none">
+              <span>SMI (Société Métallurgique d'Imiter)</span>
+              <span className="text-slate-300">•</span>
+              <span>Registre d'Exploitation Journalière</span>
+            </p>
+          </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 self-center lg:self-auto w-full lg:w-auto justify-center lg:justify-end">
           {/* Custom Modern Date Selector */}
-          <div className="bg-white border border-gray-200 hover:border-gray-300 rounded-xl px-4 py-2 flex items-center gap-2.5 shadow-xs transition-all">
+          <div className="bg-slate-50 border border-gray-250 hover:border-gray-300 rounded-xl px-4 py-2 flex items-center gap-2.5 shadow-xs transition-all w-full sm:w-auto justify-center">
             <Calendar className="w-4 h-4 text-[#00BFFF]" />
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+              Date :
+            </span>
             <input 
               type="date" 
               value={filterDate}
               onChange={e => setFilterDate(e.target.value)}
-              className="text-xs font-black uppercase text-slate-800 outline-none cursor-pointer bg-transparent"
+              className="text-xs font-black uppercase text-slate-950 outline-none cursor-pointer bg-transparent"
             />
           </div>
 
           {/* Premium Excel Export Button integrated */}
-          {dayProduction ? (
-            <ExcelExportButton
-              selectedDate={filterDate}
-              minageRowsByPost={minageRowsByPost}
-              deblayageRowsByPost={deblayageRowsByPost}
-              extractionRowsByPost={extractionRowsByPost}
-              maintenanceRowsByPost={maintenanceRowsByPost}
-              sectorChiefs={sectorChiefs}
-              chantiers={chantiers}
-              employees={employees}
-            />
-          ) : (
-            <button 
-              disabled 
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-[9px] font-black uppercase text-gray-400 bg-gray-50 border border-gray-200 rounded-lg cursor-not-allowed"
-              title="Saisir d'abord une production pour activer l'export"
-            >
-              <Download className="w-3.5 h-3.5" /> Pas de données à exporter
-            </button>
-          )}
+          <div className="w-full sm:w-auto">
+            {dayProduction ? (
+              <ExcelExportButton
+                selectedDate={filterDate}
+                minageRowsByPost={minageRowsByPost}
+                deblayageRowsByPost={deblayageRowsByPost}
+                extractionRowsByPost={extractionRowsByPost}
+                maintenanceRowsByPost={maintenanceRowsByPost}
+                sectorChiefs={sectorChiefs}
+                chantiers={chantiers}
+                employees={employees}
+              />
+            ) : (
+              <button 
+                disabled 
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-[9px] font-black uppercase text-slate-400 bg-slate-50 border border-gray-200 rounded-xl cursor-not-allowed h-10"
+                title="Saisir d'abord une production pour activer l'export"
+              >
+                <Download className="w-3.5 h-3.5" /> Pas de données à exporter
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -339,7 +439,48 @@ export const DailyReport: React.FC = () => {
               { id: 'poste3', label: 'Poste 3 (Nuit)', keySuffix: 'p3' },
             ] as const).map(shift => {
               const currentPostData = dayProduction.postes?.[shift.id] || {};
-              const records = currentPostData?.[activeTab] || [];
+              const rawRecords = currentPostData?.[activeTab] || [];
+
+              // Intelligent Sorting by Sector (Imiter 2 -> Imiter 1 -> Imiter Est)
+              const records = React.useMemo(() => {
+                if (activeTab === 'minage' || activeTab === 'deblayage' || activeTab === 'extraction') {
+                  const sectorOrder = ['Imiter 2', 'Imiter 1', 'Imiter Est'];
+                  const getSectorSortingIndex = (sector: string) => {
+                    const index = sectorOrder.findIndex(s => s.toLowerCase() === (sector || '').trim().toLowerCase());
+                    return index === -1 ? 999 : index;
+                  };
+
+                  const getRecordSectorGroup = (rec: any) => {
+                    const row = rec.reel || rec;
+                    const plan = rec.plan || {};
+                    const sector = rec.sectorGroup || rec.reel?.sectorGroup || rec.plan?.sectorGroup || plan.sectorGroup || '';
+                    if (sector) return sector;
+                    
+                    // Fallback to chantier lookup
+                    const chantierId = row.chantierId || rec.chantierId || plan.chantierId;
+                    if (chantierId) {
+                      const matched = chantiers.find(c => c.id === chantierId);
+                      if (matched && matched.sector) return matched.sector;
+                    }
+                    return '';
+                  };
+
+                  return [...rawRecords].sort((a: any, b: any) => {
+                    const sectorA = getRecordSectorGroup(a);
+                    const sectorB = getRecordSectorGroup(b);
+                    const idxA = getSectorSortingIndex(sectorA);
+                    const idxB = getSectorSortingIndex(sectorB);
+                    if (idxA !== idxB) {
+                      return idxA - idxB;
+                    }
+                    // secondary sort by chantier name
+                    const nameA = getChantierName((a.reel || a).chantierId || a.chantierId || (a.plan || {}).chantierId || '').toLowerCase();
+                    const nameB = getChantierName((b.reel || b).chantierId || b.chantierId || (b.plan || {}).chantierId || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                  });
+                }
+                return rawRecords;
+              }, [rawRecords, activeTab, chantiers, dayProduction]);
 
               return (
                 <div key={shift.id} className="bg-white border border-gray-150 rounded-2xl shadow-xs overflow-hidden">
@@ -381,7 +522,6 @@ export const DailyReport: React.FC = () => {
                               <th className="p-3 text-center">Métrage (m)</th>
                               <th className="p-3 text-center">KPI Rendement (m/v)</th>
                               <th className="p-3 text-center">Consommation Explosifs</th>
-                              <th className="p-3">Remarques Terrain</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700">
@@ -427,7 +567,6 @@ export const DailyReport: React.FC = () => {
                                       <span className="text-blue-805 px-1 font-extrabold" title="Amorces u.">AMO: {row.ammorces || 0}</span>
                                     </div>
                                   </td>
-                                  <td className="p-3 text-[10px] text-gray-500 max-w-[160px] truncate" title={row.remarks}>{row.remarks || '-'}</td>
                                 </tr>
                               );
                             })}
@@ -450,7 +589,6 @@ export const DailyReport: React.FC = () => {
                               <th className="p-3 text-center">Écart vs Estimé (%)</th>
                               <th className="p-3 text-center">Gasoil (L)</th>
                               <th className="p-3 text-center border-r border-gray-100">Lubrifiants Qty</th>
-                              <th className="p-3">Remarques Terrain</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700">
@@ -503,7 +641,6 @@ export const DailyReport: React.FC = () => {
                                       {!row.lubrifiant1Qty && !row.lubrifiant2Qty && <span className="text-gray-300">-</span>}
                                     </div>
                                   </td>
-                                  <td className="p-3 text-[10px] text-gray-400 max-w-[180px] truncate" title={row.remarks}>{row.remarks || '-'}</td>
                                 </tr>
                               );
                             })}
@@ -524,7 +661,6 @@ export const DailyReport: React.FC = () => {
                               <th className="p-3 text-center">Stérile Bure (Wg)</th>
                               <th className="p-3 text-center">Total Tirés (Wg)</th>
                               <th className="p-3 text-center">Écart vs Objectif (%)</th>
-                              <th className="p-3">Remarques & Directives</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700">
@@ -574,7 +710,6 @@ export const DailyReport: React.FC = () => {
                                       {target === 0 ? (actual === 0 ? "PAS D'EXTRACTION PRÉVUE" : `+${actual} Wg — ${speedLabel}`) : `${diffWagonsPct > 0 ? '+' : ''}${diffWagonsPct.toFixed(1)}% — ${speedLabel}`}
                                     </span>
                                   </td>
-                                  <td className="p-3 text-[10px] text-gray-400 max-w-[200px] truncate" title={r.remarks}>{r.remarks || '-'}</td>
                                 </tr>
                               );
                             })}

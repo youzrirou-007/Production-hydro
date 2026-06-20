@@ -21,6 +21,21 @@ const AppContent: React.FC = () => {
   const { user, profile, loading, signIn } = useAuth();
   const [activeTab, setActiveTab] = useState('production');
 
+  React.useEffect(() => {
+    const handleNavigate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.tab) {
+        setActiveTab(customEvent.detail.tab);
+        if (customEvent.detail.date) {
+          window.sessionStorage.setItem('goto-production-date', customEvent.detail.date);
+          window.dispatchEvent(new CustomEvent('production-date-changed', { detail: { date: customEvent.detail.date } }));
+        }
+      }
+    };
+    window.addEventListener('navigate-to-tab', handleNavigate);
+    return () => window.removeEventListener('navigate-to-tab', handleNavigate);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F5F5F0] flex items-center justify-center">
@@ -38,7 +53,7 @@ const AppContent: React.FC = () => {
         <div className="max-w-md w-full bg-white p-12 rounded-[40px] shadow-2xl border border-[#141414]/5 text-center relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#00BFFF] to-[#8B0000]" />
           <Factory className="w-20 h-20 text-[#00BFFF] mx-auto mb-8" />
-          <h1 className="text-4xl font-black tracking-tighter italic uppercase mb-2">
+          <h1 className="text-4xl font-black tracking-tighter uppercase mb-2">
             <span className="text-[#00BFFF]">Hydro</span>
             <span className="text-[#8B0000]">Mines</span>
           </h1>

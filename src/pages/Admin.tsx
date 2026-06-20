@@ -19,8 +19,9 @@ import {
   ChevronRight,
   TrendingUp
 } from 'lucide-react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, orderBy, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, orderBy, updateDoc, setDoc, collectionGroup } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Employee {
   id: string;
@@ -40,6 +41,7 @@ const ROLES = [
   { id: 'SECRETAIRE_CHANTIER', label: 'Secrétaire de Chantiers' },
   { id: 'MAGASINIER', label: 'Magasinier' },
   { id: 'CHEF', label: 'Chef de Poste' },
+  { id: 'BOUTEFEU', label: 'Boutefeu / Boutefeux' },
   { id: 'MINEUR', label: 'Mineur' },
   { id: 'TREUILLISTE', label: 'Treuilliste' },
   { id: 'CONDUCTEUR_ENGIN', label: "Conducteur d'Engins" },
@@ -61,26 +63,130 @@ const SECTORS = [
 ];
 
 export const Admin: React.FC = () => {
+  const { user } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('Tous');
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'effectifs' | 'hierarchie' | 'parametres'>('effectifs');
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'effectifs' | 'hierarchie' | 'parametres' | 'demandes'>('effectifs');
+
+  const [rolePermissions, setRolePermissions] = useState<any>({
+    'Super Admin': { planning: 'full', production: 'full', chantiers: 'full', rapports: 'full', settings: 'full', approve: true },
+    'Directeur Technique': { planning: 'read', production: 'read', chantiers: 'read', rapports: 'full', settings: 'read', approve: false },
+    'Secretaire': { planning: 'write', production: 'write', chantiers: 'read', rapports: 'read', settings: 'none', approve: false },
+    'Magasinier': { planning: 'none', production: 'none', chantiers: 'none', rapports: 'read', settings: 'none', approve: false }
+  });
+
+  useEffect(() => {
+    const docRef = doc(db, 'settings', 'permissions');
+    const unsub = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        setRolePermissions(snap.data());
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Modification Requests State
+  const [requests, setRequests] = useState<any[]>([]);
+
+  // Realtime subscription to modification requests subcollections group
+  useEffect(() => {
+    const q = query(collectionGroup(db, 'modification_requests'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(docSnap => {
+        const parentPath = docSnap.ref.parent.parent;
+        const dateId = parentPath ? parentPath.id : 'unknown';
+        list.push({
+          id: docSnap.id,
+          dateId,
+          refPath: docSnap.ref.path,
+          ...docSnap.data()
+        });
+      });
+      list.sort((a, b) => new Date(b.requestedAt || 0).getTime() - new Date(a.requestedAt || 0).getTime());
+      setRequests(list);
+    }, (err) => {
+      console.warn("Error listening all modification_requests:", err);
+    });
+
+    return () => unsub();
+  }, []);
+
+  const approveRequest = async (req: any) => {
+    try {
+      const docRef = doc(db, req.refPath);
+      const now = new Date();
+      const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours window
+      const email = user?.email || 'Administrateur';
+      
+      await updateDoc(docRef, {
+        status: 'approved',
+        approvedBy: email,
+        approvedAt: now.toISOString(),
+        reopenUntil: twoHoursLater.toISOString()
+      });
+
+      // Write trace in log
+      await addDoc(collection(db, 'deleted_plannings_log'), {
+        date: req.dateId,
+        deletedBy: email,
+        deletedAt: now.toISOString(),
+        details: `Approbation déverrouillage de planification du ${req.dateId}. Valide jusqu'à : ${twoHoursLater.toLocaleTimeString()}`
+      });
+
+      alert(`Demande approuvée pour le ${req.dateId} ! L'édition est permise pendant 2h.`);
+    } catch (err) {
+      console.error("Error approving request:", err);
+      alert("Une erreur est survenue lors de l'approbation.");
+    }
+  };
+
+  const rejectRequest = async (req: any) => {
+    const reason = prompt("Veuillez saisir le motif du rejet de cette demande :");
+    if (reason === null) return;
+    if (!reason.trim()) {
+      alert("Le motif de rejet est obligatoire.");
+      return;
+    }
+
+    try {
+      const docRef = doc(db, req.refPath);
+      const now = new Date();
+      const email = user?.email || 'Administrateur';
+
+      await updateDoc(docRef, {
+        status: 'rejected',
+        rejectReason: reason,
+        rejectedBy: email,
+        rejectedAt: now.toISOString()
+      });
+
+      alert("Demande rejetée.");
+    } catch (err) {
+      console.error("Error rejecting request:", err);
+      alert("Une erreur est survenue lors du rejet.");
+    }
+  };
 
   // Platform Settings State
   const [platformSettings, setPlatformSettings] = useState<{
     sectors: string[];
     engines: string[];
     oils: string[];
+    defaultWagonsTarget?: number;
   }>({
     sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Atelier / Surface', 'Non assigné'],
     engines: ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
-    oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression']
+    oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
+    defaultWagonsTarget: 48
   });
   const [newSector, setNewSector] = useState('');
   const [newEngine, setNewEngine] = useState('');
   const [newOil, setNewOil] = useState('');
+  const [closures, setClosures] = useState<Record<string, any>>({});
 
   // Listener for settings
   useEffect(() => {
@@ -90,13 +196,29 @@ export const Admin: React.FC = () => {
         setPlatformSettings({
           sectors: data.sectors || ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Atelier / Surface', 'Non assigné'],
           engines: data.engines || ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
-          oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression']
+          oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
+          defaultWagonsTarget: data.defaultWagonsTarget !== undefined ? data.defaultWagonsTarget : 48
         });
       }
     }, (err) => {
       console.warn("Error loading settings:", err);
     });
-    return () => unsubSettings();
+
+    // Realtime monthly closures document listener
+    const unsubClosures = onSnapshot(doc(db, 'settings', 'closures'), (docSnap) => {
+      if (docSnap.exists()) {
+        setClosures(docSnap.data());
+      } else {
+        setClosures({});
+      }
+    }, (err) => {
+      console.warn("Error loading closures:", err);
+    });
+
+    return () => {
+      unsubSettings();
+      unsubClosures();
+    };
   }, []);
 
   // Inline editing states
@@ -126,8 +248,8 @@ export const Admin: React.FC = () => {
 
   useEffect(() => {
     const qEmp = query(collection(db, 'personnel'), orderBy('matricule', 'asc'));
-    const unsubEmp = onSnapshot(qEmp, (snapshot) => {
-      setEmployees(snapshot.docs.map(doc => {
+    const unsubEmp = onSnapshot(qEmp, async (snapshot) => {
+      const list = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -140,7 +262,29 @@ export const Admin: React.FC = () => {
           currentPost: data.currentPost || 'Poste 1',
           rotationGroup: data.rotationGroup || 'default'
         } as Employee;
-      }));
+      });
+      setEmployees(list);
+
+      // Auto-populate the three specified Boutefeus if no blasters present in DB yet!
+      const hasBoutefeuInDB = list.some(e => e.fonction === 'BOUTEFEU');
+      if (list.length > 5 && !hasBoutefeuInDB) {
+        console.log("Auto-seeding registered Boutefeus into database...");
+        const seedBfts = [
+          { matricule: 'BF01', nom: 'MEHTI', prenom: 'Mustapha', fonction: 'BOUTEFEU', status: 'actif', sector: 'Non assigné', currentPost: 'Poste 1', rotationGroup: 'default' },
+          { matricule: 'BF02', nom: 'KARRAUY', prenom: 'Brahim', fonction: 'BOUTEFEU', status: 'actif', sector: 'Non assigné', currentPost: 'Poste 1', rotationGroup: 'default' },
+          { matricule: 'BF03', nom: 'SILKANE', prenom: 'Hamid', fonction: 'BOUTEFEU', status: 'actif', sector: 'Non assigné', currentPost: 'Poste 2', rotationGroup: 'default' }
+        ];
+        for (const bf of seedBfts) {
+          const alreadyExists = list.some(e => e.matricule?.toUpperCase() === bf.matricule);
+          if (!alreadyExists) {
+            try {
+              await addDoc(collection(db, 'personnel'), bf);
+            } catch (err) {
+              console.error("Error seeding Boutefeu on admin snapshot load:", err);
+            }
+          }
+        }
+      }
     });
 
     return () => unsubEmp();
@@ -238,6 +382,9 @@ export const Admin: React.FC = () => {
 
   const getRoleBadgeStyle = (roleId: string) => {
     const normalized = roleId?.toUpperCase() || '';
+    if (normalized === 'BOUTEFEU') {
+      return 'bg-amber-100 text-amber-900 border-amber-300';
+    }
     if (normalized === 'CHEF' || normalized === 'CHEF_DE_POSTE') {
       return 'bg-red-50 text-red-700 border-[#8B0000]/20';
     }
@@ -353,7 +500,22 @@ export const Admin: React.FC = () => {
                   : 'text-slate-600 hover:text-slate-900 bg-transparent hover:bg-white/40'
               }`}
             >
-              ⚙️ Paramètres de plateforme
+              ⚙️ Paramètres
+            </button>
+            <button
+              onClick={() => setActiveAdminSubTab('demandes')}
+              className={`px-4 py-2 font-black text-[10px] uppercase tracking-wider transition-all duration-300 rounded-lg relative flex items-center gap-1.5 ${
+                activeAdminSubTab === 'demandes' 
+                  ? 'bg-white text-[#8B0005]/95 shadow-[0_0_15px_rgba(255,255,255,1),0_2px_8px_rgba(139,0,0,0.15)] border border-slate-200 scale-105 z-10' 
+                  : 'text-slate-600 hover:text-slate-900 bg-transparent hover:bg-white/40'
+              }`}
+            >
+              🔒 Demandes
+              {requests.filter(r => r.status === 'pending').length > 0 && (
+                <span className="bg-red-600 text-white font-extrabold text-[8px] rounded-full px-1.5 py-0.5 animate-bounce">
+                  {requests.filter(r => r.status === 'pending').length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -908,7 +1070,7 @@ export const Admin: React.FC = () => {
             <span className="text-[8px] font-semibold text-slate-400 block">Calculé en temps réel depuis le cloud firestore</span>
           </div>
         </div>
-      ) : (
+      ) : activeAdminSubTab === 'parametres' ? (
         /* PARAMETERS PLATEFORME - EXTREMELY POLISHED SECTORS, ENGINES AND LUBRICANTS EDITOR */
         <div className="bg-white border border-slate-200 p-6 space-y-6 shadow-sm">
           <div className="border-b border-slate-150 pb-3">
@@ -1099,6 +1261,329 @@ export const Admin: React.FC = () => {
               </div>
             </div>
 
+          </div>
+
+          {/* SECTION: CONFIGURATION DE LA CIBLE DE PRODUCTION & PLANS */}
+          <div className="border-t border-slate-150 pt-5 mt-4 space-y-2">
+            <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
+              🚃 Objectif Cible de Production &amp; Volume Extraction
+            </h4>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              Objectif par défaut de wagons à extraire par poste de travail (utilisé pour les calculs de rendement et de performance dans les rapports).
+            </p>
+            <div className="flex flex-wrap items-center gap-3 bg-slate-50 border border-slate-200 p-4 rounded">
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                  Objectif wagons par poste (défaut)
+                </label>
+                <input 
+                  type="number"
+                  min="1"
+                  value={platformSettings.defaultWagonsTarget || 48}
+                  onChange={async (e) => {
+                    const newVal = Number(e.target.value) || 48;
+                    try {
+                      setPlatformSettings(prev => ({ ...prev, defaultWagonsTarget: newVal }));
+                      await setDoc(doc(db, 'settings', 'platform'), { ...platformSettings, defaultWagonsTarget: newVal });
+                    } catch (err) {
+                      console.error("Erreur de mise à jour defaultWagonsTarget:", err);
+                    }
+                  }}
+                  className="w-40 text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                />
+              </div>
+              <div className="text-[9.5px] text-slate-500 font-medium max-w-sm mt-3 pt-1">
+                ℹ️ Cette valeur est modifiable en temps réel. Elle met à jour automatiquement les objectifs théoriques de tous les nouveaux plannings et fiches de production.
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION: TABLEAU DES RÔLES ET PERMISSIONS DE LA PLATEFORME */}
+          <div className="border-t border-slate-150 pt-5 mt-4 space-y-3">
+            <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
+              🛡️ Tableau d'Attribution des Rôles &amp; Permissions de la Plateforme (S.M.I)
+            </h4>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              Définir les habilitations fonctionnelles par type de compte pour s'aligner sur la hiérarchie et la politique d'exploitation de la mine.
+            </p>
+
+            <div className="overflow-x-auto bg-white border border-slate-200 rounded-lg shadow-sm">
+              <table className="min-w-full divide-y divide-slate-200 animate-fade-in">
+                <thead className="bg-[#141414] text-[9.5px] uppercase font-black tracking-wider text-white">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 text-left">Rôle Utilisateur</th>
+                    <th scope="col" className="px-4 py-3 text-center">Module Planning</th>
+                    <th scope="col" className="px-4 py-3 text-center">Rapports &amp; Suivi Production</th>
+                    <th scope="col" className="px-4 py-3 text-center">Gestion Chantiers</th>
+                    <th scope="col" className="px-4 py-3 text-center">Paramètres Globaux</th>
+                    <th scope="col" className="px-4 py-3 text-center">Approbateur Dérogations</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 text-[11px] font-bold text-slate-750">
+                  {Object.keys(rolePermissions).map((role) => {
+                    const perm = rolePermissions[role] || {};
+
+                    const updatePerm = async (field: string, val: any) => {
+                      const updatedRoleData = { ...perm, [field]: val };
+                      const fullUpdated = { ...rolePermissions, [role]: updatedRoleData };
+                      setRolePermissions(fullUpdated);
+                      try {
+                        await setDoc(doc(db, 'settings', 'permissions'), fullUpdated, { merge: true });
+                      } catch (err) {
+                        console.error("Error updating permissions document: ", err);
+                      }
+                    };
+
+                    return (
+                      <tr key={role} className="hover:bg-slate-50/50">
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-black text-slate-900 uppercase tracking-wide">{role}</span>
+                            <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">
+                              {role === 'Super Admin' && "Supervision totale & super-administrateur"}
+                              {role === 'Directeur Technique' && "Suivi permanent de production & direction générale"}
+                              {role === 'Secretaire' && "Opérateur de permanence (Bureau jour)"}
+                              {role === 'Magasinier' && "Gestion de stock & distribution d'explosifs"}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4 text-center whitespace-nowrap">
+                          <select
+                            value={perm.planning || 'none'}
+                            onChange={(e) => updatePerm('planning', e.target.value)}
+                            className="bg-white border border-slate-350 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
+                          >
+                            <option value="full">Saisie totale &amp; Clones</option>
+                            <option value="write">Saisie limitée (J)</option>
+                            <option value="read">Lecture seule</option>
+                            <option value="none">Aucun accès</option>
+                          </select>
+                        </td>
+
+                        <td className="px-4 py-4 text-center whitespace-nowrap">
+                          <select
+                            value={perm.production || 'none'}
+                            onChange={(e) => updatePerm('production', e.target.value)}
+                            className="bg-white border border-slate-350 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
+                          >
+                            <option value="full">Total (Consolidé + PDF)</option>
+                            <option value="write">Saisie seulement</option>
+                            <option value="read">Consultation seulement</option>
+                            <option value="none">Aucun accès</option>
+                          </select>
+                        </td>
+
+                        <td className="px-4 py-4 text-center whitespace-nowrap">
+                          <select
+                            value={perm.chantiers || 'none'}
+                            onChange={(e) => updatePerm('chantiers', e.target.value)}
+                            className="bg-white border border-slate-350 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
+                          >
+                            <option value="full">Administration complète</option>
+                            <option value="read">Consultation seule</option>
+                            <option value="none">Aucun accès</option>
+                          </select>
+                        </td>
+
+                        <td className="px-4 py-4 text-center whitespace-nowrap">
+                          <select
+                            value={perm.settings || 'none'}
+                            onChange={(e) => updatePerm('settings', e.target.value)}
+                            className="bg-white border border-slate-350 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
+                          >
+                            <option value="full">Accès Administrateur</option>
+                            <option value="read">Lecture seule</option>
+                            <option value="none">Aucun accès</option>
+                          </select>
+                        </td>
+
+                        <td className="px-4 py-4 text-center whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            checked={!!perm.approve}
+                            onChange={(e) => updatePerm('approve', e.target.checked)}
+                            className="w-4 h-4 text-[#8B0000] border-slate-300 rounded focus:ring-[#8B0000]"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* SECTION: CLÔTURE MENSUELLE DES ACTIVITÉS MINE */}
+          <div className="border-t border-slate-150 pt-5 mt-4 space-y-2">
+            <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
+              🔒 Clôture Mensuelle des Activités de Production &amp; Planning
+            </h4>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              Verrouiller définitivement l'ensemble des données d'un mois de l'exercice. Plus aucune modification ne sera autorisée après clôture.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 border border-slate-200 p-4 rounded">
+              {['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12'].map(m => {
+                const closure = closures[m];
+                return (
+                  <div key={m} className={`flex flex-col justify-between p-3 border rounded text-xs ${closure ? 'bg-red-50/70 border-red-200' : 'bg-slate-100 border-slate-200'}`}>
+                    <div className="flex items-center justify-between font-black uppercase tracking-wider">
+                      <span>Mois : {m}</span>
+                      {closure ? (
+                        <span className="text-[9px] text-red-700 bg-red-100 px-1 py-0.2 rounded-sm font-extrabold uppercase">🔒 Clôturé</span>
+                      ) : (
+                        <span className="text-[9px] text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded-sm font-extrabold uppercase">🔓 Ouvert</span>
+                      )}
+                    </div>
+                    {closure ? (
+                      <div className="mt-2 text-[9.5px] text-slate-500 font-medium">
+                        Par : <strong className="text-slate-800">{closure.closedBy}</strong>
+                        <br />
+                        Le : {new Date(closure.closedAt).toLocaleDateString()} à {new Date(closure.closedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          const confirmClose = window.confirm(`⚠️ ATTENTION ! Voulez-vous vraiment clôturer définitivement le mois de ${m} ?\n\nCette action est STRICTEMENT IRRÉVERSIBLE. Toutes les fiches du mois ${m} (Planning & Rapport de Registre Journalier) seront verrouillées pour l'éternité.`);
+                          if (confirmClose) {
+                            try {
+                              await setDoc(doc(db, 'settings', 'closures'), {
+                                [m]: {
+                                  closedBy: user?.displayName || user?.email || 'Administrateur SMI',
+                                  closedAt: new Date().toISOString(),
+                                  month: m
+                                }
+                              }, { merge: true });
+                            } catch (err: any) {
+                              alert(`Erreur lors de la clôture : ${err.message}`);
+                            }
+                          }
+                        }}
+                        className="mt-3.5 w-full bg-[#141414] hover:bg-red-700 text-white font-black text-[9.5px] uppercase py-1 px-2.5 transition-colors cursor-pointer text-center rounded border-0"
+                      >
+                        ⛔ Clôturer le mois
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* DEMANDES DE MODIFICATION TAB PANEL */
+        <div className="bg-white border border-slate-200 p-6 space-y-6 shadow-sm font-sans">
+          <div className="border-b border-slate-150 pb-3 flex justify-between items-center">
+            <div>
+              <h3 className="text-sm font-black uppercase text-[#8B0000] tracking-wide">
+                🔒 Demandes de Déverrouillage Exceptionnel (Niveau 2)
+              </h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                Gérer les demandes de dérogations formulées par le secrétariat sur les plannings vieux de plus de 24h.
+              </p>
+            </div>
+            <span className="bg-red-50 text-red-800 font-black px-2.5 py-1 rounded text-xs select-none">
+              {requests.filter(r => r.status === 'pending').length} en attente
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {requests.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
+                <span className="text-3xl">🕊️</span>
+                <p className="text-[11px] text-slate-400 font-black uppercase tracking-wider mt-2">Aucune demande soumise à ce jour</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {requests.map((req) => {
+                  const reqDate = req.dateId.split('-').reverse().join('/');
+                  const isPending = req.status === 'pending';
+                  const isApproved = req.status === 'approved';
+                  const isRejected = req.status === 'rejected';
+
+                  // calculate remaining reopening time
+                  let reopenTimeStr = '';
+                  if (isApproved && req.reopenUntil) {
+                    const diffMs = new Date(req.reopenUntil).getTime() - Date.now();
+                    if (diffMs > 0) {
+                      reopenTimeStr = `(Reste ${Math.ceil(diffMs / 1000 / 60)} minutes)`;
+                    } else {
+                      reopenTimeStr = `(Expiré)`;
+                    }
+                  }
+
+                  return (
+                    <div 
+                      key={req.id} 
+                      className={`border p-4 rounded-2xl flex flex-col justify-between transition-all ${
+                        isPending 
+                          ? 'border-red-200 bg-red-50/20 shadow-xs' 
+                          : isApproved 
+                            ? 'border-emerald-200 bg-emerald-50/10' 
+                            : 'border-slate-200 bg-slate-50/50'
+                      }`}
+                    >
+                      <div className="space-y-3.5 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="bg-slate-900 text-white font-extrabold px-2.5 py-1 rounded-lg text-[9px] uppercase tracking-wider">
+                                Planning du {reqDate}
+                              </span>
+                              <p className="text-[9.5px] text-slate-400 font-bold uppercase mt-1">
+                                Par : {req.requestedBy}
+                              </p>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider ${
+                              isPending 
+                                ? 'bg-amber-100 text-amber-800' 
+                                : isApproved 
+                                  ? 'bg-emerald-100 text-emerald-800' 
+                                  : 'bg-red-100 text-red-800'
+                            }`}>
+                              {isPending ? '⏳ En attente' : isApproved ? '✅ Approuvée' : '❌ Rejetée'}
+                            </span>
+                          </div>
+
+                          <div className="bg-white border border-slate-100 p-3 rounded-xl mt-3">
+                            <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block mb-1">Motif de déverrouillage</span>
+                            <p className="text-[11px] text-slate-800 font-medium leading-relaxed italic">{req.reason}</p>
+                          </div>
+                        </div>
+
+                        {/* Additional details for actions */}
+                        {(isApproved || isRejected) && (
+                          <div className="bg-slate-100/70 p-2.5 rounded-lg text-[9.5px] text-slate-600 font-medium space-y-0.5 mt-3">
+                            <p>Traitée par : <strong>{req.approvedBy || req.rejectedBy}</strong></p>
+                            {isApproved && <p>Re-ouvert jusqu'à : <strong>{new Date(req.reopenUntil).toLocaleTimeString()}</strong> <span className="text-emerald-700 font-bold">{reopenTimeStr}</span></p>}
+                            {isRejected && <p>Motif du rejet : <strong className="text-red-700">{req.rejectReason}</strong></p>}
+                          </div>
+                        )}
+                      </div>
+
+                      {isPending && (
+                        <div className="flex gap-2 mt-4 pt-3 border-t border-slate-200/65 justify-end bg-transparent">
+                          <button
+                            type="button"
+                            onClick={() => rejectRequest(req)}
+                            className="bg-red-50 hover:bg-red-100 text-red-750 font-black px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider transition-colors cursor-pointer border border-red-200"
+                          >
+                            Refuser
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => approveRequest(req)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                          >
+                            Approuver (🔓 2H)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

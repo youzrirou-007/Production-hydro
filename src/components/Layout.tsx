@@ -28,7 +28,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collectionGroup, query, where, onSnapshot } from 'firebase/firestore';
 import { getUpcomingSaturday } from '../lib/rotation';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
@@ -46,7 +46,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   // CORE PRODUCTION
-  { id: 'production', label: 'Registre de Poste (Fond)', icon: <Plus className="w-5 h-5" />, category: 'production' },
+  { id: 'production', label: 'Registre Journalier', icon: <Plus className="w-5 h-5" />, category: 'production' },
   { id: 'daily_report', label: 'Rapport Consolidé', icon: <Layers className="w-5 h-5" />, category: 'production' },
   { id: 'chantiers', label: 'Chantiers', icon: <MapPin className="w-5 h-5" />, category: 'production' },
   { id: 'planning', label: 'Planification', icon: <Calendar className="w-5 h-5" />, category: 'production' },
@@ -63,6 +63,21 @@ export const Layout: React.FC<{
   const { user, profile, logout } = useAuth();
   const [isOpen, setIsOpen] = React.useState(true);
   const [rotationPending, setRotationPending] = React.useState(false);
+  const [hasPendingRequests, setHasPendingRequests] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!user || !profile || profile.role !== 'admin') {
+      setHasPendingRequests(false);
+      return;
+    }
+    const qReqs = query(collectionGroup(db, 'modification_requests'), where('status', '==', 'pending'));
+    const unsub = onSnapshot(qReqs, (snap) => {
+      setHasPendingRequests(!snap.empty);
+    }, (err) => {
+      console.warn("Permission logs on collectionGroup modification_requests:", err);
+    });
+    return () => unsub();
+  }, [user, profile]);
 
   React.useEffect(() => {
     if (!user) return;
@@ -108,11 +123,11 @@ export const Layout: React.FC<{
         }}
         className="bg-white border-[#141414]/10 flex flex-col z-50 overflow-hidden relative shadow-2xl"
       >
-        <div className="p-5 border-b border-[#141414]/10 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <img src={logoImg} alt="HydroMines logo" className="w-8 h-8 object-contain rounded" referrerPolicy="no-referrer" />
+        <div className="p-4 border-b border-[#141414]/10 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <img src={logoImg} alt="HydroMines logo" className="w-[72px] h-[72px] object-contain rounded-lg shrink-0" referrerPolicy="no-referrer" />
             {isOpen && (
-              <h1 className="text-2xl font-black tracking-tighter leading-none italic uppercase">
+              <h1 className="text-sm font-black tracking-tighter leading-none uppercase">
                 <span className="text-[#00BFFF]">Hydro</span>
                 <span className="text-[#8B0000]">Mines</span>
               </h1>
@@ -159,6 +174,9 @@ export const Layout: React.FC<{
                   )}
                   {item.id === 'rotation' && rotationPending && (
                     <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse absolute right-4 top-1/2 -translate-y-1/2" />
+                  )}
+                  {item.id === 'admin' && hasPendingRequests && (
+                    <span className="w-2.5 h-2.5 bg-red-600 border border-white rounded-full h-3 w-3 flex items-center justify-center text-[7px] text-white font-extrabold absolute right-4 top-1/2 -translate-y-1/2 animate-pulse" title="Demande en attente admin" />
                   )}
                   {activeTab === item.id && (
                     <motion.div 

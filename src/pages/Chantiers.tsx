@@ -521,7 +521,7 @@ export const Chantiers: React.FC = () => {
       </AnimatePresence>
 
       {/* Unified Elegant Header Banner with Logo and Corporate Titles matching page planification */}
-      <div id="chantiers-header-banner" className="bg-slate-50 border border-gray-100 rounded-2xl p-5 md:p-6 shadow-xs space-y-4">
+      <div id="chantiers-header-banner" className="bg-white border border-gray-150 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
           {/* Logo Column */}
           <div className="flex-shrink-0 animate-fade-in">

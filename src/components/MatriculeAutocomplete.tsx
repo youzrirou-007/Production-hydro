@@ -11,6 +11,7 @@ interface MatriculeAutocompleteProps {
   post?: 'Poste 1' | 'Poste 2' | 'Poste 3'; // poste attendu
   placeholder?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
 }
 
 export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
@@ -22,7 +23,8 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
   alternativeFonctions,
   post,
   placeholder = "Saisir r...",
-  onKeyDown
+  onKeyDown,
+  disabled = false
 }) => {
   const [typed, setTyped] = useState(value || '');
   const [isOpen, setIsOpen] = useState(false);
@@ -172,19 +174,23 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
   return (
     <div ref={containerRef} className="relative w-full min-w-[140px]">
       <div 
-        className={`flex items-center transition-all bg-white px-2 py-1 border shadow-sm ${
-          isInvalid 
-            ? 'border-red-400 bg-red-50/50 focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-200' 
-            : isValidAndActive
-              ? 'border-emerald-400 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-105'
-              : 'border-slate-300 focus-within:border-[#8B0000] focus-within:ring-1 focus-within:ring-[#8B0000]/15'
+        className={`flex items-center transition-all px-2 py-1 border shadow-xs ${
+          disabled 
+            ? 'bg-gray-100/80 border-gray-200 text-gray-400 cursor-not-allowed select-none'
+            : isInvalid 
+              ? 'bg-red-50/50 border-red-400 focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-200 bg-white' 
+              : isValidAndActive
+                ? 'border-emerald-400 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-105 bg-white'
+                : 'border-slate-300 focus-within:border-[#8B0000] focus-within:ring-1 focus-within:ring-[#8B0000]/15 bg-white'
         }`}
       >
         <input
           type="text"
           placeholder={placeholder}
           value={typed}
+          disabled={disabled}
           onKeyDown={(e) => {
+            if (disabled) return;
             if (e.key === 'Enter' && suggestionsList().length > 0 && isOpen) {
               e.preventDefault();
               handleSelect(suggestionsList()[0]);
@@ -192,6 +198,7 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
             if (onKeyDown) onKeyDown(e);
           }}
           onChange={(e) => {
+            if (disabled) return;
             const val = e.target.value;
             setTyped(val);
             setIsOpen(true);
@@ -205,8 +212,10 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
               onChange(val, null);
             }
           }}
-          onFocus={() => setIsOpen(true)}
-          className="w-full font-mono text-[11px] font-bold text-slate-800 bg-transparent outline-none uppercase placeholder-slate-400 py-0.5"
+          onFocus={() => {
+            if (!disabled) setIsOpen(true);
+          }}
+          className="w-full font-mono text-[11px] font-bold text-slate-800 bg-transparent outline-none uppercase placeholder-slate-400 py-0.5 disabled:text-gray-400 disabled:cursor-not-allowed"
         />
 
         {/* Status Indicator Icon */}
