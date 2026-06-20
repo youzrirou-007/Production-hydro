@@ -19,7 +19,7 @@ import {
   ChevronRight,
   TrendingUp
 } from 'lucide-react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, orderBy, updateDoc, setDoc, collectionGroup } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, orderBy, updateDoc, setDoc, collectionGroup, deleteField } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -129,12 +129,17 @@ export const Admin: React.FC = () => {
         reopenUntil: twoHoursLater.toISOString()
       });
 
-      // Write trace in log
-      await addDoc(collection(db, 'deleted_plannings_log'), {
+      // Write trace in audit_logs (corrected)
+      await addDoc(collection(db, 'audit_logs'), {
+        action: 'APPROBATION_MODIFICATION',
         date: req.dateId,
-        deletedBy: email,
-        deletedAt: now.toISOString(),
-        details: `Approbation déverrouillage de planification du ${req.dateId}. Valide jusqu'à : ${twoHoursLater.toLocaleTimeString()}`
+        approvedBy: email,
+        approvedByUid: user?.uid || '',
+        approvedAt: now.toISOString(),
+        requestedBy: req.requestedBy || '',
+        reason: req.reason || '',
+        reopenUntil: twoHoursLater.toISOString(),
+        details: `Approbation de déverrouillage de la planification du ${req.dateId}. Édition permise jusqu'à : ${twoHoursLater.toLocaleTimeString()}`
       });
 
       alert(`Demande approuvée pour le ${req.dateId} ! L'édition est permise pendant 2h.`);
@@ -144,15 +149,22 @@ export const Admin: React.FC = () => {
     }
   };
 
-  const rejectRequest = async (req: any) => {
-    const reason = prompt("Veuillez saisir le motif du rejet de cette demande :");
-    if (reason === null) return;
-    if (!reason.trim()) {
+  const handleRejectClick = (req: any) => {
+    setRejectTargetRequest(req);
+    setRejectReasonInput('');
+    setIsRejectModalOpen(true);
+  };
+
+  const rejectRequestConfirmed = async () => {
+    if (!rejectTargetRequest) return;
+    const reason = rejectReasonInput.trim();
+    if (!reason) {
       alert("Le motif de rejet est obligatoire.");
       return;
     }
 
     try {
+      const req = rejectTargetRequest;
       const docRef = doc(db, req.refPath);
       const now = new Date();
       const email = user?.email || 'Administrateur';
@@ -164,6 +176,22 @@ export const Admin: React.FC = () => {
         rejectedAt: now.toISOString()
       });
 
+      // Write rejection log in audit_logs
+      await addDoc(collection(db, 'audit_logs'), {
+        action: 'REJET_MODIFICATION',
+        date: req.dateId,
+        rejectedBy: email,
+        rejectedByUid: user?.uid || '',
+        rejectedAt: now.toISOString(),
+        requestedBy: req.requestedBy || '',
+        reason: req.reason || '',
+        rejectReason: reason,
+        details: `Rejet de la demande de déverrouillage de la planification du ${req.dateId}. Motif : ${reason}`
+      });
+
+      setIsRejectModalOpen(false);
+      setRejectTargetRequest(null);
+      setRejectReasonInput('');
       alert("Demande rejetée.");
     } catch (err) {
       console.error("Error rejecting request:", err);
@@ -187,6 +215,11 @@ export const Admin: React.FC = () => {
   const [newEngine, setNewEngine] = useState('');
   const [newOil, setNewOil] = useState('');
   const [closures, setClosures] = useState<Record<string, any>>({});
+
+  // Reject request modal states
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectTargetRequest, setRejectTargetRequest] = useState<any | null>(null);
+  const [rejectReasonInput, setRejectReasonInput] = useState('');
 
   // Listener for settings
   useEffect(() => {
@@ -1436,10 +1469,38 @@ export const Admin: React.FC = () => {
                       )}
                     </div>
                     {closure ? (
-                      <div className="mt-2 text-[9.5px] text-slate-500 font-medium">
-                        Par : <strong className="text-slate-800">{closure.closedBy}</strong>
-                        <br />
-                        Le : {new Date(closure.closedAt).toLocaleDateString()} à {new Date(closure.closedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      <div className="flex flex-col h-full justify-between">
+                        <div className="mt-2 text-[9.5px] text-slate-500 font-medium">
+                          Par : <strong className="text-slate-800">{closure.closedBy}</strong>
+                          <br />
+                          Le : {new Date(closure.closedAt).toLocaleDateString()} à {new Date(closure.closedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </div>
+                        <button
+                          onClick={async () => {
+                            const confirmReopen = window.confirm(`⚠️ IMPORTANT ! Voulez-vous vraiment réouvrir le mois de ${m} ?\n\nUne fois réouvert, les utilisateurs pourront à nouveau modifier les plannings et les registres journaliers pour ce mois.`);
+                            if (confirmReopen) {
+                              try {
+                                await updateDoc(doc(db, 'settings', 'closures'), {
+                                  [m]: deleteField()
+                                });
+                                await addDoc(collection(db, 'audit_logs'), {
+                                  action: 'REOUVERTURE_MOIS',
+                                  month: m, // format YYYY-MM
+                                  reopenedBy: user?.displayName || user?.email || 'Administrateur',
+                                  reopenedByUid: user?.uid || '',
+                                  reopenedAt: new Date().toISOString(),
+                                  originalClosedBy: closure.closedBy || '',
+                                  originalClosedAt: closure.closedAt || ''
+                                });
+                              } catch (err: any) {
+                                alert(`Erreur lors de la réouverture : ${err.message}`);
+                              }
+                            }
+                          }}
+                          className="mt-3.5 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[9.5px] uppercase py-1 px-2.5 transition-colors cursor-pointer text-center rounded border-0"
+                        >
+                          🔓 Réouvrir le mois
+                        </button>
                       </div>
                     ) : (
                       <button
@@ -1565,7 +1626,7 @@ export const Admin: React.FC = () => {
                         <div className="flex gap-2 mt-4 pt-3 border-t border-slate-200/65 justify-end bg-transparent">
                           <button
                             type="button"
-                            onClick={() => rejectRequest(req)}
+                            onClick={() => handleRejectClick(req)}
                             className="bg-red-50 hover:bg-red-100 text-red-750 font-black px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider transition-colors cursor-pointer border border-red-200"
                           >
                             Refuser
@@ -1723,6 +1784,70 @@ export const Admin: React.FC = () => {
                 </div>
 
               </form>
+            </motion.div>
+          </div>
+        )}
+        {isRejectModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-none border border-red-200 p-6 shadow-2xl relative"
+            >
+              <button 
+                onClick={() => {
+                  setIsRejectModalOpen(false);
+                  setRejectTargetRequest(null);
+                  setRejectReasonInput('');
+                }} 
+                className="absolute right-4 top-4 p-1 hover:bg-slate-100 text-slate-500 transition-colors"
+                type="button"
+              >
+                <X className="w-5 h-5"/>
+              </button>
+              
+              <div className="mb-4">
+                <h3 className="text-sm font-bold tracking-tight text-red-950 uppercase flex items-center gap-1.5">
+                  <span className="text-lg">🚫</span> Rejeter la demande de déverrouillage
+                </h3>
+                <p className="text-[9.5px] text-slate-400 font-medium">Spécifiez le motif de rejet pour la planification du {rejectTargetRequest?.dateId}. Ce motif sera notifié à l'utilisateur.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[9.5px] font-black uppercase tracking-wider text-slate-500 block">Motif du rejet *</label>
+                  <textarea 
+                    rows={3}
+                    required
+                    placeholder="Ex: Les données de production de ce jour ont déjà été consolidées." 
+                    value={rejectReasonInput} 
+                    onChange={e => setRejectReasonInput(e.target.value)} 
+                    className="w-full bg-slate-50 border border-slate-300 px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#8B0000] focus:ring-1 focus:ring-[#8B0000]/15 min-h-[80px]" 
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setIsRejectModalOpen(false);
+                      setRejectTargetRequest(null);
+                      setRejectReasonInput('');
+                    }}
+                    className="flex-1 border border-slate-300 text-slate-600 font-bold py-2 text-[10px] uppercase transition-colors hover:bg-slate-50"
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={rejectRequestConfirmed}
+                    className="flex-1 bg-[#8B0000] text-white font-black py-2 text-[10px] uppercase tracking-wider transition-colors hover:bg-red-850"
+                  >
+                    Confirmer le rejet
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

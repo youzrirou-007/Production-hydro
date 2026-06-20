@@ -317,6 +317,10 @@ export const Planning: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedPost, setSelectedPost] = useState<'Poste 1' | 'Poste 2' | 'Poste 3'>('Poste 1');
 
+  // Realtime month closure states
+  const [isMonthClosedForPlanning, setIsMonthClosedForPlanning] = useState(false);
+  const [monthClosureInfo, setMonthClosureInfo] = useState<{ closedBy: string; closedAt: string } | null>(null);
+
   // Reference tables from Firebase
   const [planningsHistory, setPlanningsHistory] = useState<any[]>([]);
   const [deletedLogs, setDeletedLogs] = useState<any[]>([]);
@@ -364,6 +368,35 @@ export const Planning: React.FC = () => {
     }, 10000); // updates every 10 seconds to keep minutes countdown accurate
     return () => clearInterval(timer);
   }, []);
+
+  // Realtime month closure detector for Planning
+  useEffect(() => {
+    if (!selectedDate) return;
+    const monthStr = selectedDate.substring(0, 7); // 'YYYY-MM'
+    const unsubClosure = onSnapshot(doc(db, 'settings', 'closures'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const monthData = data[monthStr];
+        if (monthData) {
+          setIsMonthClosedForPlanning(true);
+          setMonthClosureInfo({
+            closedBy: monthData.closedBy || 'Administrateur',
+            closedAt: monthData.closedAt || ''
+          });
+        } else {
+          setIsMonthClosedForPlanning(false);
+          setMonthClosureInfo(null);
+        }
+      } else {
+        setIsMonthClosedForPlanning(false);
+        setMonthClosureInfo(null);
+      }
+    }, (err) => {
+      console.warn("Error reading closures settings for planning:", err);
+    });
+    return () => unsubClosure();
+  }, [selectedDate]);
+
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestReason, setRequestReason] = useState('');
   const [productionDates, setProductionDates] = useState<Set<string>>(new Set());
@@ -2047,6 +2080,10 @@ export const Planning: React.FC = () => {
 
   // Master Workbook Persistence and Sync to granular discrete planning collection
   const savePlanningWorkbook = async () => {
+    if (isMonthClosedForPlanning) {
+      alert("⚠️ Ce mois est clôturé. Aucune modification n'est permise sur cette planification.");
+      return;
+    }
     if (duplicatedFromDayData && !isEcartAccepted) {
       alert(`⚠️ ÉCARTS NON VALIDÉS : Vous avez dupliqué la planification d'hier (${yesterdayDateStr}) mais vous n'avez pas encore validé les écarts ou changements.\n\nVeuillez vérifier la liste d'analyse des écarts en bas de page et cliquer sur le bouton "Valider les écarts de planification J-1" pour autoriser l'enregistrement.`);
       setSaveStatus('idle');
@@ -2274,6 +2311,10 @@ export const Planning: React.FC = () => {
   };
 
   const validatePlanningWorkbook = async () => {
+    if (isMonthClosedForPlanning) {
+      alert("⚠️ Ce mois est clôturé. Aucune validation n'est permise.");
+      return;
+    }
     if (!isPlanningSavedInDb) {
       alert("⚠️ Veuillez d'abord enregistrer la planification avant de la valider.");
       return;
@@ -2490,6 +2531,23 @@ export const Planning: React.FC = () => {
   })();
 
   const renderPlanningStatusBanner = () => {
+    if (isMonthClosedForPlanning) {
+      const closedDateFormatted = monthClosureInfo?.closedAt 
+        ? format(new Date(monthClosureInfo.closedAt), 'dd/MM/yyyy à HH:mm')
+        : '';
+      return (
+        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 flex items-center gap-3 text-red-900 text-[11px] font-medium mb-1 select-none w-full shadow-sm animate-fade-in">
+          <span className="text-xl shrink-0">🔒</span>
+          <div>
+            <span className="font-black text-red-800 uppercase text-[9px] tracking-widest block mb-0.5">
+              Mois clôturé — Aucune modification possible
+            </span>
+            Le mois {selectedDate.substring(0, 7)} a été clôturé le {closedDateFormatted} par <strong>{monthClosureInfo?.closedBy || 'Administrateur'}</strong>. Toute intervention est définitivement interdite.
+          </div>
+        </div>
+      );
+    }
+
     if (!isPlanningSavedInDb) return null;
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     const formattedDate = selectedDate.split('-').reverse().join('/');
@@ -2724,8 +2782,8 @@ export const Planning: React.FC = () => {
                 />
                 <button
                   onClick={triggerDuplicatePreviousDay}
-                  disabled={isLockedByNiveau2}
-                  className={`border px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 shadow-xs font-sans ${isLockedByNiveau2 ? 'bg-gray-100 text-gray-450 border-gray-200 cursor-not-allowed opacity-60' : 'bg-sky-50 hover:bg-sky-100 text-[#00BFFF] border-sky-200 cursor-pointer'}`}
+                  disabled={isLockedByNiveau2 || isMonthClosedForPlanning}
+                  className={`border px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 shadow-xs font-sans ${isLockedByNiveau2 || isMonthClosedForPlanning ? 'bg-gray-100 text-gray-450 border-gray-200 cursor-not-allowed opacity-60' : 'bg-sky-50 hover:bg-sky-100 text-[#00BFFF] border-sky-200 cursor-pointer'}`}
                   title="Dupliquer la planification complète du jour précédent J-1"
                 >
                   <Copy className="w-3 h-3 text-[#00BFFF]" /> Dupliquer J-1
@@ -2740,9 +2798,9 @@ export const Planning: React.FC = () => {
                 </button>
                 <button
                   onClick={savePlanningWorkbook}
-                  disabled={saveStatus === 'saving' || isLockedByNiveau2}
+                  disabled={saveStatus === 'saving' || isLockedByNiveau2 || isMonthClosedForPlanning}
                   className={`font-extrabold px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px ${
-                    isLockedByNiveau2 
+                    isLockedByNiveau2 || isMonthClosedForPlanning
                       ? 'bg-gray-200 text-gray-400 border border-gray-250 cursor-not-allowed opacity-60' 
                       : 'bg-[#00BFFF] hover:bg-sky-500 text-white cursor-pointer'
                   }`}
@@ -2750,7 +2808,7 @@ export const Planning: React.FC = () => {
                   <Save className="w-3.5 h-3.5" /> 
                   {saveStatus === 'saving' ? '...' : saveStatus === 'saved' ? 'Enregistré !' : 'Graver'}
                 </button>
-                {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && (
+                {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && !isMonthClosedForPlanning && (
                   <button
                     onClick={validatePlanningWorkbook}
                     disabled={saveStatus === 'saving'}
@@ -2868,7 +2926,7 @@ export const Planning: React.FC = () => {
               })}
             </div>
 
-            <fieldset key={`${selectedDate}-${isLockedByNiveau2}`} disabled={isLockedByNiveau2} className={isLockedByNiveau2 ? "pointer-events-none opacity-90 select-none cursor-not-allowed" : ""}>
+            <fieldset key={`${selectedDate}-${isLockedByNiveau2}-${isMonthClosedForPlanning}`} disabled={isLockedByNiveau2 || isMonthClosedForPlanning} className={(isLockedByNiveau2 || isMonthClosedForPlanning) ? "pointer-events-none opacity-90 select-none cursor-not-allowed" : ""}>
             {/* SHEET 1: BLASTING & MINAGE INTERACTIVE EXCEL GRID (3 SHIFTS VERTICALLY STACKED) */}
             {activeSheetTab === 'minage' && (
               <div className="space-y-8">
@@ -4253,9 +4311,9 @@ export const Planning: React.FC = () => {
              <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
               <button 
                 onClick={savePlanningWorkbook}
-                disabled={saveStatus === 'saving' || isLockedByNiveau2}
+                disabled={saveStatus === 'saving' || isLockedByNiveau2 || isMonthClosedForPlanning}
                 className={`w-full md:w-auto py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md active:translate-y-px flex items-center justify-center gap-1.5 ${
-                  isLockedByNiveau2 
+                  isLockedByNiveau2 || isMonthClosedForPlanning
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60 border border-gray-250 shadow-none' 
                     : 'bg-[#00BFFF] hover:bg-sky-500 text-white cursor-pointer hover:shadow-lg'
                 }`}
@@ -4263,7 +4321,7 @@ export const Planning: React.FC = () => {
                 <Save className="w-4 h-4" />
                 {saveStatus === 'saving' ? 'Validation ...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver l\'Ordonnancement Complet'}
               </button>
-              {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && (
+              {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && !isMonthClosedForPlanning && (
                 <button
                   onClick={validatePlanningWorkbook}
                   disabled={saveStatus === 'saving'}
