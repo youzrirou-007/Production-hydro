@@ -17,11 +17,13 @@ import {
   Briefcase,
   ChevronDown,
   ChevronRight,
-  TrendingUp
+  TrendingUp,
+  Tractor
 } from 'lucide-react';
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, orderBy, updateDoc, setDoc, collectionGroup, deleteField } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 interface Employee {
   id: string;
@@ -205,11 +207,21 @@ export const Admin: React.FC = () => {
     engines: string[];
     oils: string[];
     defaultWagonsTarget?: number;
+    lhdBucketCapacities?: Record<string, number>;
   }>({
     sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Atelier / Surface', 'Non assigné'],
     engines: ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
     oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
-    defaultWagonsTarget: 48
+    defaultWagonsTarget: 48,
+    lhdBucketCapacities: {
+      'ST2D': 2.4,
+      'ST2G': 2.0,
+      'ST2G 1': 2.0,
+      'ST2G 3': 2.0,
+      'ST2G 4': 2.0,
+      'ST2G 5': 2.0,
+      'ST2G 6': 2.0,
+    }
   });
   const [newSector, setNewSector] = useState('');
   const [newEngine, setNewEngine] = useState('');
@@ -230,7 +242,16 @@ export const Admin: React.FC = () => {
           sectors: data.sectors || ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Atelier / Surface', 'Non assigné'],
           engines: data.engines || ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
           oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
-          defaultWagonsTarget: data.defaultWagonsTarget !== undefined ? data.defaultWagonsTarget : 48
+          defaultWagonsTarget: data.defaultWagonsTarget !== undefined ? data.defaultWagonsTarget : 48,
+          lhdBucketCapacities: data.lhdBucketCapacities || {
+            'ST2D': 2.4,
+            'ST2G': 2.0,
+            'ST2G 1': 2.0,
+            'ST2G 3': 2.0,
+            'ST2G 4': 2.0,
+            'ST2G 5': 2.0,
+            'ST2G 6': 2.0,
+          }
         });
       }
     }, (err) => {
@@ -492,72 +513,104 @@ export const Admin: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Executive Page Header - Reduced Title Sizes */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b-2 border-slate-200 pb-4 gap-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 uppercase">
-            Ressources Humaines
-          </h2>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-[#8B0000]">
-            Classification, affectation territoriale et registre d'effectifs
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Main Tab Controls beside the action button */}
-          <div className="flex bg-slate-200/60 p-1.5 border border-slate-300 rounded-lg gap-1">
-            <button
-              onClick={() => setActiveAdminSubTab('effectifs')}
-              className={`px-4 py-2 font-black text-[10px] uppercase tracking-wider transition-all duration-300 rounded-md relative ${
-                activeAdminSubTab === 'effectifs' 
-                  ? 'bg-white text-[#8B0000] shadow-[0_0_15px_rgba(255,255,255,1),0_2px_8px_rgba(139,0,0,0.15)] border border-slate-200 scale-105 z-10' 
-                  : 'text-slate-600 hover:text-slate-900 bg-transparent hover:bg-white/40'
-              }`}
-            >
-              📋 Effectif (Tableau)
-            </button>
-            <button
-              onClick={() => setActiveAdminSubTab('hierarchie')}
-              className={`px-4 py-2 font-black text-[10px] uppercase tracking-wider transition-all duration-300 rounded-md relative ${
-                activeAdminSubTab === 'hierarchie' 
-                  ? 'bg-white text-[#8B0000] shadow-[0_0_15px_rgba(255,255,255,1),0_2px_8px_rgba(139,0,0,0.15)] border border-slate-200 scale-105 z-10' 
-                  : 'text-slate-600 hover:text-slate-900 bg-transparent hover:bg-white/40'
-              }`}
-            >
-              🌿 Hiérarchie (Arbre)
-            </button>
-            <button
-              onClick={() => setActiveAdminSubTab('parametres')}
-              className={`px-4 py-2 font-black text-[10px] uppercase tracking-wider transition-all duration-300 rounded-md relative ${
-                activeAdminSubTab === 'parametres' 
-                  ? 'bg-white text-[#8B0000] shadow-[0_0_15px_rgba(255,255,255,1),0_2px_8px_rgba(139,0,0,0.15)] border border-slate-200 scale-105 z-10' 
-                  : 'text-slate-600 hover:text-slate-900 bg-transparent hover:bg-white/40'
-              }`}
-            >
-              ⚙️ Paramètres
-            </button>
-            <button
-              onClick={() => setActiveAdminSubTab('demandes')}
-              className={`px-4 py-2 font-black text-[10px] uppercase tracking-wider transition-all duration-300 rounded-lg relative flex items-center gap-1.5 ${
-                activeAdminSubTab === 'demandes' 
-                  ? 'bg-white text-[#8B0005]/95 shadow-[0_0_15px_rgba(255,255,255,1),0_2px_8px_rgba(139,0,0,0.15)] border border-slate-200 scale-105 z-10' 
-                  : 'text-slate-600 hover:text-slate-900 bg-transparent hover:bg-white/40'
-              }`}
-            >
-              🔒 Demandes
-              {requests.filter(r => r.status === 'pending').length > 0 && (
-                <span className="bg-red-600 text-white font-extrabold text-[8px] rounded-full px-1.5 py-0.5 animate-bounce">
-                  {requests.filter(r => r.status === 'pending').length}
-                </span>
-              )}
-            </button>
+      {/* Executive Page Header - Styled to match Planning.tsx */}
+      <div 
+        id="admin-header-banner" 
+        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
+        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+      >
+        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+          <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
+            <img 
+              src={logoImg} 
+              alt="HydroMines Logo" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
+              referrerPolicy="no-referrer" 
+            />
           </div>
 
-          <button 
-            onClick={() => setShowAdd(true)}
-            className="bg-[#141414] text-white px-5 py-2.5 rounded-none font-black text-[10.5px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#8B0000] transition-colors border-b-4 border-black active:border-b-0 hover:border-[#8B0000]"
-          >
-            <Plus className="w-4 h-4" /> Ajouter Effectif
-          </button>
+          {/* Centered Column: Header Title on One Line, Subtitle, Info tags */}
+          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+            {/* Upper Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+            
+            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+              RECONSTITUTION DES RESSOURCES HUMAINES
+            </h1>
+            
+            {/* Lower Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+
+            {/* Elegant Subtitle with precise spacing */}
+            <p 
+              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
+              style={{ color: '#64748b', letterSpacing: '0.2em' }}
+            >
+              Classification, affectation territoriale et registre d'effectifs • HydroMines
+            </p>
+          </div>
+
+          {/* Tab controls structured as beautifully designed pilled selectors and button */}
+          <div className="flex flex-col gap-3 md:gap-4 items-center lg:items-end justify-between w-full lg:w-auto self-center lg:self-stretch min-h-[140px]">
+            {/* Main Tab Controls styled as premium pills */}
+            <div className="flex flex-wrap gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-xs max-w-full justify-center">
+              <button
+                onClick={() => setActiveAdminSubTab('effectifs')}
+                className={`px-3 py-1.5 font-black text-[10px] uppercase tracking-wider transition-all rounded-lg cursor-pointer ${
+                  activeAdminSubTab === 'effectifs' 
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                📋 Effectif
+              </button>
+              <button
+                onClick={() => setActiveAdminSubTab('hierarchie')}
+                className={`px-3 py-1.5 font-black text-[10px] uppercase tracking-wider transition-all rounded-lg cursor-pointer ${
+                  activeAdminSubTab === 'hierarchie' 
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                🌿 Hiérarchie
+              </button>
+              <button
+                onClick={() => setActiveAdminSubTab('parametres')}
+                className={`px-3 py-1.5 font-black text-[10px] uppercase tracking-wider transition-all rounded-lg cursor-pointer ${
+                  activeAdminSubTab === 'parametres' 
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                ⚙️ Paramètres
+              </button>
+              <button
+                onClick={() => setActiveAdminSubTab('demandes')}
+                className={`px-3 py-1.5 font-black text-[10px] uppercase tracking-wider transition-all rounded-lg relative flex items-center gap-1.5 cursor-pointer ${
+                  activeAdminSubTab === 'demandes' 
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                🔒 Demandes
+                {requests.filter(r => r.status === 'pending').length > 0 && (
+                  <span className="bg-red-650 text-white font-extrabold text-[8px] rounded-full px-1.5 py-0.5 animate-bounce">
+                    {requests.filter(r => r.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Ajouter Effectif Button styled in harmonized gold/gradient */}
+            <button 
+              onClick={() => setShowAdd(true)}
+              className="px-5 py-2.5 rounded-xl text-slate-950 font-black text-[10.5px] uppercase tracking-wider flex items-center justify-center gap-1.5 border border-[#b8860b]/30 shadow-md cursor-pointer hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] mt-auto"
+            >
+              <Plus className="w-4 h-4 text-slate-950" /> Ajouter Effectif
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1328,6 +1381,64 @@ export const Admin: React.FC = () => {
               <div className="text-[9.5px] text-slate-500 font-medium max-w-sm mt-3 pt-1">
                 ℹ️ Cette valeur est modifiable en temps réel. Elle met à jour automatiquement les objectifs théoriques de tous les nouveaux plannings et fiches de production.
               </div>
+            </div>
+          </div>
+
+          {/* SECTION: CAPACITÉS DES ENGINS LHD */}
+          <div className="border-t border-slate-150 pt-5 mt-4 space-y-2">
+            <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
+              <Tractor className="w-3.5 h-3.5 text-slate-700" /> Capacités des Godets LHD (en m³ foisonné)
+            </h4>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              Définissez la capacité du godet par engin ou type d'engin LHD (minerai d'Imiter, coefficient de foisonnement ~1.5 intégré).
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 bg-slate-50 border border-slate-200 p-4 rounded">
+              {Object.keys(platformSettings.lhdBucketCapacities || {
+                'ST2D': 2.4,
+                'ST2G': 2.0,
+                'ST2G 1': 2.0,
+                'ST2G 3': 2.0,
+                'ST2G 4': 2.0,
+                'ST2G 5': 2.0,
+                'ST2G 6': 2.0,
+              }).map((key) => {
+                const caps = platformSettings.lhdBucketCapacities || {
+                  'ST2D': 2.4,
+                  'ST2G': 2.0,
+                  'ST2G 1': 2.0,
+                  'ST2G 3': 2.0,
+                  'ST2G 4': 2.0,
+                  'ST2G 5': 2.0,
+                  'ST2G 6': 2.0,
+                };
+                return (
+                  <div key={key} className="flex flex-col gap-1">
+                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-500 text-center">
+                      {key}
+                    </label>
+                    <div className="flex items-center gap-1 justify-center">
+                      <input 
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={caps[key] !== undefined ? caps[key] : 2.0}
+                        onChange={async (e) => {
+                          const val = Number(e.target.value) || 2.0;
+                          const updatedCaps = { ...caps, [key]: val };
+                          try {
+                            setPlatformSettings(prev => ({ ...prev, lhdBucketCapacities: updatedCaps }));
+                            await setDoc(doc(db, 'settings', 'platform'), { ...platformSettings, lhdBucketCapacities: updatedCaps });
+                          } catch (err) {
+                            console.error("Erreur de mise à jour lhdBucketCapacities:", err);
+                          }
+                        }}
+                        className="w-16 text-xs border border-slate-300 p-1 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-sm"
+                      />
+                      <span className="text-[9px] font-bold text-slate-500">m³</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

@@ -113,7 +113,7 @@ export const Layout: React.FC<{
   ];
 
   return (
-    <div className="flex h-screen bg-[#F5F5F0] font-sans selection:bg-[#00BFFF]/20">
+    <div className="flex h-screen bg-[#FAFAF9] font-sans selection:bg-[#b8860b]/20">
       {/* Sidebar */}
       <motion.aside 
         initial={false}
@@ -127,9 +127,9 @@ export const Layout: React.FC<{
           <div className="flex items-center gap-2.5">
             <img src={logoImg} alt="HydroMines logo" className="w-[72px] h-[72px] object-contain rounded-lg shrink-0" referrerPolicy="no-referrer" />
             {isOpen && (
-              <h1 className="text-sm font-black tracking-tighter leading-none uppercase">
-                <span className="text-[#00BFFF]">Hydro</span>
-                <span className="text-[#8B0000]">Mines</span>
+              <h1 className="text-sm font-black tracking-tighter leading-none uppercase animate-fade-in">
+                <span className="text-[#b8860b]">Hydro</span>
+                <span className="text-[#141414]">Mines</span>
               </h1>
             )}
           </div>
@@ -155,7 +155,10 @@ export const Layout: React.FC<{
               {filteredNav.filter(item => item.category === cat.id).map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setIsOpen(false);
+                  }}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-none transition-all duration-200 group relative",
                     activeTab === item.id 
@@ -181,7 +184,7 @@ export const Layout: React.FC<{
                   {activeTab === item.id && (
                     <motion.div 
                       layoutId="active-indicator"
-                      className="absolute left-0 w-1 h-6 bg-[#00BFFF]" 
+                      className="absolute left-0 w-1 h-6 bg-[#b8860b]" 
                     />
                   )}
                 </button>
@@ -210,7 +213,7 @@ export const Layout: React.FC<{
       </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#F5F5F0]">
+      <main className="flex-1 flex flex-col min-w-0 bg-white">
         <header className="h-16 border-b border-[#141414]/10 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 sticky top-0 z-40">
           <div className="flex items-center gap-4">
             <button
@@ -219,7 +222,7 @@ export const Layout: React.FC<{
               title="Menu principal"
               id="sidebar_toggle_button"
             >
-              <Menu className="w-5 h-5 text-[#8B0000]" />
+              <Menu className="w-5 h-5 text-[#b8860b]" />
             </button>
             <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-[#141414]/40">
               {NAV_ITEMS.find(n => n.id === activeTab)?.label}

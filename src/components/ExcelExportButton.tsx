@@ -99,106 +99,121 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
     return emp ? `${emp.nom} ${emp.prenom}` : matricule;
   };
 
-  const createCorpHeader = (sheet: ExcelJS.Worksheet, title: string, imageId?: number | null) => {
-    // 1. Title bar with premium theme colors
-    const logoRow = sheet.addRow(['', '', '', '', 'EXPLOITATION MINIERE SMI', '', `DATE : ${selectedDate}`]);
-    logoRow.height = 54; // spacious height for 1.68cm height logo (approx 64 pixels)
-    sheet.mergeCells(`E${logoRow.number}:F${logoRow.number}`);
+  const resolveAndParseChantierExcel = (id: string, defaultName?: string) => {
+    const name = defaultName || getChantierName(id);
+    const trimmed = (name || '').trim();
+    if (trimmed && /^\d+$/.test(trimmed)) {
+      return parseInt(trimmed, 10);
+    }
+    if (trimmed && /^\d+(\.\d+)?$/.test(trimmed)) {
+      return parseFloat(trimmed);
+    }
+    return name || '';
+  };
+
+  const createCorpHeader = (
+    sheet: ExcelJS.Worksheet, 
+    title: string, 
+    themeColor: string, 
+    maxColLetter: string, 
+    imageId?: number | null
+  ) => {
+    // Add row 1 with empty cells so we can merge manually
+    const logoRow = sheet.addRow(['', '', '', '', '', '', '', '', '']);
+    logoRow.height = 60; // Expanded height for row 1
     
     if (imageId !== undefined && imageId !== null) {
       sheet.addImage(imageId, {
         tl: { col: 0.1, row: logoRow.number - 1 + 0.1 },
-        ext: { width: 138, height: 64 }
+        ext: { width: 140, height: 60 } // Better visibility
       });
     } else {
-      // Fallback text if image wasn't loaded
-      logoRow.getCell('A').value = '🏗️ HYDRO-MINES';
+      // Direct text fallback for logo
+      logoRow.getCell('A').value = '🏗️ HYDROMINES';
       sheet.mergeCells(`A${logoRow.number}:C${logoRow.number}`);
       const logoCell = logoRow.getCell('A');
-      logoCell.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: '0F172A' } };
-      logoCell.alignment = { vertical: 'middle' };
+      logoCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: '00BFFF' } };
+      logoCell.alignment = { vertical: 'middle', horizontal: 'center' };
     }
 
-    // Style Unit Section (E)
-    const unitCell = logoRow.getCell('E');
-    unitCell.font = { name: 'Segoe UI', size: 10, bold: true, italic: true, color: { argb: '475569' } };
-    unitCell.alignment = { vertical: 'middle', horizontal: 'right' };
+    const titleCell = logoRow.getCell('D');
+    
+    // Parse date components
+    const [year, month, day] = selectedDate.split('-');
+    const dateStr = (year && month && day) ? `${day} - ${month} - ${year}` : selectedDate;
 
-    // Style Date (G)
-    const dateCell = logoRow.getCell('G');
-    dateCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: '0284C7' } }; // Sky premium blue
-    dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
+    titleCell.value = {
+      richText: [
+        {
+          text: 'PLANIFICATION - ',
+          font: { name: 'Segoe UI', size: 12, bold: true, color: { argb: 'B8860B' } } // GOLD
+        },
+        {
+          text: `${dateStr} - `,
+          font: { name: 'Segoe UI', size: 12, bold: true, color: { argb: '0F172A' } } // DARK SLATE
+        },
+        {
+          text: 'HYDRO',
+          font: { name: 'Segoe UI', size: 12, bold: true, color: { argb: '00BFFF' } } // BLEU CIEL (Sky Blue)
+        },
+        {
+          text: 'MINES',
+          font: { name: 'Segoe UI', size: 12, bold: true, color: { argb: '9E1A1A' } } // ROUGE FONCE (Dark Red)
+        }
+      ]
+    };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
     const sepRow = sheet.addRow([]);
-    sepRow.height = 5;
-    sheet.mergeCells(`A${sepRow.number}:G${sepRow.number}`);
+    sepRow.height = 4;
+    sheet.mergeCells(`A${sepRow.number}:${maxColLetter}${sepRow.number}`);
     const sepCell = sepRow.getCell('A');
     sepCell.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: '0284C7' } // Sky Blue Divider
+      fgColor: { argb: 'B8860B' } // Premium brand Gold
     };
 
     const titleRow = sheet.addRow([title]);
-    titleRow.height = 32;
-    sheet.mergeCells(`A${titleRow.number}:G${titleRow.number}`);
-    const titleCell = titleRow.getCell('A');
-    titleCell.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: 'FFFFFF' } };
-    titleCell.fill = {
+    titleRow.height = 24;
+    sheet.mergeCells(`A${titleRow.number}:${maxColLetter}${titleRow.number}`);
+    const sectionTitleCell = titleRow.getCell('A');
+    sectionTitleCell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FFFFFF' } };
+    sectionTitleCell.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: '0F172A' } // Deep slate header
+      fgColor: { argb: themeColor } // Colored according to the sheet type
     };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sectionTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
     sheet.addRow([]); // Blank spacer line
   };
 
-  const createSignatures = (sheet: ExcelJS.Worksheet) => {
-    sheet.addRow([]);
-    sheet.addRow([]);
-
-    const sigTitleRow = sheet.addRow(['', '', 'SIGNATURES DE RECONNAISSANCE ET APPROBATION']);
-    sheet.mergeCells(`C${sigTitleRow.number}:E${sigTitleRow.number}`);
-    sigTitleRow.getCell('C').font = { name: 'Arial', size: 10, bold: true, underline: true, color: { argb: '1E3A8A' } };
-    sigTitleRow.getCell('C').alignment = { horizontal: 'center' };
-
-    sheet.addRow([]);
-
-    const sigNamesRow = sheet.addRow([
-      '   Le Secrétaire de Planification (SMI Mine)',
-      '',
-      '',
-      '',
-      '   Le Représentant de l\'Ingénierie HydroMines',
-      '',
-      ''
-    ]);
-    sheet.mergeCells(`A${sigNamesRow.number}:B${sigNamesRow.number}`);
-    sheet.mergeCells(`E${sigNamesRow.number}:G${sigNamesRow.number}`);
-    sigNamesRow.getCell('A').font = { name: 'Arial', size: 9, bold: true };
-    sigNamesRow.getCell('E').font = { name: 'Arial', size: 9, bold: true };
-
-    sheet.addRow([]);
-    sheet.addRow([]);
-
-    const spaceRow = sheet.addRow([
-      '   Sceau & Visa : ______________________',
-      '',
-      '',
-      '',
-      '   Sceau & Visa : ______________________',
-      '',
-      ''
-    ]);
-    sheet.mergeCells(`A${spaceRow.number}:B${spaceRow.number}`);
-    sheet.mergeCells(`E${spaceRow.number}:G${spaceRow.number}`);
-    spaceRow.getCell('A').font = { name: 'Arial', size: 9, italic: true };
-    spaceRow.getCell('E').font = { name: 'Arial', size: 9, italic: true };
-  };
-
   const exportToExcel = async () => {
     try {
+      // 1. Check if the entire daily planning sheet is empty across all posts and activities
+      const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
+
+      const hasMinageEntries = posts.some(post =>
+        minageRowsByPost[post]?.some(r => r.chantierId?.trim() || r.minerMatricule?.trim() || r.assistantMatricule?.trim())
+      );
+      const hasDeblayageEntries = posts.some(post =>
+        deblayageRowsByPost[post]?.some(r => r.driverMatricule?.trim() || r.chantierId?.trim() || r.engineId?.trim())
+      );
+      const hasExtractionEntries = posts.some(post =>
+        extractionRowsByPost[post]?.some(r => r.treuilliste?.trim() || r.equipier1?.trim() || r.chantierName?.trim())
+      );
+      const hasMaintenanceEntries = posts.some(post =>
+        maintenanceRowsByPost[post]?.some(r => r.agentMatricule?.trim() || r.engineId?.trim() || r.roleLabel?.trim())
+      );
+
+      const isReportEmpty = !hasMinageEntries && !hasDeblayageEntries && !hasExtractionEntries && !hasMaintenanceEntries;
+
+      if (isReportEmpty) {
+        alert(`⚠️ Le rapport de planification pour le ${selectedDate} est entièrement vide !\n\nAucune affectation n'a été planifiée ou enregistrée. Le fichier Excel ne peut pas être généré.`);
+        return;
+      }
+
       const workbook = new ExcelJS.Workbook();
 
       let imageId: number | null = null;
@@ -217,97 +232,149 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
       }
 
       const borderThin = { style: 'thin' as const, color: { argb: 'D1D5DB' } };
-      const borderMedium = { style: 'medium' as const, color: { argb: '0F172A' } }; // Sleek Slate
+      const borderMedium = { style: 'medium' as const, color: { argb: '475569' } };
 
-      const fontBold = { name: 'Segoe UI', size: 10, bold: true, color: { argb: '1E293B' } };
-      const fontNormal = { name: 'Segoe UI', size: 9, color: { argb: '334155' } };
-      const colorGrayLight = 'F8FAFC'; // Extra clean slate-white for headers
-      const colorShiftHeader = '0F172A'; // Dark slate for shifts
-      const sectorColors: Record<string, string> = {
-        'Imiter 2': 'EFF6FF',   // Subtle blue accent
-        'Imiter 1': 'FEF3C7',   // Subtle amber accent
-        'Imiter Est': 'ECFDF5', // Subtle emerald accent
+      const fontBold = { name: 'Segoe UI', size: 8, bold: true, color: { argb: '0F172A' } };
+      const fontNormal = { name: 'Segoe UI', size: 7.5, color: { argb: '334155' } };
+
+      const themeColors = {
+        minage: {
+          headerBg: '9E1A1A', // Rouge foncé (as requested)
+          accentLight: 'FEF2F2'
+        },
+        deblayage: {
+          headerBg: '00BFFF', // Sky Blue (identical to planning color)
+          accentLight: 'F0F9FF'
+        },
+        extraction: {
+          headerBg: '10B981', // Emerald Green 
+          accentLight: 'F0FDF4'
+        },
+        maintenance: {
+          headerBg: '8B5CF6', // Purple-500
+          accentLight: 'FAF5FF'
+        }
       };
-
-      const sectorOrder = ['Imiter 2', 'Imiter 1', 'Imiter Est'];
-      const getSectorSortingIndex = (sector: string) => {
-        const index = sectorOrder.findIndex(s => s.toLowerCase() === (sector || '').trim().toLowerCase());
-        return index === -1 ? 999 : index;
-      };
-
-      const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
 
       // ==========================================
       // SHEET 1: BLASTING & MINAGE
       // ==========================================
       const sheetMinage = workbook.addWorksheet('🔨 MINAGE');
-      sheetMinage.views = [{ showGridLines: false }]; // Turn off default grid lines
+      sheetMinage.views = [{ showGridLines: false }];
+      sheetMinage.properties.tabColor = { argb: '9E1A1A' }; // Colored tab: Rouge foncé
+
       sheetMinage.columns = [
         { key: 'colA', width: 14 }, // Secteur
-        { key: 'colB', width: 22 }, // Chantier
-        { key: 'colC', width: 24 }, // Responsable de secteur
+        { key: 'colB', width: 22 }, // Chantier (Number or Text)
+        { key: 'colC', width: 26 }, // Responsable de secteur
         { key: 'colD', width: 22 }, // Mineur
         { key: 'colE', width: 22 }, // Aide Mineur
-        { key: 'colF', width: 16 }, // Dimensions / Forage
+        { key: 'colF', width: 18 }, // Dimensions / Forage
         { key: 'colG', width: 45 }  // Explosifs d'allocation
       ];
-      createCorpHeader(sheetMinage, 'ORDRE DE SERVICE JOURNALIER - TRAVAUX DE MINAGE (TIRS & PERFORATION)', imageId);
+      createCorpHeader(sheetMinage, 'ORDRE DE SERVICE JOURNALIER - TRAVAUX DE MINAGE (TIRS & PERFORATION)', '00BFFF', 'G', imageId);
 
       posts.forEach(post => {
-        const validRows = minageRowsByPost[post].filter(r => r.chantierId !== '');
-        if (validRows.length === 0) return;
+        const validRows = minageRowsByPost[post].filter(r => 
+          (r.chantierId && r.chantierId.trim() !== '') || 
+          (r.minerMatricule && r.minerMatricule.trim() !== '') || 
+          (r.assistantMatricule && r.assistantMatricule.trim() !== '')
+        );
 
-        // Sort by 'Imiter 2', 'Imiter 1', 'Imiter Est'
-        const sortedMinage = [...validRows].sort((a, b) => {
-          return getSectorSortingIndex(a.sectorGroup || '') - getSectorSortingIndex(b.sectorGroup || '');
-        });
-
-        const postBar = sheetMinage.addRow([`🔵 ${post.toUpperCase()}`]);
-        postBar.height = 26;
+        const postBar = sheetMinage.addRow([`🔨 ${post.toUpperCase()} - FORAGE & MINAGE`]);
+        postBar.height = 26; // Generous height
         sheetMinage.mergeCells(`A${postBar.number}:G${postBar.number}`);
+        for (let cIdx = 1; cIdx <= 7; cIdx++) {
+          const cell = postBar.getCell(cIdx);
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } }; // White arriere plan
+          cell.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+        }
         const pCell = postBar.getCell('A');
-        pCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFF' } };
-        pCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorShiftHeader } };
-        pCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        pCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'B8860B' } }; // Gold and larger text
+        pCell.alignment = { horizontal: 'center', vertical: 'middle' }; // Centered
 
-        // Headers
+        if (validRows.length === 0) {
+          const noValRow = sheetMinage.addRow(['ℹ️ Aucun chantier de minage planifié pour ce poste.']);
+          noValRow.height = 20;
+          sheetMinage.mergeCells(noValRow.number, 1, noValRow.number, 7);
+          const cellNo = noValRow.getCell(1);
+          cellNo.font = { name: 'Segoe UI', size: 7.5, color: { argb: '64748B' } }; // Normal (no italic)
+          cellNo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          cellNo.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+          cellNo.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+          sheetMinage.addRow([]);
+          return;
+        }
+
         const hRow = sheetMinage.addRow(['Secteur', 'Chantier', 'Responsable de secteur', 'Mineur', 'Aide Mineur', 'Dimensions', 'Remarques / Explosifs Alloués']);
         hRow.height = 20;
         hRow.eachCell(c => {
-          c.font = fontBold;
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorGrayLight } };
+          c.font = { name: 'Segoe UI', size: 8, bold: true, color: { argb: 'FFFFFF' } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: themeColors.minage.headerBg } };
           c.border = { top: borderThin, bottom: borderMedium, left: borderThin, right: borderThin };
-          c.alignment = { vertical: 'middle', horizontal: 'center' };
+          c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         });
 
-        // Rows
-        sortedMinage.forEach(r => {
-          const rowData = [
-            r.sectorGroup || 'SMI Fond',
-            getChantierName(r.chantierId),
-            getEmployeeName(sectorChiefs[post][r.sectorGroup as any] || r.chiefMatricule),
-            getEmployeeName(r.minerMatricule),
-            getEmployeeName(r.assistantMatricule),
-            `${r.gallerySize} m² (M: ${r.plannedRounds}v)`,
-            `ANFO: ${r.anfo} kg | TOVEX: ${r.tovex} kg | AMORCES: ${r.ammorces} pcs ${r.remarks ? `[${r.remarks}]` : ''}`
-          ];
-          const added = sheetMinage.addRow(rowData);
-          added.height = 20;
-          added.eachCell((c, colIdx) => {
-            c.font = fontNormal;
-            c.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
-            c.alignment = { vertical: 'middle' };
-            
-            // Custom sector coloration
-            const bgColor = sectorColors[r.sectorGroup || ''];
-            if (bgColor) {
-              c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-            } else {
-              c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } }; // pure white
-            }
-          });
+        const sectorMap: Record<string, ExcelMinage[]> = {};
+        validRows.forEach(r => {
+          const sec = r.sectorGroup || 'Hydromines Fond';
+          if (!sectorMap[sec]) sectorMap[sec] = [];
+          sectorMap[sec].push(r);
         });
-        sheetMinage.addRow([]); // Blank spacer
+
+        const activeSectors = ['Imiter 2', 'Imiter 1', 'Imiter Est'].filter(sec => sectorMap[sec] && sectorMap[sec].length > 0);
+        Object.keys(sectorMap).forEach(sec => {
+          if (!activeSectors.includes(sec)) activeSectors.push(sec);
+        });
+
+        activeSectors.forEach(sec => {
+          const rows = sectorMap[sec];
+          const startRowIdx = sheetMinage.rowCount + 1;
+
+          rows.forEach(r => {
+            const supervisorName = getEmployeeName(sectorChiefs[post][sec as any] || r.chiefMatricule);
+            const rowData = [
+              sec,
+              resolveAndParseChantierExcel(r.chantierId),
+              supervisorName,
+              getEmployeeName(r.minerMatricule),
+              getEmployeeName(r.assistantMatricule),
+              `${r.gallerySize} m² (M: ${r.plannedRounds}v)`,
+              `ANFO: ${r.anfo} kg | TOVEX: ${r.tovex} kg | AMORCES: ${r.ammorces} pcs ${r.remarks ? `[${r.remarks}]` : ''}`
+            ];
+            const added = sheetMinage.addRow(rowData);
+            added.height = 18;
+            added.eachCell((c, colIdx) => {
+              c.font = fontNormal;
+              c.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+              c.alignment = { vertical: 'middle', horizontal: (colIdx === 7) ? 'left' : 'center' };
+              c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } };
+            });
+          });
+
+          const endRowIdx = sheetMinage.rowCount;
+
+          if (endRowIdx >= startRowIdx) {
+            sheetMinage.mergeCells(startRowIdx, 1, endRowIdx, 1);
+            sheetMinage.mergeCells(startRowIdx, 3, endRowIdx, 3);
+
+            for (let rIdx = startRowIdx; rIdx <= endRowIdx; rIdx++) {
+              const cellA = sheetMinage.getCell(rIdx, 1);
+              const cellC = sheetMinage.getCell(rIdx, 3);
+
+              cellA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+              cellC.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+              cellA.font = fontBold;
+              cellC.font = fontBold;
+              cellA.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+              cellC.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+              cellA.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+              cellC.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            }
+          }
+        });
+
+        sheetMinage.addRow([]);
       });
 
       // ==========================================
@@ -315,71 +382,122 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
       // ==========================================
       const sheetDeblayage = workbook.addWorksheet('🚜 DEBLAYAGE');
       sheetDeblayage.views = [{ showGridLines: false }];
+      sheetDeblayage.properties.tabColor = { argb: '00BFFF' }; // Colored tab: Bleu ciel (Sky Blue)
+
       sheetDeblayage.columns = [
         { key: 'colA', width: 14 }, // Secteur
-        { key: 'colB', width: 22 }, // Chantier
-        { key: 'colC', width: 24 }, // Chauffeur / Conducteur
-        { key: 'colD', width: 20 }, // Code Engin Affecté
-        { key: 'colE', width: 18 }, // Target Godets
-        { key: 'colF', width: 16 }, // Durée Poste
-        { key: 'colG', width: 45 }  // Remarques Terrain
+        { key: 'colB', width: 22 }, // Chantier (Number or Text)
+        { key: 'colC', width: 26 }, // Responsable de secteur
+        { key: 'colD', width: 22 }, // Conducteur/Chauffeur
+        { key: 'colE', width: 20 }, // Engin Affecté
+        { key: 'colF', width: 18 }, // Target Godets
+        { key: 'colG', width: 16 }, // Durée Estimée
+        { key: 'colH', width: 45 }  // Remarques Terrain
       ];
-      createCorpHeader(sheetDeblayage, 'ORDRE DE SERVICE JOURNALIER - DEBLAYAGE (CHARGEMENT & VOL)', imageId);
+      createCorpHeader(sheetDeblayage, 'ORDRE DE SERVICE JOURNALIER - DEBLAYAGE (CHARGEMENT & VOL)', themeColors.deblayage.headerBg, 'H', imageId);
 
       posts.forEach(post => {
-        const validRows = deblayageRowsByPost[post].filter(r => r.driverMatricule !== '');
-        if (validRows.length === 0) return;
+        const validRows = deblayageRowsByPost[post].filter(r => 
+          (r.chantierId && r.chantierId.trim() !== '') || 
+          (r.driverMatricule && r.driverMatricule.trim() !== '') || 
+          (r.engineId && r.engineId.trim() !== '')
+        );
 
-        // Sort by sector Order
-        const sortedDeblayage = [...validRows].sort((a, b) => {
-          return getSectorSortingIndex(a.sectorGroup || '') - getSectorSortingIndex(b.sectorGroup || '');
-        });
-
-        const postBar = sheetDeblayage.addRow([`🔵 ${post.toUpperCase()}`]);
-        postBar.height = 26;
-        sheetDeblayage.mergeCells(`A${postBar.number}:G${postBar.number}`);
+        const postBar = sheetDeblayage.addRow([`🚜 ${post.toUpperCase()} - CHARGEMENT & DEBLAYAGE`]);
+        postBar.height = 26; // Generous height
+        sheetDeblayage.mergeCells(`A${postBar.number}:H${postBar.number}`);
+        for (let cIdx = 1; cIdx <= 8; cIdx++) {
+          const cell = postBar.getCell(cIdx);
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } }; // White background
+          cell.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+        }
         const pCell = postBar.getCell('A');
-        pCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFF' } };
-        pCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorShiftHeader } };
-        pCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        pCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'B8860B' } }; // Gold and larger text
+        pCell.alignment = { horizontal: 'center', vertical: 'middle' }; // Centered
 
-        // Headers
-        const hRow = sheetDeblayage.addRow(['Secteur', 'Chantier', 'Conducteur', 'Engin Affecté', 'Target Godets', 'Durée Estimée', 'Remarques Terrain / Instructions']);
+        if (validRows.length === 0) {
+          const noValRow = sheetDeblayage.addRow(['ℹ️ Aucun déblayage planifié pour ce poste.']);
+          noValRow.height = 20;
+          sheetDeblayage.mergeCells(noValRow.number, 1, noValRow.number, 8);
+          const cellNo = noValRow.getCell(1);
+          cellNo.font = { name: 'Segoe UI', size: 7.5, color: { argb: '64748B' } }; // Normal font (no italic)
+          cellNo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          cellNo.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+          cellNo.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+          sheetDeblayage.addRow([]);
+          return;
+        }
+
+        const hRow = sheetDeblayage.addRow(['Secteur', 'Chantier', 'Responsable de secteur', 'Conducteur', 'Engin Affecté', 'Target Godets', 'Durée Estimée', 'Remarques Terrain / Instructions']);
         hRow.height = 20;
         hRow.eachCell(c => {
-          c.font = fontBold;
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorGrayLight } };
+          c.font = { name: 'Segoe UI', size: 8, bold: true, color: { argb: 'FFFFFF' } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: themeColors.deblayage.headerBg } };
           c.border = { top: borderThin, bottom: borderMedium, left: borderThin, right: borderThin };
-          c.alignment = { vertical: 'middle', horizontal: 'center' };
+          c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         });
 
-        // Rows
-        sortedDeblayage.forEach(r => {
-          const rowData = [
-            r.sectorGroup || 'SMI Fond',
-            getChantierName(r.chantierId),
-            getEmployeeName(r.driverMatricule),
-            r.engineCode || r.engineId || 'ST2D',
-            `${r.godets} godets (${(r.volumeEstimated || 0).toFixed(1)} m³)`,
-            `${r.hoursWorked} heures`,
-            r.remarks || 'Nettoyage systématique du front et transport stérile'
-          ];
-          const added = sheetDeblayage.addRow(rowData);
-          added.height = 20;
-          added.eachCell(c => {
-            c.font = fontNormal;
-            c.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
-            c.alignment = { vertical: 'middle' };
-            
-            const bgColor = sectorColors[r.sectorGroup || ''];
-            if (bgColor) {
-              c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-            } else {
-              c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } };
-            }
-          });
+        const sectorMap: Record<string, ExcelDeblayage[]> = {};
+        validRows.forEach(r => {
+          const sec = r.sectorGroup || 'Hydromines Fond';
+          if (!sectorMap[sec]) sectorMap[sec] = [];
+          sectorMap[sec].push(r);
         });
-        sheetDeblayage.addRow([]); // Blank spacer
+
+        const activeSectors = ['Imiter 2', 'Imiter 1', 'Imiter Est'].filter(sec => sectorMap[sec] && sectorMap[sec].length > 0);
+        Object.keys(sectorMap).forEach(sec => {
+          if (!activeSectors.includes(sec)) activeSectors.push(sec);
+        });
+
+        activeSectors.forEach(sec => {
+          const rows = sectorMap[sec];
+          const startRowIdx = sheetDeblayage.rowCount + 1;
+
+          rows.forEach(r => {
+            const supervisorName = getEmployeeName(sectorChiefs[post][sec as any] || '');
+            const rowData = [
+              sec,
+              resolveAndParseChantierExcel(r.chantierId), // Numeric formatting where applicable
+              supervisorName,
+              getEmployeeName(r.driverMatricule),
+              r.engineCode || r.engineId || 'LHD',
+              `${r.godets} godets (${(r.volumeEstimated || 0).toFixed(1)} m³)`,
+              `${r.hoursWorked} heures`,
+              r.remarks || 'Nettoyage de front systématique et chargement'
+            ];
+            const added = sheetDeblayage.addRow(rowData);
+            added.height = 18;
+            added.eachCell((c, colIdx) => {
+              c.font = fontNormal;
+              c.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+              c.alignment = { vertical: 'middle', horizontal: (colIdx === 8) ? 'left' : 'center' };
+              c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } };
+            });
+          });
+
+          const endRowIdx = sheetDeblayage.rowCount;
+
+          if (endRowIdx >= startRowIdx) {
+            sheetDeblayage.mergeCells(startRowIdx, 1, endRowIdx, 1);
+            sheetDeblayage.mergeCells(startRowIdx, 3, endRowIdx, 3);
+
+            for (let rIdx = startRowIdx; rIdx <= endRowIdx; rIdx++) {
+              const cellA = sheetDeblayage.getCell(rIdx, 1);
+              const cellC = sheetDeblayage.getCell(rIdx, 3);
+
+              cellA.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+              cellC.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+              cellA.font = fontBold;
+              cellC.font = fontBold;
+              cellA.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+              cellC.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+              cellA.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+              cellC.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            }
+          }
+        });
+
+        sheetDeblayage.addRow([]);
       });
 
       // ==========================================
@@ -387,59 +505,80 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
       // ==========================================
       const sheetExtraction = workbook.addWorksheet('🚃 EXTRACTION');
       sheetExtraction.views = [{ showGridLines: false }];
+      sheetExtraction.properties.tabColor = { argb: '00BFFF' }; // Colored tab: Bleu ciel (Sky Blue)
+
       sheetExtraction.columns = [
-        { key: 'colA', width: 22 }, // Installation
+        { key: 'colA', width: 24 }, // Installation
         { key: 'colB', width: 22 }, // Treuilliste Principal
         { key: 'colC', width: 22 }, // Équipier 1
         { key: 'colD', width: 22 }, // Équipier 2
-        { key: 'colE', width: 26 }, // Équipiers 3/4
-        { key: 'colF', width: 18 }, // Objectif Wagons / Cible
-        { key: 'colG', width: 33 }  // Remarques Extraction
+        { key: 'colE', width: 26 }, // Équipiers Secondaires
+        { key: 'colF', width: 18 }, // Objectif Wagons
+        { key: 'colG', width: 45 }  // Directives
       ];
-      createCorpHeader(sheetExtraction, 'ORDRE DE SERVICE JOURNALIER - BURES & LOGISTIQUE EXTRACTION UNITE SMI', imageId);
+      createCorpHeader(sheetExtraction, 'ORDRE DE SERVICE JOURNALIER - BURES & LOGISTIQUE EXTRACTION UNITE HYDROMINES', themeColors.extraction.headerBg, 'G', imageId);
 
       posts.forEach(post => {
-        const validRows = extractionRowsByPost[post].filter(r => r.treuilliste !== '' || r.equipier1 !== '');
-        if (validRows.length === 0) return;
+        const validRows = extractionRowsByPost[post].filter(r => 
+          (r.chantierName && r.chantierName.trim() !== '') || 
+          (r.treuilliste && r.treuilliste.trim() !== '') || 
+          (r.equipier1 && r.equipier1.trim() !== '')
+        );
 
-        const postBar = sheetExtraction.addRow([`🔵 ${post.toUpperCase()}`]);
-        postBar.height = 26;
+        const postBar = sheetExtraction.addRow([`🚃 ${post.toUpperCase()} - EXTRACTION & TREUIL`]);
+        postBar.height = 26; // Generous height
         sheetExtraction.mergeCells(`A${postBar.number}:G${postBar.number}`);
+        for (let cIdx = 1; cIdx <= 7; cIdx++) {
+          const cell = postBar.getCell(cIdx);
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } }; // White arriere plan
+          cell.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+        }
         const pCell = postBar.getCell('A');
-        pCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFF' } };
-        pCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorShiftHeader } };
-        pCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        pCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'B8860B' } }; // Gold and larger text
+        pCell.alignment = { horizontal: 'center', vertical: 'middle' }; // Centered
 
-        // Headers
-        const hRow = sheetExtraction.addRow(['Installation', 'Treuilliste Principal', 'Équipier 1', 'Équipier 2', 'Équipiers Secondaires', 'Target Wagons', 'Remarques / Directives']);
+        if (validRows.length === 0) {
+          const noValRow = sheetExtraction.addRow(['ℹ️ Aucune extraction planifiée pour ce poste.']);
+          noValRow.height = 20;
+          sheetExtraction.mergeCells(noValRow.number, 1, noValRow.number, 7);
+          const cellNo = noValRow.getCell(1);
+          cellNo.font = { name: 'Segoe UI', size: 7.5, color: { argb: '64748B' } }; // Normal font (no italic)
+          cellNo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          cellNo.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+          cellNo.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+          sheetExtraction.addRow([]);
+          return;
+        }
+
+        const hRow = sheetExtraction.addRow(['Installation / Bure', 'Treuilliste Principal', 'Équipier 1', 'Équipier 2', 'Équipiers Secondaires', 'Target Wagons', 'Remarques / Directives']);
         hRow.height = 20;
         hRow.eachCell(c => {
-          c.font = fontBold;
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorGrayLight } };
+          c.font = { name: 'Segoe UI', size: 8, bold: true, color: { argb: 'FFFFFF' } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: themeColors.extraction.headerBg } };
           c.border = { top: borderThin, bottom: borderMedium, left: borderThin, right: borderThin };
-          c.alignment = { vertical: 'middle', horizontal: 'center' };
+          c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         });
 
-        // Rows
         validRows.forEach(r => {
           const added = sheetExtraction.addRow([
-            r.chantierName || 'Bure N340 Imiter Est',
+            resolveAndParseChantierExcel('', r.chantierName || 'Bure'), // Numeric formatting for chantiers inside extraction
             getEmployeeName(r.treuilliste),
             getEmployeeName(r.equipier1),
             getEmployeeName(r.equipier2),
             [getEmployeeName(r.equipier3), getEmployeeName(r.equipier4)].filter(Boolean).join(', ') || 'N/A',
             `${r.wagonsTarget} wagons`,
-            r.remarks || 'Extraction minerai prioritaire SMI, cadence maximale requise'
+            r.remarks || 'Extraction minerai prioritaire HYDROMINES'
           ]);
-          added.height = 20;
-          added.eachCell(c => {
+          added.height = 18;
+          added.eachCell((c, colIdx) => {
             c.font = fontNormal;
             c.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
-            c.alignment = { vertical: 'middle' };
+            c.alignment = { vertical: 'middle', horizontal: (colIdx === 7) ? 'left' : 'center' };
             c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } };
           });
         });
-        sheetExtraction.addRow([]); // Blank spacer
+
+        sheetExtraction.addRow([]);
       });
 
       // ==========================================
@@ -447,40 +586,60 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
       // ==========================================
       const sheetMaint = workbook.addWorksheet('🔧 MAINTENANCE');
       sheetMaint.views = [{ showGridLines: false }];
+      sheetMaint.properties.tabColor = { argb: '9E1A1A' }; // Colored tab: Rouge foncé
+
       sheetMaint.columns = [
-        { key: 'colA', width: 16 }, // Rôle Affecté
-        { key: 'colB', width: 22 }, // Agent Tech
-        { key: 'colC', width: 16 }, // Matricule
-        { key: 'colD', width: 22 }, // Engin en charge
+        { key: 'colA', width: 22 }, // Rôle Affecté
+        { key: 'colB', width: 24 }, // Agent Technique
+        { key: 'colC', width: 14 }, // Matricule
+        { key: 'colD', width: 22 }, // Engin
         { key: 'colE', width: 14 }, // Durée Estimée
-        { key: 'colF', width: 45 }, // Description Intervention
-        { key: 'colG', width: 25 }  // Sceau / statut
+        { key: 'colF', width: 45 }, // Intervention
+        { key: 'colG', width: 25 }  // Priorité / Sceau
       ];
-      createCorpHeader(sheetMaint, 'ORDRE DE SERVICE JOURNALIER - BRIGADE MAINTENANCE PROGRAMMEE ATELIER', imageId);
+      createCorpHeader(sheetMaint, 'ORDRE DE SERVICE JOURNALIER - BRIGADE MAINTENANCE PROGRAMMEE ATELIER', themeColors.maintenance.headerBg, 'G', imageId);
 
       posts.forEach(post => {
-        const validRows = maintenanceRowsByPost[post].filter(r => r.agentMatricule !== '');
-        if (validRows.length === 0) return;
+        const validRows = maintenanceRowsByPost[post].filter(r => 
+          (r.agentMatricule && r.agentMatricule.trim() !== '') || 
+          (r.engineId && r.engineId.trim() !== '') || 
+          (r.roleLabel && r.roleLabel.trim() !== '')
+        );
 
-        const postBar = sheetMaint.addRow([`🔵 ${post.toUpperCase()}`]);
-        postBar.height = 26;
+        const postBar = sheetMaint.addRow([`🔧 ${post.toUpperCase()} - BRIGADE MAINTENANCE TECHNIQUE`]);
+        postBar.height = 26; // Generous height
         sheetMaint.mergeCells(`A${postBar.number}:G${postBar.number}`);
+        for (let cIdx = 1; cIdx <= 7; cIdx++) {
+          const cell = postBar.getCell(cIdx);
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } }; // White arriere plan
+          cell.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+        }
         const pCell = postBar.getCell('A');
-        pCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFF' } };
-        pCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorShiftHeader } };
-        pCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        pCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'B8860B' } }; // Gold and larger text
+        pCell.alignment = { horizontal: 'center', vertical: 'middle' }; // Centered
 
-        // Headers
-        const hRow = sheetMaint.addRow(['Rôle Affecté', 'Agent Technique', 'Matricule', 'Engin Pris en charge', 'Durée Estimée', 'Description des Réparations / Directives', 'Urgences / Niveau']);
+        if (validRows.length === 0) {
+          const noValRow = sheetMaint.addRow(['ℹ️ Aucun maintenance planifiée pour ce poste.']);
+          noValRow.height = 20;
+          sheetMaint.mergeCells(noValRow.number, 1, noValRow.number, 7);
+          const cellNo = noValRow.getCell(1);
+          cellNo.font = { name: 'Segoe UI', size: 7.5, color: { argb: '64748B' } }; // Normal font (no italic)
+          cellNo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          cellNo.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+          cellNo.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+          sheetMaint.addRow([]);
+          return;
+        }
+
+        const hRow = sheetMaint.addRow(['Rôle Affecté', 'Agent Technique', 'Matricule', 'Engin Pris en charge', 'Durée Estimée', 'Description des Réparations / Directives', 'Priorité / Niveau']);
         hRow.height = 20;
         hRow.eachCell(c => {
-          c.font = fontBold;
-          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorGrayLight } };
+          c.font = { name: 'Segoe UI', size: 8, bold: true, color: { argb: 'FFFFFF' } };
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: themeColors.maintenance.headerBg } };
           c.border = { top: borderThin, bottom: borderMedium, left: borderThin, right: borderThin };
-          c.alignment = { vertical: 'middle', horizontal: 'center' };
+          c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         });
 
-        // Rows
         validRows.forEach(r => {
           const added = sheetMaint.addRow([
             r.roleLabel,
@@ -489,25 +648,26 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
             r.engineCode || r.engineId || 'ST2G 4',
             `${r.hoursSpent} heures`,
             r.workDescription || 'Maintenance préventive systématique de niveau 1-2',
-            'SMI PRIORITAIRE'
+            'HYDROMINES PRIORITAIRE'
           ]);
-          added.height = 20;
-          added.eachCell(c => {
+          added.height = 18;
+          added.eachCell((c, colIdx) => {
             c.font = fontNormal;
             c.border = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
-            c.alignment = { vertical: 'middle' };
+            c.alignment = { vertical: 'middle', horizontal: (colIdx === 6) ? 'left' : 'center' };
             c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } };
           });
         });
-        sheetMaint.addRow([]); // Blank spacer
+
+        sheetMaint.addRow([]);
       });
-      // Trigger workbook download in browser
+
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `HydroMines_Planification_SMI_${selectedDate}.xlsx`;
+      link.download = `HYDROMINES-planification_${selectedDate}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -523,10 +683,10 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
     <button
       onClick={exportToExcel}
       className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px cursor-pointer border border-emerald-500/30"
-      title="Exporter la planification avec 4 onglets distincts correspondant aux grilles de la page planification"
+      title="Exporter la planification au format excel sans grille pour HYDROMINES"
     >
       <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
-      <span>Export Excel Client</span>
+      <span>Exporter Planning</span>
     </button>
   );
 };

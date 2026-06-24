@@ -521,33 +521,55 @@ export const Chantiers: React.FC = () => {
       </AnimatePresence>
 
       {/* Unified Elegant Header Banner with Logo and Corporate Titles matching page planification */}
-      <div id="chantiers-header-banner" className="bg-white border border-gray-150 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
-          {/* Logo Column */}
-          <div className="flex-shrink-0 animate-fade-in">
+      <div 
+        id="chantiers-header-banner" 
+        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
+        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+      >
+        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+          <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="HydroMines Logo" 
-              className="h-20 w-20 md:h-24 md:w-24 object-contain rounded-xl border border-gray-150 p-1.5 bg-white shadow-xs" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer" 
             />
           </div>
 
-          {/* Centered Column: Corporate Title, Subtitle, Info tags */}
-          <div className="flex-1 text-center lg:text-left space-y-2">
-            <h3 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 uppercase">
-              RÉPERTOIRE TECHNIQUE DES CHANTIERS HYDROMINES
-            </h3>
-            <p className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-wide">
-              Suivi d'avancement des projets
+          {/* Centered Column: Header Title on One Line, Subtitle, Info tags */}
+          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+            {/* Upper Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+            
+            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+              RÉPERTOIRE TECHNIQUE DES CHANTIERS
+            </h1>
+            
+            {/* Lower Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+
+            {/* Elegant Subtitle with precise spacing */}
+            <p 
+              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
+              style={{ color: '#64748b', letterSpacing: '0.2em' }}
+            >
+              Suivi d'avancement des projets • HydroMines
             </p>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#00BFFF]">
-              Ordonnancement Trié • Bure Imiter Est en Priorité Majeure Semencière
-            </p>
+
+            {/* Centered information/shift capsule */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
+              <div className="inline-flex items-center gap-2 bg-amber-50/80 border border-amber-200/80 px-3 py-1.5 rounded-xl shadow-xs">
+                <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
+                  🚧 Ordonnancement Trié • Bure Imiter Est en Priorité Majeure Semencière
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Action Triggering Row right-aligned */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex items-center justify-center lg:justify-end self-center lg:self-stretch min-h-[100px]">
             <button 
               onClick={() => {
                 setFormData({
@@ -559,9 +581,9 @@ export const Chantiers: React.FC = () => {
                 });
                 setShowAdd(true);
               }}
-              className="bg-[#141414] hover:bg-[#00BFFF] text-white px-6 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-md cursor-pointer hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-md"
+              className="px-6 py-3.5 rounded-xl text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] border border-[#b8860b]/30"
             >
-              <Plus className="w-4 h-4" /> Nouveau Chantier
+              <Plus className="w-4 h-4 text-slate-950" /> Nouveau Chantier
             </button>
           </div>
         </div>

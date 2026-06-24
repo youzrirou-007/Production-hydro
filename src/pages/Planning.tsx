@@ -24,7 +24,9 @@ import {
   Copy,
   Trash2,
   ClipboardList,
-  AlertCircle
+  AlertCircle,
+  Tractor,
+  Train
 } from 'lucide-react';
 import { collection, query, onSnapshot, setDoc, doc, getDocs, deleteDoc, where, writeBatch, addDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -136,6 +138,74 @@ const computeExplosives = (gallerySize: 9 | 12, plannedRounds: number) => {
   };
 };
 
+const isMinageRowActive = (row: any): boolean => {
+  const isVolee = row.remarks?.includes('(Volée');
+  if (isVolee) {
+    return !!(row.minerMatricule || row.assistantMatricule);
+  }
+  return !!(row.chantierId && (row.minerMatricule || row.assistantMatricule));
+};
+
+const recalculateExplosivesIfNeeded = (row: any) => {
+  if (!isMinageRowActive(row)) {
+    return {
+      ...row,
+      plannedHoles: 0,
+      realHoles: 0,
+      anfo: 0,
+      tovex: 0,
+      ammorces: 0,
+    };
+  } else {
+    if (!row.explosivesManualOverride) {
+      const computed = computeExplosives(row.gallerySize || 12, 1);
+      return {
+        ...row,
+        plannedHoles: computed.plannedHoles,
+        realHoles: computed.plannedHoles,
+        anfo: computed.anfo,
+        tovex: computed.tovex,
+        ammorces: computed.ammorces,
+      };
+    }
+  }
+  return row;
+};
+
+// Capacités godets par type d'engin LHD (en m³ foisonné)
+const LHD_BUCKET_CAPACITY: Record<string, number> = {
+  'ST2D': 2.4,    // 3.6t / coefficient foisonnement 1.5
+  'ST2G': 2.0,    // 3.0t / coefficient foisonnement 1.5
+  'ST2G 1': 2.0,
+  'ST2G 3': 2.0,
+  'ST2G 4': 2.0,
+  'ST2G 5': 2.0,
+  'ST2G 6': 2.0,
+};
+
+// Capacité par défaut si l'engin n'est pas reconnu
+const DEFAULT_BUCKET_CAPACITY = 2.0;
+
+// Fonction utilitaire pour obtenir la capacité d'un engin
+const getBucketCapacity = (engineCode: string, customCapacities?: Record<string, number>): number => {
+  if (!engineCode) return DEFAULT_BUCKET_CAPACITY;
+  const upperCode = engineCode.toUpperCase().trim();
+
+  // 1. Chercher dans les customCapacities en priorité (depuis Firebase settings/platform)
+  if (customCapacities) {
+    if (customCapacities[upperCode] !== undefined) return Number(customCapacities[upperCode]);
+    // Recherche par préfixe (ex: "ST2D-001" -> ST2D)
+    const prefix = Object.keys(customCapacities).find(key => upperCode.startsWith(key.toUpperCase().trim()));
+    if (prefix && customCapacities[prefix] !== undefined) return Number(customCapacities[prefix]);
+  }
+
+  // 2. Chercher par correspondance exacte locale
+  if (LHD_BUCKET_CAPACITY[upperCode] !== undefined) return LHD_BUCKET_CAPACITY[upperCode];
+  // 3. Chercher par préfixe local libre
+  const staticPrefix = Object.keys(LHD_BUCKET_CAPACITY).find(key => upperCode.startsWith(key.toUpperCase()));
+  return staticPrefix ? LHD_BUCKET_CAPACITY[staticPrefix] : DEFAULT_BUCKET_CAPACITY;
+};
+
 const isEstSector = (s: string) => {
   const lower = (s || '').toLowerCase();
   return lower.includes('est') || lower.includes('bure');
@@ -181,7 +251,11 @@ const getSectorBadgeStyles = (sec: string) => {
   };
 };
 
-const sanitizeExtractionRows = (rows: any[] | undefined, defaults?: { start: string; end: string }): ExcelExtraction[] => {
+const sanitizeExtractionRows = (
+  rows: any[] | undefined, 
+  defaults?: { start: string; end: string },
+  defaultWagonsTarget: number = 48
+): ExcelExtraction[] => {
   const dStart = defaults?.start || '08:00';
   const dEnd = defaults?.end || '13:30';
   if (!rows || rows.length === 0) {
@@ -192,7 +266,7 @@ const sanitizeExtractionRows = (rows: any[] | undefined, defaults?: { start: str
       equipier2: '',
       equipier3: '',
       equipier4: '',
-      wagonsTarget: 48,
+      wagonsTarget: defaultWagonsTarget,
       wagonsActual: 0,
       sterileBureImiterEst: 0,
       startTime: dStart,
@@ -208,7 +282,7 @@ const sanitizeExtractionRows = (rows: any[] | undefined, defaults?: { start: str
     equipier2: first.equipier2 || '',
     equipier3: first.equipier3 || '',
     equipier4: first.equipier4 || '',
-    wagonsTarget: first.wagonsTarget !== undefined ? first.wagonsTarget : 48,
+    wagonsTarget: first.wagonsTarget !== undefined ? first.wagonsTarget : defaultWagonsTarget,
     wagonsActual: first.wagonsActual || 0,
     sterileBureImiterEst: first.sterileBureImiterEst || 0,
     startTime: first.startTime || dStart,
@@ -303,6 +377,9 @@ const ensureMinimumRows = (
     result.push(...finalSectorRows);
   });
 
+  if (type === 'minage') {
+    return result.map(recalculateExplosivesIfNeeded);
+  }
   return result;
 };
 
@@ -321,6 +398,10 @@ export const Planning: React.FC = () => {
   const [isMonthClosedForPlanning, setIsMonthClosedForPlanning] = useState(false);
   const [monthClosureInfo, setMonthClosureInfo] = useState<{ closedBy: string; closedAt: string } | null>(null);
 
+  // Local autosave states
+  const [lastAutosaveTime, setLastAutosaveTime] = useState<Date | null>(null);
+  const [draftAvailable, setDraftAvailable] = useState<{ savedAt: string; data: any } | null>(null);
+
   // Reference tables from Firebase
   const [planningsHistory, setPlanningsHistory] = useState<any[]>([]);
   const [deletedLogs, setDeletedLogs] = useState<any[]>([]);
@@ -336,11 +417,21 @@ export const Planning: React.FC = () => {
     engines: string[];
     oils: string[];
     defaultWagonsTarget?: number;
+    lhdBucketCapacities?: Record<string, number>;
   }>({
     sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est'],
     engines: ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
     oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
-    defaultWagonsTarget: 48
+    defaultWagonsTarget: 48,
+    lhdBucketCapacities: {
+      'ST2D': 2.4,
+      'ST2G': 2.0,
+      'ST2G 1': 2.0,
+      'ST2G 3': 2.0,
+      'ST2G 4': 2.0,
+      'ST2G 5': 2.0,
+      'ST2G 6': 2.0,
+    }
   });
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -397,6 +488,59 @@ export const Planning: React.FC = () => {
     return () => unsubClosure();
   }, [selectedDate]);
 
+  // Reset autosave indicators on date changes
+  useEffect(() => {
+    setLastAutosaveTime(null);
+    setDraftAvailable(null);
+  }, [selectedDate]);
+
+  // Inject premium banner styling (shimmer and subtleGlow animations)
+  useEffect(() => {
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `
+      @keyframes shimmer {
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
+      }
+      @keyframes subtleGlow {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 0.9; }
+      }
+      .gold-title {
+        font-size: 26px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background: linear-gradient(
+          90deg,
+          #475569 0%,
+          #b8860b 20%,
+          #ffd700 35%,
+          #e5c158 50%,
+          #ffd700 65%,
+          #b8860b 80%,
+          #475569 100%
+        );
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: shimmer 4s linear infinite;
+      }
+      .subtle-glow-line {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #b8860b, #ffd700, #b8860b, transparent);
+        animation: subtleGlow 3s ease-in-out infinite;
+      }
+    `;
+    document.head.appendChild(styleEl);
+    return () => {
+      if (document.head.contains(styleEl)) {
+        document.head.removeChild(styleEl);
+      }
+    };
+  }, []);
+
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestReason, setRequestReason] = useState('');
   const [productionDates, setProductionDates] = useState<Set<string>>(new Set());
@@ -416,6 +560,13 @@ export const Planning: React.FC = () => {
   const [duplicatedFromDayData, setDuplicatedFromDayData] = useState<any | null>(null);
   const [isEcartAccepted, setIsEcartAccepted] = useState(false);
   const [yesterdayDateStr, setYesterdayDateStr] = useState('');
+
+  // Pre-save validation report modal states
+  const [isPreSaveModalOpen, setIsPreSaveModalOpen] = useState(false);
+  const [preSaveReport, setPreSaveReport] = useState<{
+    summary: { minage: number; deblayage: number; extraction: number; maintenance: number; totalMeterageEstime: number; totalAnfo: number; totalTovex: number; };
+    warnings: string[];
+  } | null>(null);
 
   // Planning Excel grids template state
   const [minageRowsByPost, setMinageRowsByPost] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]>>({
@@ -454,20 +605,58 @@ export const Planning: React.FC = () => {
     'Poste 3': []
   });
 
+  // Autosave Draft silently every 120 seconds in localStorage
+  useEffect(() => {
+    if (isMonthClosedForPlanning) return;
+
+    const autosaveInterval = setInterval(() => {
+      try {
+        const draft = {
+          date: selectedDate,
+          post: selectedPost,
+          minageRowsByPost,
+          deblayageRowsByPost,
+          extractionRowsByPost,
+          maintenanceRowsByPost,
+          sectorChiefs,
+          sectorBoutefeus,
+          sectorBoutefeuTasks,
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem(`planning_draft_${selectedDate}`, JSON.stringify(draft));
+        setLastAutosaveTime(new Date());
+      } catch (err) {
+        console.warn("Autosave failed:", err);
+      }
+    }, 120000); // 120 seconds (2 minutes)
+
+    return () => clearInterval(autosaveInterval);
+  }, [
+    selectedDate, 
+    selectedPost, 
+    minageRowsByPost, 
+    deblayageRowsByPost, 
+    extractionRowsByPost, 
+    maintenanceRowsByPost, 
+    sectorChiefs, 
+    sectorBoutefeus, 
+    sectorBoutefeuTasks,
+    isMonthClosedForPlanning
+  ]);
+
   // Pre-filled rows helpers for Maintenance & Extraction
   const getDefaultMaintenanceRows = (post: 'Poste 1' | 'Poste 2' | 'Poste 3'): ExcelMaintenance[] => {
-    const defaults = POST_HOURS[post];
     if (post === 'Poste 1') {
       return [
-        { roleLabel: 'MÉCANICIEN 1', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' },
-        { roleLabel: 'MÉCANICIEN 2', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' },
-        { roleLabel: 'MÉCANICIEN 3', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' },
-        { roleLabel: 'ÉLECTRICIEN', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' },
-        { roleLabel: 'CHAUDRONNIER', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' }
+        { roleLabel: 'MÉCANICIEN 1', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: 3, workDescription: '' },
+        { roleLabel: 'MÉCANICIEN 2', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: 3, workDescription: '' },
+        { roleLabel: 'MÉCANICIEN 3', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: 3, workDescription: '' },
+        { roleLabel: 'ÉLECTRICIEN', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: 3, workDescription: '' },
+        { roleLabel: 'CHAUDRONNIER', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: 3, workDescription: '' }
       ];
     } else {
       return [
-        { roleLabel: 'MÉCANICIEN 1', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: defaults.duration, workDescription: '' }
+        { roleLabel: 'MÉCANICIEN 1', agentMatricule: '', agentName: '', engineId: '', engineCode: '', hoursSpent: 3, workDescription: '' }
       ];
     }
   };
@@ -572,7 +761,16 @@ export const Planning: React.FC = () => {
           sectors: data.sectors || ['Imiter 1', 'Imiter 2', 'Imiter Est'],
           engines: data.engines || ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
           oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
-          defaultWagonsTarget: data.defaultWagonsTarget !== undefined ? data.defaultWagonsTarget : 48
+          defaultWagonsTarget: data.defaultWagonsTarget !== undefined ? data.defaultWagonsTarget : 48,
+          lhdBucketCapacities: data.lhdBucketCapacities || {
+            'ST2D': 2.4,
+            'ST2G': 2.0,
+            'ST2G 1': 2.0,
+            'ST2G 3': 2.0,
+            'ST2G 4': 2.0,
+            'ST2G 5': 2.0,
+            'ST2G 6': 2.0,
+          }
         });
       }
     }, (err) => {
@@ -660,6 +858,33 @@ export const Planning: React.FC = () => {
       const docRef = doc(db, 'daily_planning_sheets', selectedDate);
       const docSnap = await getDoc(docRef);
 
+      // Check for newer local draft
+      let firestoreSavedAt = 0;
+      if (docSnap.exists()) {
+        const docData = docSnap.data();
+        const lastMod = docData.lastModifiedAt || docData.savedAt || docData.timestamp;
+        if (lastMod) {
+          firestoreSavedAt = new Date(lastMod).getTime();
+        }
+      }
+
+      const draftKey = `planning_draft_${selectedDate}`;
+      const localDraftStr = localStorage.getItem(draftKey);
+      if (localDraftStr) {
+        try {
+          const draft = JSON.parse(localDraftStr);
+          const draftSavedAt = draft.savedAt ? new Date(draft.savedAt).getTime() : 0;
+          if (draftSavedAt > firestoreSavedAt) {
+            setDraftAvailable({
+              savedAt: draft.savedAt,
+              data: draft
+            });
+          }
+        } catch (e) {
+          console.warn("Error parsing local draft:", e);
+        }
+      }
+
       const loadedSectorChiefs = docSnap.exists() ? (docSnap.data().sectorChiefs || {}) : {};
       const finalSectorChiefs = {
         'Poste 1': { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '', ...loadedSectorChiefs['Poste 1'] },
@@ -716,7 +941,7 @@ export const Planning: React.FC = () => {
           const currentDefaults = POST_HOURS[p];
           loadedMinageByPost[p] = ensureMinimumRows(pData?.minage || [], 'minage', p, chantiers);
           loadedDeblayageByPost[p] = ensureMinimumRows(pData?.deblayage || [], 'deblayage', p, chantiers);
-          loadedExtractionByPost[p] = sanitizeExtractionRows(pData?.extraction, currentDefaults);
+          loadedExtractionByPost[p] = sanitizeExtractionRows(pData?.extraction, currentDefaults, platformSettings.defaultWagonsTarget ?? 48);
           loadedMaintenanceByPost[p] = pData?.maintenance || [];
           if (loadedMaintenanceByPost[p].length === 0) {
             loadedMaintenanceByPost[p] = getDefaultMaintenanceRows(p);
@@ -754,6 +979,33 @@ export const Planning: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const restoreLocalDraft = () => {
+    if (!draftAvailable) return;
+    const { data } = draftAvailable;
+    try {
+      if (data.minageRowsByPost) setMinageRowsByPost(data.minageRowsByPost);
+      if (data.deblayageRowsByPost) setDeblayageRowsByPost(data.deblayageRowsByPost);
+      if (data.extractionRowsByPost) setExtractionRowsByPost(data.extractionRowsByPost);
+      if (data.maintenanceRowsByPost) setMaintenanceRowsByPost(data.maintenanceRowsByPost);
+      if (data.sectorChiefs) setSectorChiefs(data.sectorChiefs);
+      if (data.sectorBoutefeus) setSectorBoutefeus(data.sectorBoutefeus);
+      if (data.sectorBoutefeuTasks) setSectorBoutefeuTasks(data.sectorBoutefeuTasks);
+      
+      setLastAutosaveTime(new Date(data.savedAt));
+      setDraftAvailable(null);
+      alert("📥 Le brouillon local a été restauré avec succès ! N'oubliez pas de cliquer sur 'Graver' pour l'enregistrer durablement.");
+    } catch (err) {
+      console.error("Error restoring draft:", err);
+      alert("Échec de la restauration du brouillon.");
+    }
+  };
+
+  const discardLocalDraft = () => {
+    const draftKey = `planning_draft_${selectedDate}`;
+    localStorage.removeItem(draftKey);
+    setDraftAvailable(null);
   };
 
   // Personnel lookup helper
@@ -906,11 +1158,7 @@ export const Planning: React.FC = () => {
     
     if (oldVal) {
       // Repasser en automatique, relancer compute
-      const computed = computeExplosives(clone[flatIdx].gallerySize, 1);
-      clone[flatIdx].plannedHoles = computed.plannedHoles;
-      clone[flatIdx].anfo = computed.anfo;
-      clone[flatIdx].tovex = computed.tovex;
-      clone[flatIdx].ammorces = computed.ammorces;
+      clone[flatIdx] = recalculateExplosivesIfNeeded(clone[flatIdx]);
     }
     setMinageRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
@@ -928,13 +1176,6 @@ export const Planning: React.FC = () => {
       if (selectedChantier) {
         const sizeVal: 9 | 12 = selectedChantier.galleryType === '9m2' ? 9 : 12;
         clone[index].gallerySize = sizeVal;
-        if (!clone[index].explosivesManualOverride) {
-          const computed = computeExplosives(sizeVal, 1);
-          clone[index].plannedHoles = computed.plannedHoles;
-          clone[index].anfo = computed.anfo;
-          clone[index].tovex = computed.tovex;
-          clone[index].ammorces = computed.ammorces;
-        }
       }
     }
     if (field === 'chiefMatricule') {
@@ -965,6 +1206,23 @@ export const Planning: React.FC = () => {
               assistantMatricule: clone[index].assistantMatricule,
               assistantName: clone[index].assistantName,
             };
+            clone[i] = recalculateExplosivesIfNeeded(clone[i]);
+          }
+        }
+      }
+    }
+
+    // Automatically propagate gallery size to any subsequent child rows
+    if (field === 'gallerySize') {
+      const parentRounds = clone[index].plannedRounds || 1;
+      if (parentRounds > 1) {
+        for (let i = index + 1; i < index + parentRounds; i++) {
+          if (clone[i] && clone[i].remarks && (clone[i].remarks.includes('(Volée 2)') || clone[i].remarks.includes('(Volée 3)'))) {
+            clone[i] = {
+              ...clone[i],
+              gallerySize: value
+            };
+            clone[i] = recalculateExplosivesIfNeeded(clone[i]);
           }
         }
       }
@@ -1009,45 +1267,38 @@ export const Planning: React.FC = () => {
       if (newRounds > 1) {
         const currentMiner = clone[index].minerMatricule;
         const currentHelper = clone[index].assistantMatricule;
+        const currentSize = clone[index].gallerySize || 12;
         for (let rNum = 2; rNum <= newRounds; rNum++) {
-          const defaultExplosives = computeExplosives(12, 1);
           const newRow: ExcelMinage = {
-            chantierId: '', 
+            chantierId: clone[index].chantierId || '', 
             chiefMatricule: clone[index].chiefMatricule,
             chiefName: clone[index].chiefName,
             minerMatricule: currentMiner,
             minerName: clone[index].minerName,
             assistantMatricule: currentHelper,
             assistantName: clone[index].assistantName,
-            gallerySize: 12,
-            plannedHoles: defaultExplosives.plannedHoles,
-            realHoles: defaultExplosives.plannedHoles,
+            gallerySize: currentSize,
+            plannedHoles: 0,
+            realHoles: 0,
             plannedRounds: 1, 
             realRounds: 1,
             barType: clone[index].barType || '1.8m',
             meterage: advanceFactor,
-            anfo: defaultExplosives.anfo,
-            tovex: defaultExplosives.tovex,
-            ammorces: defaultExplosives.ammorces,
+            anfo: 0,
+            tovex: 0,
+            ammorces: 0,
             remarks: `(Volée ${rNum})`,
             sectorGroup: clone[index].sectorGroup,
             explosivesManualOverride: false
           };
-          clone.splice(index + rNum - 1, 0, newRow);
+          const resolvedNewRow = recalculateExplosivesIfNeeded(newRow);
+          clone.splice(index + rNum - 1, 0, resolvedNewRow);
         }
       }
     }
 
-    // Automatically compute explosives when gallerySize or plannedRounds change, unless override is active
-    if (field === 'gallerySize' || field === 'plannedRounds') {
-      if (!clone[index].explosivesManualOverride) {
-        const computed = computeExplosives(clone[index].gallerySize, 1);
-        clone[index].plannedHoles = computed.plannedHoles;
-        clone[index].anfo = computed.anfo;
-        clone[index].tovex = computed.tovex;
-        clone[index].ammorces = computed.ammorces;
-      }
-    }
+    // Cleanly and dynamically recalculate explosives of the targeted row based on activity
+    clone[index] = recalculateExplosivesIfNeeded(clone[index]);
 
     setMinageRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
@@ -1063,9 +1314,16 @@ export const Planning: React.FC = () => {
     }
     if (field === 'engineId') {
       clone[index].engineCode = String(value);
+      // Si des godets sont déjà saisies, recalculer le volume avec la nouvelle capacité
+      if (Number(clone[index].godets) > 0) {
+        const bucketCapacity = getBucketCapacity(String(value), platformSettings.lhdBucketCapacities);
+        clone[index].volumeEstimated = Number(clone[index].godets) * bucketCapacity;
+      }
     }
     if (field === 'godets') {
-      clone[index].volumeEstimated = Number(value) * 1.5;
+      const engineCode = clone[index].engineCode || '';
+      const bucketCapacity = getBucketCapacity(engineCode, platformSettings.lhdBucketCapacities);
+      clone[index].volumeEstimated = Number(value) * bucketCapacity;
     }
     setDeblayageRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
@@ -1094,7 +1352,6 @@ export const Planning: React.FC = () => {
 
   const addRowToMaintenance = (post: 'Poste 1' | 'Poste 2' | 'Poste 3') => {
     const currentRows = maintenanceRowsByPost[post] || [];
-    const defaults = POST_HOURS[post];
     const newIdx = currentRows.filter(r => r.roleLabel.startsWith('MÉCANICIEN')).length + 1;
     const newRow: ExcelMaintenance = {
       roleLabel: `MÉCANICIEN ${newIdx}`,
@@ -1102,7 +1359,7 @@ export const Planning: React.FC = () => {
       agentName: '',
       engineId: '',
       engineCode: '',
-      hoursSpent: defaults.duration,
+      hoursSpent: 3,
       workDescription: ''
     };
     setMaintenanceRowsByPost(prev => ({
@@ -1198,13 +1455,12 @@ export const Planning: React.FC = () => {
       }
     }
 
-    const defaultExplosives = computeExplosives(12, 1);
-    const newRow: ExcelMinage = {
+    const newRow: ExcelMinage = recalculateExplosivesIfNeeded({
       chantierId: '', chiefMatricule: '', chiefName: '', minerMatricule: '', minerName: '',
-      assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: defaultExplosives.plannedHoles, realHoles: defaultExplosives.plannedHoles,
-      plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, anfo: defaultExplosives.anfo, tovex: defaultExplosives.tovex, ammorces: defaultExplosives.ammorces, remarks: '',
+      assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: 0, realHoles: 0,
+      plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, anfo: 0, tovex: 0, ammorces: 0, remarks: '',
       sectorGroup: sec, explosivesManualOverride: false
-    };
+    });
 
     const clone = [...currentRows];
     if (lastIndex !== -1) {
@@ -1378,45 +1634,45 @@ export const Planning: React.FC = () => {
         const srcKey = dbPostMapping[p];
         const srcData = docData.postes?.[srcKey];
         if (srcData) {
-          // Clone Minage direct
+          // Clone Minage direct - safely preserving existing cached names if lookup fails
           clonedMinage[p] = (srcData.minage || []).map((row: ExcelMinage) => {
             const finalRow = { ...row };
             if (row.chiefMatricule) {
               const emp = employees.find(e => e.matricule?.toUpperCase() === row.chiefMatricule.toUpperCase());
-              finalRow.chiefName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+              finalRow.chiefName = emp ? `${emp.nom} ${emp.prenom}` : (row.chiefName || 'Inconnu');
             }
             if (row.minerMatricule) {
               const emp = employees.find(e => e.matricule?.toUpperCase() === row.minerMatricule.toUpperCase());
-              finalRow.minerName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+              finalRow.minerName = emp ? `${emp.nom} ${emp.prenom}` : (row.minerName || 'Inconnu');
             }
             if (row.assistantMatricule) {
               const emp = employees.find(e => e.matricule?.toUpperCase() === row.assistantMatricule.toUpperCase());
-              finalRow.assistantName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+              finalRow.assistantName = emp ? `${emp.nom} ${emp.prenom}` : (row.assistantName || 'Inconnu');
             }
             return finalRow;
           });
           clonedMinage[p] = ensureMinimumRows(clonedMinage[p], 'minage', p, chantiers);
 
-          // Clone Deblayage direct
+          // Clone Deblayage direct - safely preserving existing driver names
           clonedDeblayage[p] = (srcData.deblayage || []).map((row: ExcelDeblayage) => {
             const finalRow = { ...row };
             if (row.driverMatricule) {
               const emp = employees.find(e => e.matricule?.toUpperCase() === row.driverMatricule.toUpperCase());
-              finalRow.driverName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+              finalRow.driverName = emp ? `${emp.nom} ${emp.prenom}` : (row.driverName || 'Inconnu');
             }
             return finalRow;
           });
           clonedDeblayage[p] = ensureMinimumRows(clonedDeblayage[p], 'deblayage', p, chantiers);
 
           // Clone Extraction direct
-          clonedExtraction[p] = sanitizeExtractionRows(srcData.extraction, POST_HOURS[p]);
+          clonedExtraction[p] = sanitizeExtractionRows(srcData.extraction, POST_HOURS[p], platformSettings.defaultWagonsTarget ?? 48);
 
-          // Clone Maintenance direct
+          // Clone Maintenance direct - safely preserving agent names
           clonedMaintenance[p] = (srcData.maintenance || []).map((row: ExcelMaintenance) => {
             const finalRow = { ...row };
             if (row.agentMatricule) {
               const emp = employees.find(e => e.matricule?.toUpperCase() === row.agentMatricule.toUpperCase());
-              finalRow.agentName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+              finalRow.agentName = emp ? `${emp.nom} ${emp.prenom}` : (row.agentName || 'Inconnu');
             }
             return finalRow;
           });
@@ -1930,7 +2186,7 @@ export const Planning: React.FC = () => {
           return finalRow;
         });
 
-        proposedExtraction = sanitizeExtractionRows(copiedExtraction, POST_HOURS[selectedPost]).map(row => {
+        proposedExtraction = sanitizeExtractionRows(copiedExtraction, POST_HOURS[selectedPost], platformSettings.defaultWagonsTarget ?? 48).map(row => {
           const finalRow = { ...row };
           finalRow.treuilliste = findActiveMatricule(row.treuilliste);
           finalRow.equipier1 = findActiveMatricule(row.equipier1);
@@ -2078,6 +2334,72 @@ export const Planning: React.FC = () => {
     }
   };
 
+  const getPlanningValidationReport = () => {
+    const warnings: string[] = [];
+    const summary = {
+      minage: 0,
+      deblayage: 0,
+      extraction: 0,
+      maintenance: 0,
+      totalMeterageEstime: 0,
+      totalAnfo: 0,
+      totalTovex: 0,
+    };
+
+    const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
+
+    posts.forEach(p => {
+      // MINAGE
+      (minageRowsByPost[p] || []).forEach((row, idx) => {
+        const isVolee = row.remarks?.includes('(Volée');
+        if (isVolee) return; // ne pas compter les sous-volées
+        if (row.chantierId && (row.minerMatricule || row.assistantMatricule)) {
+          summary.minage++;
+          summary.totalMeterageEstime += Number(row.meterage) || 0;
+          summary.totalAnfo += Number(row.anfo) || 0;
+          summary.totalTovex += Number(row.tovex) || 0;
+        } else if (row.chantierId && !row.minerMatricule && !row.assistantMatricule) {
+          warnings.push(`⛏️ ${p} — Minage ligne ${idx + 1} : chantier renseigné mais aucun agent assigné`);
+        } else if (!row.chantierId && (row.minerMatricule || row.assistantMatricule)) {
+          warnings.push(`⛏️ ${p} — Minage ligne ${idx + 1} : agent assigné mais aucun chantier sélectionné`);
+        }
+      });
+
+      // DEBLAYAGE
+      (deblayageRowsByPost[p] || []).forEach((row, idx) => {
+        if (row.chantierId && row.driverMatricule) {
+          summary.deblayage++;
+        } else if (row.chantierId && !row.driverMatricule) {
+          warnings.push(`🚜 ${p} — Déblayage ligne ${idx + 1} : chantier renseigné mais aucun conducteur assigné`);
+        } else if (!row.chantierId && row.driverMatricule) {
+          warnings.push(`🚜 ${p} — Déblayage ligne ${idx + 1} : conducteur assigné mais aucun chantier sélectionné`);
+        }
+      });
+
+      // EXTRACTION
+      (extractionRowsByPost[p] || []).forEach((row) => {
+        if (row.treuilliste) {
+          summary.extraction++;
+        }
+      });
+
+      // MAINTENANCE
+      (maintenanceRowsByPost[p] || []).forEach((row, idx) => {
+        if (row.agentMatricule) {
+          summary.maintenance++;
+          if (!row.engineId && !row.engineCode) {
+            warnings.push(`🔧 ${p} — Maintenance ligne ${idx + 1} : agent assigné (${row.roleLabel}) mais aucune machine sélectionnée`);
+          }
+          if (!row.workDescription) {
+            warnings.push(`🔧 ${p} — Maintenance ligne ${idx + 1} : aucune description de l'intervention pour ${row.roleLabel}`);
+          }
+        }
+      });
+    });
+
+    return { summary, warnings };
+  };
+
   // Master Workbook Persistence and Sync to granular discrete planning collection
   const savePlanningWorkbook = async () => {
     if (isMonthClosedForPlanning) {
@@ -2089,6 +2411,16 @@ export const Planning: React.FC = () => {
       setSaveStatus('idle');
       return;
     }
+
+    // Nouveau : calculer le rapport de validation et ouvrir la modale de pré-enregistrement
+    const report = getPlanningValidationReport();
+    setPreSaveReport(report);
+    setIsPreSaveModalOpen(true);
+  };
+
+  const confirmSave = async () => {
+    setIsPreSaveModalOpen(false);
+    setPreSaveReport(null);
     setSaveStatus('saving');
     try {
       const docRef = doc(db, 'daily_planning_sheets', selectedDate);
@@ -2222,6 +2554,8 @@ export const Planning: React.FC = () => {
               galleryType: row.gallerySize === 9 ? '9m2' : '12m2',
               plannedHoles: row.plannedHoles,
               plannedRounds: row.plannedRounds,
+              remarks: row.remarks || '',
+              sector: row.sectorGroup || '',
               explosives: {
                 anfo: row.anfo,
                 tovex: row.tovex,
@@ -2292,6 +2626,14 @@ export const Planning: React.FC = () => {
       }
 
       setSaveStatus('saved');
+      
+      // Clean local draft on successful save
+      try {
+        localStorage.removeItem(`planning_draft_${selectedDate}`);
+      } catch (draftErr) {
+        console.warn("Error cleaning local draft:", draftErr);
+      }
+
       try {
         await logPlanningAction(
           user?.email || 'Planificateur SMI',
@@ -2506,11 +2848,40 @@ export const Planning: React.FC = () => {
     }
   };
 
-  const nonEmptyChantiersCount = [
+  const totalMeterageEstime = [
     ...(minageRowsByPost['Poste 1'] || []),
     ...(minageRowsByPost['Poste 2'] || []),
     ...(minageRowsByPost['Poste 3'] || [])
-  ].filter(r => r.chantierId && (r.minerMatricule || r.assistantMatricule)).length;
+  ].filter(r => r.chantierId && (r.minerMatricule || r.assistantMatricule))
+   .reduce((sum, r) => sum + (Number(r.meterage) || 0), 0);
+
+  const completenessStats = {
+    minage: [
+      ...(minageRowsByPost['Poste 1'] || []),
+      ...(minageRowsByPost['Poste 2'] || []),
+      ...(minageRowsByPost['Poste 3'] || [])
+    ].filter(r => r.chantierId && (r.minerMatricule || r.assistantMatricule)).length,
+
+    deblayage: [
+      ...(deblayageRowsByPost['Poste 1'] || []),
+      ...(deblayageRowsByPost['Poste 2'] || []),
+      ...(deblayageRowsByPost['Poste 3'] || [])
+    ].filter(r => r.chantierId && r.driverMatricule).length,
+
+    extraction: [
+      ...(extractionRowsByPost['Poste 1'] || []),
+      ...(extractionRowsByPost['Poste 2'] || []),
+      ...(extractionRowsByPost['Poste 3'] || [])
+    ].filter(r => r.treuilliste).length,
+
+    maintenance: [
+      ...(maintenanceRowsByPost['Poste 1'] || []),
+      ...(maintenanceRowsByPost['Poste 2'] || []),
+      ...(maintenanceRowsByPost['Poste 3'] || [])
+    ].filter(r => r.agentMatricule).length,
+  };
+
+  const nonEmptyChantiersCount = completenessStats.minage;
 
   // Evaluate Niveau 2 lock status
   const isLockedByNiveau2 = (() => {
@@ -2675,57 +3046,74 @@ export const Planning: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Unified Elegant Header Banner with Enlarged Logo and Centered Title */}
-      <div id="unified-planning-banner" className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
-          {/* Logo Column */}
-          <div className="flex-shrink-0 animate-fade-in">
+      {/* Unified Elegant Header Banner with Premium Styling, Single Line Gold Title & Optimized Flex Layout */}
+      <div 
+        id="unified-planning-banner" 
+        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
+        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+      >
+        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          
+          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+          <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="HydroMines Logo" 
-              className="h-24 w-24 md:h-28 md:w-28 object-contain rounded-xl border border-gray-150 p-1.5 bg-white shadow-sm" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer" 
             />
           </div>
 
-          {/* Centered Column: Title, Subtitle, Date & Shift controls */}
-          <div className="flex-1 text-center space-y-2 max-w-2xl">
-            <h3 className="text-2xl md:text-3xl font-black tracking-tight text-gray-955 uppercase">
-              Planification-Ordonnancement SMI
-            </h3>
-            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-gray-500">
-              Cahier de Chargement Théorique • Alignement optimal des équipes et chantiers du fond
+          {/* Centered Column: Header Title on One Line, Subtitle, Date & Shift controls */}
+          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+            {/* Upper Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+            
+            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-xl lg:text-[23px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+              PLANIFICATION — ORDONNANCEMENT SMI
+            </h1>
+            
+            {/* Lower Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+
+            {/* Elegant Subtitle with precise spacing */}
+            <p 
+              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
+              style={{ color: '#64748b', letterSpacing: '0.2em' }}
+            >
+              Cahier de chargement théorique • Exploitation Minière Souterraine Imiter
             </p>
 
-            {/* Shift and date options combined inside the main banner text */}
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <div className="inline-flex items-center gap-2 bg-sky-50/60 border border-sky-100 px-3 py-1.5 rounded-xl shadow-xs">
-                <span className="text-[10px] font-black uppercase text-[#00BFFF] tracking-wider">
+            {/* Centered shift and date options paired inside harmonized Amber/Gold capsules */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
+              <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs">
+                <span className="text-[10px] font-black uppercase text-[#b8860b] tracking-wider flex items-center gap-1">
                   📅 Plan théorique du :
                 </span>
                 <input 
                   type="date"
                   value={selectedDate}
                   onChange={e => setSelectedDate(e.target.value)}
-                  className="bg-white hover:bg-gray-50 text-gray-950 font-extrabold text-[12px] uppercase border border-gray-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#00BFFF]/30 cursor-pointer"
+                  className="bg-white hover:bg-amber-50/30 text-gray-950 font-extrabold text-[12px] uppercase border border-amber-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#b8860b]/30 cursor-pointer transition-colors"
                 />
               </div>
 
               {(activeSheetTab === 'minage' || activeSheetTab === 'deblayage') ? (
-                <div className="inline-flex items-center gap-2 bg-emerald-50/50 border border-emerald-100 px-3 py-1.5 rounded-xl">
-                  <span className="text-[10px] font-extrabold uppercase text-emerald-700 tracking-wider">
+                <div className="inline-flex items-center gap-2 bg-amber-50/80 border border-amber-200/80 px-3 py-1.5 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
                     📚 3 postes synchronisés en continu
                   </span>
                 </div>
               ) : (
-                <div className="inline-flex items-center gap-2 bg-purple-50/50 border border-purple-150 px-3 py-1 rounded-xl shadow-xs">
-                  <span className="text-[10px] font-extrabold uppercase text-purple-700 tracking-wider">
+                <div className="inline-flex items-center gap-2 bg-amber-50/50 border border-amber-200 px-3 py-1 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-extrabold uppercase text-amber-800 tracking-wider">
                     Poste actif :
                   </span>
                   <select 
                     value={selectedPost}
                     onChange={e => setSelectedPost(e.target.value as any)}
-                    className="bg-white text-gray-950 font-extrabold text-[11px] uppercase border border-gray-200 rounded-lg px-2 py-0.5 outline-none cursor-pointer"
+                    className="bg-white text-gray-950 font-extrabold text-[11px] uppercase border border-amber-200 rounded-lg px-2 py-0.5 outline-none cursor-pointer focus:ring-1 focus:ring-[#b8860b]/30 transition-colors"
                   >
                     <option value="Poste 1">POSTE 1 (MATIN)</option>
                     <option value="Poste 2">POSTE 2 (MIDI)</option>
@@ -2736,36 +3124,43 @@ export const Planning: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: View toggles & Quick action items */}
-          <div className="flex flex-col items-center lg:items-end gap-3 w-full lg:w-auto">
-            <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-full max-w-xs md:max-w-none">
+          {/* Right Column: View toggles at top & Quick action items at bottom */}
+          <div className="flex flex-col items-center lg:items-end justify-between gap-4 w-full lg:w-auto self-center lg:self-stretch min-h-[140px]">
+            {/* Top view switcher buttons - Premium Amber styling */}
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full max-w-xs md:max-w-none border border-slate-200 shadow-xs">
               <button 
                 onClick={() => setViewMode('sheet')}
-                className={`flex-1 px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all text-center ${
+                className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
                   viewMode === 'sheet' 
-                    ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
                 }`}
               >
                 🟩 Planification
               </button>
               <button 
                 onClick={() => setViewMode('history')}
-                className={`flex-1 px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all text-center ${
+                className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
                   viewMode === 'history' 
-                    ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
                 }`}
               >
                 📋 Cahiers ({planningsHistory.length})
               </button>
             </div>
 
+            {/* Bottom action buttons aligned perfectly at the bottom */}
             {viewMode === 'sheet' && (
-              <div className="flex flex-wrap justify-center lg:justify-end gap-1.5 w-full">
+              <div className="flex flex-wrap justify-center lg:justify-end gap-1.5 w-full items-center mt-auto">
+                {lastAutosaveTime && (
+                  <span className="text-[8.5px] text-slate-400 font-medium select-none mr-2">
+                    💾 Brouillon local sauvé à {format(lastAutosaveTime, 'HH:mm')}
+                  </span>
+                )}
                 <button
                   onClick={() => setIsAuditDrawerOpen(true)}
-                  className="bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className="bg-slate-50 hover:bg-amber-50/50 text-slate-800 hover:text-[#b8860b] border border-slate-200 hover:border-amber-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
                   title="Consulter le registre d'audit et historique des événements"
                 >
                   🪵 Traces Audit
@@ -2783,27 +3178,28 @@ export const Planning: React.FC = () => {
                 <button
                   onClick={triggerDuplicatePreviousDay}
                   disabled={isLockedByNiveau2 || isMonthClosedForPlanning}
-                  className={`border px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 shadow-xs font-sans ${isLockedByNiveau2 || isMonthClosedForPlanning ? 'bg-gray-100 text-gray-450 border-gray-200 cursor-not-allowed opacity-60' : 'bg-sky-50 hover:bg-sky-100 text-[#00BFFF] border-sky-200 cursor-pointer'}`}
+                  className={`border px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 shadow-xs font-sans ${isLockedByNiveau2 || isMonthClosedForPlanning ? 'bg-gray-100 text-gray-450 border-gray-200 cursor-not-allowed opacity-60' : 'bg-amber-50 hover:bg-amber-100/70 text-amber-800 border-amber-200/80 cursor-pointer'}`}
                   title="Dupliquer la planification complète du jour précédent J-1"
                 >
-                  <Copy className="w-3 h-3 text-[#00BFFF]" /> Dupliquer J-1
+                  <Copy className="w-3 h-3 text-amber-600" /> Dupliquer J-1
                 </button>
 
                 <button
                   onClick={loadPlanningWorkbook}
-                  className="bg-gray-50 hover:bg-gray-150 text-gray-855 border border-gray-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
+                  className="bg-gray-50 hover:bg-amber-50/50 text-gray-855 hover:text-[#b8860b] border border-gray-200 hover:border-amber-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
                   title="Réinitialiser ou recharger depuis le cloud"
                 >
-                  <RotateCcw className="w-3 h-3 text-[#00BFFF]" /> Recharger
+                  <RotateCcw className="w-3.5 h-3.5 text-[#b8860b]" /> Recharger
                 </button>
                 <button
                   onClick={savePlanningWorkbook}
                   disabled={saveStatus === 'saving' || isLockedByNiveau2 || isMonthClosedForPlanning}
-                  className={`font-extrabold px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px ${
+                  className={`font-black px-4 py-1.5 rounded-lg text-[9.5px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:translate-y-px hover:scale-[1.02] active:scale-[0.98] ${
                     isLockedByNiveau2 || isMonthClosedForPlanning
                       ? 'bg-gray-200 text-gray-400 border border-gray-250 cursor-not-allowed opacity-60' 
-                      : 'bg-[#00BFFF] hover:bg-sky-500 text-white cursor-pointer'
+                      : 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 cursor-pointer border border-[#b8860b]/30'
                   }`}
+                  title="Enregistrer durablement ce document"
                 >
                   <Save className="w-3.5 h-3.5" /> 
                   {saveStatus === 'saving' ? '...' : saveStatus === 'saved' ? 'Enregistré !' : 'Graver'}
@@ -2872,6 +3268,34 @@ export const Planning: React.FC = () => {
           {/* SPREADSHEET WORKSPACE */}
           <div className="w-full space-y-4 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
             
+            {draftAvailable && (
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-amber-900 text-[11px] font-medium select-none w-full shadow-sm animate-fade-in mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl shrink-0">💾</span>
+                  <div>
+                    <span className="font-black text-amber-800 uppercase text-[9px] tracking-widest block mb-0.5">
+                      Brouillon local non enregistré disponible
+                    </span>
+                    Un brouillon non enregistré existe pour le {selectedDate.split('-').reverse().join('/')} (sauvegardé le {format(new Date(draftAvailable.savedAt), 'dd/MM/yyyy à HH:mm')}). Voulez-vous le restaurer ?
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={restoreLocalDraft}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-[9.5px] uppercase tracking-wider transition-all shadow-xs cursor-pointer"
+                  >
+                    Restaurer le brouillon
+                  </button>
+                  <button
+                    onClick={discardLocalDraft}
+                    className="bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 font-extrabold px-3 py-1.5 rounded-lg text-[9.5px] uppercase tracking-wider transition-all shadow-xs cursor-pointer"
+                  >
+                    Ignorer
+                  </button>
+                </div>
+              </div>
+            )}
+
             {renderPlanningStatusBanner()}
 
             {/* Sheet Tabs */}
@@ -2879,34 +3303,39 @@ export const Planning: React.FC = () => {
               {[
                 { 
                   id: 'minage', 
-                  label: '🔨 Sheet 1 - Alignement Forage & Minage', 
+                  label: 'Sheet 1 - Alignement Forage & Minage', 
+                  icon: Hammer,
                   activeClass: 'border-red-500 text-red-600 bg-gradient-to-b from-red-50/70 via-white to-white shadow-[0_-4px_16px_rgba(239,68,68,0.18)] border-t-2', 
                   inactiveClass: 'text-gray-400 hover:text-red-500 hover:bg-red-50/5 border-t-2 border-transparent',
                   glowDot: 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.85)]'
                 },
                 { 
                   id: 'deblayage', 
-                  label: '🚜 Sheet 2 - Programme Déblayage & Vol', 
+                  label: 'Sheet 2 - Programme Déblayage & Vol', 
+                  icon: Tractor,
                   activeClass: 'border-[#00BFFF] text-sky-600 bg-gradient-to-b from-sky-50/70 via-white to-white shadow-[0_-4px_16px_rgba(0,191,255,0.22)] border-t-2', 
                   inactiveClass: 'text-gray-400 hover:text-sky-400 hover:bg-sky-50/5 border-t-2 border-transparent',
                   glowDot: 'bg-[#00BFFF] shadow-[0_0_10px_rgba(0,191,255,0.85)]'
                 },
                 { 
                   id: 'extraction', 
-                  label: '🚃 Sheet 3 - Objectifs Extraction', 
+                  label: 'Sheet 3 - Objectifs Extraction', 
+                  icon: Train,
                   activeClass: 'border-emerald-500 text-emerald-600 bg-gradient-to-b from-emerald-50/70 via-white to-white shadow-[0_-4px_16px_rgba(16,185,129,0.18)] border-t-2', 
                   inactiveClass: 'text-gray-400 hover:text-emerald-500 hover:bg-emerald-50/5 border-t-2 border-transparent',
                   glowDot: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.85)]'
                 },
                 { 
                   id: 'maintenance', 
-                  label: '🔧 Sheet 4 - Brigade Maintenance Programmée', 
+                  label: 'Sheet 4 - Brigade Maintenance Programmée', 
+                  icon: Wrench,
                   activeClass: 'border-purple-500 text-purple-600 bg-gradient-to-b from-purple-50/70 via-white to-white shadow-[0_-4px_16px_rgba(168,85,247,0.18)] border-t-2', 
                   inactiveClass: 'text-gray-400 hover:text-purple-500 hover:bg-purple-50/5 border-t-2 border-transparent',
                   glowDot: 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.85)]'
                 },
               ].map(sheet => {
                 const isActive = activeSheetTab === sheet.id;
+                const IconComponent = sheet.icon;
                 return (
                   <button
                     key={sheet.id}
@@ -2917,6 +3346,9 @@ export const Planning: React.FC = () => {
                         : `${sheet.inactiveClass} font-semibold`
                     }`}
                   >
+                    {IconComponent && (
+                      <IconComponent className={`w-3.5 h-3.5 ${isActive ? 'opacity-100 scale-105' : 'opacity-60'} transition-all duration-300`} />
+                    )}
                     <span>{sheet.label}</span>
                     <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                       isActive ? `${sheet.glowDot} animate-pulse scale-110` : 'bg-gray-300/40'
@@ -2946,29 +3378,34 @@ export const Planning: React.FC = () => {
                     return (
                       <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
                         {/* Shifty/Post block banner */}
-                        <div className="bg-gradient-to-r from-transparent via-slate-950 to-transparent p-3.5 mb-4 flex items-center justify-center select-none rounded-lg">
-                          <h4 className="text-[13px] font-black uppercase text-white tracking-[0.25em] flex items-center gap-2.5 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]">
-                            🏭 {p} <span className="text-slate-350 font-semibold tracking-normal text-[11px]">({postHoursLabels[p]})</span>
+                        <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
+                          <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
+                            <Hammer className="w-4 h-4 text-[#b8860b]" />
+                            <span className="bg-gradient-to-r from-[#8a660d] via-[#b8860b] to-[#8a660d] bg-clip-text text-transparent">
+                              {p}
+                            </span>
+                            <span className="font-extrabold tracking-normal text-[11px] bg-gradient-to-r from-[#8a660d] via-[#b8860b] to-[#8a660d] bg-clip-text text-transparent">
+                              ({postHoursLabels[p]})
+                            </span>
                           </h4>
+                          <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-[#b8860b]/35 to-transparent mt-1.5" />
                         </div>
 
                         <div className="overflow-x-auto rounded-lg border border-gray-200">
                           <table className="w-full text-left border-collapse text-[11px]">
                             <thead>
-                              <tr className="bg-slate-50 text-gray-700 text-[9px] font-black uppercase tracking-wider border-b border-gray-200 sticky top-0 z-10 select-none">
-                                <th className="p-2 border-r border-gray-200 text-center w-8 select-none bg-slate-100/50">#</th>
-                                <th className="p-2 min-w-[124px] bg-gradient-to-r from-sky-400/25 to-rose-500/20 text-sky-950 font-black">Chantier</th>
-                                <th className="p-2 min-w-[144px] bg-gradient-to-r from-rose-500/20 to-sky-400/20 text-red-950 font-black">Mineur (Matricule / Nom)</th>
-                                <th className="p-2 min-w-[144px] bg-gradient-to-r from-sky-400/20 to-red-600/15 text-sky-950 font-black">Aide-Mineur</th>
-                                <th className="p-2 border-r border-gray-200 w-20 text-center bg-gradient-to-r from-red-600/15 to-transparent text-red-950 font-black">Section</th>
-                                <th className="p-2 border-r border-gray-200 w-24 text-center bg-sky-50/35">Type Barre</th>
-                                <th className="p-2 border-r border-gray-200 w-16 text-center bg-sky-50/35">Volées prévues</th>
-                                <th className="p-2 border-r border-gray-200 w-20 text-center bg-red-50/35">Mètres prévus</th>
-                                <th className="p-2 border-r border-gray-200 w-16 text-center bg-sky-50/35">Trous prévus</th>
-                                <th className="p-2 border-r border-gray-200 w-16 text-center bg-red-50/35">ANFO (kg)</th>
-                                <th className="p-2 border-r border-gray-200 w-16 text-center bg-sky-50/35">Tovex (kg)</th>
-                                <th className="p-2 text-center w-16 bg-red-50/35">Amorces</th>
-
+                              <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase sticky top-0 z-10">
+                                <th className="p-2.5 border-r border-slate-700/50 text-center w-8 select-none bg-slate-900 text-[#ffd700] font-black">#</th>
+                                <th className="p-2.5 min-w-[124px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider">Chantier</th>
+                                <th className="p-2.5 min-w-[144px] border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700] font-bold tracking-wider">Mineur (Matricule / Nom)</th>
+                                <th className="p-2.5 min-w-[144px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 font-bold tracking-wider">Aide-Mineur</th>
+                                <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-gradient-to-b from-red-950/40 to-red-950/20 text-rose-250 font-bold">Section</th>
+                                <th className="p-2.5 border-r border-slate-700/50 w-24 text-center bg-slate-900/60 text-slate-300 font-bold">Type Barre</th>
+                                <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-gradient-to-b from-amber-950/15 to-transparent text-amber-200 font-bold">Métrage planifié</th>
+                                <th className="p-2.5 border-r border-slate-700/50 w-16 text-center bg-slate-900/60 text-slate-300 font-bold">Trous prévus</th>
+                                <th className="p-2.5 border-r border-slate-700/50 w-16 text-center bg-gradient-to-b from-amber-950/15 to-transparent text-amber-200 font-bold">ANFO (kg)</th>
+                                <th className="p-2.5 border-r border-slate-700/50 w-16 text-center bg-slate-900/60 text-slate-300 font-bold">Tovex (kg)</th>
+                                <th className="p-2.5 text-center w-16 bg-gradient-to-b from-red-950/15 to-transparent text-rose-220 font-bold">Amorces</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2983,7 +3420,7 @@ export const Planning: React.FC = () => {
                                   <React.Fragment key={sec}>
                                     {/* Sector Header Badge Row */}
                                     <tr className="bg-gray-50/80 border-y border-gray-200 select-none">
-                                      <td colSpan={12} className="py-2.5 px-3">
+                                      <td colSpan={11} className="py-2.5 px-3">
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                           <div className="flex flex-wrap items-center gap-2">
                                             {(() => {
@@ -3189,26 +3626,13 @@ export const Planning: React.FC = () => {
                                                 onChange={e => updateMinageCell(p, flatIdx, 'barType', e.target.value)}
                                                 className="w-full bg-transparent border-none text-center outline-none font-bold text-gray-800 text-[11px]"
                                               >
-                                                <option value="1.8m">1.8m (1.7)</option>
-                                                <option value="2.4m">2.4m (2.3)</option>
+                                                <option value="1.8m">1.8m</option>
+                                                <option value="2.4m">2.4m</option>
                                               </select>
                                             </td>
                                           )}
 
-                                          {/* Volées prévues (Now editable!) */}
-                                          {!isChild && (
-                                            <td rowSpan={rowSpan} data-row={globalIdx} data-col={4} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40 align-middle">
-                                              <input
-                                                type="number"
-                                                min={1}
-                                                max={3}
-                                                value={row.plannedRounds || 1}
-                                                onChange={e => updateMinageCell(p, flatIdx, 'plannedRounds', Number(e.target.value))}
-                                                onKeyDown={makeExcelKeyHandler(globalIdx, 4)}
-                                                className="w-full bg-transparent text-center font-black text-[11px] outline-none border-0 text-gray-850"
-                                              />
-                                            </td>
-                                          )}
+
 
                                           {/* Mètres prévus */}
                                           {!isChild && (
@@ -3392,7 +3816,7 @@ export const Planning: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-1.5 bg-white border border-gray-200 py-1 px-2.5 rounded shadow-xs">
                               <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider">Tovex</span>
-                              <strong className="text-xs font-black text-[#8B0000]">{rowsForPost.reduce((sum, r) => sum + (Number(r.tovex) || 0), 0).toFixed(1)} sauc.</strong>
+                              <strong className="text-xs font-black text-[#8B0000]">{rowsForPost.reduce((sum, r) => sum + (Number(r.tovex) || 0), 0).toFixed(2)} kg</strong>
                             </div>
                             <div className="flex items-center gap-1.5 bg-white border border-gray-200 py-1 px-2.5 rounded shadow-xs">
                               <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider">Amorces / Déto</span>
@@ -3427,24 +3851,30 @@ export const Planning: React.FC = () => {
                     return (
                       <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
                         {/* Shifty/Post block banner */}
-                        <div className="bg-gradient-to-r from-transparent via-slate-950 to-transparent p-3.5 mb-4 flex items-center justify-center select-none rounded-lg">
-                          <h4 className="text-[13px] font-black uppercase text-white tracking-[0.25em] flex items-center gap-2.5 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]">
-                            🚜 {p} <span className="text-slate-350 font-semibold tracking-normal text-[11px]">({postHoursLabels[p]})</span>
+                        <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
+                          <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
+                            <Tractor className="w-4 h-4 text-[#b8860b]" />
+                            <span className="bg-gradient-to-r from-[#8a660d] via-[#b8860b] to-[#8a660d] bg-clip-text text-transparent">
+                              {p}
+                            </span>
+                            <span className="font-extrabold tracking-normal text-[11px] bg-gradient-to-r from-[#8a660d] via-[#b8860b] to-[#8a660d] bg-clip-text text-transparent">
+                              ({postHoursLabels[p]})
+                            </span>
                           </h4>
+                          <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-[#b8860b]/35 to-transparent mt-1.5" />
                         </div>
 
                         <div className="overflow-x-auto rounded-lg border border-gray-200">
                           <table className="w-full text-left border-collapse text-[11px]">
                             <thead>
-                              <tr className="bg-slate-50 text-gray-700 text-[9px] font-black uppercase tracking-wider border-b border-gray-200 sticky top-0 z-10 select-none">
-                                <th className="p-2 border-r border-gray-200 text-center w-8 select-none bg-slate-100/50">#</th>
-                                <th className="p-2 min-w-[124px] bg-gradient-to-r from-sky-400/25 to-rose-500/20 text-sky-950 font-black">Chantier de nettoyage</th>
-                                <th className="p-2 min-w-[160px] bg-gradient-to-r from-rose-500/20 to-sky-400/20 text-red-950 font-black">Conducteur engin (Matricule / Nom)</th>
-                                <th className="p-2 border-r border-gray-200 min-w-[140px] bg-gradient-to-r from-sky-400/20 to-transparent text-sky-950 font-black">Machine / Engin</th>
-                                <th className="p-2 border-r border-gray-200 w-20 text-center bg-sky-50/35">Godets planifiés</th>
-                                <th className="p-2 border-r border-gray-200 w-24 text-center bg-red-50/35">Volume estimé (m³)</th>
-                                <th className="p-2 text-center w-24 bg-sky-50/35">Heures travail</th>
-
+                              <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase sticky top-0 z-10">
+                                <th className="p-2.5 border-r border-slate-700/50 text-center w-8 select-none bg-slate-900 text-[#ffd700] font-black">#</th>
+                                <th className="p-2.5 min-w-[124px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider">Chantier de nettoyage</th>
+                                <th className="p-2.5 min-w-[160px] border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700] font-bold tracking-wider">Conducteur engin (Matricule / Nom)</th>
+                                <th className="p-2.5 border-r border-slate-700/50 min-w-[140px] bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 font-bold tracking-wider">Machine / Engin</th>
+                                <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-slate-900/60 text-slate-300 font-bold">Godets planifiés</th>
+                                <th className="p-2.5 border-r border-slate-700/50 w-24 text-center bg-gradient-to-b from-amber-950/15 to-transparent text-amber-200 font-bold">Volume estimé (m³)</th>
+                                <th className="p-2.5 text-center w-24 bg-slate-900/60 text-slate-300 font-bold">Heures travail</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -3606,6 +4036,9 @@ export const Planning: React.FC = () => {
                                               onKeyDown={makeExcelKeyHandler(globalIdx, 3)}
                                               className="w-full bg-transparent text-center font-bold text-[11px] outline-none border-0 text-gray-800"
                                             />
+                                            <div className="text-[8px] text-slate-400 mt-0.5 text-center select-none font-bold">
+                                              {getBucketCapacity(row.engineCode || '', platformSettings.lhdBucketCapacities).toFixed(1)} m³/godet
+                                            </div>
                                           </td>
 
                                           {/* Volume estimated */}
@@ -3690,10 +4123,17 @@ export const Planning: React.FC = () => {
                     return (
                       <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
                         {/* Shifty/Post block banner */}
-                        <div className="bg-gradient-to-r from-transparent via-slate-950 to-transparent p-3.5 mb-4 flex items-center justify-center select-none rounded-lg">
-                          <h4 className="text-[13px] font-black uppercase text-white tracking-[0.25em] flex items-center gap-2.5 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]">
-                            🚃 {p} <span className="text-slate-350 font-semibold tracking-normal text-[11px]">({postHoursLabels[p]})</span>
+                        <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
+                          <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
+                            <Train className="w-4 h-4 text-[#b8860b]" />
+                            <span className="bg-gradient-to-r from-[#8a660d] via-[#b8860b] to-[#8a660d] bg-clip-text text-transparent">
+                              {p}
+                            </span>
+                            <span className="font-extrabold tracking-normal text-[11px] bg-gradient-to-r from-[#8a660d] via-[#b8860b] to-[#8a660d] bg-clip-text text-transparent">
+                              ({postHoursLabels[p]})
+                            </span>
                           </h4>
+                          <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-[#b8860b]/35 to-transparent mt-1.5" />
                         </div>
 
                         <div className="max-w-4xl mx-auto">
@@ -3934,24 +4374,31 @@ export const Planning: React.FC = () => {
                     return (
                       <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
                         {/* Shifty/Post block banner */}
-                        <div className="bg-gradient-to-r from-transparent via-slate-950 to-transparent p-3.5 mb-4 flex items-center justify-center select-none rounded-lg">
-                          <h4 className="text-[13px] font-black uppercase text-white tracking-[0.25em] flex items-center gap-2.5 drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]">
-                            🔧 {p} <span className="text-slate-350 font-semibold tracking-normal text-[11px]">({postHoursLabels[p]})</span>
+                        <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
+                          <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
+                            <Wrench className="w-3.5 h-3.5 text-[#b8860b]" />
+                            <span className="bg-gradient-to-r from-[#8a660d] via-[#b8860b] to-[#8a660d] bg-clip-text text-transparent">
+                              {p}
+                            </span>
+                            <span className="font-extrabold tracking-normal text-[11px] bg-gradient-to-r from-[#8a660d] via-[#b8860b] to-[#8a660d] bg-clip-text text-transparent">
+                              ({postHoursLabels[p]})
+                            </span>
                           </h4>
+                          <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-[#b8860b]/35 to-transparent mt-1.5" />
                         </div>
 
                         <div className="overflow-x-auto text-[11px] border border-gray-250 rounded-xl bg-white shadow-sm">
                           <table className="w-full text-left border-collapse">
                             <thead>
-                              <tr className="bg-gray-50/75 text-slate-705 border-b border-gray-200 font-bold">
-                                <th className="p-2 px-3 text-[9.5px] font-black uppercase text-center w-8 text-gray-400">Row</th>
-                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-40 border-r border-gray-200">Rôle Fixe SMI</th>
-                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-28 border-r border-gray-200">Matr. Spécialiste</th>
-                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-44 border-r border-gray-200">Nom Spécialiste</th>
-                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-52 border-r border-gray-200">Machine d'Intervention</th>
-                                <th className="p-2 px-3 text-[9.5px] font-black uppercase w-20 border-r border-gray-200 text-center">Heures</th>
-                                <th className="p-2 px-3 text-[9.5px] font-black uppercase border-r border-gray-200">Fiche d'Opérations techniques de maintenance planifiée</th>
-                                <th className="p-2 px-3 text-[9.5px] font-black uppercase text-center w-12">Actions</th>
+                              <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase">
+                                <th className="p-2.5 text-center w-8 bg-slate-900 border-r border-slate-700/50 text-[#ffd700] font-black">Row</th>
+                                <th className="p-2.5 w-40 border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider">Rôle Fixe SMI</th>
+                                <th className="p-2.5 w-28 border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700] font-bold tracking-wider">Matr. Spécialiste</th>
+                                <th className="p-2.5 w-44 border-r border-slate-700/50 bg-gradient-to-b from-amber-950/35 to-amber-950/15 text-[#ffd700] font-bold tracking-wider">Nom Spécialiste</th>
+                                <th className="p-2.5 w-52 border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 font-bold tracking-wider">Machine d'Intervention</th>
+                                <th className="p-2.5 w-20 border-r border-slate-700/50 text-center bg-slate-900/60 text-slate-300 font-bold">Heures</th>
+                                <th className="p-2.5 border-r border-slate-700/50 bg-slate-900/60 text-slate-300 font-bold">Fiche d'Opérations techniques de maintenance planifiée</th>
+                                <th className="p-2.5 text-center w-12 bg-slate-100/5 border-l border-slate-700/50 text-amber-200 font-black">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -4289,15 +4736,33 @@ export const Planning: React.FC = () => {
           <div className="bg-white p-4 flex flex-col md:flex-row items-center justify-between gap-4 border border-gray-200 rounded-2xl shadow-lg mt-6">
             <div className="flex flex-wrap items-center gap-6">
               <div className="border-r border-gray-200 pr-6">
-                <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Chantiers programmés</span>
-                <span className="text-base font-black text-slate-800 mt-0.5 block">
-                  {nonEmptyChantiersCount} {nonEmptyChantiersCount > 1 ? 'chantiers' : 'chantier'}
+                <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Activités Planifiées</span>
+                <span className="text-[11px] font-medium text-slate-700 mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 select-none">
+                  <span className="flex items-center gap-1.5">
+                    <Hammer className="w-3.5 h-3.5 text-red-500" />
+                    <span>Minage : <strong className="font-extrabold text-slate-900">{completenessStats.minage}</strong> {completenessStats.minage > 1 ? 'chantiers' : 'chantier'}</span>
+                  </span>
+                  <span className="text-gray-300">|</span>
+                  <span className="flex items-center gap-1.5">
+                    <Tractor className="w-3.5 h-3.5 text-[#00BFFF]" />
+                    <span>Déblayage : <strong className="font-extrabold text-slate-900">{completenessStats.deblayage}</strong> {completenessStats.deblayage > 1 ? 'équipes' : 'équipe'}</span>
+                  </span>
+                  <span className="text-gray-300">|</span>
+                  <span className="flex items-center gap-1.5">
+                    <Train className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Extraction : <strong className="font-extrabold text-slate-900">{completenessStats.extraction}</strong> {completenessStats.extraction > 1 ? 'postes' : 'poste'}</span>
+                  </span>
+                  <span className="text-gray-300">|</span>
+                  <span className="flex items-center gap-1.5">
+                    <Wrench className="w-3.5 h-3.5 text-purple-500" />
+                    <span>Maintenance : <strong className="font-extrabold text-slate-900">{completenessStats.maintenance}</strong> {completenessStats.maintenance > 1 ? 'agents' : 'agent'}</span>
+                  </span>
                 </span>
               </div>
               <div className="border-r border-gray-200 pr-6">
                 <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Objectif Avancement</span>
                 <span className="text-base font-black text-[#00BFFF] mt-0.5 block">
-                  {(nonEmptyChantiersCount * 1.7).toFixed(1)} mètres
+                  {totalMeterageEstime.toFixed(1)} mètres
                 </span>
               </div>
               <div>
@@ -4734,6 +5199,127 @@ export const Planning: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE PRÉ-ENREGISTREMENT ET VALIDATION DES TOTAUX */}
+      {isPreSaveModalOpen && preSaveReport && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className="bg-white rounded-3xl border border-amber-300 shadow-2xl max-w-2xl w-full overflow-hidden transform transition-all">
+            {/* Elegant Amber/Gold Header for Validation */}
+            <div className="bg-gradient-to-r from-amber-600 to-[#b8860b] p-6 text-white flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-2xl border border-white/25">
+                <ClipboardList className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h3 className="font-extrabold uppercase tracking-wider text-[12px] text-white">RAPPORT DE PRÉ-ENREGISTREMENT</h3>
+                <p className="text-[9px] text-amber-200 font-black uppercase tracking-widest">
+                  Date du plan : {selectedDate} — Validation des totaux et cohérence
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+              {/* Warnings / Alerts Section */}
+              {preSaveReport.warnings.length > 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-800 font-extrabold text-[11px] uppercase tracking-wider">
+                    <span>⚠️ Avertissements de Cohérence détectés ({preSaveReport.warnings.length}) :</span>
+                  </div>
+                  <ul className="space-y-1 text-[10px] text-amber-900 font-semibold max-h-36 overflow-y-auto">
+                    {preSaveReport.warnings.map((warn, i) => (
+                      <li key={i} className="flex gap-2 items-start bg-amber-100/50 p-1.5 rounded border border-amber-200/50">
+                        <span className="text-amber-600 select-none">•</span>
+                        <p className="flex-1 leading-relaxed">{warn}</p>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider pt-1">
+                    * Note : Vous pouvez forcer l'enregistrement malgré ces avertissements, mais veillez à la cohérence du rapport final.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex gap-3 text-emerald-950 items-center">
+                  <span className="text-2xl select-none font-bold">✓</span>
+                  <div>
+                    <h4 className="font-extrabold text-[11px] uppercase tracking-wider text-emerald-800">Parfait ! Aucune anomalie détectée</h4>
+                    <p className="text-[10px] font-semibold text-emerald-700 mt-0.5">Tous les agents et chantiers sont cohérents sur l'ensemble des trois postes.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Aggregated Totals Grid */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">📊 RÉSUMÉ DES ACTIVITÉS PLANIFIÉES</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                    <p className="text-[8px] font-black uppercase text-slate-505 tracking-wider">Minage</p>
+                    <p className="text-lg font-black text-slate-800 mt-1">{preSaveReport.summary.minage}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase">Chantier(s)</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                    <p className="text-[8px] font-black uppercase text-slate-505 tracking-wider">Déblayage</p>
+                    <p className="text-lg font-black text-slate-800 mt-1">{preSaveReport.summary.deblayage}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase">Engin(s) LHD</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                    <p className="text-[8px] font-black uppercase text-slate-505 tracking-wider">Extraction</p>
+                    <p className="text-lg font-black text-slate-800 mt-1">{preSaveReport.summary.extraction}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase">Treuilliste(s)</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                    <p className="text-[8px] font-black uppercase text-slate-505 tracking-wider">Maintenance</p>
+                    <p className="text-lg font-black text-slate-800 mt-1">{preSaveReport.summary.maintenance}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase">Intervention(s)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quantified Resource Totals */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-wider">🛠️ ESTIMATION DES CONSOMMABLES & RENDEMENT</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="border-r border-slate-250 pr-2">
+                    <p className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Metrage Avancement</p>
+                    <p className="text-md font-black text-slate-800 mt-1">+{preSaveReport.summary.totalMeterageEstime.toFixed(1)} m</p>
+                    <p className="text-[7.5px] text-slate-400 font-bold uppercase">Cumulé sur les tirs</p>
+                  </div>
+                  <div className="border-r border-slate-250 pr-2">
+                    <p className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Explosif ANFO (Sacs)</p>
+                    <p className="text-md font-black text-amber-700 mt-1">{preSaveReport.summary.totalAnfo.toFixed(0)} kg</p>
+                    <p className="text-[7.5px] text-slate-400 font-bold uppercase">ANFO Estimé</p>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Explosif Tovex (Cartouches)</p>
+                    <p className="text-md font-black text-indigo-700 mt-1">{preSaveReport.summary.totalTovex.toFixed(0)} unités</p>
+                    <p className="text-[7.5px] text-slate-400 font-bold uppercase">Tovex Estimé</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex flex-col sm:flex-row gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPreSaveModalOpen(false);
+                  setPreSaveReport(null);
+                }}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer"
+              >
+                Retour à la grille
+              </button>
+              <button
+                type="button"
+                onClick={confirmSave}
+                className="px-5 py-2 bg-gradient-to-r from-amber-600 to-[#b8860b] text-white font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 hover:shadow-lg active:translate-y-px"
+              >
+                <Save className="w-3.5 h-3.5" /> Graver durablement
+              </button>
+            </div>
           </div>
         </div>
       )}

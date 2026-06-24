@@ -28,6 +28,7 @@ import {
   Map,
   Clock3,
   UserCheck,
+  User,
   Copy,
   Lock,
   Pencil
@@ -280,7 +281,7 @@ const renderTimeSelect = (value: string, onChange: (val: string) => void) => {
 };
 
 export const Production: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   // Helper for Enter/Tab keyboard navigation between inputs/selects on cards
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -314,8 +315,19 @@ export const Production: React.FC = () => {
   const [activeSheetTab, setActiveSheetTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance'>('minage');
   
   // Core filters
-  const [selectedDate, setSelectedDate] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedPost, setSelectedPost] = useState<'Poste 1' | 'Poste 2' | 'Poste 3'>('Poste 1');
+
+  // Timezone-robust yesterday object for labels & bridges
+  const yesterdayDateLabel = (() => {
+    if (!selectedDate) return null;
+    const parts = selectedDate.split('-');
+    if (parts.length !== 3) return null;
+    const yDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+    const yesterdayObj = new Date(yDateObj);
+    yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+    return yesterdayObj;
+  })();
 
   // Platform Settings State
   const [platformSettings, setPlatformSettings] = useState<{
@@ -349,9 +361,33 @@ export const Production: React.FC = () => {
   const [planFoundType, setPlanFoundType] = useState<'same_date' | 'yesterday' | 'none'>('none');
   const [structureEditMode, setStructureEditMode] = useState<boolean>(false);
   
+  // Custom non-blocking popups
+  const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; onConfirm: () => void; onCancel?: () => void } | null>(null);
+  const [infoModal, setInfoModal] = useState<{ title: string; message: string; type: 'error' | 'info' | 'success' } | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successToastMsg, setSuccessToastMsg] = useState('');
+
+  const safeConfirm = (message: string, onConfirm: () => void, onCancel?: () => void) => {
+    setConfirmModal({
+      title: "Confirmation SMI",
+      message,
+      onConfirm,
+      onCancel
+    });
+  };
+
+  const safeAlert = (message: string, title: string = "Signalement de Bureau Technique", type: 'error' | 'info' | 'success' = 'info') => {
+    setInfoModal({
+      title,
+      message,
+      type
+    });
+  };
+  
   // Pont d'Exportation de Planification states
   const [syncingBridge, setSyncingBridge] = useState<boolean>(false);
   const [bridgeSuccessDate, setBridgeSuccessDate] = useState<string>('');
+  const [bridgeDate, setBridgeDate] = useState<string>('');
 
   // Excel grids state for Poste 1
   const [p1MinageRows, setP1MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
@@ -595,14 +631,30 @@ export const Production: React.FC = () => {
   const mapToExcelRowArray = <T,>(arr: any[], defaultCreatorWithSector: (sec: string) => T): ExcelRow<T>[] => {
     if (!Array.isArray(arr)) return [];
     return arr.map((item, idx) => {
+      let planObj = item?.plan || item;
+      let reelObj = item?.reel || item;
+
+      // Ensure plan explosives are flattened
+      if (planObj && typeof planObj === 'object') {
+        const explosives = planObj.explosives || {};
+        const anfo = explosives.anfo !== undefined ? explosives.anfo : (planObj.anfo !== undefined ? planObj.anfo : 0);
+        const tovex = explosives.tovex !== undefined ? explosives.tovex : (planObj.tovex !== undefined ? planObj.tovex : 0);
+        const ammorces = explosives.ammorces !== undefined ? explosives.ammorces : (planObj.ammorces !== undefined ? planObj.ammorces : 0);
+        planObj = { ...planObj, anfo, tovex, ammorces };
+      }
+
       if (item && 'rowId' in item && 'plan' in item && 'reel' in item) {
-        return item as ExcelRow<T>;
+        return {
+          ...item,
+          plan: planObj,
+          reel: reelObj
+        } as ExcelRow<T>;
       }
       const sector = item?.sector || item?.reel?.sector || item?.plan?.sector || '';
       return {
         rowId: item?.rowId || `row_${idx}_${Math.random().toString(36).substr(2, 9)}`,
-        plan: item?.plan || item || defaultCreatorWithSector(sector),
-        reel: item?.reel || item || defaultCreatorWithSector(sector),
+        plan: planObj || defaultCreatorWithSector(sector),
+        reel: reelObj || defaultCreatorWithSector(sector),
       };
     });
   };
@@ -621,7 +673,18 @@ export const Production: React.FC = () => {
         }
       }
 
-      const planValue = { ...plannedItem, sector };
+      const explosives = plannedItem?.explosives || {};
+      const planValue = { 
+        ...plannedItem, 
+        sector,
+        ...(typeName === 'minage' ? {
+          plannedRounds: 1,
+          anfo: explosives.anfo !== undefined ? explosives.anfo : (plannedItem?.anfo || 0),
+          tovex: explosives.tovex !== undefined ? explosives.tovex : (plannedItem?.tovex || 0),
+          ammorces: explosives.ammorces !== undefined ? explosives.ammorces : (plannedItem?.ammorces || 0),
+        } : {})
+      };
+      
       const reelValue: any = {
         ...defaultCreatorWithSector(sector),
         chantierId: plannedItem?.chantierId || '',
@@ -636,6 +699,13 @@ export const Production: React.FC = () => {
         reelValue.minerName = plannedItem?.minerName || '';
         reelValue.assistantMatricule = plannedItem?.assistantMatricule || '';
         reelValue.assistantName = plannedItem?.assistantName || '';
+        
+        // Ensure each separated card represents exactly 1 volée
+        reelValue.plannedRounds = 1;
+        reelValue.realRounds = 1;
+        const advanceFactor = reelValue.barType === '2.4m' ? 2.3 : 1.7;
+        reelValue.meterage = advanceFactor;
+        reelValue.realMeterage = advanceFactor;
       } else if (typeName === 'deblayage') {
         reelValue.driverMatricule = plannedItem?.driverMatricule || '';
         reelValue.driverName = plannedItem?.driverName || '';
@@ -674,26 +744,13 @@ export const Production: React.FC = () => {
     return arr.filter((item: any) => {
       if (!item) return false;
       if (type === 'minage') {
-        const plannedHoles = item.plannedHoles !== undefined && item.plannedHoles !== null ? Number(item.plannedHoles) : 0;
-        const plannedRounds = item.plannedRounds !== undefined && item.plannedRounds !== null ? Number(item.plannedRounds) : 0;
-        const meterage = item.meterage !== undefined && item.meterage !== null ? Number(item.meterage) : 0;
-        
-        if (plannedHoles === 0 && plannedRounds === 0 && meterage === 0) {
-          return false;
-        }
-
-        // Enforce having an assigned miner or assistant, or planned holes/rounds/meterage to show active chantiers
-        const hasChantier = !!(item.chantierId || item.chantierName);
-        const hasCrew = !!(item.minerMatricule || item.minerName || item.assistantMatricule || item.assistantName);
-        const hasPlannedWork = !!(plannedHoles > 0 || plannedRounds > 0 || meterage > 0);
-        return hasChantier && (hasCrew || hasPlannedWork);
+        const isChildVolee = !!(item.remarks && typeof item.remarks === 'string' && item.remarks.includes('(Volée'));
+        const hasChantier = !!(item.chantierId || item.chantierName || isChildVolee);
+        return hasChantier;
       }
       if (type === 'deblayage') {
-        // Ensure there is an active driver or engine or planned volume
         const hasChantier = !!(item.chantierId || item.chantierName);
-        const hasCrewOrEngine = !!(item.driverMatricule || item.driverName || item.engineId || item.engineCode);
-        const hasPlannedVolume = !!(item.godets > 0 || item.volumeEstimated > 0);
-        return hasChantier && (hasCrewOrEngine || hasPlannedVolume);
+        return hasChantier;
       }
       if (type === 'extraction') {
         // Safe check for planning fields
@@ -764,12 +821,35 @@ export const Production: React.FC = () => {
   const activeEmployees = employees.length > 0 ? employees : DEFAULT_EMPLOYEES;
   const activeEngines = engines.length > 0 ? engines : DEFAULT_ENGINES;
 
+  // Success Toast Auto-close timer
+  useEffect(() => {
+    if (showSuccessToast) {
+      const timer = setTimeout(() => {
+        setShowSuccessToast(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessToast]);
+
   // Real-time listeners
   useEffect(() => {
     // 1. History
     const qHistory = query(collection(db, 'production_history'), orderBy('lastUpdated', 'desc'));
     const unsubHist = onSnapshot(qHistory, (snapshot) => {
-      setDataHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setDataHistory(records);
+      
+      // Background cleanup of unwanted demo history rows on client-side
+      records.forEach(async (rec) => {
+        if (rec.id !== '2026-06-24') {
+          try {
+            await deleteDoc(doc(db, 'production_history', rec.id));
+            console.log('Cleaned up demo history record:', rec.id);
+          } catch (err: any) {
+            console.warn('Could not clean up demo history:', err.message);
+          }
+        }
+      });
     }, (err) => {
       console.warn("Permission logs on Snapshot production_history:", err.message);
     });
@@ -824,7 +904,20 @@ export const Production: React.FC = () => {
     // 7. Daily Planning Sheets (for notifications of unfilled plannings)
     const qDailyPlannings = query(collection(db, 'daily_planning_sheets'));
     const unsubDailyPlannings = onSnapshot(qDailyPlannings, (snapshot) => {
-      setAllPlanningSheets(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const sheets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAllPlanningSheets(sheets);
+      
+      // Background cleanup of unwanted demo planning sheets on client-side
+      sheets.forEach(async (sheet) => {
+        if (sheet.id === '2026-06-14') {
+          try {
+            await deleteDoc(doc(db, 'daily_planning_sheets', '2026-06-14'));
+            console.log('Cleaned up demo planning sheet: 2026-06-14');
+          } catch (err: any) {
+            console.warn('Could not clean up demo planning sheet:', err.message);
+          }
+        }
+      });
     }, (err) => {
       console.warn("Permission logs on Snapshot daily_planning_sheets:", err.message);
     });
@@ -866,11 +959,19 @@ export const Production: React.FC = () => {
     return () => unsubClosure();
   }, [selectedDate]);
 
-  // Check if draft exists when date changes
+  // Check if draft exists when date changes & initialize bridge date
   useEffect(() => {
     if (!selectedDate) return;
     const draft = localStorage.getItem(`draft_production_${selectedDate}`);
     setDraftAvailable(!!draft);
+
+    const parts = selectedDate.split('-');
+    if (parts.length === 3) {
+      const yDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+      const yesterdayDateObj = new Date(yDateObj);
+      yesterdayDateObj.setDate(yDateObj.getDate() - 1);
+      setBridgeDate(format(yesterdayDateObj, 'yyyy-MM-dd'));
+    }
   }, [selectedDate]);
 
   // Save drafts to localStorage to prevent data loss on accidental reload
@@ -971,10 +1072,10 @@ export const Production: React.FC = () => {
   };
 
   const discardDraft = () => {
-    if (window.confirm("⚠️ Voulez-vous vraiment écraser votre travail en cours et supprimer définitivement ce brouillon local ?")) {
+    safeConfirm("⚠️ Voulez-vous vraiment écraser votre travail en cours et supprimer définitivement ce brouillon local ?", () => {
       localStorage.removeItem(`draft_production_${selectedDate}`);
       setDraftAvailable(false);
-    }
+    });
   };
 
   // Initialize/Load workbook from firestore whenever Date changes
@@ -1023,10 +1124,10 @@ export const Production: React.FC = () => {
     const lengthImiterEst = postName === 'Poste 1' ? 2 : 2;
 
     const plansImiter2 = shiftPlans.filter(p => p.type === 'minage' && (p.sector || '').toLowerCase() === 'imiter 2');
-    const minageImiter2: ExcelMinage[] = Array.from({ length: lengthImiter2 }, (_, i) => {
+    const minageImiter2: ExcelMinage[] = Array.from({ length: Math.max(lengthImiter2, plansImiter2.length) }, (_, i) => {
       const matchingPlan = plansImiter2[i];
       if (matchingPlan) {
-        const m = (matchingPlan.plannedRounds || 1) * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
+        const m = 1 * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
         return {
           sector: 'Imiter 2',
           chantierId: matchingPlan.chantierId || '',
@@ -1039,8 +1140,8 @@ export const Production: React.FC = () => {
           gallerySize: matchingPlan.galleryType === '9m2' ? 9 : 12,
           plannedHoles: matchingPlan.plannedHoles || 32,
           realHoles: matchingPlan.plannedHoles || 32,
-          plannedRounds: matchingPlan.plannedRounds || 1,
-          realRounds: matchingPlan.plannedRounds || 1,
+          plannedRounds: 1,
+          realRounds: 1,
           barType: matchingPlan.barType || '1.8m',
           meterage: m,
           realMeterage: m,
@@ -1061,10 +1162,10 @@ export const Production: React.FC = () => {
     });
 
     const plansImiter1 = shiftPlans.filter(p => p.type === 'minage' && (p.sector || '').toLowerCase() === 'imiter 1');
-    const minageImiter1: ExcelMinage[] = Array.from({ length: lengthImiter1 }, (_, i) => {
+    const minageImiter1: ExcelMinage[] = Array.from({ length: Math.max(lengthImiter1, plansImiter1.length) }, (_, i) => {
       const matchingPlan = plansImiter1[i];
       if (matchingPlan) {
-        const m = (matchingPlan.plannedRounds || 1) * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
+        const m = 1 * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
         return {
           sector: 'Imiter 1',
           chantierId: matchingPlan.chantierId || '',
@@ -1077,8 +1178,8 @@ export const Production: React.FC = () => {
           gallerySize: matchingPlan.galleryType === '9m2' ? 9 : 12,
           plannedHoles: matchingPlan.plannedHoles || 32,
           realHoles: matchingPlan.plannedHoles || 32,
-          plannedRounds: matchingPlan.plannedRounds || 1,
-          realRounds: matchingPlan.plannedRounds || 1,
+          plannedRounds: 1,
+          realRounds: 1,
           barType: matchingPlan.barType || '1.8m',
           meterage: m,
           realMeterage: m,
@@ -1099,10 +1200,10 @@ export const Production: React.FC = () => {
     });
 
     const plansImiterEst = shiftPlans.filter(p => p.type === 'minage' && (p.sector || '').toLowerCase() === 'imiter est');
-    const minageImiterEst: ExcelMinage[] = Array.from({ length: lengthImiterEst }, (_, i) => {
+    const minageImiterEst: ExcelMinage[] = Array.from({ length: Math.max(lengthImiterEst, plansImiterEst.length) }, (_, i) => {
       const matchingPlan = plansImiterEst[i];
       if (matchingPlan) {
-        const m = (matchingPlan.plannedRounds || 1) * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
+        const m = 1 * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
         return {
           sector: 'Imiter Est',
           chantierId: matchingPlan.chantierId || '',
@@ -1115,8 +1216,8 @@ export const Production: React.FC = () => {
           gallerySize: matchingPlan.galleryType === '9m2' ? 9 : 12,
           plannedHoles: matchingPlan.plannedHoles || 32,
           realHoles: matchingPlan.plannedHoles || 32,
-          plannedRounds: matchingPlan.plannedRounds || 1,
-          realRounds: matchingPlan.plannedRounds || 1,
+          plannedRounds: 1,
+          realRounds: 1,
           barType: matchingPlan.barType || '1.8m',
           meterage: m,
           realMeterage: m,
@@ -1234,10 +1335,13 @@ export const Production: React.FC = () => {
     };
   };
 
-  const loadGlobalWorkbook = async (force: boolean = false) => {
+  const loadGlobalWorkbook = async (force: boolean = false, isManualClick: boolean = false) => {
     // 1. Check if an exploitable exact plan exists for YESTERDAY (D-1) as today's (selectedDate) production is based on yesterday's plan
     try {
-      const yesterdayDateObj = subDays(new Date(selectedDate + "T12:00:00"), 1);
+      const parts = selectedDate.split('-');
+      const yDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+      const yesterdayDateObj = new Date(yDateObj);
+      yesterdayDateObj.setDate(yDateObj.getDate() - 1);
       const yesterdayDateStr = format(yesterdayDateObj, 'yyyy-MM-dd');
 
       const planRefForD = doc(db, 'daily_planning_sheets', yesterdayDateStr);
@@ -1261,16 +1365,19 @@ export const Production: React.FC = () => {
     }
 
     const savedDraft = localStorage.getItem(`draft_production_${selectedDate}`);
-    if (!force && savedDraft) {
-      const confirmReload = window.confirm("⚠️ Attention : Vous avez des saisies de brouillon locales non enregistrées. Recharger les données depuis le serveur principal écrasera vos modifications actuelles si vous ne les restaurez pas via la barre d'alerte. Voulez-vous vraiment continuer ?");
-      if (!confirmReload) {
-        return;
-      }
+    if (isManualClick && !force && savedDraft) {
+      safeConfirm("⚠️ Attention : Vous avez des saisies de brouillon locales non enregistrées. Recharger les données depuis le serveur principal écrasera vos modifications actuelles si vous ne les restaurez pas via la barre d'alerte. Voulez-vous vraiment continuer ?", async () => {
+        await loadGlobalWorkbook(true, isManualClick);
+      });
+      return;
     }
     setLoading(true);
     setNoPlanFound(false);
     try {
-      const yesterdayDateObj = subDays(new Date(selectedDate + "T12:00:00"), 1);
+      const parts = selectedDate.split('-');
+      const yDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+      const yesterdayDateObj = new Date(yDateObj);
+      yesterdayDateObj.setDate(yDateObj.getDate() - 1);
       const yesterdayDateStr = format(yesterdayDateObj, 'yyyy-MM-dd');
 
       // Fetch consolidated production document for the selected date
@@ -1366,24 +1473,23 @@ export const Production: React.FC = () => {
           const p1Plan = planData?.postes?.poste1;
           if (p1Plan) {
             const p1Min = generateFromPlan(filterRealPlannedRows(p1Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 1', 'minage');
-            setP1MinageRows(p1Min.length > 0 ? p1Min : generateSaisieLibreDefaults('Poste 1').minage);
+            setP1MinageRows(p1Min);
             const p1Deb = generateFromPlan(filterRealPlannedRows(p1Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 1', 'deblayage');
-            setP1DeblayageRows(p1Deb.length > 0 ? p1Deb : generateSaisieLibreDefaults('Poste 1').deblayage);
+            setP1DeblayageRows(p1Deb);
             const p1Ext = generateFromPlan(filterRealPlannedRows(p1Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 1', 'extraction');
-            setP1ExtractionRows(p1Ext.length > 0 ? p1Ext : generateSaisieLibreDefaults('Poste 1').extraction);
+            setP1ExtractionRows(p1Ext);
             const p1Maint = generateFromPlan(filterRealPlannedRows(p1Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 1', 'maintenance');
-            setP1MaintenanceRows(p1Maint.length > 0 ? p1Maint : generateSaisieLibreDefaults('Poste 1').maintenance);
+            setP1MaintenanceRows(p1Maint);
             setP1ChiefMatricule(p1Plan.chiefMatricule || '');
             setP1ChiefName(p1Plan.chiefName || '');
             setP1SecondChiefMatricule(p1Plan.secondChiefMatricule || '');
             setP1SecondChiefName(p1Plan.secondChiefName || '');
             setP1SectorChefs(buildDefaultSectorChefs('Poste 1', activePlanDateStr));
           } else {
-            const defaults = generateSaisieLibreDefaults('Poste 1');
-            setP1MinageRows(defaults.minage);
-            setP1DeblayageRows(defaults.deblayage);
-            setP1ExtractionRows(defaults.extraction);
-            setP1MaintenanceRows(defaults.maintenance);
+            setP1MinageRows([]);
+            setP1DeblayageRows([]);
+            setP1ExtractionRows([]);
+            setP1MaintenanceRows([]);
             setP1ChiefMatricule(''); setP1ChiefName('');
             setP1SecondChiefMatricule(''); setP1SecondChiefName('');
             setP1SectorChefs(buildDefaultSectorChefs('Poste 1', activePlanDateStr));
@@ -1393,24 +1499,23 @@ export const Production: React.FC = () => {
           const p2Plan = planData?.postes?.poste2;
           if (p2Plan) {
             const p2Min = generateFromPlan(filterRealPlannedRows(p2Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 2', 'minage');
-            setP2MinageRows(p2Min.length > 0 ? p2Min : generateSaisieLibreDefaults('Poste 2').minage);
+            setP2MinageRows(p2Min);
             const p2Deb = generateFromPlan(filterRealPlannedRows(p2Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 2', 'deblayage');
-            setP2DeblayageRows(p2Deb.length > 0 ? p2Deb : generateSaisieLibreDefaults('Poste 2').deblayage);
+            setP2DeblayageRows(p2Deb);
             const p2Ext = generateFromPlan(filterRealPlannedRows(p2Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 2', 'extraction');
-            setP2ExtractionRows(p2Ext.length > 0 ? p2Ext : generateSaisieLibreDefaults('Poste 2').extraction);
+            setP2ExtractionRows(p2Ext);
             const p2Maint = generateFromPlan(filterRealPlannedRows(p2Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 2', 'maintenance');
-            setP2MaintenanceRows(p2Maint.length > 0 ? p2Maint : generateSaisieLibreDefaults('Poste 2').maintenance);
+            setP2MaintenanceRows(p2Maint);
             setP2ChiefMatricule(p2Plan.chiefMatricule || '');
             setP2ChiefName(p2Plan.chiefName || '');
             setP2SecondChiefMatricule(p2Plan.secondChiefMatricule || '');
             setP2SecondChiefName(p2Plan.secondChiefName || '');
             setP2SectorChefs(buildDefaultSectorChefs('Poste 2', activePlanDateStr));
           } else {
-            const defaults = generateSaisieLibreDefaults('Poste 2');
-            setP2MinageRows(defaults.minage);
-            setP2DeblayageRows(defaults.deblayage);
-            setP2ExtractionRows(defaults.extraction);
-            setP2MaintenanceRows(defaults.maintenance);
+            setP2MinageRows([]);
+            setP2DeblayageRows([]);
+            setP2ExtractionRows([]);
+            setP2MaintenanceRows([]);
             setP2ChiefMatricule(''); setP2ChiefName('');
             setP2SecondChiefMatricule(''); setP2SecondChiefName('');
             setP2SectorChefs(buildDefaultSectorChefs('Poste 2', activePlanDateStr));
@@ -1420,24 +1525,23 @@ export const Production: React.FC = () => {
           const p3Plan = planData?.postes?.poste3;
           if (p3Plan) {
             const p3Min = generateFromPlan(filterRealPlannedRows(p3Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 3', 'minage');
-            setP3MinageRows(p3Min.length > 0 ? p3Min : generateSaisieLibreDefaults('Poste 3').minage);
+            setP3MinageRows(p3Min);
             const p3Deb = generateFromPlan(filterRealPlannedRows(p3Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 3', 'deblayage');
-            setP3DeblayageRows(p3Deb.length > 0 ? p3Deb : generateSaisieLibreDefaults('Poste 3').deblayage);
+            setP3DeblayageRows(p3Deb);
             const p3Ext = generateFromPlan(filterRealPlannedRows(p3Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 3', 'extraction');
-            setP3ExtractionRows(p3Ext.length > 0 ? p3Ext : generateSaisieLibreDefaults('Poste 3').extraction);
+            setP3ExtractionRows(p3Ext);
             const p3Maint = generateFromPlan(filterRealPlannedRows(p3Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 3', 'maintenance');
-            setP3MaintenanceRows(p3Maint.length > 0 ? p3Maint : generateSaisieLibreDefaults('Poste 3').maintenance);
+            setP3MaintenanceRows(p3Maint);
             setP3ChiefMatricule(p3Plan.chiefMatricule || '');
             setP3ChiefName(p3Plan.chiefName || '');
             setP3SecondChiefMatricule(p3Plan.secondChiefMatricule || '');
             setP3SecondChiefName(p3Plan.secondChiefName || '');
             setP3SectorChefs(buildDefaultSectorChefs('Poste 3', activePlanDateStr));
           } else {
-            const defaults = generateSaisieLibreDefaults('Poste 3');
-            setP3MinageRows(defaults.minage);
-            setP3DeblayageRows(defaults.deblayage);
-            setP3ExtractionRows(defaults.extraction);
-            setP3MaintenanceRows(defaults.maintenance);
+            setP3MinageRows([]);
+            setP3DeblayageRows([]);
+            setP3ExtractionRows([]);
+            setP3MaintenanceRows([]);
             setP3ChiefMatricule(''); setP3ChiefName('');
             setP3SecondChiefMatricule(''); setP3SecondChiefName('');
             setP3SectorChefs(buildDefaultSectorChefs('Poste 3', activePlanDateStr));
@@ -1574,9 +1678,9 @@ export const Production: React.FC = () => {
     };
 
     if (isMinageReelFilled(row.reel)) {
-      if (window.confirm("La ligne de minage réelle possède déjà des données. Voulez-vous écraser avec le plan ?")) {
+      safeConfirm("La ligne de minage réelle possède déjà des données. Voulez-vous écraser avec le plan ?", () => {
         performCopy();
-      }
+      });
     } else {
       performCopy();
     }
@@ -1606,9 +1710,9 @@ export const Production: React.FC = () => {
     };
 
     if (hasFilled) {
-      if (window.confirm("Certaines lignes de minage réelles possèdent déjà des données. Voulez-vous tout écraser avec le plan ?")) {
+      safeConfirm("Certaines lignes de minage réelles possèdent déjà des données. Voulez-vous tout écraser avec le plan ?", () => {
         performCopy();
-      }
+      });
     } else {
       performCopy();
     }
@@ -1651,9 +1755,9 @@ export const Production: React.FC = () => {
     };
 
     if (isDeblayageReelFilled(row.reel)) {
-      if (window.confirm("La ligne de déblayage réelle possède déjà des données. Écraser ?")) {
+      safeConfirm("La ligne de déblayage réelle possède déjà des données. Écraser ?", () => {
         performCopy();
-      }
+      });
     } else {
       performCopy();
     }
@@ -1683,9 +1787,9 @@ export const Production: React.FC = () => {
     };
 
     if (hasFilled) {
-      if (window.confirm("Certaines lignes de déblayage réelles possèdent déjà des données. Écraser tout ?")) {
+      safeConfirm("Certaines lignes de déblayage réelles possèdent déjà des données. Écraser tout ?", () => {
         performCopy();
-      }
+      });
     } else {
       performCopy();
     }
@@ -1728,9 +1832,9 @@ export const Production: React.FC = () => {
     };
 
     if (isExtractionReelFilled(row.reel)) {
-      if (window.confirm("La ligne d'extraction réelle possède déjà des données. Écraser ?")) {
+      safeConfirm("La ligne d'extraction réelle possède déjà des données. Écraser ?", () => {
         performCopy();
-      }
+      });
     } else {
       performCopy();
     }
@@ -1760,9 +1864,9 @@ export const Production: React.FC = () => {
     };
 
     if (hasFilled) {
-      if (window.confirm("Certaines lignes d'extraction réelles possèdent déjà des données. Écraser tout ?")) {
+      safeConfirm("Certaines lignes d'extraction réelles possèdent déjà des données. Écraser tout ?", () => {
         performCopy();
-      }
+      });
     } else {
       performCopy();
     }
@@ -1983,168 +2087,297 @@ export const Production: React.FC = () => {
   // Save Workbook
   const saveWorkbook = async () => {
     if (isMonthClosed) {
-      alert("⚠️ ERREUR : Ce mois est clôturé et verrouillé. Aucune modification n'est permise.");
+      safeAlert("⚠️ ERREUR : Ce mois est clôturé et verrouillé. Aucune modification n'est permise.", "Mois Clôturé", "error");
       return;
     }
-    setSaveStatus('saving');
-    try {
-      const postsList = ['Poste 1', 'Poste 2', 'Poste 3'];
-      const postesObj: any = {};
 
-      for (const pName of postsList) {
-        const pKey = pName === 'Poste 1' ? 'poste1' : pName === 'Poste 2' ? 'poste2' : 'poste3';
-        const {
-          minageRows, deblayageRows, extractionRows, maintenanceRows,
-          chiefMatricule, chiefName, secondChiefMatricule, secondChiefName,
-          sectorChefs
-        } = getPostState(pName);
-
-        // Inject the sector-specific chef(s) into each individual minage row for compatibility
-        const finalMinageRows = minageRows.map(row => {
-          const rowSecName = row.reel.sector || 'Autres / Non Classés';
-          const secChief = sectorChefs[rowSecName] || { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' };
-          const finalChiefMatricule = secChief.chiefMatricule;
-          const finalChiefName = secChief.secondChiefName ? `${secChief.chiefName} / ${secChief.secondChiefName}` : secChief.chiefName;
-          return {
-            ...row,
-            reel: {
-              ...row.reel,
-              chiefMatricule: finalChiefMatricule,
-              chiefName: finalChiefName
+    // Direct, professional confirmation check for unchanged explosives consumption
+    let anyActiveMinage = false;
+    let allIdentical = true;
+    const postsListCheck = ['Poste 1', 'Poste 2', 'Poste 3'];
+    
+    for (const pName of postsListCheck) {
+      const { minageRows } = getPostState(pName);
+      if (Array.isArray(minageRows)) {
+        for (const row of minageRows) {
+          const isFilled = !!(row.reel?.chantierId || row.reel?.minerMatricule || row.reel?.assistantMatricule);
+          if (isFilled) {
+            anyActiveMinage = true;
+            const planAnfo = Number(row.plan?.anfo) || 0;
+            const planTovex = Number(row.plan?.tovex) || 0;
+            const planAmmorces = Number(row.plan?.ammorces) || 0;
+            
+            const reelAnfo = Number(row.reel?.anfo) || 0;
+            const reelTovex = Number(row.reel?.tovex) || 0;
+            const reelAmmorces = Number(row.reel?.ammorces) || 0;
+            
+            if (planAnfo !== reelAnfo || planTovex !== reelTovex || planAmmorces !== reelAmmorces) {
+              allIdentical = false;
             }
-          };
-        });
-
-        postesObj[pKey] = {
-          chiefMatricule: chiefMatricule || '',
-          chiefName: chiefName || '',
-          secondChiefMatricule: secondChiefMatricule || '',
-          secondChiefName: secondChiefName || '',
-          status: 'scelle',
-          minage: finalMinageRows,
-          deblayage: deblayageRows,
-          extraction: extractionRows,
-          maintenance: maintenanceRows,
-          sectorChefs: sectorChefs || {}
-        };
+          }
+        }
       }
+    }
 
-      const payload = {
-        date: selectedDate,
-        status: 'scelle',
-        operator: user?.email || 'Secrétaire de Direction SMI',
-        timestamp: new Date().toISOString(),
-        postes: postesObj
-      };
+    const proceedSave = async () => {
+      setSaveStatus('saving');
+      try {
+        const postsList = ['Poste 1', 'Poste 2', 'Poste 3'];
+        const postesObj: any = {};
 
-      // Save to production under a single daily document with merging enabled
-      await setDoc(doc(db, 'production', selectedDate), payload, { merge: true });
+        for (const pName of postsList) {
+          const pKey = pName === 'Poste 1' ? 'poste1' : pName === 'Poste 2' ? 'poste2' : 'poste3';
+          const {
+            minageRows, deblayageRows, extractionRows, maintenanceRows,
+            chiefMatricule, chiefName, secondChiefMatricule, secondChiefName,
+            sectorChefs
+          } = getPostState(pName);
 
-      // Clear draft on successful save
-      localStorage.removeItem(`draft_production_${selectedDate}`);
-      setDraftAvailable(false);
+          // Inject the sector-specific chef(s) into each individual minage row for compatibility
+          const finalMinageRows = minageRows.map(row => {
+            const rowSecName = row.reel.sector || 'Autres / Non Classés';
+            const secChief = sectorChefs[rowSecName] || { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' };
+            const finalChiefMatricule = secChief.chiefMatricule;
+            const finalChiefName = secChief.secondChiefName ? `${secChief.chiefName} / ${secChief.secondChiefName}` : secChief.chiefName;
+            return {
+              ...row,
+              reel: {
+                ...row.reel,
+                chiefMatricule: finalChiefMatricule,
+                chiefName: finalChiefName
+              }
+            };
+          });
 
-      setIsTemplateLoaded(false);
-      setTemplateDateHint('');
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2500);
-    } catch (err) {
-      console.error("Error saving workbook: ", err);
-      setSaveStatus('error');
+          postesObj[pKey] = {
+            chiefMatricule: chiefMatricule || '',
+            chiefName: chiefName || '',
+            secondChiefMatricule: secondChiefMatricule || '',
+            secondChiefName: secondChiefName || '',
+            status: 'scelle',
+            minage: finalMinageRows,
+            deblayage: deblayageRows,
+            extraction: extractionRows,
+            maintenance: maintenanceRows,
+            sectorChefs: sectorChefs || {}
+          };
+        }
+
+        const payload = {
+          date: selectedDate,
+          status: 'scelle',
+          operator: user?.email || 'Secrétaire de Direction SMI',
+          timestamp: new Date().toISOString(),
+          postes: postesObj
+        };
+
+        // Save to production under a single daily document with merging enabled
+        await setDoc(doc(db, 'production', selectedDate), payload, { merge: true });
+
+        // Compute consolidated totals for the whole day (all 3 posts combined)
+        let totalMeteragePlanned = 0;
+        let totalMeterageRealised = 0;
+        let totalDeblayagePlanned = 0;
+        let totalDeblayageRealised = 0;
+        let totalWagonsPlanned = 0;
+        let totalWagonsRealised = 0;
+        let totalAnfo = 0;
+        let totalTovex = 0;
+        let totalAmorces = 0;
+
+        for (const pName of postsList) {
+          const pKey = pName === 'Poste 1' ? 'poste1' : pName === 'Poste 2' ? 'poste2' : 'poste3';
+          const pData = postesObj[pKey];
+          if (pData) {
+            const minageRows = pData.minage || [];
+            const deblayageRows = pData.deblayage || [];
+            const extractionRows = pData.extraction || [];
+
+            // Minage (Métrage & Explosives)
+            minageRows.forEach((r: any) => {
+              // Planned meterage
+              const planMet = Number(r.plan?.meterage) || 0;
+              totalMeteragePlanned += planMet;
+
+              // Realised meterage
+              const rMet = r.reel?.realMeterage !== undefined && r.reel?.realMeterage !== null
+                ? r.reel.realMeterage
+                : (r.reel?.meterage !== undefined ? r.reel?.meterage : 0);
+              totalMeterageRealised += (Number(rMet) || 0);
+
+              // Explosives (only on realized minage rows)
+              totalAnfo += (Number(r.reel?.anfo) || 0);
+              totalTovex += (Number(r.reel?.tovex) || 0);
+              totalAmorces += (Number(r.reel?.ammorces) || 0);
+            });
+
+            // Deblayage (Volume)
+            deblayageRows.forEach((r: any) => {
+              const planVol = Number(r.plan?.volumeEstimated) || 0;
+              totalDeblayagePlanned += planVol;
+
+              const reelVol = Number(r.reel?.volumeEstimated || r.volumeEstimated) || 0;
+              totalDeblayageRealised += reelVol;
+            });
+
+            // Extraction (Wagons)
+            extractionRows.forEach((r: any) => {
+              const planWag = r.plan?.wagonsTarget !== undefined && r.plan?.wagonsTarget !== null ? Number(r.plan.wagonsTarget) : 48;
+              totalWagonsPlanned += planWag;
+
+              const reelWag = Number(r.reel?.wagonsActual) || 0;
+              totalWagonsRealised += reelWag;
+            });
+          }
+        }
+
+        // Save a single daily consolidated record to production_history
+        const histId = selectedDate;
+        await setDoc(doc(db, 'production_history', histId), {
+          date: selectedDate,
+          totalMeteragePlanned: Number(totalMeteragePlanned) || 0,
+          totalMeterageRealised: Number(totalMeterageRealised) || 0,
+          totalDeblayagePlanned: Number(totalDeblayagePlanned) || 0,
+          totalDeblayageRealised: Number(totalDeblayageRealised) || 0,
+          totalWagonsPlanned: Number(totalWagonsPlanned) || 0,
+          totalWagonsRealised: Number(totalWagonsRealised) || 0,
+          totalAnfo: Number(totalAnfo) || 0,
+          totalTovex: Number(totalTovex) || 0,
+          totalAmorces: Number(totalAmorces) || 0,
+          secretary: profile?.name || user?.displayName || user?.email?.split('@')[0] || 'Secrétaire',
+          lastUpdated: new Date().toISOString()
+        }, { merge: true });
+
+        // Clear draft on successful save
+        localStorage.removeItem(`draft_production_${selectedDate}`);
+        setDraftAvailable(false);
+
+        setIsTemplateLoaded(false);
+        setTemplateDateHint('');
+        setSaveStatus('saved');
+        
+        // Show the beautiful Hydromines success toast
+        setSuccessToastMsg(`Le registre journalier du ${formatFrenchDate(selectedDate)} a été enregistré avec succès et gravé au Registre SMI.`);
+        setShowSuccessToast(true);
+
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      } catch (err) {
+        console.error("Error saving workbook: ", err);
+        setSaveStatus('error');
+      }
+    };
+
+    if (anyActiveMinage && allIdentical) {
+      safeConfirm(
+        "Vous n'avez changé aucune chose dans le réalisé des consommations des explosifs. Est-ce que vous êtes sûr que les consommations réalisées des explosifs sont vraiment identiques à ce que vous avez planifié ? Si non, veuillez saisir les vrais consommations.",
+        async () => {
+          await proceedSave();
+        }
+      );
+    } else {
+      await proceedSave();
     }
   };
 
   const exportPlanningToProduction = async (targetDate: string) => {
     if (!targetDate) return;
-    setSyncingBridge(true);
-    setBridgeSuccessDate('');
-    try {
-      // 1. Fetch the daily planning sheet for targetDate
-      const planSnap = await getDoc(doc(db, 'daily_planning_sheets', targetDate));
-      if (!planSnap.exists()) {
-        alert(`❌ Aucune planification trouvée pour le ${formatFrenchDate(targetDate)}. Veuillez d'avance enregistrer une planification pour ce jour.`);
-        setSyncingBridge(false);
-        return;
-      }
-
-      const planData = planSnap.data();
-      const postesObj: any = {};
-      const postsList = ['Poste 1', 'Poste 2', 'Poste 3'];
-
-      postsList.forEach(pName => {
-        const pKey = pName === 'Poste 1' ? 'poste1' : pName === 'Poste 2' ? 'poste2' : 'poste3';
-        const pPlan = planData?.postes?.[pKey];
-
-        const minageRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.minage || [], 'minage'), createEmptyMinage, pName, 'minage') : [];
-        const deblayageRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.deblayage || [], 'deblayage'), createEmptyDeblayage, pName, 'deblayage') : [];
-        const extractionRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.extraction || [], 'extraction'), createEmptyExtraction, pName, 'extraction') : [];
-        const maintenanceRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.maintenance || [], 'maintenance'), createEmptyMaintenance, pName, 'maintenance') : [];
-
-        // Apply fallback standard rows inside each worksheet if they contain 0 rows (e.g. empty June 14 plan)
-        const finalMinage = minageRows.length > 0 ? minageRows : generateSaisieLibreDefaults(pName).minage;
-        const finalDeblayage = deblayageRows.length > 0 ? deblayageRows : generateSaisieLibreDefaults(pName).deblayage;
-        const finalExtraction = extractionRows.length > 0 ? extractionRows : generateSaisieLibreDefaults(pName).extraction;
-        const finalMaintenance = maintenanceRows.length > 0 ? maintenanceRows : generateSaisieLibreDefaults(pName).maintenance;
-
-        // Inject sector chiefs
-        const sectorChefs = pPlan?.sectorChefs || buildDefaultSectorChefs(pName, targetDate);
-
-        // Map and format for production compatibility
-        const mappedMinage = finalMinage.map((row: any) => {
-          const rowSecName = row.reel?.sector || 'Autres / Non Classés';
-          const secChief = sectorChefs[rowSecName] || { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' };
-          return {
-            ...row,
-            reel: {
-              ...(row.reel || {}),
-              chiefMatricule: secChief.chiefMatricule || '',
-              chiefName: secChief.secondChiefName ? `${secChief.chiefName} / ${secChief.secondChiefName}` : secChief.chiefName || ''
-            }
-          };
-        });
-
-        postesObj[pKey] = {
-          chiefMatricule: pPlan?.chiefMatricule || '',
-          chiefName: pPlan?.chiefName || '',
-          secondChiefMatricule: pPlan?.secondChiefMatricule || '',
-          secondChiefName: pPlan?.secondChiefName || '',
-          status: 'planifie',
-          minage: mappedMinage,
-          deblayage: finalDeblayage,
-          extraction: finalExtraction,
-          maintenance: finalMaintenance,
-          sectorChefs: sectorChefs
-        };
-      });
-
-      const payload = {
-        date: targetDate,
-        status: 'scelle', // Treat as initialized/sealed template ready for editing
-        operator: user?.email || 'Pont d\'Export SMI',
-        timestamp: new Date().toISOString(),
-        postes: postesObj
-      };
-
-      // Save to production!
-      await setDoc(doc(db, 'production', targetDate), payload, { merge: true });
-
-      setBridgeSuccessDate(targetDate);
-      
-      // If we are currently viewed on this date, reload the sheet view to reflect the newly exported data
-      if (selectedDate === targetDate) {
-        await loadGlobalWorkbook(true);
-      }
-      
-      setTimeout(() => {
-        setBridgeSuccessDate('');
-      }, 5000);
-
-    } catch (err) {
-      console.error("Error running SMI Data sync-bridge: ", err);
-      alert("❌ Une erreur est survenue lors de l'exportation de la planification.");
-    } finally {
-      setSyncingBridge(false);
+    if (isMonthClosed) {
+      safeAlert("❌ Ce mois est clôturé. Aucune modification de production ou ré-exportation n'est autorisée.", "Mois Clôturé", "error");
+      return;
     }
+
+    safeConfirm(
+      `⚠️ Attention : Cette action va écraser les données du réalisé de production actuel pour la date du ${formatFrenchDate(selectedDate)} avec les planifications du ${formatFrenchDate(targetDate)}. Vos éventuelles saisies de réalisé en cours pour cette journée seront remplacées. Voulez-vous vraiment continuer ?`,
+      async () => {
+        setSyncingBridge(true);
+        setBridgeSuccessDate('');
+        try {
+          // 1. Fetch the daily planning sheet for targetDate
+          const planSnap = await getDoc(doc(db, 'daily_planning_sheets', targetDate));
+          if (!planSnap.exists()) {
+            safeAlert(`❌ Aucune planification trouvée pour le ${formatFrenchDate(targetDate)}. Veuillez d'avance enregistrer une planification pour ce jour.`, "Saisie SMI requise", "error");
+            setSyncingBridge(false);
+            return;
+          }
+
+          const planData = planSnap.data();
+          const postesObj: any = {};
+          const postsList = ['Poste 1', 'Poste 2', 'Poste 3'];
+
+          postsList.forEach(pName => {
+            const pKey = pName === 'Poste 1' ? 'poste1' : pName === 'Poste 2' ? 'poste2' : 'poste3';
+            const pPlan = planData?.postes?.[pKey];
+
+            const minageRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.minage || [], 'minage'), createEmptyMinage, pName, 'minage') : [];
+            const deblayageRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.deblayage || [], 'deblayage'), createEmptyDeblayage, pName, 'deblayage') : [];
+            const extractionRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.extraction || [], 'extraction'), createEmptyExtraction, pName, 'extraction') : [];
+            const maintenanceRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.maintenance || [], 'maintenance'), createEmptyMaintenance, pName, 'maintenance') : [];
+
+            // Active planned rows
+            const finalMinage = minageRows;
+            const finalDeblayage = deblayageRows;
+            const finalExtraction = extractionRows;
+            const finalMaintenance = maintenanceRows;
+
+            // Inject sector chiefs
+            const sectorChefs = pPlan?.sectorChefs || buildDefaultSectorChefs(pName, targetDate);
+
+            // Map and format for production compatibility - with fallback chain for sector matching
+            const mappedMinage = finalMinage.map((row: any) => {
+              const rowSecName = row.reel?.sector || row.plan?.sector || row.sector || 'Autres / Non Classés';
+              const secChief = sectorChefs[rowSecName] || { chiefMatricule: '', chiefName: '', secondChiefMatricule: '', secondChiefName: '' };
+              return {
+                ...row,
+                reel: {
+                  ...(row.reel || {}),
+                  chiefMatricule: secChief.chiefMatricule || '',
+                  chiefName: secChief.secondChiefName ? `${secChief.chiefName} / ${secChief.secondChiefName}` : secChief.chiefName || ''
+                }
+              };
+            });
+
+            postesObj[pKey] = {
+              chiefMatricule: pPlan?.chiefMatricule || '',
+              chiefName: pPlan?.chiefName || '',
+              secondChiefMatricule: pPlan?.secondChiefMatricule || '',
+              secondChiefName: pPlan?.secondChiefName || '',
+              status: 'planifie',
+              minage: mappedMinage,
+              deblayage: finalDeblayage,
+              extraction: finalExtraction,
+              maintenance: finalMaintenance,
+              sectorChefs: sectorChefs
+            };
+          });
+
+          const payload = {
+            date: selectedDate,
+            status: 'scelle', // Treat as initialized/sealed template ready for editing
+            operator: user?.email || 'Pont d\'Export SMI',
+            timestamp: new Date().toISOString(),
+            postes: postesObj
+          };
+
+          // Save to production without merge to prevent ghost fields from previous states
+          await setDoc(doc(db, 'production', selectedDate), payload);
+
+          setBridgeSuccessDate(targetDate);
+          
+          // Since it is saved under selectedDate, we can reload of the workbook directly
+          await loadGlobalWorkbook(true);
+          
+          setTimeout(() => {
+            setBridgeSuccessDate('');
+          }, 5000);
+
+        } catch (err) {
+          console.error("Error running SMI Data sync-bridge: ", err);
+          safeAlert("❌ Une erreur est survenue lors de l'exportation de la planification.", "Erreur d'Exploitation", "error");
+        } finally {
+          setSyncingBridge(false);
+        }
+      }
+    );
   };
 
   const standardizeHours = (postName: string) => {
@@ -2154,8 +2387,9 @@ export const Production: React.FC = () => {
     else if (postName === 'Poste 2') { start = '15:00'; end = '22:00'; }
     else if (postName === 'Poste 3') { start = '23:00'; end = '06:00'; }
 
-    const { setDeblayageRows, setExtractionRows } = getPostState(postName);
+    const { setMinageRows, setDeblayageRows, setExtractionRows } = getPostState(postName);
 
+    setMinageRows(prev => prev.map(row => ({ ...row, reel: { ...row.reel, startTime: start, endTime: end } })));
     setDeblayageRows(prev => prev.map(row => ({ ...row, reel: { ...row.reel, startTime: start, endTime: end } })));
     setExtractionRows(prev => prev.map(row => ({ ...row, reel: { ...row.reel, startTime: start, endTime: end } })));
   };
@@ -2163,9 +2397,11 @@ export const Production: React.FC = () => {
   const copyYesterdayShiftTeam = async (postName: string) => {
     setCopyStatus('copying');
     try {
-      const parsedDate = new Date(selectedDate + "T12:00:00");
-      const yesterday = subDays(parsedDate, 1);
-      const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
+      const parts = selectedDate.split('-');
+      const yDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+      const yesterdayObj = new Date(yDateObj);
+      yesterdayObj.setDate(yDateObj.getDate() - 1);
+      const yesterdayStr = format(yesterdayObj, 'yyyy-MM-dd');
 
       // Fetch unified yesterday production document
       const yesterdayDocSnap = await getDoc(doc(db, 'production', yesterdayStr));
@@ -2197,10 +2433,10 @@ export const Production: React.FC = () => {
             setSectorChefs(data.sectorChefs);
           }
 
-          // 1. Minage rows copy miners & assistant
+          // 1. Minage rows copy miners & assistant - Match by chantierId first, then fallback to index
           if (data.minage && data.minage.length > 0) {
             setMinageRows(prev => prev.map((row, idx) => {
-              const yRow = data.minage[idx];
+              const yRow = (row.chantierId && data.minage.find((yr: any) => yr.chantierId === row.chantierId)) || data.minage[idx];
               if (yRow) {
                 const yReel = yRow.reel || yRow;
                 return {
@@ -2218,10 +2454,10 @@ export const Production: React.FC = () => {
             }));
           }
 
-          // 2. Deblayage rows
+          // 2. Deblayage rows - Match by chantierId first, then fallback to index
           if (data.deblayage && data.deblayage.length > 0) {
             setDeblayageRows(prev => prev.map((row, idx) => {
-              const yRow = data.deblayage[idx];
+              const yRow = (row.chantierId && data.deblayage.find((yr: any) => yr.chantierId === row.chantierId)) || data.deblayage[idx];
               if (yRow) {
                 const yReel = yRow.reel || yRow;
                 return {
@@ -2237,10 +2473,10 @@ export const Production: React.FC = () => {
             }));
           }
 
-          // 3. Extraction rows
+          // 3. Extraction rows - Match by chantierName first, then fallback to index
           if (data.extraction && data.extraction.length > 0) {
             setExtractionRows(prev => prev.map((row, idx) => {
-              const yRow = data.extraction[idx];
+              const yRow = (row.chantierName && data.extraction.find((yr: any) => yr.chantierName === row.chantierName)) || data.extraction[idx];
               if (yRow) {
                 const yReel = yRow.reel || yRow;
                 return {
@@ -2259,10 +2495,16 @@ export const Production: React.FC = () => {
             }));
           }
 
-          // 4. Maintenance rows
+          // 4. Maintenance rows - Match by role/engine details, then fallback to index
           if (data.maintenance && data.maintenance.length > 0) {
             setMaintenanceRows(prev => prev.map((row, idx) => {
-              const yRow = data.maintenance[idx];
+              const yRow = data.maintenance.find((yr: any) => {
+                const yrRole = yr.roleLabel || yr.plan?.roleLabel || yr.reel?.roleLabel;
+                const rowRole = row.roleLabel || row.plan?.roleLabel || row.reel?.roleLabel;
+                const yrEngine = yr.engineCode || yr.plan?.engineCode || yr.reel?.engineCode;
+                const rowEngine = row.engineCode || row.plan?.engineCode || row.reel?.engineCode;
+                return (yrRole && yrRole === rowRole) || (yrEngine && yrEngine === rowEngine);
+              }) || data.maintenance[idx];
               if (yRow) {
                 const yReel = yRow.reel || yRow;
                 return {
@@ -2332,23 +2574,25 @@ export const Production: React.FC = () => {
           });
         }
 
-        // Track chef assignments across shifts
-        if (secChief.chiefMatricule) {
-          const key = secChief.chiefMatricule.trim().toUpperCase();
-          if (!chefShifts[key]) {
-            chefShifts[key] = { name: secChief.chiefName || secChief.chiefMatricule, shifts: [] };
+        // Track chef assignments across shifts ONLY if there is actual activity in this sector for this shift!
+        if (sectorRows.length > 0) {
+          if (secChief.chiefMatricule) {
+            const key = secChief.chiefMatricule.trim().toUpperCase();
+            if (!chefShifts[key]) {
+              chefShifts[key] = { name: secChief.chiefName || secChief.chiefMatricule, shifts: [] };
+            }
+            if (!chefShifts[key].shifts.includes(shiftName)) {
+              chefShifts[key].shifts.push(shiftName);
+            }
           }
-          if (!chefShifts[key].shifts.includes(shiftName)) {
-            chefShifts[key].shifts.push(shiftName);
-          }
-        }
-        if (secChief.secondChiefMatricule) {
-          const key = secChief.secondChiefMatricule.trim().toUpperCase();
-          if (!chefShifts[key]) {
-            chefShifts[key] = { name: secChief.secondChiefName || secChief.secondChiefMatricule, shifts: [] };
-          }
-          if (!chefShifts[key].shifts.includes(shiftName)) {
-            chefShifts[key].shifts.push(shiftName);
+          if (secChief.secondChiefMatricule) {
+            const key = secChief.secondChiefMatricule.trim().toUpperCase();
+            if (!chefShifts[key]) {
+              chefShifts[key] = { name: secChief.secondChiefName || secChief.secondChiefMatricule, shifts: [] };
+            }
+            if (!chefShifts[key].shifts.includes(shiftName)) {
+              chefShifts[key].shifts.push(shiftName);
+            }
           }
         }
       });
@@ -2406,7 +2650,466 @@ export const Production: React.FC = () => {
     return logs;
   };
 
-  const renderSectorCards = (postName: string, sectorName: string, borderColorAccent: string, textColorAccent: string, stripBgAccent: string) => {
+  const renderSectorCardsStub1 = (postName: string, sectorName: string, borderColorAccent: string, textColorAccent: string, stripBgAccent: string) => {
+    // Legacy card view bypassed for the unified Excel-style alignment table
+    return null;
+  };
+
+  const renderMinageUnifiedTable = (postName: string) => {
+    const { minageRows, sectorChefs } = getPostState(postName);
+    const SECTORS = ['Imiter 2', 'Imiter 1', 'Imiter Est', 'Autres / Non Classés'];
+
+    // Verify if there are any rows at all
+    if (minageRows.length === 0) {
+      return (
+        <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-6 text-center max-w-xl mx-auto my-4 shadow-xs" id={`empty_minage_plan_${postName.replace(/\s+/g, '_')}`}>
+          <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
+            <AlertTriangle className="w-6 h-6 text-amber-600" />
+          </div>
+          <h4 className="text-xs font-black uppercase text-amber-900 tracking-wider mb-2">
+            Planification Non Saisie — {postName}
+          </h4>
+          <p className="text-[11px] text-amber-800 font-bold leading-relaxed">
+            Aucune planification de forage ou de minage s'y rapportant n'a été enregistrée pour le <span className="underline">{postName}</span> à cette date.
+            Veuillez d'abord saisir le chantier et l'équipe dans le <span className="underline">Planning Journalier</span> pour pouvoir ajouter le réalisé.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto rounded-xl border border-slate-250 bg-white shadow-xs">
+        <table className="w-full text-left border-collapse text-[11px]">
+          <thead>
+            <tr className="bg-slate-900 text-white select-none text-[9.5px] font-black tracking-wider uppercase sticky top-0 z-10">
+              <th className="p-2 border-r border-slate-700/50 text-center w-10">#</th>
+              <th className="p-2 border-r border-slate-700/50 text-center w-24">Actions</th>
+              <th className="p-2 border-r border-[#ffd700]/30 min-w-[130px] bg-slate-850/80 text-sky-200">Chantier</th>
+              <th className="p-2 border-r border-slate-700/50 w-14 text-center">Type</th>
+              <th className="p-2 border-r border-slate-700/50 min-w-[155px] text-[#ffd700]">Mineur (Matricule / Nom)</th>
+              <th className="p-2 border-r border-slate-700/50 min-w-[155px] text-sky-200">Aide-Mineur / Assistant</th>
+              <th className="p-2 border-r border-slate-700/50 w-16 text-center text-rose-250">Section</th>
+              <th className="p-2 border-r border-slate-700/50 w-16 text-center">Trous (u)</th>
+              <th className="p-2 border-r border-slate-700/50 w-16 text-center">Volées (u)</th>
+              <th className="p-2 border-r border-slate-700/50 w-20 text-center text-amber-200">Métrage (m)</th>
+              <th className="p-2 border-r border-slate-700/50 w-16 text-center">ANFO (kg)</th>
+              <th className="p-2 border-r border-slate-700/50 w-16 text-center">Tovex (kg)</th>
+              <th className="p-2 border-r border-slate-700/50 w-16 text-center text-rose-220">Amorces</th>
+              <th className="p-2 text-center min-w-[130px] bg-slate-950 text-emerald-300">Rendement & Écart</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SECTORS.map(secName => {
+              const rows = minageRows
+                .map((row, idx) => ({ row, idx }))
+                .filter(item => {
+                  const rowSec = (item.row.reel.sector || item.row.plan.sector || '').trim().toLowerCase();
+                  const targetSec = secName.trim().toLowerCase();
+                  if (targetSec === 'autres / non classés') {
+                    return !['imiter 2', 'imiter 1', 'imiter est'].includes(rowSec);
+                  }
+                  return rowSec === targetSec;
+                });
+
+              if (rows.length === 0) return null;
+
+              // Color styles for beautiful sector group header
+              let headerStyle = {
+                bg: 'bg-neutral-105 border-l-4 border-neutral-400',
+                text: 'text-neutral-900',
+                bullet: 'bg-neutral-500'
+              };
+              if (secName.toLowerCase() === 'imiter 2') {
+                headerStyle = {
+                  bg: 'bg-red-50/70 border-l-4 border-[#8B0000]',
+                  text: 'text-[#8B0000]',
+                  bullet: 'bg-[#8B0000]'
+                };
+              } else if (secName.toLowerCase() === 'imiter 1') {
+                headerStyle = {
+                  bg: 'bg-sky-50/70 border-l-4 border-[#00BFFF]',
+                  text: 'text-sky-950',
+                  bullet: 'bg-[#00BFFF]'
+                };
+              } else if (secName.toLowerCase() === 'imiter est') {
+                headerStyle = {
+                  bg: 'bg-teal-50/70 border-l-4 border-teal-600',
+                  text: 'text-teal-950',
+                  bullet: 'bg-teal-600'
+                };
+              }
+
+              return (
+                <React.Fragment key={secName}>
+                  {/* Sector Header Row spanning all 14 columns */}
+                  <tr className="bg-slate-100/90 border-y border-slate-205 select-none font-bold">
+                    <td colSpan={14} className="py-2.5 px-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <span className={`w-3 h-3 ${headerStyle.bullet} rounded-sm shrink-0`}></span>
+                          <span className={`${headerStyle.text} text-xs font-black uppercase tracking-wider`}>
+                            Secteur : <strong>{secName}</strong>
+                          </span>
+                          {structureEditMode && (
+                            <button
+                              type="button"
+                              onClick={() => addMinageRowForSector(postName, secName === 'Autres / Non Classés' ? '' : secName)}
+                              className="bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[9px] uppercase px-2.5 py-1.5 flex items-center gap-1 transition-all rounded shadow-sm cursor-pointer shrink-0"
+                            >
+                              <Plus className="w-3 h-3 text-[#00BFFF]" /> Ajouter Ligne
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Supervisor / Assistant inputs inline */}
+                        {secName !== 'Autres / Non Classés' && (
+                          <div className="flex flex-wrap items-center gap-3 bg-white/95 p-1 rounded border border-slate-200">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-slate-800 font-extrabold uppercase shrink-0">Chef de Secteur :</span>
+                              <div className="w-36 shrink-0">
+                                <EmployeeCell
+                                  matricule={(sectorChefs || {})[secName]?.chiefMatricule || ''}
+                                  name={(sectorChefs || {})[secName]?.chiefName || ''}
+                                  onChange={(mat, resName) => updateSectorChief(postName, secName, 'chief', mat, resName)}
+                                  employees={activeEmployees}
+                                  placeholder="Chef..."
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase shrink-0">Adjoint :</span>
+                              <div className="w-36 shrink-0">
+                                <EmployeeCell
+                                  matricule={(sectorChefs || {})[secName]?.secondChiefMatricule || ''}
+                                  name={(sectorChefs || {})[secName]?.secondChiefName || ''}
+                                  onChange={(mat, resName) => updateSectorChief(postName, secName, 'second', mat, resName)}
+                                  employees={activeEmployees}
+                                  placeholder="Adjoint..."
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Sector Rows */}
+                  {rows.map(({ row: rowWrapper, idx }) => {
+                    const row = rowWrapper.reel;
+                    const plan = rowWrapper.plan;
+
+                    const minerMismatch = !!(row.minerMatricule && plan.minerMatricule && row.minerMatricule.trim().toUpperCase() !== plan.minerMatricule.trim().toUpperCase());
+                    const assistantMismatch = !!(row.assistantMatricule && plan.assistantMatricule && row.assistantMatricule.trim().toUpperCase() !== plan.assistantMatricule.trim().toUpperCase());
+
+                    const realMeterageVal = row.realMeterage === undefined ? row.meterage : row.realMeterage;
+                    const rendement = row.realRounds > 0 ? (realMeterageVal / row.realRounds) : 0;
+                    const plannedMeterageVal = plan.meterage || 0;
+                    const diffMeteragePct = plannedMeterageVal > 0 ? ((realMeterageVal - plannedMeterageVal) / plannedMeterageVal) * 100 : 0;
+
+                    const chantierObj = chantiers.find(c => c.id === row.chantierId);
+                    const plannedTotalMeterage = chantierObj?.plannedTotalMeterage || 100;
+                    const currentMeterage = chantierObj?.currentMeterage || 0;
+                    const progressPct = plannedTotalMeterage > 0 ? Math.min(100, (currentMeterage / plannedTotalMeterage) * 100) : 0;
+
+                    // Compute Performance Color based directly on the cell's real meterage
+                    const colorMeterage = realMeterageVal;
+
+                    let valBg = "bg-teal-50/20";
+                    let valText = "text-teal-950";
+                    if (colorMeterage !== undefined && colorMeterage !== null && colorMeterage !== 0) {
+                      if (colorMeterage >= 1.5) {
+                        valBg = "bg-emerald-100/50";
+                        valText = "text-emerald-920";
+                      } else if (colorMeterage >= 1.4 && colorMeterage < 1.5) {
+                        valBg = "bg-amber-100/50";
+                        valText = "text-amber-920";
+                      } else if (colorMeterage < 1.4) {
+                        valBg = "bg-rose-100/50";
+                        valText = "text-rose-920";
+                      }
+                    }
+
+                    return (
+                      <React.Fragment key={idx}>
+                        {/* FIRST ROW: Plan Values + spanned columns */}
+                        <tr className="bg-slate-50/55 text-slate-500 font-bold border-t border-slate-200">
+                          {/* # (Spanned over 2 rows: Plan + Real) */}
+                          <td rowSpan={2} className="p-2 border-r border-slate-200 text-center font-black uppercase select-none align-middle bg-slate-50 text-slate-707">
+                            #{idx + 1}
+                          </td>
+
+                          {/* Actions (Spanned over 2 rows: Plan + Real) */}
+                          <td rowSpan={2} className="p-2 border-r border-slate-200 text-center align-middle bg-slate-50">
+                            <div className="flex flex-col gap-1 items-center justify-center">
+                              <button
+                                type="button"
+                                onClick={() => copyMinagePlanToReel(postName, idx)}
+                                className="px-1.5 py-1 text-[8.5px] font-black uppercase bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200 rounded tracking-wider cursor-pointer transition-all flex items-center gap-1 shadow-sm select-none"
+                                title="Copier les valeurs de planification de ce chantier vers le réel"
+                              >
+                                <Copy className="w-2.5 h-2.5 text-amber-600" /> Copier
+                              </button>
+                              {structureEditMode && (
+                                <button
+                                  type="button"
+                                  onClick={() => deleteMinageRow(postName, idx)}
+                                  className="p-1 text-slate-450 hover:text-red-600 transition-colors cursor-pointer select-none"
+                                  title="Supprimer ce chantier"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Chantier (Spanned over 2 rows: Plan + Real) */}
+                          <td rowSpan={2} className="p-2 border-r border-slate-300 min-w-[130px] align-middle font-bold bg-white">
+                            <div className="space-y-1.5">
+                              <select
+                                value={row.chantierId}
+                                onChange={e => updateMinageCell(postName, idx, 'chantierId', e.target.value)}
+                                className="w-full text-xs font-black uppercase text-slate-850 border border-slate-200 rounded p-1 bg-transparent cursor-pointer focus:border-[#8B0000] focus:ring-0 outline-none"
+                              >
+                                <option value="">(Choisir Chantier)</option>
+                                {(() => {
+                                  const rowSec = (row.sector || 'Imiter 1').trim().toLowerCase();
+                                  const filteredChan = chantiers.filter(c => {
+                                    const cSec = (c.sector || '').trim().toLowerCase();
+                                    return cSec === rowSec || cSec.includes(rowSec) || rowSec.includes(cSec);
+                                  });
+                                  const displayedList = filteredChan.length > 0 ? filteredChan : chantiers;
+                                  return displayedList.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name || c.id}</option>
+                                  ));
+                                })()}
+                              </select>
+                              
+                              {/* Inline mini progress bar */}
+                              {row.chantierId && (
+                                <div className="space-y-0.5 select-none">
+                                  <div className="flex justify-between text-[7px] font-black uppercase text-slate-500">
+                                    <span>Progression</span>
+                                    <span className="font-mono">{currentMeterage.toFixed(1)}/{plannedTotalMeterage.toFixed(1)}m</span>
+                                  </div>
+                                  <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                                    <div className="bg-[#00BFFF] h-full transition-all duration-305" style={{ width: `${progressPct}%` }}></div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Type (Plan) */}
+                          <td className="p-1 px-1.5 border-r border-slate-205 text-[8px] font-black uppercase text-center bg-slate-105 flex items-center justify-center gap-0.5 select-none min-h-[28px] border-b border-slate-100">
+                            <Lock className="w-2.5 h-2.5 text-slate-400" /> Plan
+                          </td>
+
+                          {/* Plan Mineur */}
+                          <td className="p-1 px-2 border-r border-slate-200 font-mono text-[9.5px] text-slate-500 italic">
+                            {plan.minerMatricule ? `${plan.minerMatricule} - ${plan.minerName || ''}` : '(Aucun)'}
+                          </td>
+
+                          {/* Plan Assistant */}
+                          <td className="p-1 px-2 border-r border-slate-200 font-mono text-[9.5px] text-slate-500 italic">
+                            {plan.assistantMatricule ? `${plan.assistantMatricule} - ${plan.assistantName || ''}` : '(Aucun)'}
+                          </td>
+
+                          {/* Plan Section */}
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-500 select-none">
+                            {plan.gallerySize || 12}m²
+                          </td>
+
+                          {/* Plan Trous */}
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-500 select-none">
+                            {plan.plannedHoles || 32}
+                          </td>
+
+                          {/* Plan Volées */}
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-500 select-none">
+                            {plan.plannedRounds || 1}
+                          </td>
+
+                          {/* Plan Métrage */}
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-500 font-bold select-none text-[10px]">
+                            {plan.meterage?.toFixed(1) || '0.0'}m
+                          </td>
+
+                          {/* Plan ANFO */}
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-450 select-none bg-slate-50/30">
+                            {plan.anfo || 0}
+                          </td>
+
+                          {/* Plan Tovex */}
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-450 select-none bg-slate-50/30">
+                            {plan.tovex || 0}
+                          </td>
+
+                          {/* Plan Amorces */}
+                          <td className="p-1 text-center border-r border-slate-300 font-mono text-slate-450 select-none bg-slate-50/30">
+                            {plan.ammorces || 0}
+                          </td>
+
+                          {/* Performance & Écart (Spanned over 2 rows for cleaner layout) */}
+                          <td rowSpan={2} className="p-2 text-center align-middle bg-slate-50/40 text-[10px] min-w-[130px] border-l border-slate-105">
+                            <div className="flex flex-col gap-1.5 justify-center items-center font-bold">
+                              <div className="flex items-center gap-1 text-[9.5px]" title="Rendement de volée en mètres">
+                                <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+                                <span>Rend. : <strong className="text-slate-800 font-black">{rendement.toFixed(2)} m/v</strong></span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[9.5px]" title="Écart métrage réel vs planifié">
+                                <CheckCircle className="w-3.5 h-3.5 text-teal-655" />
+                                <span className={diffMeteragePct === 0 ? "text-slate-600" : diffMeteragePct > 0 ? "text-emerald-700 bg-emerald-50 px-1 rounded font-black" : "text-rose-700 bg-rose-50 px-1 rounded font-black"}>
+                                  Écart: {diffMeteragePct > 0 ? '+' : ''}{diffMeteragePct.toFixed(1)}%
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* SECOND ROW: Editable Real Values */}
+                        <tr className="bg-white border-b border-slate-205">
+                          {/* Type (Réel) */}
+                          <td className="p-1 px-1.5 border-r border-slate-205 text-[8px] font-black uppercase text-center bg-slate-50 flex items-center justify-center gap-0.5 select-none min-h-[36px]">
+                            <Pencil className="w-2.5 h-2.5 text-red-700" /> Réel
+                          </td>
+
+                          {/* Real Mineur EmployeeCell */}
+                          <td className="p-1 border-r border-slate-200">
+                            <EmployeeCell
+                              matricule={row.minerMatricule}
+                              name={row.minerName}
+                              onChange={(mat) => updateMinageCell(postName, idx, 'minerMatricule', mat)}
+                              employees={activeEmployees}
+                              placeholder="Mineur..."
+                              hideNameLabel={true}
+                              onKeyDown={handleKeyDown}
+                            />
+                            {minerMismatch && (
+                              <div className="text-[7px] font-black uppercase text-amber-700 leading-none mt-0.5 select-none" title={`Planifié : ${plan.minerMatricule}`}>
+                                ⚠️ ≠ Plan ({plan.minerMatricule})
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Real Assistant EmployeeCell */}
+                          <td className="p-1 border-r border-slate-200">
+                            <EmployeeCell
+                              matricule={row.assistantMatricule}
+                              name={row.assistantName}
+                              onChange={(mat) => updateMinageCell(postName, idx, 'assistantMatricule', mat)}
+                              employees={activeEmployees}
+                              placeholder="Assistant..."
+                              hideNameLabel={true}
+                              onKeyDown={handleKeyDown}
+                            />
+                            {assistantMismatch && (
+                              <div className="text-[7px] font-black uppercase text-amber-700 leading-none mt-0.5 select-none" title={`Planifié : ${plan.assistantMatricule}`}>
+                                ⚠️ ≠ Plan ({plan.assistantMatricule})
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Real Section dropdown select */}
+                          <td className="p-1 border-r border-slate-200 text-center">
+                            <select
+                              value={row.gallerySize}
+                              onChange={e => updateMinageCell(postName, idx, 'gallerySize', Number(e.target.value))}
+                              onKeyDown={handleKeyDown}
+                              className="border border-slate-200 p-1 text-center font-bold font-mono bg-transparent rounded focus:ring-1 focus:ring-[#8B0000] focus:border-[#8B0000] text-[10px]"
+                            >
+                              <option value={9}>9</option>
+                              <option value={12}>12</option>
+                            </select>
+                          </td>
+
+                          {/* Real Trous input */}
+                          <td className="p-1 border-r border-slate-200 text-center w-14">
+                            <input
+                              type="number"
+                              value={row.realHoles}
+                              onChange={e => updateMinageCell(postName, idx, 'realHoles', Number(e.target.value))}
+                              onKeyDown={handleKeyDown}
+                              className="w-full font-mono text-center border border-slate-200 p-1 text-[10px] rounded focus:ring-1 focus:ring-[#8B0000] focus:border-[#8B0000]"
+                            />
+                          </td>
+
+                          {/* Real Volées input */}
+                          <td className="p-1 border-r border-slate-200 text-center w-14">
+                            <input
+                              type="number"
+                              value={row.realRounds}
+                              onChange={e => updateMinageCell(postName, idx, 'realRounds', Number(e.target.value))}
+                              onKeyDown={handleKeyDown}
+                              className="w-full font-mono text-center border border-slate-200 p-1 font-bold text-[10px] rounded focus:ring-1 focus:ring-[#8B0000] focus:border-[#8B0000]"
+                            />
+                          </td>
+
+                          {/* Real Meterage input with color based on performance */}
+                          <td className={`p-1 border-r border-slate-200 text-center w-18 transition-colors duration-200 ${valBg}`}>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={row.realMeterage === undefined ? row.meterage : row.realMeterage}
+                              onChange={e => updateMinageCell(postName, idx, 'realMeterage', Number(e.target.value))}
+                              onKeyDown={handleKeyDown}
+                              className={`w-full font-mono text-center font-black select-all bg-transparent focus:outline-none focus:ring-0 ${valText} text-[10px]`}
+                            />
+                          </td>
+
+                          {/* Real ANFO input */}
+                          <td className="p-1 border-r border-slate-200 text-center w-14 bg-slate-50/10">
+                            <input
+                              type="number"
+                              value={row.anfo === 0 || row.anfo === undefined ? '' : row.anfo}
+                              placeholder="AN"
+                              onChange={e => updateMinageCell(postName, idx, 'anfo', Number(e.target.value))}
+                              onKeyDown={handleKeyDown}
+                              className="w-full text-center font-mono border border-slate-200 p-1 text-[10px] rounded select-all font-bold focus:ring-1 focus:ring-[#8B0000]"
+                              title="ANFO (kg)"
+                            />
+                          </td>
+
+                          {/* Real TOVEX input */}
+                          <td className="p-1 border-r border-slate-200 text-center w-14 bg-slate-50/10">
+                            <input
+                              type="number"
+                              value={row.tovex === 0 || row.tovex === undefined ? '' : row.tovex}
+                              placeholder="TV"
+                              onChange={e => updateMinageCell(postName, idx, 'tovex', Number(e.target.value))}
+                              onKeyDown={handleKeyDown}
+                              className="w-full text-center font-mono border border-slate-200 p-1 text-[10px] rounded select-all font-bold focus:ring-1 focus:ring-[#8B0000]"
+                              title="TOVEX (kg)"
+                            />
+                          </td>
+
+                          {/* Real AMORCES input */}
+                          <td className="p-1 border-r border-slate-350 text-center w-14 bg-slate-50/10">
+                            <input
+                              type="number"
+                              value={row.ammorces === 0 || row.ammorces === undefined ? '' : row.ammorces}
+                              placeholder="AM"
+                              onChange={e => updateMinageCell(postName, idx, 'ammorces', Number(e.target.value))}
+                              onKeyDown={handleKeyDown}
+                              className="w-full text-center font-mono border border-slate-200 p-1 text-[10px] rounded select-all font-bold focus:ring-1 focus:ring-[#8B0000]"
+                              title="Amorces"
+                            />
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderSectorCardsStub2 = (postName: string, sectorName: string, borderColorAccent: string, textColorAccent: string, stripBgAccent: string) => {
     const { minageRows, sectorChefs } = getPostState(postName);
     
     // Filter matching rows
@@ -2596,12 +3299,24 @@ export const Production: React.FC = () => {
                               <Lock className="w-2.5 h-2.5 text-slate-400" /> Plan
                             </td>
                             <td className="p-1 px-1.5 border-r border-slate-200 font-mono text-[9px]">{plan.minerMatricule || '(Aucun)'}</td>
-                            <td className="p-1 px-1.5 border-r border-slate-200 font-mono text-[9px]">{plan.assistantMatricule || '(Aucun)'}</td>
+                            <td className="p-1 px-[9.5px] border-r border-slate-200 font-mono text-[9px]">{plan.assistantMatricule || '(Aucun)'}</td>
                             <td className="p-1 border-r border-slate-200 text-center font-mono">{plan.gallerySize || 12}m²</td>
                             <td className="p-1 border-r border-slate-200 text-center font-mono">{plan.plannedHoles || 32}</td>
                             <td className="p-1 border-r border-slate-200 text-center font-mono">{plan.plannedRounds || 1}</td>
                             <td className="p-1 border-r border-slate-200 text-center font-mono text-red-900">{plan.meterage?.toFixed(1) || '0.0'}m</td>
-                            <td className="p-1 text-center font-mono text-[9px]">-</td>
+                            <td className="p-1 text-center font-mono text-[9px]">
+                              <div className="flex items-center gap-0.5 justify-center">
+                                <span className="w-8 text-[9px] text-center font-mono bg-slate-100 p-0.5 rounded-sm font-bold text-slate-600" title={`Planifié ANFO: ${plan.anfo || 0} kg`}>
+                                  {plan.anfo || 0}
+                                </span>
+                                <span className="w-8 text-[9px] text-center font-mono bg-slate-100 p-0.5 rounded-sm font-bold text-slate-600" title={`Planifié TOVEX: ${plan.tovex || 0} kg`}>
+                                  {plan.tovex || 0}
+                                </span>
+                                <span className="w-8 text-[9px] text-center font-mono bg-slate-100 p-0.5 rounded-sm font-bold text-slate-600" title={`Planifié Amorces: ${plan.ammorces || 0}`}>
+                                  {plan.ammorces || 0}
+                                </span>
+                              </div>
+                            </td>
                           </tr>
                           {/* Real Row */}
                           <tr className="bg-white text-slate-900 font-bold">
@@ -2669,16 +3384,39 @@ export const Production: React.FC = () => {
                                 className="w-full font-mono text-center border border-slate-200 p-0.5 font-bold"
                               />
                             </td>
-                            <td className="p-1 border-r border-slate-200 text-center bg-teal-50/30">
-                              <input
-                                type="number"
-                                step="0.1"
-                                value={row.realMeterage === undefined ? row.meterage : row.realMeterage}
-                                onChange={e => updateMinageCell(postName, idx, 'realMeterage', Number(e.target.value))}
-                                onKeyDown={handleKeyDown}
-                                className="w-full font-mono text-center font-black select-all"
-                              />
-                            </td>
+                            {(() => {
+                              const rMet = row.realMeterage === undefined ? row.meterage : row.realMeterage;
+                              
+                              // Compute Performance Color based directly on the cell's real meterage
+                              const colorMeterage = rMet;
+
+                              let valBg = "bg-teal-50/30";
+                              let valText = "text-teal-950";
+                              if (colorMeterage !== undefined && colorMeterage !== null && colorMeterage !== 0) {
+                                if (colorMeterage >= 1.5) {
+                                  valBg = "bg-emerald-100 border-emerald-300";
+                                  valText = "text-emerald-900";
+                                } else if (colorMeterage >= 1.4 && colorMeterage < 1.5) {
+                                  valBg = "bg-amber-100 border-amber-300";
+                                  valText = "text-amber-900";
+                                } else if (colorMeterage < 1.4) {
+                                  valBg = "bg-rose-100 border-rose-300";
+                                  valText = "text-rose-900";
+                                }
+                              }
+                              return (
+                                <td className={`p-1 border-r border-slate-200 text-center transition-colors duration-200 ${valBg}`}>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={row.realMeterage === undefined ? row.meterage : row.realMeterage}
+                                    onChange={e => updateMinageCell(postName, idx, 'realMeterage', Number(e.target.value))}
+                                    onKeyDown={handleKeyDown}
+                                    className={`w-full font-mono text-center font-black select-all bg-transparent focus:outline-none focus:ring-0 ${valText}`}
+                                  />
+                                </td>
+                              );
+                            })()}
                             <td className="p-1 text-center font-mono">
                               <div className="flex items-center gap-0.5 justify-center">
                                 <input
@@ -3100,8 +3838,10 @@ export const Production: React.FC = () => {
       // Math: expected production day is planDate + 1 day
       const parts = planDate.split('-');
       if (parts.length !== 3) return null;
-      const pDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-      const expectedProdDate = format(subDays(pDateObj, -1), 'yyyy-MM-dd'); // using math to add 1 day correctly
+      const pDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+      const expectedProdDateObj = new Date(pDateObj);
+      expectedProdDateObj.setDate(pDateObj.getDate() + 1);
+      const expectedProdDate = format(expectedProdDateObj, 'yyyy-MM-dd');
       
       const prodExists = allProductionDocs.some(prod => prod.id === expectedProdDate);
       return {
@@ -3132,6 +3872,101 @@ export const Production: React.FC = () => {
 
   return (
     <div className="space-y-4 font-sans select-none pb-12">
+      {/* Custom Non-blocking Dialog Overlays */}
+      <AnimatePresence>
+        {confirmModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="custom-confirm-modal">
+            <div className="bg-white border-t-4 border-[#8B0000] rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+              <button 
+                type="button"
+                onClick={() => {
+                  if (confirmModal.onCancel) confirmModal.onCancel();
+                  setConfirmModal(null);
+                }}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-[#8B0000]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-900 tracking-wider mb-2">
+                    {confirmModal.title}
+                  </h3>
+                  <p className="text-[11px] text-slate-800 font-bold leading-relaxed whitespace-pre-line">
+                    {confirmModal.message}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirmModal.onCancel) confirmModal.onCancel();
+                    setConfirmModal(null);
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black uppercase text-[10px] tracking-wider rounded-lg transition-all cursor-pointer border border-slate-200"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    confirmModal.onConfirm();
+                    setConfirmModal(null);
+                  }}
+                  className="px-4 py-2 bg-[#8B0000] hover:bg-red-800 text-white font-black uppercase text-[10px] tracking-wider rounded-lg transition-all cursor-pointer shadow-md shadow-red-900/10"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {infoModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="custom-info-modal">
+            <div className={`bg-white border-t-4 ${infoModal.type === 'error' ? 'border-rose-600' : 'border-sky-500'} rounded-2xl max-w-md w-full p-6 shadow-2xl relative`}>
+              <button 
+                type="button"
+                onClick={() => setInfoModal(null)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-start gap-4">
+                <div className={`w-10 h-10 rounded-full ${infoModal.type === 'error' ? 'bg-rose-50' : 'bg-sky-50'} flex items-center justify-center shrink-0`}>
+                  {infoModal.type === 'error' ? (
+                    <AlertTriangle className="w-6 h-6 text-rose-600" />
+                  ) : (
+                    <Info className="w-6 h-6 text-sky-600" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-900 tracking-wider mb-2">
+                    {infoModal.title}
+                  </h3>
+                  <p className="text-[11px] text-slate-800 font-bold leading-relaxed whitespace-pre-line">
+                    {infoModal.message}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setInfoModal(null)}
+                  className={`px-4 py-2 ${infoModal.type === 'error' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-black uppercase text-[10px] tracking-wider rounded-lg transition-all cursor-pointer shadow-md`}
+                >
+                  Entendu
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {isMonthClosed && (
         <div className="font-sans py-2.5 px-4 bg-red-600 text-white font-extrabold uppercase rounded-xl text-center text-xs tracking-wider flex items-center justify-center gap-2 shadow-md animate-pulse">
           ⛔ Mois de {selectedDate.substring(0, 7)} Clôturé — Modification Impossible
@@ -3139,48 +3974,65 @@ export const Production: React.FC = () => {
       )}
       
       {/* Unified Elegant Header Banner with Enlarged Logo and Centered Title - Style MATCHING Planning.tsx */}
-      <div id="unified-production-banner" className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
-          {/* Logo Column */}
-          <div className="flex-shrink-0 animate-fade-in">
+      <div 
+        id="unified-production-banner" 
+        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
+        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+      >
+        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+          <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="HydroMines Logo" 
-              className="h-24 w-24 md:h-28 md:w-28 object-contain rounded-xl border border-gray-150 p-1.5 bg-white shadow-sm" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer" 
             />
           </div>
 
-          {/* Centered Column: Title, Subtitle, Date selectors */}
-          <div className="flex-1 text-center space-y-2 max-w-2xl">
-            <h3 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 uppercase">
-              Registre Journalier - Suivi du Réel
-            </h3>
-            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          {/* Centered Column: Header Title on One Line, Subtitle, Date selectors */}
+          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+            {/* Upper Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+            
+            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+              REGISTRE JOURNALIER — SUIVI DU RÉEL
+            </h1>
+            
+            {/* Lower Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+
+            {/* Elegant Subtitle with precise spacing */}
+            <p 
+              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
+              style={{ color: '#64748b', letterSpacing: '0.2em' }}
+            >
               Rapport Journalier d'Exploitation • Validation physique et suivi de l'avancement d'exploitation
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <div className="inline-flex items-center gap-2 bg-sky-50/60 border border-sky-100 px-3 py-1.5 rounded-xl shadow-xs">
-                <span className="text-[10px] font-black uppercase text-[#00BFFF] tracking-wider">
+            {/* Date selection and state badges */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
+              <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs">
+                <span className="text-[10px] font-black uppercase text-[#b8860b] tracking-wider">
                   📅 Registre du :
                 </span>
                 <input 
                   type="date"
                   value={selectedDate}
                   onChange={e => setSelectedDate(e.target.value)}
-                  className="bg-white hover:bg-gray-50 text-slate-950 font-extrabold text-[12px] uppercase border border-gray-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#00BFFF]/30 cursor-pointer"
+                  className="bg-white hover:bg-amber-50/30 text-slate-950 font-extrabold text-[12px] uppercase border border-amber-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#b8860b]/30 cursor-pointer transition-colors"
                 />
               </div>
 
               {noPlanFound ? (
-                <div id="no-plan-found-badge" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-850 bg-amber-50 border border-amber-200 rounded-xl shadow-xs">
+                <div id="no-plan-found-badge" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 rounded-xl shadow-xs animate-fade-in">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
                   Saisie Libre (Aucun Plan Théorique)
                 </div>
               ) : (
-                <div className="inline-flex items-center gap-2 bg-emerald-50/55 border border-emerald-100 px-3 py-1.5 rounded-xl shadow-xs">
-                  <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">
+                <div className="inline-flex items-center gap-2 bg-amber-55 border border-amber-200 px-3 py-1.5 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
                     {planFoundType === 'same_date' ? `🔗 Lié au Plan du Jour (${templateDateHint})` : `🔗 Lié au Plan d'Hier (${templateDateHint})`}
                   </span>
                 </div>
@@ -3189,10 +4041,35 @@ export const Production: React.FC = () => {
           </div>
 
           {/* Right Column: Real-time Status counters and view toggle pills */}
-          <div className="flex flex-col items-center lg:items-end gap-3 w-full lg:w-auto">
-            <div className="flex items-center gap-2">
-              <div className="bg-slate-50 px-3.5 py-1.5 border border-gray-150 text-right shadow-xs rounded-xl">
-                <span className="text-[8px] font-black text-slate-500 uppercase block tracking-wider">Métrage Arraché</span>
+          <div className="flex flex-col items-center lg:items-end justify-between gap-4 w-full lg:w-auto self-center lg:self-stretch min-h-[140px]">
+            {/* S Mode vs Archive Mode tabs as PILLED selectors */}
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full max-w-xs md:max-w-none border border-slate-200 shadow-xs">
+              <button 
+                onClick={() => setViewMode('sheet')}
+                className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
+                  viewMode === 'sheet' 
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                📊 Saisie Réel
+              </button>
+              <button 
+                onClick={() => setViewMode('history')}
+                className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
+                  viewMode === 'history' 
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                📋 Archives ({dataHistory.length})
+              </button>
+            </div>
+
+            {/* Quick Action indicators aligned at bottom */}
+            <div className="flex items-center gap-2 mt-auto">
+              <div className="bg-amber-50/50 px-3.5 py-1.5 border border-amber-200/50 text-right shadow-xs rounded-xl">
+                <span className="text-[8px] font-black text-amber-800 uppercase block tracking-wider">Métrage Arraché</span>
                 <span className="text-sm font-black text-slate-850 mt-0.5 block font-mono">
                   {(
                     p1MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? (r.reel.realMeterage === undefined ? r.reel.meterage : r.reel.realMeterage) : 0), 0) +
@@ -3201,8 +4078,8 @@ export const Production: React.FC = () => {
                   ).toFixed(1)} m
                 </span>
               </div>
-              <div className="bg-slate-50 px-3.5 py-1.5 border border-gray-150 text-right shadow-xs rounded-xl">
-                <span className="text-[8px] font-black text-slate-500 uppercase block tracking-wider">Total Wagons</span>
+              <div className="bg-amber-50/50 px-3.5 py-1.5 border border-amber-200/50 text-right shadow-xs rounded-xl">
+                <span className="text-[8px] font-black text-amber-800 uppercase block tracking-wider">Total Wagons</span>
                 <span className="text-sm font-black text-slate-850 mt-0.5 block font-mono">
                   {p1ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
                    p2ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
@@ -3210,38 +4087,14 @@ export const Production: React.FC = () => {
                 </span>
               </div>
             </div>
-
-            {/* S Mode vs Archive Mode tabs as PILLED selectors */}
-            <div className="flex gap-1 p-1 bg-gray-150 rounded-xl w-full max-w-xs md:max-w-none">
-              <button 
-                onClick={() => setViewMode('sheet')}
-                className={`flex-1 px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
-                  viewMode === 'sheet' 
-                    ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50'
-                }`}
-              >
-                📊 Saisie Réel
-              </button>
-              <button 
-                onClick={() => setViewMode('history')}
-                className={`flex-1 px-3.5 py-1.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
-                  viewMode === 'history' 
-                    ? 'bg-white text-gray-950 shadow-sm border border-gray-200' 
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50/50'
-                }`}
-              >
-                📋 Archives ({dataHistory.length})
-              </button>
-            </div>
           </div>
         </div>
 
         {/* RE-LOADING AND SAVING FLOATING STRIP */}
-        <div className="border-t border-gray-100 pt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="border-t border-slate-100 pt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-650 bg-emerald-55 border border-emerald-100 px-2 py-1 rounded-lg font-black uppercase">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Actif en Ligne
+            <span className="inline-flex items-center gap-1 text-[10px] text-amber-800 bg-amber-50 border border-amber-100 px-2 py-1 rounded-lg font-black uppercase">
+              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> Actif en Ligne
             </span>
             <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
               Enregistrements d'avancement SMI • Sécurisés par Firestore
@@ -3250,19 +4103,23 @@ export const Production: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={loadGlobalWorkbook}
-              className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              onClick={() => loadGlobalWorkbook(false, true)}
+              className="bg-gray-50 hover:bg-amber-50/50 text-gray-855 hover:text-[#b8860b] border border-gray-200 hover:border-amber-200 px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
               title="Rafraîchir les données du serveur"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-[#00BFFF]" /> Recharger
+              <RotateCcw className="w-3.5 h-3.5 text-[#b8860b]" /> Recharger
             </button>
             
             <button
               onClick={saveWorkbook}
               disabled={saveStatus === 'saving' || isMonthClosed}
-              className={`font-black px-5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md cursor-pointer ${isMonthClosed ? 'bg-red-700 text-white cursor-not-allowed opacity-50' : 'bg-gradient-to-r from-sky-600 to-[#00BFFF] hover:opacity-90 text-white'}`}
+              className={`font-black px-5 py-1.5 rounded-lg text-[9.5px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg active:translate-y-px ${
+                isMonthClosed 
+                  ? 'bg-red-700 text-white cursor-not-allowed opacity-50 border border-red-800' 
+                  : 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 border border-[#b8860b]/30'
+              }`}
             >
-              <Save className="w-4 h-4" /> 
+              <Save className="w-4 h-4 text-slate-950" /> 
               {isMonthClosed ? '🔒 MOIS CLÔTURÉ (Lecture seule)' : saveStatus === 'saving' ? 'Gravure en cours...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver au Registre SMI'}
             </button>
           </div>
@@ -3318,16 +4175,16 @@ export const Production: React.FC = () => {
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <p className="text-[11px] text-slate-600 font-bold">
-                  Chargement automatique impossible. Utilisez la passerelle pour forcer l'importation de la journée choisie.
+                  Chargement automatique impossible. Sélectionnez la date de la planification à importer (généralement la veille) :
                 </p>
 
                 <div className="flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200/60 p-2 rounded-xl shrink-0">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[8px] font-black uppercase tracking-wider text-[#00BFFF]">Date :</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider text-[#00BFFF]">Date Plan :</span>
                     <input
                       type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
+                      value={bridgeDate}
+                      onChange={(e) => setBridgeDate(e.target.value)}
                       className="bg-white text-slate-900 font-extrabold text-[10px] border border-slate-200 rounded-md px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-[#00BFFF]/50 cursor-pointer"
                     />
                   </div>
@@ -3336,7 +4193,7 @@ export const Production: React.FC = () => {
                     <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Action :</span>
                     <button
                       type="button"
-                      onClick={() => exportPlanningToProduction(selectedDate)}
+                      onClick={() => exportPlanningToProduction(bridgeDate)}
                       disabled={syncingBridge}
                       className="bg-[#00BFFF] hover:bg-sky-500 disabled:bg-slate-300 disabled:text-slate-400 text-white font-black px-3 py-1 cursor-pointer rounded-lg text-[9px] uppercase tracking-wider transition-all shadow-xs flex items-center gap-1 disabled:cursor-not-allowed"
                     >
@@ -3521,9 +4378,9 @@ export const Production: React.FC = () => {
                   <UserCheck className="w-3.5 h-3.5 text-[#8B0000]" />
                   {copyStatus === 'copying' && 'Recherche en cours...'}
                   {copyStatus === 'copied' && '✓ Personnel d\'hier copié !'}
-                  {copyStatus === 'no_data' && `⚠️ Pas d'équipe enregistrée le ${format(subDays(new Date(selectedDate + "T12:00:00"), 1), 'dd/MM/yyyy')}`}
+                  {copyStatus === 'no_data' && `⚠️ Pas d'équipe enregistrée le ${yesterdayDateLabel ? format(yesterdayDateLabel, 'dd/MM/yyyy') : ''}`}
                   {copyStatus === 'error' && '❌ Erreur de copie'}
-                  {copyStatus === 'idle' && `Copier l'équipe d'hier (${format(subDays(new Date(selectedDate + "T12:00:00"), 1), 'dd/MM')})`}
+                  {copyStatus === 'idle' && `Copier l'équipe d'hier (${yesterdayDateLabel ? format(yesterdayDateLabel, 'dd/MM') : ''})`}
                 </button>
 
                 <button
@@ -3597,70 +4454,9 @@ export const Production: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Chef(s) inputs */}
-                      <div className="bg-slate-50 p-4 border border-slate-200/80 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-[#8B0000] text-white">
-                            <HardHat className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">
-                              Chef de Poste Principal (OBLIGATOIRE)
-                            </label>
-                            <EmployeeCell
-                              matricule={state.chiefMatricule}
-                              name={state.chiefName}
-                              onChange={(mat, resName) => {
-                                state.setChiefMatricule(mat);
-                                state.setChiefName(resName);
-                              }}
-                              employees={activeEmployees}
-                              placeholder="Matricule Chef..."
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-slate-700 text-white">
-                            <Plus className="w-5 h-5 text-[#00BFFF]" />
-                          </div>
-                          <div className="flex-1">
-                            <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">
-                              Autre Chef (Optionnel / Si double encadrement)
-                            </label>
-                             <EmployeeCell
-                              matricule={state.secondChiefMatricule}
-                              name={state.secondChiefName}
-                              onChange={(mat, resName) => {
-                                state.setSecondChiefMatricule(mat);
-                                state.setSecondChiefName(resName);
-                              }}
-                              employees={activeEmployees}
-                              placeholder="Matricule Autre Chef..."
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Forage & Minage cards */}
+                      {/* Forage & Minage unified grand table */}
                       <div className="space-y-6">
-                        {renderSectorCards(shiftName, 'Imiter 2', 'border-neutral-300', 'text-neutral-900', 'bg-[#8B0000]')}
-                        {renderSectorCards(shiftName, 'Imiter 1', 'border-sky-300', 'text-sky-950', 'bg-[#00BFFF]')}
-                        {renderSectorCards(shiftName, 'Imiter Est', 'border-teal-300', 'text-teal-950', 'bg-teal-600')}
-                        
-                        {(() => {
-                          const otherRows = rows.filter(r => 
-                            !['imiter 2', 'imiter 1', 'imiter est'].includes((r.sector || '').trim().toLowerCase())
-                          );
-                          if (otherRows.length === 0) return null;
-                          return renderSectorCards(shiftName, 'Autres / Non Classés', 'border-slate-300', 'text-slate-900', 'bg-slate-400');
-                        })()}
-
-                        {rows.length === 0 && (
-                          <div className="text-center p-8 text-slate-400 font-bold bg-slate-50 border-2 border-dashed border-slate-250 rounded uppercase">
-                            Aucun chantier actif. Veuillez ajouter un chantier de minage pour commencer.
-                          </div>
-                        )}
+                        {renderMinageUnifiedTable(shiftName)}
                       </div>
                     </div>
                   );
@@ -3699,14 +4495,32 @@ export const Production: React.FC = () => {
                           ];
 
                           const stats = shiftsList.map(s => {
-                            const holes = s.rows.reduce((sum, r) => sum + (Number(r.realHoles) || 0), 0);
-                            const rounds = s.rows.reduce((sum, r) => sum + (Number(r.realRounds) || 0), 0);
-                            const planned = s.rows.reduce((sum, r) => sum + (Number(r.meterage) || 0), 0);
-                            const real = s.rows.reduce((sum, r) => sum + (Number(r.realMeterage === undefined ? r.meterage : r.realMeterage) || 0), 0);
-                            const anfo = s.rows.reduce((sum, r) => sum + (Number(r.anfo) || 0), 0);
-                            const tovex = s.rows.reduce((sum, r) => sum + (Number(r.tovex) || 0), 0);
-                            const ammorces = s.rows.reduce((sum, r) => sum + (Number(r.ammorces) || 0), 0);
-                            const eff = planned > 0 ? ((real / planned) * 100).toFixed(1) : '0.0';
+                            // Only count rows that have an active chantierId to avoid summing blank preset rows
+                            const activeRows = s.rows.filter(r => r.reel?.chantierId);
+                            const holes = activeRows.reduce((sum, r) => sum + (Number(r.reel?.realHoles) || 0), 0);
+                            const rounds = activeRows.reduce((sum, r) => sum + (Number(r.reel?.realRounds) || 0), 0);
+                            const planned = activeRows.reduce((sum, r) => sum + (Number(r.plan?.meterage) || 0), 0);
+                            const real = activeRows.reduce((sum, r) => {
+                              const rMet = r.reel?.realMeterage !== undefined && r.reel?.realMeterage !== null
+                                ? r.reel.realMeterage
+                                : (r.reel?.meterage !== undefined ? r.reel?.meterage : 0);
+                              return sum + (Number(rMet) || 0);
+                            }, 0);
+                            const anfo = activeRows.reduce((sum, r) => sum + (Number(r.reel?.anfo) || 0), 0);
+                            const tovex = activeRows.reduce((sum, r) => sum + (Number(r.reel?.tovex) || 0), 0);
+                            const ammorces = activeRows.reduce((sum, r) => sum + (Number(r.reel?.ammorces) || 0), 0);
+                            
+                            // Let's compute a PERFECT rate of blast pull (taux d'arrachement):
+                            // Arrachement % = (Real meterage / Theoretical length of drilled holes) * 100
+                            const totalExpectedAdvanceForRealRounds = activeRows.reduce((sum, r) => {
+                              const advanceFactor = r.plan?.barType === '2.4m' || r.reel?.barType === '2.4m' ? 2.3 : 1.7;
+                              return sum + ((r.reel?.realRounds || 0) * advanceFactor);
+                            }, 0);
+                            
+                            const eff = totalExpectedAdvanceForRealRounds > 0 
+                              ? ((real / totalExpectedAdvanceForRealRounds) * 100).toFixed(1)
+                              : (planned > 0 ? ((real / planned) * 100).toFixed(1) : '0.0');
+
                             return { name: s.name, holes, rounds, planned, real, anfo, tovex, ammorces, eff };
                           });
 
@@ -3717,7 +4531,19 @@ export const Production: React.FC = () => {
                           const totalAnfo = stats.reduce((sum, s) => sum + s.anfo, 0);
                           const totalTovex = stats.reduce((sum, s) => sum + s.tovex, 0);
                           const totalAmorces = stats.reduce((sum, s) => sum + s.ammorces, 0);
-                          const totalEff = totalPlanned > 0 ? ((totalReal / totalPlanned) * 100).toFixed(1) : '0.0';
+
+                          // To get the average total arrachement % perfectly:
+                          const totalTheoreticalExpectedAdvance = shiftsList.reduce((sumSh, s) => {
+                            const activeRows = s.rows.filter(r => r.reel?.chantierId);
+                            return sumSh + activeRows.reduce((sumR, r) => {
+                              const advanceFactor = r.plan?.barType === '2.4m' || r.reel?.barType === '2.4m' ? 2.3 : 1.7;
+                              return sumR + ((r.reel?.realRounds || 0) * advanceFactor);
+                            }, 0);
+                          }, 0);
+
+                          const totalEff = totalTheoreticalExpectedAdvance > 0
+                            ? ((totalReal / totalTheoreticalExpectedAdvance) * 100).toFixed(1)
+                            : (totalPlanned > 0 ? ((totalReal / totalPlanned) * 100).toFixed(1) : '0.0');
 
                           return (
                             <>
@@ -3822,9 +4648,18 @@ export const Production: React.FC = () => {
                           return renderDeblayageSectorCards(shiftName, 'Autres / Non Classés', 'border-slate-300', 'text-slate-900', 'bg-slate-400');
                         })()}
 
-                        {deblayageRows.length === 0 && (
-                          <div className="text-center p-8 text-slate-400 font-bold bg-slate-50 border-2 border-dashed border-slate-250 rounded uppercase">
-                            Aucune ligne active. Veuillez ajouter une chargeuse de déblayage pour commencer.
+                         {deblayageRows.length === 0 && (
+                          <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-6 text-center max-w-xl mx-auto my-4 shadow-xs" id={`empty_deblayage_plan_${shiftName.replace(/\s+/g, '_')}`}>
+                            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
+                              <AlertTriangle className="w-6 h-6 text-amber-600" />
+                            </div>
+                            <h4 className="text-xs font-black uppercase text-amber-900 tracking-wider mb-2">
+                              Planification Non Saisie — {shiftName}
+                            </h4>
+                            <p className="text-[11px] text-amber-800 font-bold leading-relaxed">
+                              Aucune planification de déblayage ou de conduite d'engins n'a été enregistrée pour le <span className="underline">{shiftName}</span> à cette date.
+                              Veuillez d'abord saisir le chantier, l'engin et le conducteur dans le <span className="underline">Planning Journalier</span> pour pouvoir ajouter le réalisé.
+                            </p>
                           </div>
                         )}
                       </div>
@@ -3849,8 +4684,8 @@ export const Production: React.FC = () => {
                           <th className="p-3 text-center border border-slate-350 bg-slate-900">Nombre Godets (u)</th>
                           <th className="p-3 text-center border border-slate-350 text-emerald-100 bg-emerald-950/30">Volume Souterrain Estimé</th>
                           <th className="p-3 text-center border border-slate-350 text-blue-105 bg-blue-950/30">Gasoil Pris (L)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-700">Lubrifiant 1 (L/Kg)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-700">Lubrifiant 2 (L/Kg)</th>
+                          <th className="p-3 text-center border border-slate-350 bg-slate-700">Lubrifiant 1 (L)</th>
+                          <th className="p-3 text-center border border-slate-350 bg-slate-700">Lubrifiant 2 (L)</th>
                           <th className="p-3 text-center border border-slate-350 bg-[#8B0000]/25 text-[#8B0000]">Ratio Conso (L/m³)</th>
                           <th className="p-3 text-center border border-slate-350 bg-teal-950/40 text-teal-100">Facteur Remplissage (m³/Godet)</th>
                         </tr>
@@ -3864,18 +4699,22 @@ export const Production: React.FC = () => {
                           ];
 
                           const stats = shiftsList.map(s => {
-                            const godets = s.rows.reduce((sum, r) => sum + (Number(r.godets) || 0), 0);
-                            const volume = s.rows.reduce((sum, r) => sum + (Number(r.volumeEstimated) || 0), 0);
-                            const gasoil = s.rows.reduce((sum, r) => sum + (Number(r.gasoil) || 0), 0);
-                            const lub1 = s.rows.reduce((sum, r) => sum + (Number(r.lubrifiant1Qty) || 0), 0);
-                            const lub2 = s.rows.reduce((sum, r) => sum + (Number(r.lubrifiant2Qty) || 0), 0);
+                            const godets = s.rows.reduce((sum, r) => sum + (Number(r.reel?.godets || r.godets || 0)), 0);
+                            const godetsPlan = s.rows.reduce((sum, r) => sum + (Number(r.plan?.godets || 0)), 0);
+                            const volume = s.rows.reduce((sum, r) => sum + (Number(r.reel?.volumeEstimated || r.volumeEstimated || 0)), 0);
+                            const volumePlan = s.rows.reduce((sum, r) => sum + (Number(r.plan?.volumeEstimated || 0)), 0);
+                            const gasoil = s.rows.reduce((sum, r) => sum + (Number(r.gasoil || r.reel?.gasoil || 0)), 0);
+                            const lub1 = s.rows.reduce((sum, r) => sum + (Number(r.lubrifiant1Qty || r.reel?.lubrifiant1Qty || 0)), 0);
+                            const lub2 = s.rows.reduce((sum, r) => sum + (Number(r.lubrifiant2Qty || r.reel?.lubrifiant2Qty || 0)), 0);
                             const ratio = volume > 0 ? (gasoil / volume).toFixed(3) : '0';
                             const fillFactor = godets > 0 ? (volume / godets).toFixed(2) : '1.50';
-                            return { name: s.name, godets, volume, gasoil, lub1, lub2, ratio, fillFactor };
+                            return { name: s.name, godets, godetsPlan, volume, volumePlan, gasoil, lub1, lub2, ratio, fillFactor };
                           });
 
                           const totalGodets = stats.reduce((sum, d) => sum + d.godets, 0);
+                          const totalGodetsPlan = stats.reduce((sum, d) => sum + d.godetsPlan, 0);
                           const totalVolume = stats.reduce((sum, d) => sum + d.volume, 0);
+                          const totalVolumePlan = stats.reduce((sum, d) => sum + d.volumePlan, 0);
                           const totalGasoil = stats.reduce((sum, d) => sum + d.gasoil, 0);
                           const totalLub1 = stats.reduce((sum, d) => sum + d.lub1, 0);
                           const totalLub2 = stats.reduce((sum, d) => sum + d.lub2, 0);
@@ -3887,11 +4726,17 @@ export const Production: React.FC = () => {
                               {stats.map(s => (
                                 <tr key={s.name} className="hover:bg-slate-50 transition-colors">
                                   <td className="p-3 font-black text-slate-800 border border-slate-200">{s.name}</td>
-                                  <td className="p-3 text-center border border-slate-200 font-mono text-slate-600">{s.godets}</td>
-                                  <td className="p-3 text-center border border-slate-200 font-mono text-emerald-800 bg-emerald-50">{s.volume.toFixed(1)} m³</td>
+                                  <td className="p-3 text-center border border-slate-200 font-mono text-slate-600">
+                                    <div className="text-[10px] text-slate-400 font-bold">P: {s.godetsPlan}</div>
+                                    <div className="font-extrabold text-slate-900">R: {s.godets} u</div>
+                                  </td>
+                                  <td className="p-3 text-center border border-slate-200 font-mono text-emerald-800 bg-emerald-50">
+                                    <div className="text-[10px] text-emerald-600/70 font-bold">P: {s.volumePlan.toFixed(1)} m³</div>
+                                    <div className="font-extrabold text-emerald-950">R: {s.volume.toFixed(1)} m³</div>
+                                  </td>
                                   <td className="p-3 text-center border border-slate-200 font-mono text-blue-800 bg-blue-50/20">{s.gasoil} L</td>
-                                  <td className="p-3 text-center border border-slate-200 font-mono">{s.lub1}</td>
-                                  <td className="p-3 text-center border border-slate-200 font-mono">{s.lub2}</td>
+                                  <td className="p-3 text-center border border-slate-200 font-mono">{s.lub1} L</td>
+                                  <td className="p-3 text-center border border-slate-200 font-mono">{s.lub2} L</td>
                                   <td className="p-3 text-center border border-slate-200 font-mono text-red-750 bg-red-50/25">{s.ratio}</td>
                                   <td className="p-3 text-center border border-slate-200 font-mono text-teal-800 bg-teal-50/20">{s.fillFactor}</td>
                                 </tr>
@@ -3900,11 +4745,17 @@ export const Production: React.FC = () => {
                               {/* Total row */}
                               <tr className="bg-slate-100 text-[#00BFFF] font-black border-t-2 border-slate-350">
                                 <td className="p-3 border border-slate-200 uppercase tracking-widest text-[#00BFFF] text-xs font-black">Total de la Journée</td>
-                                <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalGodets} u.</td>
-                                <td className="p-3 text-center border border-slate-200 font-mono text-emerald-950 bg-emerald-100/30 text-xs">{totalVolume.toFixed(1)} m³</td>
+                                <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">
+                                  <div className="text-[10px] text-slate-500 font-bold">P: {totalGodetsPlan}</div>
+                                  <div className="font-extrabold text-slate-900">R: {totalGodets} u.</div>
+                                </td>
+                                <td className="p-3 text-center border border-slate-200 font-mono text-emerald-950 bg-emerald-100/30 text-xs">
+                                  <div className="text-[10px] text-emerald-700 font-bold">P: {totalVolumePlan.toFixed(1)} m³</div>
+                                  <div className="font-extrabold text-emerald-950">R: {totalVolume.toFixed(1)} m³</div>
+                                </td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-blue-950 bg-blue-100/30 text-xs">{totalGasoil} L</td>
-                                <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalLub1}</td>
-                                <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalLub2}</td>
+                                <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalLub1} L</td>
+                                <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalLub2} L</td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-red-950 bg-red-100/30 text-xs font-black">{totalRatio}</td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-teal-950 bg-teal-100/30 text-xs font-black">{totalFillFactor}</td>
                               </tr>
@@ -3986,9 +4837,24 @@ export const Production: React.FC = () => {
 
                       {/* Extraction single details card */}
                       <div className="max-w-4xl mx-auto">
-                        {(() => {
+                         {(() => {
                           const rowWrapper = extractionRows[0];
-                          if (!rowWrapper) return null;
+                          if (!rowWrapper) {
+                            return (
+                              <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-6 text-center max-w-xl mx-auto my-4 shadow-xs" id={`empty_extraction_plan_${shiftName.replace(/\s+/g, '_')}`}>
+                                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
+                                  <AlertTriangle className="w-6 h-6 text-amber-600" />
+                                </div>
+                                <h4 className="text-xs font-black uppercase text-amber-900 tracking-wider mb-2">
+                                  Planification Non Saisie — {shiftName}
+                                </h4>
+                                <p className="text-[11px] text-amber-800 font-bold leading-relaxed">
+                                  Aucune planification d'extraction (treuil, wagonnage) n'a été enregistrée pour le <span className="underline">{shiftName}</span> à cette date.
+                                  Veuillez d'abord planifier l'extraction dans le <span className="underline">Planning Journalier</span> pour pouvoir ajouter le réalisé.
+                                </p>
+                              </div>
+                            );
+                          }
                           const row = rowWrapper.reel;
                           const plan = rowWrapper.plan;
                           const idx = 0;
@@ -4600,8 +5466,15 @@ export const Production: React.FC = () => {
                             })}
                             {maintenanceRows.length === 0 ? (
                               <tr>
-                                <td colSpan={structureEditMode ? 8 : 7} className="text-center p-8 text-slate-400 font-bold">
-                                  Aucune ligne active. {structureEditMode ? `Cliquez sur "Ajouter une ligne (${shiftName})" pour commencer la saisie.` : 'Aucune maintenance prévue/saisie.'}
+                                <td colSpan={structureEditMode ? 8 : 7} className="text-center p-8 bg-amber-50/20 text-amber-900 border border-amber-200">
+                                  <div className="flex flex-col items-center justify-center py-4 space-y-2 max-w-md mx-auto">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                                    <p className="font-bold text-xs uppercase tracking-wider text-amber-950">Planification Non Saisie — {shiftName}</p>
+                                    <p className="text-[10px] text-amber-800 font-bold leading-relaxed">
+                                      Aucune planification de brigade de maintenance souterraine n'a été enregistrée pour le <span className="underline">{shiftName}</span> à cette date.
+                                      Veuillez d'abord planifier l'équipe de maintenance dans le <span className="underline">Planning Journalier</span> pour pouvoir enregistrer son réalisé.
+                                    </p>
+                                  </div>
                                 </td>
                               </tr>
                             ) : (
@@ -4686,7 +5559,7 @@ export const Production: React.FC = () => {
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="p-5 border-b border-gray-100 bg-slate-50/50">
             <h3 className="text-sm font-black uppercase text-slate-900 tracking-wider">
-              📋 Livre d'Or des Fiches de Poste Consolidées
+              📋 Livre d'Or des Fiches Journalières Consolidées
             </h3>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
               Historique des cahiers scellés dans la base de données de fond
@@ -4697,38 +5570,77 @@ export const Production: React.FC = () => {
             <table className="w-full text-left border-collapse bg-white">
               <thead>
                 <tr className="bg-slate-50 border-b border-gray-150 text-slate-700 text-[10px] uppercase font-black">
-                  <th className="px-6 py-4">Date du cahier</th>
-                  <th className="px-6 py-4">Poste concerné</th>
-                  <th className="px-6 py-4 text-right">Métrage Minage</th>
-                  <th className="px-6 py-4 text-right">Total Wagons</th>
-                  <th className="px-6 py-4">Dernier Enregistrement</th>
-                  <th className="px-6 py-4 text-center">Statut</th>
+                  <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-left align-middle font-black">Date du cahier</th>
+                  <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-center align-middle font-black">Métrage Planifié</th>
+                  <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-center align-middle font-black">Métrage Arraché</th>
+                  <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-center align-middle font-black">Déblayage Planifié</th>
+                  <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-center align-middle font-black">Déblayage Réalisé</th>
+                  <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-center align-middle font-black">Wagons Planifié</th>
+                  <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-center align-middle font-black">Wagons Extraits</th>
+                  <th colSpan={3} className="px-4 py-2 border-r border-slate-200 text-center bg-amber-50/50 text-amber-900 border-b border-slate-200 font-black">Consommation Explosifs</th>
+                  <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-left align-middle font-black">Secrétaire</th>
+                  <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-left align-middle font-black">Dernier Enregistrement</th>
+                  <th rowSpan={2} className="px-4 py-3 text-center align-middle font-black">Statut</th>
+                </tr>
+                <tr className="bg-slate-50 border-b border-gray-150 text-slate-700 text-[9px] uppercase font-black">
+                  <th className="px-2 py-1.5 border-r border-slate-200 text-center bg-amber-50/25 text-amber-800 font-black">ANFO</th>
+                  <th className="px-2 py-1.5 border-r border-slate-200 text-center bg-amber-50/25 text-amber-800 font-black">TOVEX</th>
+                  <th className="px-2 py-1.5 border-r border-slate-200 text-center bg-amber-50/25 text-amber-800 font-black">AMORCES</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-xs font-medium text-slate-700">
-                {dataHistory.map((rec) => (
-                  <tr key={rec.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-mono font-black text-slate-900">{rec.date}</td>
-                    <td className="px-6 py-4">
-                      <span className="bg-slate-100 text-slate-800 border border-slate-200 px-2.5 py-1 rounded-lg font-black uppercase text-[9px] tracking-wider">
-                        {rec.post}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-black text-emerald-850 font-mono text-xs">{rec.totalMeterage?.toFixed(1)} m</td>
-                    <td className="px-6 py-4 text-right font-black text-sky-850 font-mono text-xs">{rec.totalWagons || 0} u</td>
-                    <td className="px-6 py-4 font-semibold text-slate-500">
-                      {rec.lastUpdated ? format(new Date(rec.lastUpdated), 'dd/MM/yyyy HH:mm') : '--'}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-500/20 text-emerald-800 rounded-lg font-extrabold text-[9px] uppercase tracking-wider">
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-650" /> Scellé
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-gray-100 text-xs font-semibold text-slate-700">
+                {dataHistory.map((rec) => {
+                  const formattedDate = rec.date ? rec.date.split('-').reverse().join('/') : rec.id;
+                  return (
+                    <tr key={rec.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-3 font-mono font-black text-slate-900 border-r border-slate-150">{formattedDate}</td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-150">
+                        {rec.totalMeteragePlanned !== undefined ? `${rec.totalMeteragePlanned.toFixed(1)} m` : '--'}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono font-black text-emerald-800 bg-emerald-50/15 border-r border-slate-150">
+                        {rec.totalMeterageRealised !== undefined ? `${rec.totalMeterageRealised.toFixed(1)} m` : (rec.totalMeterage !== undefined ? `${rec.totalMeterage.toFixed(1)} m` : '--')}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-150">
+                        {rec.totalDeblayagePlanned !== undefined ? `${rec.totalDeblayagePlanned.toFixed(1)} m³` : '--'}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono font-black text-blue-800 bg-blue-50/15 border-r border-slate-150">
+                        {rec.totalDeblayageRealised !== undefined ? `${rec.totalDeblayageRealised.toFixed(1)} m³` : '--'}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-150">
+                        {rec.totalWagonsPlanned !== undefined ? `${rec.totalWagonsPlanned} u` : '--'}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono font-black text-sky-850 bg-sky-50/15 border-r border-slate-150">
+                        {rec.totalWagonsRealised !== undefined ? `${rec.totalWagonsRealised} u` : (rec.totalWagons !== undefined ? `${rec.totalWagons} u` : '--')}
+                      </td>
+                      <td className="px-3 py-3 text-center font-mono text-amber-800 bg-amber-50/5 border-r border-slate-150">
+                        {rec.totalAnfo !== undefined ? `${rec.totalAnfo.toFixed(0)} kg` : '--'}
+                      </td>
+                      <td className="px-3 py-3 text-center font-mono text-amber-800 bg-amber-50/5 border-r border-slate-150">
+                        {rec.totalTovex !== undefined ? `${rec.totalTovex.toFixed(1)} kg` : '--'}
+                      </td>
+                      <td className="px-3 py-3 text-center font-mono text-amber-800 bg-amber-50/5 border-r border-slate-150">
+                        {rec.totalAmorces !== undefined ? `${rec.totalAmorces} u` : '--'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-800 font-bold border-r border-slate-150">
+                        <span className="inline-flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          {rec.secretary || 'Secrétaire'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-500 border-r border-slate-150">
+                        {rec.lastUpdated ? format(new Date(rec.lastUpdated), 'dd/MM/yyyy HH:mm') : '--'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-500/20 text-emerald-800 rounded-lg font-extrabold text-[9px] uppercase tracking-wider">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-650" /> Scellé
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {dataHistory.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="text-center py-20 italic text-slate-400 font-bold uppercase tracking-widest font-mono text-[10px]">
+                    <td colSpan={13} className="text-center py-20 italic text-slate-400 font-bold uppercase tracking-widest font-mono text-[10px]">
                       Aucune fiche scellée trouvée dans les registres.
                     </td>
                   </tr>
@@ -4738,6 +5650,68 @@ export const Production: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Custom Beautiful Toast Notification for Hydromines */}
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="fixed bottom-6 right-6 z-50 max-w-sm bg-white border border-slate-100 shadow-2xl rounded-2xl flex flex-col p-4 border-l-4 border-l-emerald-500 overflow-hidden"
+          >
+            <div className="flex items-start gap-3">
+              {/* Mini-Logo Hydromines */}
+              <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shrink-0 shadow-sm relative overflow-hidden">
+                <div className="absolute inset-0 bg-radial-gradient from-blue-500/20 to-transparent"></div>
+                {/* Customized emblem representing Water and Mine/Mountain */}
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                </svg>
+              </div>
+
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between gap-4">
+                  <h4 className="text-[11px] font-black uppercase text-slate-950 tracking-widest">
+                    SMI HYDROMINES
+                  </h4>
+                  <button 
+                    onClick={() => setShowSuccessToast(false)}
+                    className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5 rounded transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-emerald-650 font-extrabold uppercase tracking-wider">
+                  ✓ Enregistrement Confirmé
+                </p>
+                <p className="text-[11px] text-slate-700 font-bold leading-relaxed">
+                  {successToastMsg}
+                </p>
+              </div>
+            </div>
+            
+            {/* Micro loading progress line */}
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-100">
+              <div 
+                className="h-full bg-emerald-500 origin-left w-full" 
+                style={{ 
+                  animation: 'shrinkWidth 5000ms linear forwards' 
+                }}
+              ></div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Keyframes Style */}
+      <style>{`
+        @keyframes shrinkWidth {
+          from { transform: scaleX(1); }
+          to { transform: scaleX(0); }
+        }
+      `}</style>
     </div>
   );
 };

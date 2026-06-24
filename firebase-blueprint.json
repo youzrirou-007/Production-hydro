@@ -201,6 +201,22 @@
         "details": { "type": "string" }
       },
       "required": ["date", "deletedBy", "deletedAt"]
+    },
+    "ModificationRequest": {
+      "title": "ModificationRequest",
+      "description": "Request to modify/reopen a locked planning sheet",
+      "type": "object",
+      "properties": {
+        "requestedBy": { "type": "string" },
+        "requestedByUid": { "type": "string" },
+        "requestedAt": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "approvedBy": { "type": "string" },
+        "approvedAt": { "type": "string" },
+        "reopenUntil": { "type": "string" }
+      },
+      "required": ["requestedBy", "requestedByUid", "requestedAt", "reason", "status"]
     }
   },
   "firestore": {
@@ -215,6 +231,7 @@
     "/personnel": { "schema": "Personnel", "description": "Employee database" },
     "/rotations_history": { "schema": "RotationHistory", "description": "Weekly rotation logs" },
     "/daily_planning_sheets": { "schema": "DailyPlanningSheet", "description": "Daily planning sheet records" },
+    "/daily_planning_sheets/{sheetId}/modification_requests": { "schema": "ModificationRequest", "description": "Requests to reopen locked sheets" },
     "/planning": { "schema": "Planning", "description": "Planning assignments" },
     "/production_history": { "schema": "ProductionHistory", "description": "Workbook validation and action logs" },
     "/deleted_plannings_log": { "schema": "DeletedPlanningLog", "description": "Deleted planning logs" }

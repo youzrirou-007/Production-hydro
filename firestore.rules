@@ -84,6 +84,13 @@ service cloud.firestore {
         && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary'])
         && request.resource.data.date == sheetId;
       allow delete: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+
+      match /modification_requests/{requestId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && hasRole(['admin', 'direction']);
+        allow delete: if isSignedIn() && hasRole(['admin', 'direction']);
+      }
     }
 
     // Deleted Plannings Log
@@ -121,6 +128,14 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief']);
+    }
+
+    // Modification Requests subcollection & collection group
+    match /{path=**}/modification_requests/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && hasRole(['admin', 'direction']);
+      allow delete: if isSignedIn() && hasRole(['admin', 'direction']);
     }
   }
 }

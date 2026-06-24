@@ -1137,37 +1137,54 @@ export const RotationPoste: React.FC = () => {
       )}
 
       {/* Unified Elegant Header Banner with Enlarged Logo and Centered Title */}
-      <div id="unified-planning-banner" className="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
-          {/* Logo Column */}
-          <div className="flex-shrink-0 animate-fade-in">
+      <div 
+        id="unified-planning-banner" 
+        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
+        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+      >
+        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+          <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="HydroMines Logo" 
-              className="h-24 w-24 md:h-28 md:w-28 object-contain rounded-xl border border-gray-150 p-1.5 bg-white shadow-sm" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer" 
             />
           </div>
 
-          {/* Centered Column: Title, Subtitle, Date & Shift controls */}
-          <div className="flex-1 text-center lg:text-left space-y-2 max-w-2xl">
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-950 uppercase">
-              <span className="text-[#00BFFF]">Hydro</span><span className="text-[#8B0000]">mines</span> (SMI)
+          {/* Centered Column: Header Title on One Line, Subtitle, Date & Shift controls */}
+          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+            {/* Upper Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+            
+            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+              CHANGEMENT DE POSTE HEBDOMADAIRE
             </h1>
-            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-gray-500">
-              Changement de Poste SMI • Équipes Tournantes & Alignement des Ordres du Samedi
+            
+            {/* Lower Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
+
+            {/* Elegant Subtitle with precise spacing */}
+            <p 
+              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
+              style={{ color: '#64748b', letterSpacing: '0.2em' }}
+            >
+              HydroMines (SMI) • Équipes Tournantes & Alignement des Ordres d'Exploitation
             </p>
 
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2">
-              <div className="inline-flex items-center gap-2 bg-sky-50/60 border border-sky-100 px-3 py-1.5 rounded-xl shadow-xs">
-                <CalendarDays className="w-4 h-4 text-sky-600" />
-                <span className="text-[10px] font-black uppercase text-sky-700 tracking-wider">
+            {/* Centered information/shift capsule */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
+              <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs">
+                <CalendarDays className="w-4 h-4 text-amber-700" />
+                <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
                   Cible d'application : <strong>Lundi {targetDateStr}</strong>
                 </span>
               </div>
 
               {hasDraft && (
-                <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-xl">
+                <span className="inline-flex items-center gap-1.5 bg-amber-55 text-amber-800 border border-amber-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-xl shadow-xs">
                   📝 Brouillon en cours chargé
                 </span>
               )}
@@ -1175,7 +1192,7 @@ export const RotationPoste: React.FC = () => {
           </div>
 
           {/* Validation actions zone */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-end gap-3 self-center lg:self-stretch min-h-[100px]">
             {/* Save Draft Button */}
             <button
               onClick={saveDraftToCloud}
@@ -1187,12 +1204,12 @@ export const RotationPoste: React.FC = () => {
               }`}
               title="Enregistrer les modifications actuelles comme brouillon"
             >
-              <Save className="w-4 h-4 text-sky-600" />
+              <Save className="w-4 h-4 text-sky-650" />
               {isSavingDraft ? 'Sauvegarde...' : 'Sauvegarder Brouillon'}
             </button>
 
             {validated ? (
-              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-250 text-emerald-800 px-4 py-3 rounded-xl shadow-xs font-black uppercase tracking-wide text-[10px]">
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-250 text-emerald-800 px-4 py-3.5 rounded-xl shadow-xs font-black uppercase tracking-wide text-[10px]">
                 <Check className="w-4.5 h-4.5 text-emerald-600 fill-emerald-100" />
                 <span>Rotation Validée & active</span>
               </div>
@@ -1200,13 +1217,13 @@ export const RotationPoste: React.FC = () => {
               <button
                 onClick={validateWeeklyRotation}
                 disabled={loading || employees.length === 0}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-sm text-xs font-black uppercase tracking-widest transition-all cursor-pointer border ${
+                className={`flex items-center gap-2 px-5 py-3.5 rounded-xl shadow-md text-xs font-black uppercase tracking-widest transition-all cursor-pointer border ${
                   loading || employees.length === 0
                     ? 'bg-neutral-100 text-neutral-450 border-neutral-200 cursor-not-allowed'
-                    : 'bg-[#00BFFF] hover:bg-sky-500 text-white border-transparent'
+                    : 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 border border-[#b8860b]/30'
                 }`}
               >
-                <ArrowLeftRight className="w-4.5 h-4.5" />
+                <ArrowLeftRight className="w-4.5 h-4.5 text-slate-950" />
                 Valider {employees.length} rotations
               </button>
             )}
