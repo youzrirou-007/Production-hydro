@@ -47,6 +47,16 @@ import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 import { SectorsCompare } from '../components/SectorsCompare';
 import { GlobalRankings } from '../components/GlobalRankings';
 import { HistoryTrends } from '../components/HistoryTrends';
+import { ExpressDirectionScorecard } from '../components/ExpressDirectionScorecard';
+import { ChantierAnalysisPremium } from '../components/ChantierAnalysisPremium';
+import { BureImiterEstPremium } from '../components/BureImiterEstPremium';
+import { SmartAlertsCenter } from '../components/SmartAlertsCenter';
+import { 
+  calculateMinerStats, 
+  calculateDriverStats, 
+  calculateChiefStats, 
+  calculateAssistantMinerStats 
+} from '../lib/rhCalculations';
 
 // Timezone safe shift for date calculation
 const getPreviousDateStr = (dateStr: string) => {
@@ -65,7 +75,8 @@ export const AnalyseDashboard: React.FC = () => {
   const [filterMonth, setFilterMonth] = useState(format(new Date(), 'yyyy-MM'));
   
   // Tabs State
-  const [activeTab, setActiveTab] = useState<'cockpit' | 'sectors_compare' | 'rankings' | 'trends' | 'bure' | 'secteurs' | 'rh' | 'materiel'>('cockpit');
+  const [activeTab, setActiveTab] = useState<'cockpit' | 'alerts' | 'chantiers_premium' | 'sectors_compare' | 'rankings' | 'trends' | 'bure' | 'secteurs' | 'rh' | 'materiel'>('cockpit');
+  const [hrSearchMatricule, setHrSearchMatricule] = useState('');
   
   // Drilldown sub-filters inside Secteurs tab
   const [selectedPosteFilter, setSelectedPosteFilter] = useState<'Tous' | 'Poste 1' | 'Poste 2' | 'Poste 3'>('Tous');
@@ -887,6 +898,8 @@ export const AnalyseDashboard: React.FC = () => {
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-px">
         {[
           { id: 'cockpit', label: 'Cockpit Direction', icon: <Activity className="w-4 h-4" /> },
+          { id: 'alerts', label: "Centre d'Alertes", icon: <ShieldAlert className="w-4 h-4 text-rose-500 animate-pulse" /> },
+          { id: 'chantiers_premium', label: 'Analyse Chantiers', icon: <Gauge className="w-4 h-4" /> },
           { id: 'sectors_compare', label: 'Comparatif Secteurs', icon: <Layers className="w-4 h-4" /> },
           { id: 'rankings', label: 'Classements & Palmarès', icon: <Award className="w-4 h-4" /> },
           { id: 'trends', label: 'Historique & Tendances', icon: <TrendingUp className="w-4 h-4" /> },
@@ -931,6 +944,23 @@ export const AnalyseDashboard: React.FC = () => {
             </div>
           ) : (
             <>
+              {/* TAB: ALERTS CENTER */}
+              {activeTab === 'alerts' && (
+                <SmartAlertsCenter 
+                  allProductionDocs={allProductionDocs}
+                  allPlanningSheets={allPlanningSheets}
+                />
+              )}
+
+              {/* TAB: CHANTIERS PREMIUM */}
+              {activeTab === 'chantiers_premium' && (
+                <ChantierAnalysisPremium 
+                  allProductionDocs={allProductionDocs}
+                  allPlanningSheets={allPlanningSheets}
+                  chantiers={chantiers}
+                />
+              )}
+
               {/* TAB: COMPARATIF SECTEURS */}
               {activeTab === 'sectors_compare' && (
                 <SectorsCompare 
@@ -969,6 +999,12 @@ export const AnalyseDashboard: React.FC = () => {
               {/* TAB 1: COCKPIT DIRECTION GÉNÉRALE */}
               {activeTab === 'cockpit' && (
                 <div className="space-y-8">
+                  {/* Vue Direction Générale Express */}
+                  <ExpressDirectionScorecard 
+                    allProductionDocs={allProductionDocs}
+                    allPlanningSheets={allPlanningSheets}
+                  />
+
                   {/* KPI Row */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                     {/* Efficacite Globale */}
@@ -1164,204 +1200,19 @@ export const AnalyseDashboard: React.FC = () => {
                   )}
 
                   {/* AUTOMATIC ALERTS SYSTEM */}
-                  <div className="bg-white border border-gray-150 rounded-2xl p-6 space-y-4">
-                    <h3 className="text-xs font-black uppercase text-slate-800 tracking-wide flex items-center gap-2">
-                      <ShieldAlert className="w-4 h-4 text-amber-600 animate-pulse" />
-                      Anomalies & Alertes Cliniques Automatisées ({currentAlerts.length})
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {/* Red */}
-                      <div className="border border-red-100 rounded-xl p-4 bg-red-50/10 space-y-3">
-                        <div className="border-b border-red-100 pb-1.5 flex items-center justify-between">
-                          <span className="text-red-950 text-[10px] font-black uppercase">Rouges (Sévères)</span>
-                          <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
-                        </div>
-                        <div className="space-y-2 overflow-y-auto max-h-48 custom-scrollbar">
-                          {currentAlerts.filter(a => a.type === 'red').map((alert, idx) => (
-                            <div key={idx} className="bg-white border border-red-100 rounded-lg p-2.5 text-[9.5px] font-bold">
-                              <span className="text-slate-800 block leading-tight">{alert.message}</span>
-                              <span className="text-slate-400 text-[8.5px] block mt-1 uppercase">{alert.sub}</span>
-                            </div>
-                          ))}
-                          {currentAlerts.filter(a => a.type === 'red').length === 0 && (
-                            <div className="text-center py-4 text-slate-400 text-[9px] uppercase font-bold">Aucune alerte sévère</div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Amber */}
-                      <div className="border border-amber-100 rounded-xl p-4 bg-amber-50/10 space-y-3">
-                        <div className="border-b border-amber-100 pb-1.5 flex items-center justify-between">
-                          <span className="text-amber-950 text-[10px] font-black uppercase">Ambre (Attention)</span>
-                          <span className="w-2 h-2 rounded-full bg-amber-600" />
-                        </div>
-                        <div className="space-y-2 overflow-y-auto max-h-48 custom-scrollbar">
-                          {currentAlerts.filter(a => a.type === 'amber').map((alert, idx) => (
-                            <div key={idx} className="bg-white border border-amber-100 rounded-lg p-2.5 text-[9.5px] font-bold">
-                              <span className="text-slate-800 block leading-tight">{alert.message}</span>
-                              <span className="text-slate-400 text-[8.5px] block mt-1 uppercase">{alert.sub}</span>
-                            </div>
-                          ))}
-                          {currentAlerts.filter(a => a.type === 'amber').length === 0 && (
-                            <div className="text-center py-4 text-slate-400 text-[9px] uppercase font-bold">Aucune alerte vigilance</div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Blue */}
-                      <div className="border border-blue-100 rounded-xl p-4 bg-blue-50/10 space-y-3">
-                        <div className="border-b border-blue-100 pb-1.5 flex items-center justify-between">
-                          <span className="text-blue-950 text-[10px] font-black uppercase">Bleu (Info Technique)</span>
-                          <span className="w-2 h-2 rounded-full bg-blue-600" />
-                        </div>
-                        <div className="space-y-2 overflow-y-auto max-h-48 custom-scrollbar">
-                          {currentAlerts.filter(a => a.type === 'blue').map((alert, idx) => (
-                            <div key={idx} className="bg-white border border-blue-100 rounded-lg p-2.5 text-[9.5px] font-bold">
-                              <span className="text-slate-800 block leading-tight">{alert.message}</span>
-                              <span className="text-slate-400 text-[8.5px] block mt-1 uppercase">{alert.sub}</span>
-                            </div>
-                          ))}
-                          {currentAlerts.filter(a => a.type === 'blue').length === 0 && (
-                            <div className="text-center py-4 text-slate-400 text-[9px] uppercase font-bold">Aucune alerte technique</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <SmartAlertsCenter 
+                    allProductionDocs={allProductionDocs}
+                    allPlanningSheets={allPlanningSheets}
+                  />
                 </div>
               )}
 
               {/* TAB 2: FOCUS BURE IMITER EST (Extraction stratégique) */}
               {activeTab === 'bure' && (
-                <div className="space-y-8">
-                  <div className="border border-indigo-100 bg-indigo-50/10 p-5 rounded-2xl flex items-center gap-4">
-                    <ShieldAlert className="w-10 h-10 text-indigo-600 shrink-0" />
-                    <div>
-                      <h4 className="text-xs font-black uppercase text-indigo-950 tracking-wider">Couloir d'extraction stratégique Bure N340</h4>
-                      <p className="text-[10px] text-slate-500 leading-normal max-w-2xl">
-                        Le bure d'Imiter Est est le cœur d'évacuation de la production d'abattage de SMI. L'analyse ci-dessous centralise l'avancement des brigades de treuillage, les volumes cumulés et le taux d'évacuation du stérile (wagons wagons wagons).
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 3 Shifts Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {['Poste 1', 'Poste 2', 'Poste 3'].map((pKey) => {
-                      const row = metrics.consolidatedExtractionRows.find(r => r.poste === pKey);
-                      const reel = row?.reel || {};
-                      const plan = row?.plan || {};
-                      const actW = Number(reel.wagonsActual || row?.wagonsActual || 0);
-                      const targetW = Number(reel.wagonsTarget || plan.wagonsTarget || 48);
-                      const rate = targetW > 0 ? (actW / targetW) * 100 : 0;
-                      const sterile = Number(reel.sterileBureImiterEst || row?.sterileBureImiterEst || 0);
-
-                      const crew = [reel.treuilliste, reel.equipier1, reel.equipier2, reel.equipier3, reel.equipier4].filter(Boolean);
-
-                      return (
-                        <div key={pKey} className="bg-white border border-gray-150 rounded-2xl p-5 shadow-2xs flex flex-col justify-between">
-                          <div>
-                            <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-3">
-                              <span className="text-xs font-black uppercase text-slate-800">{pKey}</span>
-                              <span className={`px-2 py-0.5 text-[8px] font-black rounded uppercase ${getPerformanceColor(rate)}`}>
-                                {rate.toFixed(0)}% Évacués
-                              </span>
-                            </div>
-
-                            <div className="flex justify-between items-baseline mb-4">
-                              <div>
-                                <span className="text-2xl font-black text-slate-800">{actW} <span className="text-xs font-bold text-slate-400">wg</span></span>
-                                <span className="text-[8.5px] text-slate-400 block font-bold uppercase mt-0.5">Cible : {targetW} wg</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-xs font-black text-[#b8860b] block">{sterile} Wg</span>
-                                <span className="text-[8.5px] text-slate-400 font-bold uppercase">Stérile</span>
-                              </div>
-                            </div>
-
-                            <div className="space-y-1 bg-slate-50 p-2.5 rounded-xl border border-gray-100">
-                              <span className="text-[8.5px] text-slate-400 font-extrabold uppercase block mb-1">Équipe de poste :</span>
-                              {crew.length > 0 ? crew.map((member, mIdx) => (
-                                <span key={mIdx} className="text-[9px] font-black text-slate-700 uppercase block truncate">
-                                  {mIdx === 0 ? '⚓ ' : '👥 '} {getPersonnelName(member)}
-                                </span>
-                              )) : (
-                                <span className="text-[9px] text-slate-400 font-bold block">Aucun treuilliste affecté</span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden mt-4">
-                            <div className={`h-full ${getPerformanceBarColor(rate)}`} style={{ width: `${Math.min(100, rate)}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Extraction Big Banner */}
-                  <div className="bg-[#0f172a] text-white p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-6 border border-gray-800">
-                    <div className="space-y-1">
-                      <span className="text-[#ffd700] text-[9px] font-black uppercase tracking-widest block">Bilan Consolidé Bure</span>
-                      <h4 className="text-sm font-black uppercase text-white">Production totale & tonnage de la période</h4>
-                      <p className="text-[10px] text-slate-400 font-medium">Cadence estimée de chargement avec densité moyenne de 1.4 tonnes par wagon.</p>
-                    </div>
-
-                    <div className="flex gap-6 shrink-0 text-center">
-                      <div className="px-3.5 py-1.5 bg-slate-800 rounded-xl min-w-[85px] border border-slate-700">
-                        <span className="text-base font-black text-white block">{metrics.totalRealWagons}</span>
-                        <span className="text-[8px] text-slate-400 font-bold uppercase">Wagons Réels</span>
-                      </div>
-                      <div className="px-3.5 py-1.5 bg-slate-800 rounded-xl min-w-[85px] border border-slate-700">
-                        <span className="text-base font-black text-[#ffd700] block">{(metrics.totalRealWagons * 1.4).toFixed(1)} T</span>
-                        <span className="text-[8px] text-[#ffd700] font-bold uppercase">Tonnage</span>
-                      </div>
-                      <div className="px-3.5 py-1.5 bg-slate-800 rounded-xl min-w-[85px] border border-slate-700">
-                        <span className="text-base font-black text-teal-400 block">{metrics.totalRealSterile} Wg</span>
-                        <span className="text-[8px] text-slate-400 font-bold uppercase">Stérile</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bure Minage and Deblayage Specific Rows */}
-                  <div className="bg-white border border-gray-150 rounded-2xl p-6 space-y-4">
-                    <h3 className="text-xs font-black uppercase text-slate-800">Activités Directes de Chantier Forées & Déblayées au Bure</h3>
-                    {metrics.sectorBreakdown.bureImiterEst.minageRows.length === 0 && metrics.sectorBreakdown.bureImiterEst.deblayageRows.length === 0 ? (
-                      <p className="text-[10px] text-slate-400 font-bold uppercase text-center py-4 bg-slate-50 rounded-xl">
-                        Aucun Forage/Déblayage direct enregistré sur le Bure (Ressources concentrées sur le treuillage).
-                      </p>
-                    ) : (
-                      <div className="space-y-4">
-                        {metrics.sectorBreakdown.bureImiterEst.minageRows.length > 0 && (
-                          <div className="overflow-x-auto border border-gray-100 rounded-xl">
-                            <table className="w-full text-left border-collapse text-[10px]">
-                              <thead>
-                                <tr className="bg-slate-100 text-slate-700 font-black uppercase">
-                                  <th className="p-2">Poste</th>
-                                  <th className="p-2">Chantier / Galerie</th>
-                                  <th className="p-2">Mineur</th>
-                                  <th className="p-2 text-center">Trous Forés</th>
-                                  <th className="p-2 text-center">Réalisé (m)</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-100">
-                                {metrics.sectorBreakdown.bureImiterEst.minageRows.map((r, i) => (
-                                  <tr key={i} className="hover:bg-slate-50">
-                                    <td className="p-2 text-[#b8860b] font-black">{r.poste}</td>
-                                    <td className="p-2 uppercase font-black">{getChantierName(r.reel?.chantierId)}</td>
-                                    <td className="p-2 uppercase">{getPersonnelName(r.reel?.minerMatricule)}</td>
-                                    <td className="p-2 text-center font-mono">{r.reel?.realHoles || 0}</td>
-                                    <td className="p-2 text-center font-mono font-black">{r.reel?.realMeterage || 0} m</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <BureImiterEstPremium 
+                  allProductionDocs={allProductionDocs}
+                  allPlanningSheets={allPlanningSheets}
+                />
               )}
 
               {/* TAB 3: SECTEURS & POSTES (Drilldown and Comparison) */}
@@ -1652,6 +1503,162 @@ export const AnalyseDashboard: React.FC = () => {
                         </table>
                       </div>
                     </div>
+                  </div>
+
+                  {/* PREMIUM DYNAMIC HR INDIVIDUAL PROFILE ENGINE (MODULE 6) */}
+                  <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-6 space-y-4 shadow-lg">
+                    <div className="border-b border-slate-800 pb-3">
+                      <span className="text-[#ffd700] text-[8.5px] font-black uppercase tracking-widest block">Module Préparatoire aux Dossiers RH</span>
+                      <h3 className="text-xs font-black uppercase tracking-wide text-white mt-1">Calculateur de Rendement Individuel Premium</h3>
+                      <p className="text-[9.5px] text-slate-400 font-medium leading-normal mt-1">
+                        Recherche et calcule instantanément l'empreinte de rendement d'un agent de la SMI à partir des tables Firestore de Forage, Déblayage et Extraction.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 items-end">
+                      <div className="w-full sm:w-80">
+                        <label className="text-[8.5px] text-slate-400 uppercase font-black block mb-1.5">Sélectionner ou Saisir le Matricule de l'Agent</label>
+                        <select 
+                          value={hrSearchMatricule}
+                          onChange={(e) => setHrSearchMatricule(e.target.value)}
+                          className="w-full bg-slate-800 border border-slate-700 text-xs font-black uppercase text-white rounded-xl px-3 py-2.5 outline-none cursor-pointer"
+                        >
+                          <option value="">-- Choisir un agent actif --</option>
+                          {employees.map(emp => (
+                            <option key={emp.id} value={emp.matricule || emp.id}>
+                              {emp.name || emp.id} ({emp.matricule || 'Sans matricule'})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="w-full sm:w-auto">
+                        <input 
+                          type="text" 
+                          placeholder="Saisir matricule direct (ex: M001)"
+                          value={hrSearchMatricule}
+                          onChange={(e) => setHrSearchMatricule(e.target.value)}
+                          className="w-full bg-slate-800 border border-slate-700 text-xs font-black uppercase text-white rounded-xl px-3 py-2.5 outline-none placeholder:text-slate-500"
+                        />
+                      </div>
+                    </div>
+
+                    {hrSearchMatricule ? (() => {
+                      const mat = hrSearchMatricule.toUpperCase();
+                      const miner = calculateMinerStats(mat, allProductionDocs);
+                      const driver = calculateDriverStats(mat, allProductionDocs);
+                      const chief = calculateChiefStats(mat, allProductionDocs, allPlanningSheets);
+                      const assistant = calculateAssistantMinerStats(mat, allProductionDocs);
+
+                      const hasMinerData = miner.totalRounds > 0;
+                      const hasDriverData = driver.totalVolume > 0;
+                      const hasChiefData = chief.shiftsLed > 0;
+                      const hasAssistantData = assistant.roundsAssisted > 0;
+
+                      if (!hasMinerData && !hasDriverData && !hasChiefData && !hasAssistantData) {
+                        return (
+                          <div className="bg-slate-800/40 border border-slate-750 p-4 rounded-xl text-center text-slate-400 text-[10px] uppercase font-black">
+                            Aucune activité de production brute détectée pour le matricule {mat} sur la période sélectionnée.
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                          {/* Miner Card */}
+                          {hasMinerData && (
+                            <div className="bg-slate-800 border border-slate-750 rounded-xl p-4.5 space-y-3.5">
+                              <span className="text-[9px] font-black text-[#ffd700] uppercase tracking-wide block border-b border-slate-750 pb-1.5">Profil : Mineur de Tir</span>
+                              <div className="grid grid-cols-2 gap-3.5">
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Mètres Forés</span>
+                                  <div className="text-sm font-mono font-black text-white">{miner.totalMeters.toFixed(1)} m</div>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Rendement de Tir</span>
+                                  <div className="text-sm font-mono font-black text-emerald-400">{miner.avgYield.toFixed(2)} m/v</div>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Explosifs Totaux</span>
+                                  <div className="text-sm font-mono font-black text-white">{miner.totalExplosives} kg</div>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Consommation Spécifique</span>
+                                  <div className="text-sm font-mono font-black text-rose-400">{miner.specificExplosiveConsumption.toFixed(2)} kg/m</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Driver Card */}
+                          {hasDriverData && (
+                            <div className="bg-slate-800 border border-slate-750 rounded-xl p-4.5 space-y-3.5">
+                              <span className="text-[9px] font-black text-sky-400 uppercase tracking-wide block border-b border-slate-750 pb-1.5">Profil : Conducteur LHD</span>
+                              <div className="grid grid-cols-2 gap-3.5">
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Volume Déblayé</span>
+                                  <div className="text-sm font-mono font-black text-white">{driver.totalVolume.toFixed(1)} m³</div>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Vol. Moyen / Godet</span>
+                                  <div className="text-sm font-mono font-black text-sky-400">{driver.avgVolumePerGodet.toFixed(2)} m³/gd</div>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Gasoil Consommé</span>
+                                  <div className="text-sm font-mono font-black text-white">{driver.totalGasoil} L</div>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Ratio Énergétique</span>
+                                  <div className="text-sm font-mono font-black text-amber-400">{driver.specificGasoilRatio.toFixed(2)} L/m³</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Chief Card */}
+                          {hasChiefData && (
+                            <div className="bg-slate-800 border border-slate-750 rounded-xl p-4.5 space-y-3.5">
+                              <span className="text-[9px] font-black text-purple-400 uppercase tracking-wide block border-b border-slate-750 pb-1.5">Profil : Chef d'Équipe</span>
+                              <div className="grid grid-cols-2 gap-3.5">
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Shifts Dirigés</span>
+                                  <div className="text-sm font-mono font-black text-white">{chief.shiftsLed} postes</div>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Score de Management</span>
+                                  <div className="text-sm font-mono font-black text-purple-400">{chief.averageGlobalScoreUnderManagement.toFixed(1)}%</div>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold block mb-1">Métrage managé total</span>
+                                  <div className="text-xs font-mono font-black text-slate-200">{chief.totalMetersUnderManagement.toFixed(1)} mètres forés sous direction</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Assistant Miner Card */}
+                          {hasAssistantData && (
+                            <div className="bg-slate-800 border border-slate-750 rounded-xl p-4.5 space-y-3.5">
+                              <span className="text-[9px] font-black text-teal-400 uppercase tracking-wide block border-b border-slate-750 pb-1.5">Profil : Aide-Mineur</span>
+                              <div className="grid grid-cols-2 gap-3.5">
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Rondes Assistées</span>
+                                  <div className="text-sm font-mono font-black text-white">{assistant.roundsAssisted} volées</div>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] text-slate-400 uppercase font-bold">Métrage assisté</span>
+                                  <div className="text-sm font-mono font-black text-teal-400">{assistant.totalMetersAssisted.toFixed(1)} m</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })() : (
+                      <div className="bg-slate-800/40 border border-slate-750 p-4 rounded-xl text-center text-slate-400 text-[10px] uppercase font-black">
+                        Veuillez sélectionner un collaborateur pour compiler son dossier d'activité consolidé.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
