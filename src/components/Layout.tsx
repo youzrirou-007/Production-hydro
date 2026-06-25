@@ -22,7 +22,8 @@ import {
   Plus,
   MapPin,
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Gauge
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
@@ -41,7 +42,7 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   roles?: string[];
-  category: 'production' | 'admin';
+  category: 'production' | 'admin' | 'analyse';
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -52,6 +53,9 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'planning', label: 'Planification', icon: <Calendar className="w-5 h-5" />, category: 'production' },
   { id: 'rotation', label: 'Changement de Poste', icon: <RefreshCw className="w-5 h-5" />, category: 'production' },
   
+  // ANALYSE
+  { id: 'analyse_dashboard', label: 'Tableau de Bord', icon: <Gauge className="w-5 h-5" />, category: 'analyse' },
+
   // ADMIN
   { id: 'admin', label: 'Administration', icon: <Users className="w-5 h-5" />, roles: ['admin'], category: 'admin' },
 ];
@@ -109,6 +113,7 @@ export const Layout: React.FC<{
 
   const categories = [
     { id: 'production', label: 'Production Core' },
+    { id: 'analyse', label: 'Analyses' },
     { id: 'admin', label: 'Administration' },
   ];
 

@@ -7,6 +7,7 @@ import { DailyReport } from './pages/DailyReport';
 import { Chantiers } from './pages/Chantiers';
 import { Planning } from './pages/Planning';
 import { RotationPoste } from './pages/RotationPoste';
+import { AnalyseDashboard } from './pages/AnalyseDashboard';
 import { Factory, ShieldCheck, Mail, LogIn, HardHat } from 'lucide-react';
 
 const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
@@ -83,6 +84,7 @@ const AppContent: React.FC = () => {
       case 'chantiers': return <Chantiers />;
       case 'planning': return <Planning />;
       case 'rotation': return <RotationPoste />;
+      case 'analyse_dashboard': return <AnalyseDashboard />;
       case 'admin': return <Admin />;
       default: return <Production />;
     }
