@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Calendar, 
@@ -156,17 +156,23 @@ export const AnalyseDashboard: React.FC = () => {
     };
   }, []);
 
-  // Resolvers
+  // MEMORY INDEX MAPS FOR INSTANT O(1) LOOKUPS
+  const chantiersMap = useMemo(() => new Map(chantiers.map(c => [c.id, c])), [chantiers]);
+  const employeesMap = useMemo(() => new Map(employees.map(e => [e.matricule?.toUpperCase() || '', e])), [employees]);
+  const productionMap = useMemo(() => new Map(allProductionDocs.map(d => [d.id, d])), [allProductionDocs]);
+  const planningMap = useMemo(() => new Map(allPlanningSheets.map(d => [d.id, d])), [allPlanningSheets]);
+
+  // Resolvers using memory indexes
   const getChantierName = (id: string) => {
     if (!id) return 'N/A';
     if (id.startsWith('stock_')) return id.replace('stock_', 'STOCK : ').toUpperCase();
-    const match = chantiers.find(c => c.id === id);
+    const match = chantiersMap.get(id);
     return match ? match.name : id;
   };
 
   const getPersonnelName = (matricule: string) => {
     if (!matricule) return '';
-    const match = employees.find(e => e.matricule?.toUpperCase() === matricule.toUpperCase());
+    const match = employeesMap.get(matricule.toUpperCase().trim());
     return match ? `${match.nom} ${match.prenom}` : matricule;
   };
 
@@ -182,7 +188,7 @@ export const AnalyseDashboard: React.FC = () => {
     if (sector) return sector;
     const chantierId = row.chantierId || rec.chantierId || plan.chantierId;
     if (chantierId) {
-      const matched = chantiers.find(c => c.id === chantierId);
+      const matched = chantiersMap.get(chantierId);
       if (matched && matched.sector) return matched.sector;
     }
     return '';
@@ -201,14 +207,14 @@ export const AnalyseDashboard: React.FC = () => {
     }
   };
 
-  // Main Aggregator Engine
-  const getAggregatedData = () => {
+  // MEMOIZED Main Aggregator Engine
+  const metrics = useMemo(() => {
     let alignedDays: { prodDate: string; planDate: string; prodDoc: any; planDoc: any }[] = [];
 
     if (reportType === 'day') {
       const prevDate = getPreviousDateStr(filterDate);
-      const pDoc = allProductionDocs.find(d => d.id === filterDate);
-      const sDoc = allPlanningSheets.find(d => d.id === prevDate);
+      const pDoc = productionMap.get(filterDate);
+      const sDoc = planningMap.get(prevDate);
       alignedDays.push({ prodDate: filterDate, planDate: prevDate, prodDoc: pDoc || null, planDoc: sDoc || null });
     } else {
       try {
@@ -218,8 +224,8 @@ export const AnalyseDashboard: React.FC = () => {
         days.forEach(day => {
           const dateStr = format(day, 'yyyy-MM-dd');
           const prevDateStr = getPreviousDateStr(dateStr);
-          const pDoc = allProductionDocs.find(d => d.id === dateStr);
-          const sDoc = allPlanningSheets.find(d => d.id === prevDateStr);
+          const pDoc = productionMap.get(dateStr);
+          const sDoc = planningMap.get(prevDateStr);
           if (pDoc || sDoc) {
             alignedDays.push({ prodDate: dateStr, planDate: prevDateStr, prodDoc: pDoc || null, planDoc: sDoc || null });
           }
@@ -536,9 +542,7 @@ export const AnalyseDashboard: React.FC = () => {
       consolidatedExtractionRows,
       consolidatedMaintenanceRows
     };
-  };
-
-  const metrics = getAggregatedData();
+  }, [reportType, filterDate, filterMonth, productionMap, planningMap, chantiersMap]);
 
   // Score Calculations
   const minageRate = metrics.totalPlanMeterage > 0 ? (metrics.totalRealMeterage / metrics.totalPlanMeterage) * 100 : 100;
@@ -588,77 +592,429 @@ export const AnalyseDashboard: React.FC = () => {
     return 'bg-red-500';
   };
 
-  // Automated smart alert compiler
-  const getAutomaticAlerts = () => {
-    const list: { type: 'red' | 'amber' | 'blue'; message: string; sub: string }[] = [];
+  // PREMIUM EXECUTIVE BUSINESS ALERTS ENGINE (MISSION 3)
+  const smartExecutiveAlerts = useMemo(() => {
+    const list: {
+      id: string;
+      type: 'red' | 'amber' | 'blue';
+      title: string;
+      message: string;
+      category: 'FORAGE' | 'DÉBLAYAGE' | 'EXTRACTION' | 'MAINTENANCE' | 'ÉNERGIE' | 'RH' | 'GLOBAL';
+      metric: string;
+      deviation?: string;
+    }[] = [];
 
-    // Red: yields under 1.3m or explosive overconsumption > 20%
-    metrics.consolidatedMinageRows.forEach(row => {
-      const r = row.reel || row;
-      const chantier = getChantierName(r.chantierId);
-      const yields = r.realRounds > 0 ? r.realMeterage / r.realRounds : 0;
-      if (r.realRounds > 0 && yields < 1.3) {
-        list.push({
-          type: 'red',
-          message: `Rendement Forage critique : ${yields.toFixed(2)} m/v sur ${chantier}`,
-          sub: `${row.poste} • Mineur : ${getPersonnelName(r.minerMatricule) || r.minerMatricule}`
+    if (allProductionDocs.length === 0) return list;
+
+    // A. Reference latest database date
+    const sortedDocs = [...allProductionDocs].sort((a, b) => a.id.localeCompare(b.id));
+    const latestDocId = sortedDocs[sortedDocs.length - 1]?.id || format(new Date(), 'yyyy-MM-dd');
+
+    // Indices and sums
+    const chantierMeters: { [cId: string]: number } = {};
+    const chantierPlannedMeters: { [cId: string]: number } = {};
+    const chantierLastActiveDate: { [cId: string]: string } = {};
+
+    const chiefMeters: { [matricule: string]: number } = {};
+    const chiefPlannedMeters: { [matricule: string]: number } = {};
+
+    const driverLastActiveDate: { [matricule: string]: string } = {};
+
+    const sectorScores: { [sec: string]: { realMet: number; planMet: number; realVol: number; planVol: number } } = {
+      'imiter 1': { realMet: 0, planMet: 0, realVol: 0, planVol: 0 },
+      'imiter 2': { realMet: 0, planMet: 0, realVol: 0, planVol: 0 },
+      'imiter est': { realMet: 0, planMet: 0, realVol: 0, planVol: 0 },
+      'bure imiter est': { realMet: 0, planMet: 0, realVol: 0, planVol: 0 }
+    };
+
+    allProductionDocs.forEach(pDoc => {
+      const dateStr = pDoc.id;
+      const prevDateStr = getPreviousDateStr(dateStr);
+      const sDoc = planningMap.get(prevDateStr);
+
+      ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+        const postObj = pDoc.postes?.[pKey] || {};
+        const planPostObj = sDoc?.postes?.[pKey] || {};
+
+        // Minage
+        (postObj.minage || []).forEach((row: any) => {
+          const r = row.reel || row || {};
+          const cId = r.chantierId;
+          const sec = (getRecordSectorGroup(r) || '').toLowerCase().trim();
+          const meters = Number(r.realMeterage || 0);
+
+          if (cId) {
+            chantierMeters[cId] = (chantierMeters[cId] || 0) + meters;
+            if (meters > 0) {
+              if (!chantierLastActiveDate[cId] || dateStr > chantierLastActiveDate[cId]) {
+                chantierLastActiveDate[cId] = dateStr;
+              }
+            }
+          }
+
+          if (sec && sectorScores[sec]) {
+            sectorScores[sec].realMet += meters;
+          }
+
+          const chiefMat = r.chiefMatricule || r.chefEquipe || postObj.chiefMatricule;
+          if (chiefMat) {
+            const uChief = chiefMat.toUpperCase().trim();
+            chiefMeters[uChief] = (chiefMeters[uChief] || 0) + meters;
+          }
         });
-      }
 
-      const rowExpReal = Number(r.anfo || 0) + Number(r.tovex || 0);
-      const plan = row.plan || {};
-      const rowExpPlan = Number(plan.anfo || 0) + Number(plan.tovex || 0);
-      const realSpecific = Number(r.realMeterage || 0) > 0 ? rowExpReal / r.realMeterage : 0;
-      const planSpecific = Number(plan.meterage || 0) > 0 ? rowExpPlan / plan.meterage : 0;
+        if (sDoc) {
+          (planPostObj.minage || []).forEach((row: any) => {
+            const cId = row.chantierId;
+            const sec = (getRecordSectorGroup(row) || '').toLowerCase().trim();
+            const meters = Number(row.meterage || row.plannedRounds * 1.7 || 0);
+            if (cId) {
+              chantierPlannedMeters[cId] = (chantierPlannedMeters[cId] || 0) + meters;
+            }
+            if (sec && sectorScores[sec]) {
+              sectorScores[sec].planMet += meters;
+            }
+            const chiefMat = row.chiefMatricule || row.chefEquipe || planPostObj.chiefMatricule;
+            if (chiefMat) {
+              const uChief = chiefMat.toUpperCase().trim();
+              chiefPlannedMeters[uChief] = (chiefPlannedMeters[uChief] || 0) + meters;
+            }
+          });
+        }
 
-      if (planSpecific > 0 && realSpecific > planSpecific * 1.20) {
-        const excess = ((realSpecific - planSpecific) / planSpecific) * 100;
+        // Deblayage
+        (postObj.deblayage || []).forEach((row: any) => {
+          const r = row.reel || row || {};
+          const cId = r.chantierId;
+          const sec = (getRecordSectorGroup(r) || '').toLowerCase().trim();
+          const vol = Number(r.volumeEstimated || 0);
+          const driver = r.driverMatricule || r.operatorMatricule;
+
+          if (cId) {
+            if (vol > 0) {
+              if (!chantierLastActiveDate[cId] || dateStr > chantierLastActiveDate[cId]) {
+                chantierLastActiveDate[cId] = dateStr;
+              }
+            }
+          }
+
+          if (sec && sectorScores[sec]) {
+            sectorScores[sec].realVol += vol;
+          }
+
+          if (driver) {
+            const uDriver = driver.toUpperCase().trim();
+            if (vol > 0) {
+              if (!driverLastActiveDate[uDriver] || dateStr > driverLastActiveDate[uDriver]) {
+                driverLastActiveDate[uDriver] = dateStr;
+              }
+            }
+          }
+        });
+
+        if (sDoc) {
+          (planPostObj.deblayage || []).forEach((row: any) => {
+            const sec = (getRecordSectorGroup(row) || '').toLowerCase().trim();
+            const vol = Number(row.volumeEstimated || 0);
+            if (sec && sectorScores[sec]) {
+              sectorScores[sec].planVol += vol;
+            }
+          });
+        }
+      });
+    });
+
+    // -------------------------------------------------------------
+    // ALERTS COMPILED BY REAL COOPERATIVE ALGORITHMS
+    // -------------------------------------------------------------
+
+    // 1. Chantier sans activité depuis plusieurs jours (🔴)
+    chantiers.forEach(c => {
+      const cId = c.id;
+      if (cId.startsWith('stock_')) return;
+      const lastActive = chantierLastActiveDate[cId];
+      if (!lastActive) {
         list.push({
+          id: `no-act-never-${cId}`,
           type: 'red',
-          message: `Surconsommation d'explosifs (+${excess.toFixed(0)}%) sur ${chantier}`,
-          sub: `Spécifique : ${realSpecific.toFixed(1)} kg/m vs Cible : ${planSpecific.toFixed(1)} kg/m`
+          title: "CHANTIER SANS ACTIVITÉ DEPUIS SA CRÉATION 🔴",
+          message: `Le chantier de forage ou de déblayage "${c.name}" ne présente aucune fiche d'activité dans l'historique disponible.`,
+          category: 'GLOBAL',
+          metric: 'Aucun enregistrement'
+        });
+      } else {
+        try {
+          const d1 = new Date(lastActive + 'T12:00:00');
+          const d2 = new Date(latestDocId + 'T12:00:00');
+          const diffDays = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays >= 4) {
+            list.push({
+              id: `no-act-recent-${cId}`,
+              type: 'red',
+              title: "ARRÊT CRITIQUE D'ACTIVITÉ SUR FRONT 🔴",
+              message: `Le chantier "${c.name}" n'a enregistré aucune activité depuis ${diffDays} jours d'exploitation. Dernier poste actif le ${lastActive}.`,
+              category: 'GLOBAL',
+              metric: `Inactif depuis ${diffDays} j`,
+              deviation: `Interruption prolongée`
+            });
+          }
+        } catch (e) {}
+      }
+    });
+
+    // 2. Chantier en retard significatif (🔴)
+    chantiers.forEach(c => {
+      const cId = c.id;
+      const real = chantierMeters[cId] || 0;
+      const plan = chantierPlannedMeters[cId] || 0;
+      if (plan > 8) {
+        const rate = (real / plan) * 100;
+        if (rate < 75) {
+          list.push({
+            id: `retard-significatif-${cId}`,
+            type: 'red',
+            title: "RETARD AVANCEMENT DE FRONT DE TAILLE 🔴",
+            message: `Le chantier "${c.name}" affiche un retard d'avancement majeur : seulement ${real.toFixed(1)}m forés sur un objectif planifié de ${plan.toFixed(1)}m.`,
+            category: 'FORAGE',
+            metric: `${rate.toFixed(0)}% d'avancement`,
+            deviation: `Déficit de ${(plan - real).toFixed(1)}m`
+          });
+        }
+      }
+    });
+
+    // 3. Secteur sous la moyenne globale (🔴)
+    let totalRealMetSectors = 0, totalPlanMetSectors = 0;
+    let totalRealVolSectors = 0, totalPlanVolSectors = 0;
+
+    Object.values(sectorScores).forEach(s => {
+      totalRealMetSectors += s.realMet;
+      totalPlanMetSectors += s.planMet;
+      totalRealVolSectors += s.realVol;
+      totalPlanVolSectors += s.planVol;
+    });
+
+    const globalForageRate = totalPlanMetSectors > 0 ? (totalRealMetSectors / totalPlanMetSectors) * 100 : 100;
+    const globalDeblayageRate = totalPlanVolSectors > 0 ? (totalRealVolSectors / totalPlanVolSectors) * 100 : 100;
+    const globalMoy = (Math.min(100, globalForageRate) * 0.60 + Math.min(100, globalDeblayageRate) * 0.40);
+
+    Object.entries(sectorScores).forEach(([sec, stats]) => {
+      const sForageRate = stats.planMet > 0 ? (stats.realMet / stats.planMet) * 100 : 100;
+      const sDeblayageRate = stats.planVol > 0 ? (stats.realVol / stats.planVol) * 100 : 100;
+      const sScore = (Math.min(100, sForageRate) * 0.60 + Math.min(100, sDeblayageRate) * 0.40);
+
+      if (sScore < globalMoy * 0.85 && sScore < 80) {
+        list.push({
+          id: `sector-underperforming-${sec}`,
+          type: 'red',
+          title: "SÉGREGATION DE RENDEMENT SÉVÈRE PAR SECTEUR 🔴",
+          message: `Le secteur d'extraction "${sec.toUpperCase()}" a un score global de ${sScore.toFixed(0)}%, significativement sous la moyenne générale d'exploitation (${globalMoy.toFixed(0)}%).`,
+          category: 'GLOBAL',
+          metric: `${sScore.toFixed(0)}% vs ${globalMoy.toFixed(0)}% avg`,
+          deviation: `Sous-performance secteur`
         });
       }
     });
 
-    // Amber: attendance < 90% or Loader Vol < 80%
-    const presenceRate = metrics.planPresence > 0 ? (metrics.realPresence / metrics.planPresence) * 100 : 100;
-    if (presenceRate < 90) {
-      list.push({
-        type: 'amber',
-        message: `Taux de présence critique de la brigade : ${presenceRate.toFixed(1)}%`,
-        sub: `${metrics.realPresence} agents présents / ${metrics.planPresence} planifiés`
+    // 4. Chef dont le rendement global est inférieur à la moyenne (🔴)
+    const chiefRates: { matricule: string; rate: number }[] = [];
+    Object.keys(chiefMeters).forEach(mat => {
+      const real = chiefMeters[mat] || 0;
+      const plan = chiefPlannedMeters[mat] || 0;
+      if (plan > 5) {
+        chiefRates.push({ matricule: mat, rate: (real / plan) * 100 });
+      }
+    });
+
+    if (chiefRates.length > 1) {
+      const avgChiefRate = chiefRates.reduce((acc, c) => acc + c.rate, 0) / chiefRates.length;
+      chiefRates.forEach(c => {
+        if (c.rate < avgChiefRate * 0.80 && c.rate < 75) {
+          list.push({
+            id: `chief-underperforming-${c.matricule}`,
+            type: 'red',
+            title: "SOUS-PERFORMANCE DE COMPÉTENCE (CHEF D'ÉQUIPE) 🔴",
+            message: `La brigade dirigée par le chef d'équipe "${getPersonnelName(c.matricule)}" affiche un rendement linéaire de ${c.rate.toFixed(0)}%, en retrait de la moyenne des brigades (${avgChiefRate.toFixed(0)}%).`,
+            category: 'RH',
+            metric: `${c.rate.toFixed(0)}% de rendement`,
+            deviation: `Écart de ${(avgChiefRate - c.rate).toFixed(0)}%`
+          });
+        }
       });
     }
 
-    metrics.consolidatedDeblayageRows.forEach(row => {
-      const r = row.reel || row;
-      const plan = row.plan || {};
-      const planVol = plan.volumeEstimated || 0;
-      const realVol = r.volumeEstimated || 0;
-      if (planVol > 0 && (realVol / planVol) < 0.8) {
-        const rate = (realVol / planVol) * 100;
+    // 5. Conducteur sans activité récente (🔴)
+    const drivers = employees.filter(e => {
+      const role = (e.role || e.fonction || '').toLowerCase();
+      return role.includes('lhd') || role.includes('conducteur') || role.includes('operateur') || role.includes('operator');
+    });
+
+    drivers.forEach(dr => {
+      const mat = dr.matricule;
+      if (!mat) return;
+      const uMat = mat.toUpperCase().trim();
+      const lastActive = driverLastActiveDate[uMat];
+      if (!lastActive) {
         list.push({
+          id: `driver-never-active-${uMat}`,
           type: 'amber',
-          message: `Sous-performance Déblayage (${rate.toFixed(0)}%) sur ${r.engineCode || 'LHD'}`,
-          sub: `${row.poste} • Chantier : ${getChantierName(r.chantierId)} • ${realVol}m³ vs ${planVol}m³`
+          title: "CONDUCTEUR LHD INACTIF SUR LA PÉRIODE ⚠️",
+          message: `Le conducteur d'engin LHD "${dr.nom} ${dr.prenom}" n'a enregistré aucune production déblayée sur la période.`,
+          category: 'RH',
+          metric: 'Inactif'
         });
+      } else {
+        try {
+          const d1 = new Date(lastActive + 'T12:00:00');
+          const d2 = new Date(latestDocId + 'T12:00:00');
+          const diffDays = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays >= 4) {
+            list.push({
+              id: `driver-inactive-recent-${uMat}`,
+              type: 'red',
+              title: "INACTIVITÉ CONSTATÉE (CONDUCTEUR LHD) 🔴",
+              message: `Le conducteur d'engin "${dr.nom} ${dr.prenom}" n'a pas enregistré de volume sur chargeuse depuis ${diffDays} jours d'exploitation.`,
+              category: 'RH',
+              metric: `Inactif depuis ${diffDays} j`,
+              deviation: `Inactivité prolongée`
+            });
+          }
+        } catch (e) {}
       }
     });
 
-    // Blue: Maintenance work > 4h
-    metrics.consolidatedMaintenanceRows.forEach(row => {
-      const r = row.reel || row;
-      if (Number(r.hoursSpent || 0) > 4) {
+    // 6. Poste en baisse continue & Dégradation d'un indicateur
+    if (sortedDocs.length >= 3) {
+      const dailyScores = sortedDocs.slice(-3).map(doc => {
+        let realM = 0, planM = 0, realV = 0, planV = 0, realW = 0, planW = 0;
+        const sDoc = planningMap.get(getPreviousDateStr(doc.id));
+        ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+          const pObj = doc.postes?.[pKey] || {};
+          const planObj = sDoc?.postes?.[pKey] || {};
+
+          (pObj.minage || []).forEach((r: any) => realM += Number(r.reel?.realMeterage || r.realMeterage || 0));
+          (pObj.deblayage || []).forEach((r: any) => realV += Number(r.reel?.volumeEstimated || r.volumeEstimated || 0));
+          (pObj.extraction || []).forEach((r: any) => realW += Number(r.reel?.wagonsActual || r.wagonsActual || 0));
+
+          if (sDoc) {
+            (planObj.minage || []).forEach((r: any) => planM += Number(r.meterage || r.plannedRounds * 1.7 || 0));
+            (planObj.deblayage || []).forEach((r: any) => planV += Number(r.volumeEstimated || 0));
+            (planObj.extraction || []).forEach((r: any) => planW += Number(r.wagonsTarget || 48));
+          }
+        });
+
+        const fRate = planM > 0 ? (realM / planM) * 100 : 100;
+        const dRate = planV > 0 ? (realV / planV) * 100 : 100;
+        const eRate = planW > 0 ? (realW / planW) * 100 : 100;
+        return (Math.min(100, fRate) * 0.40 + Math.min(100, dRate) * 0.30 + Math.min(100, eRate) * 0.30);
+      });
+
+      if (dailyScores[2] < dailyScores[1] && dailyScores[1] < dailyScores[0]) {
+        const pctDrop = dailyScores[0] - dailyScores[2];
         list.push({
-          type: 'blue',
-          message: `Intervention technique lourde : ${r.hoursSpent}h sur ${r.engineCode || 'LHD'}`,
-          sub: `Mécanicien : ${getPersonnelName(r.agentMatricule || r.mechanicMatricule)} • Travail : ${r.workDescription || 'N/A'}`
+          id: `trend-baisse-continue`,
+          type: 'red',
+          title: "BAISSE CONTINUE DU RENDEMENT MINIÈRE 🔴",
+          message: `Les rendements pondérés de la mine affichent une régression continue sur les 3 derniers jours d'exploitation, chutant de ${dailyScores[0].toFixed(0)}% à ${dailyScores[2].toFixed(0)}%.`,
+          category: 'GLOBAL',
+          metric: `-${pctDrop.toFixed(0)}% sur 3j`,
+          deviation: `Régression continue`
         });
       }
+    }
+
+    // 7. Écart anormal plan vs réel (🔴)
+    if (totalPlanMetSectors > 10) {
+      const pct = (totalRealMetSectors / totalPlanMetSectors) * 100;
+      if (pct < 65) {
+        list.push({
+          id: `global-planning-gap`,
+          type: 'red',
+          title: "ÉCART CRITIQUE PLANIFICATION VS RÉALISATION 🔴",
+          message: `L'écart de production linéaire globale est anormal : la mine réalise seulement ${totalRealMetSectors.toFixed(1)}m sur les ${totalPlanMetSectors.toFixed(1)}m prévus, soit un déficit de -${(100 - pct).toFixed(0)}%.`,
+          category: 'GLOBAL',
+          metric: `${pct.toFixed(0)}% de réalisation`,
+          deviation: `Déficit de ${(totalPlanMetSectors - totalRealMetSectors).toFixed(1)}m`
+        });
+      }
+    }
+
+    // 8. Bure en situation de saturation (⚠️)
+    const bureStats = sectorScores['bure imiter est'] || { realMet: 0, planMet: 0, realVol: 0, planVol: 0 };
+    let totalBureWagons = 0;
+    allProductionDocs.forEach(pDoc => {
+      ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+        (pDoc.postes?.[pKey]?.extraction || []).forEach((row: any) => {
+          totalBureWagons += Number(row.reel?.wagonsActual || row.wagonsActual || 0);
+        });
+      });
     });
 
-    return list;
+    const extractionTonnage = totalBureWagons * 1.4;
+    const deblayageTonnage = bureStats.realVol * 1.6;
+
+    if (deblayageTonnage > 0 && extractionTonnage > 0 && deblayageTonnage > extractionTonnage * 1.25) {
+      list.push({
+        id: `bure-saturation`,
+        type: 'amber',
+        title: "BURE EN SITUATION DE SATURATION ⚠️",
+        message: `Les stocks de minerais déblayés au Bure dépassent largement les cadences d'extraction par wagons (${deblayageTonnage.toFixed(0)} T déblayées vs ${extractionTonnage.toFixed(0)} T treuillées).`,
+        category: 'EXTRACTION',
+        metric: `Ratio tonnage : ${(deblayageTonnage / extractionTonnage).toFixed(1)}x`,
+        deviation: `Engorgement d'extraction`
+      });
+    }
+
+    // 9. Déblayage insuffisant par rapport au forage (⚠️)
+    if (globalForageRate > 85 && globalDeblayageRate < 65) {
+      list.push({
+        id: `undermucking-forage-high`,
+        type: 'amber',
+        title: "DÉBLAYAGE INSUFFISANT PAR RAPPORT AU FORAGE ⚠️",
+        message: `Sous-déblayage constaté : Le forage avance à un rythme de ${globalForageRate.toFixed(0)}%, mais le déblaiement LHD stagne à seulement ${globalDeblayageRate.toFixed(0)}%. Risque de blocage des fronts de tir.`,
+        category: 'DÉBLAYAGE',
+        metric: `${globalDeblayageRate.toFixed(0)}% déblayage vs ${globalForageRate.toFixed(0)}% forage`,
+        deviation: `Engorgement des fronts`
+      });
+    }
+
+    // 10. Extraction insuffisante par rapport au déblayage (⚠️)
+    let totalWagonsReal = 0, totalWagonsPlan = 0;
+    allProductionDocs.forEach(pDoc => {
+      const sDoc = planningMap.get(getPreviousDateStr(pDoc.id));
+      ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+        (pDoc.postes?.[pKey]?.extraction || []).forEach((row: any) => {
+          totalWagonsReal += Number(row.reel?.wagonsActual || row.wagonsActual || 0);
+          totalWagonsPlan += Number(row.reel?.wagonsTarget || row.plan?.wagonsTarget || row.wagonsTarget || 48);
+        });
+      });
+    });
+
+    const wagonsRateGlobal = totalWagonsPlan > 0 ? (totalWagonsReal / totalWagonsPlan) * 100 : 100;
+    if (globalDeblayageRate > 85 && wagonsRateGlobal < 65) {
+      list.push({
+        id: `underextraction-mucking-high`,
+        type: 'amber',
+        title: "EXTRACTION INSUFFISANTE PAR RAPPORT AU DÉBLAYAGE ⚠️",
+        message: `Goulot d'évacuation : Le déblayage LHD des galeries est optimal (${globalDeblayageRate.toFixed(0)}%), mais le treuillage de wagons est à la traîne à ${wagonsRateGlobal.toFixed(0)}%.`,
+        category: 'EXTRACTION',
+        metric: `${wagonsRateGlobal.toFixed(0)}% wagons vs ${globalDeblayageRate.toFixed(0)}% déblayage`,
+        deviation: `Treuillage insuffisant`
+      });
+    }
+
+    // Sort: Red severity first, then Amber, then Blue
+    const severityOrder = { red: 0, amber: 1, blue: 2 };
+    return list.sort((a, b) => severityOrder[a.type] - severityOrder[b.type]);
+  }, [allProductionDocs, allPlanningSheets, chantiers, employees, planningMap]);
+
+  // Fallback statistical anomalies compiler (maintains backwards compatibility)
+  const getAutomaticAlerts = () => {
+    return smartExecutiveAlerts.map(a => ({
+      type: a.type,
+      message: a.title.replace(/[🔴⚠️]/g, '').trim(),
+      sub: a.message
+    }));
   };
 
   const currentAlerts = getAutomaticAlerts();
@@ -949,6 +1305,10 @@ export const AnalyseDashboard: React.FC = () => {
                 <SmartAlertsCenter 
                   allProductionDocs={allProductionDocs}
                   allPlanningSheets={allPlanningSheets}
+                  chantiers={chantiers}
+                  employees={employees}
+                  engines={engines}
+                  smartExecutiveAlerts={smartExecutiveAlerts}
                 />
               )}
 
@@ -999,6 +1359,86 @@ export const AnalyseDashboard: React.FC = () => {
               {/* TAB 1: COCKPIT DIRECTION GÉNÉRALE */}
               {activeTab === 'cockpit' && (
                 <div className="space-y-8">
+                  {/* ACTIONS PRIORITAIRES DU JOUR BLOCK */}
+                  {(() => {
+                    const priorities = smartExecutiveAlerts.filter(a => a.type === 'red' || a.type === 'amber').slice(0, 4);
+                    
+                    return (
+                      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+                        {/* Background subtle mesh or gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-900/40 opacity-90 z-0" />
+                        <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#b8860b]/10 rounded-full blur-3xl" />
+                        
+                        <div className="relative z-10 space-y-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
+                            <div className="flex items-center gap-2.5">
+                              <span className="p-2 bg-[#b8860b]/20 text-[#ffd700] rounded-xl border border-[#b8860b]/30">
+                                <Activity className="w-5 h-5" />
+                              </span>
+                              <div>
+                                <h3 className="text-sm font-black uppercase tracking-wider text-slate-100 flex items-center gap-2">
+                                  🎯 ACTIONS PRIORITAIRES DU JOUR
+                                </h3>
+                                <p className="text-[10px] text-slate-400 font-medium">Diagnostic quotidien automatisé à destination de la Direction Générale</p>
+                              </div>
+                            </div>
+                            <span className="text-[8.5px] font-black uppercase bg-[#b8860b]/20 text-[#ffd700] border border-[#b8860b]/40 px-3 py-1 rounded-full tracking-wider">
+                              Arbitrage Décisionnel
+                            </span>
+                          </div>
+
+                          {priorities.length === 0 ? (
+                            <div className="flex items-center gap-3 bg-slate-950/40 border border-emerald-500/30 p-4 rounded-xl text-emerald-400">
+                              <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                              <div>
+                                <span className="text-[11px] font-black uppercase block">Toutes les opérations sont fluides</span>
+                                <span className="text-[10px] text-slate-400 font-medium">Aucun goulot d'étranglement ou anomalie majeure détectée sur les chantiers actifs aujourd'hui.</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {priorities.map((p, idx) => {
+                                // Get matching icon
+                                let IconComp = AlertTriangle;
+                                if (p.category === 'FORAGE') IconComp = Bomb;
+                                else if (p.category === 'DÉBLAYAGE') IconComp = Truck;
+                                else if (p.category === 'EXTRACTION') IconComp = Train;
+                                else if (p.category === 'RH') IconComp = HardHat;
+                                else if (p.category === 'MAINTENANCE') IconComp = Wrench;
+
+                                const isRed = p.type === 'red';
+                                const badgeColor = isRed ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+                                const actionText = isRed ? 'Action Immédiate' : 'Surveillance';
+
+                                return (
+                                  <div key={p.id || idx} className="bg-slate-950/50 border border-slate-800 hover:border-slate-700 transition p-4 rounded-xl flex items-start gap-3">
+                                    <span className={`p-2 rounded-lg border ${isRed ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'} flex-shrink-0`}>
+                                      <IconComp className="w-4 h-4" />
+                                    </span>
+                                    <div className="space-y-1 min-w-0 flex-1">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-[10px] font-black uppercase text-slate-200 tracking-wide truncate block">{p.title.replace(/[🔴⚠️]/g, '').trim()}</span>
+                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 border rounded-full shrink-0 ${badgeColor}`}>
+                                          {actionText}
+                                        </span>
+                                      </div>
+                                      <p className="text-[10px] text-slate-400 font-medium leading-relaxed">{p.message}</p>
+                                      
+                                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1.5 text-[9px] text-slate-500 font-bold border-t border-slate-900">
+                                        {p.metric && <span>Métrique: <span className="text-slate-300 font-mono">{p.metric}</span></span>}
+                                        {p.deviation && <span>Déviation: <span className="text-rose-400 font-mono">{p.deviation}</span></span>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Vue Direction Générale Express */}
                   <ExpressDirectionScorecard 
                     allProductionDocs={allProductionDocs}
@@ -1203,6 +1643,10 @@ export const AnalyseDashboard: React.FC = () => {
                   <SmartAlertsCenter 
                     allProductionDocs={allProductionDocs}
                     allPlanningSheets={allPlanningSheets}
+                    chantiers={chantiers}
+                    employees={employees}
+                    engines={engines}
+                    smartExecutiveAlerts={smartExecutiveAlerts}
                   />
                 </div>
               )}

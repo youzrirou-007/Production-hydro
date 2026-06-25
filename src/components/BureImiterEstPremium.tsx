@@ -53,15 +53,18 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
 
     // Shift by shift details
     const shiftDetails = {
-      p1: { forageReal: 0, foragePlan: 0, deblayageReal: 0, deblayagePlan: 0, extractionReal: 0, extractionPlan: 0 },
-      p2: { forageReal: 0, foragePlan: 0, deblayageReal: 0, deblayagePlan: 0, extractionReal: 0, extractionPlan: 0 },
-      p3: { forageReal: 0, foragePlan: 0, deblayageReal: 0, deblayagePlan: 0, extractionReal: 0, extractionPlan: 0 }
+      p1: { forageReal: 0, foragePlan: 0, deblayageReal: 0, deblayagePlan: 0, extractionReal: 0, extractionPlan: 0, rounds: 0, godets: 0 },
+      p2: { forageReal: 0, foragePlan: 0, deblayageReal: 0, deblayagePlan: 0, extractionReal: 0, extractionPlan: 0, rounds: 0, godets: 0 },
+      p3: { forageReal: 0, foragePlan: 0, deblayageReal: 0, deblayagePlan: 0, extractionReal: 0, extractionPlan: 0, rounds: 0, godets: 0 }
     };
+
+    // PERFORMANCE OPTIMIZATION: Index planning sheets using Map
+    const planningMap = new Map<string, any>(allPlanningSheets.map(s => [s.id, s]));
 
     allProductionDocs.forEach(pDoc => {
       const dateStr = pDoc.id;
       const prevDateStr = getPreviousDateStr(dateStr);
-      const sDoc = allPlanningSheets.find(s => s.id === prevDateStr);
+      const sDoc = planningMap.get(prevDateStr);
 
       ['poste1', 'poste2', 'poste3'].forEach(pKey => {
         const pNum = pKey === 'poste1' ? 'p1' : pKey === 'poste2' ? 'p2' : 'p3';
@@ -73,9 +76,11 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
           const sec = r.sector || r.sectorGroup || row.sectorGroup || '';
           if (isBureSector(sec)) {
             const meters = Number(r.realMeterage || 0);
+            const rnds = Number(r.realRounds || 0);
             forageReal += meters;
             shiftDetails[pNum].forageReal += meters;
-            totalRoundsReal += Number(r.realRounds || 0);
+            shiftDetails[pNum].rounds += rnds;
+            totalRoundsReal += rnds;
           }
         });
 
@@ -85,13 +90,15 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
           const sec = r.sector || r.sectorGroup || row.sectorGroup || '';
           if (isBureSector(sec)) {
             const vol = Number(r.volumeEstimated || 0);
+            const gd = Number(r.godets || 0);
             deblayageReal += vol;
             shiftDetails[pNum].deblayageReal += vol;
-            totalGodetsReal += Number(r.godets || 0);
+            shiftDetails[pNum].godets += gd;
+            totalGodetsReal += gd;
           }
         });
 
-        // Real Extraction (usually global or specific to Bure)
+        // Real Extraction
         (postObj.extraction || []).forEach((row: any) => {
           const r = row.reel || row || {};
           const wags = Number(r.wagonsActual || 0);
@@ -138,36 +145,50 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
     // Yields
     const forageYield = totalRoundsReal > 0 ? forageReal / totalRoundsReal : 0;
     const deblayageYield = totalGodetsReal > 0 ? deblayageReal / totalGodetsReal : 0;
-    // Tonnage (using standard 1.4 Tons/wagon)
     const tonnageReal = extractionReal * 1.4;
 
-    // Trends logic (simulated by comparing first half of docs to second half of docs)
+    // Trends logic comparing first half of docs to second half of docs
     const halfLen = Math.floor(allProductionDocs.length / 2);
     let forageRealH1 = 0, forageRealH2 = 0;
     let deblayageRealH1 = 0, deblayageRealH2 = 0;
     let extractionRealH1 = 0, extractionRealH2 = 0;
 
+    // Performance H1 vs H2 per shift for dedicated per-post trends
+    const shiftH1 = { p1: 0, p2: 0, p3: 0 };
+    const shiftH2 = { p1: 0, p2: 0, p3: 0 };
+
     allProductionDocs.forEach((doc, idx) => {
+      const isH1 = idx < halfLen;
+      const targetTrend = isH1 ? shiftH1 : shiftH2;
+
       ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+        const pNum = pKey === 'poste1' ? 'p1' : pKey === 'poste2' ? 'p2' : 'p3';
         const pObj = doc.postes?.[pKey] || {};
+
         (pObj.minage || []).forEach((row: any) => {
           const r = row.reel || row;
-          if (isBureSector(r.sectorGroup || row.sectorGroup)) {
-            if (idx < halfLen) forageRealH1 += Number(r.realMeterage || 0);
-            else forageRealH2 += Number(r.realMeterage || 0);
+          if (isBureSector(r.sectorGroup || row.sectorGroup || r.sector)) {
+            const meters = Number(r.realMeterage || 0);
+            if (isH1) forageRealH1 += meters;
+            else forageRealH2 += meters;
+            targetTrend[pNum] += meters * 10;
           }
         });
         (pObj.deblayage || []).forEach((row: any) => {
           const r = row.reel || row;
-          if (isBureSector(r.sectorGroup || row.sectorGroup)) {
-            if (idx < halfLen) deblayageRealH1 += Number(r.volumeEstimated || 0);
-            else deblayageRealH2 += Number(r.volumeEstimated || 0);
+          if (isBureSector(r.sectorGroup || row.sectorGroup || r.sector)) {
+            const vol = Number(r.volumeEstimated || 0);
+            if (isH1) deblayageRealH1 += vol;
+            else deblayageRealH2 += vol;
+            targetTrend[pNum] += vol;
           }
         });
         (pObj.extraction || []).forEach((row: any) => {
           const r = row.reel || row;
-          if (idx < halfLen) extractionRealH1 += Number(r.wagonsActual || 0);
-          else extractionRealH2 += Number(r.wagonsActual || 0);
+          const wags = Number(r.wagonsActual || 0);
+          if (isH1) extractionRealH1 += wags;
+          else extractionRealH2 += wags;
+          targetTrend[pNum] += wags * 5;
         });
       });
     });
@@ -184,14 +205,56 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
       return 'STABLE';
     };
 
+    // Shift detailed calculations for the comparison view
+    const shiftCalculations = {
+      p1: { forageRate: 100, deblayageRate: 100, extractionRate: 100, forageYield: 0, deblayageYield: 0, extractionTonnage: 0, score: 0, trend: 'STABLE' },
+      p2: { forageRate: 100, deblayageRate: 100, extractionRate: 100, forageYield: 0, deblayageYield: 0, extractionTonnage: 0, score: 0, trend: 'STABLE' },
+      p3: { forageRate: 100, deblayageRate: 100, extractionRate: 100, forageYield: 0, deblayageYield: 0, extractionTonnage: 0, score: 0, trend: 'STABLE' }
+    };
+
+    ['p1', 'p2', 'p3'].forEach(pKey => {
+      const key = pKey as 'p1' | 'p2' | 'p3';
+      const d = shiftDetails[key];
+      const fRate = d.foragePlan > 0 ? (d.forageReal / d.foragePlan) * 100 : 100;
+      const dRate = d.deblayagePlan > 0 ? (d.deblayageReal / d.deblayagePlan) * 100 : 100;
+      const eRate = d.extractionPlan > 0 ? (d.extractionReal / d.extractionPlan) * 100 : 100;
+
+      const fYield = d.rounds > 0 ? d.forageReal / d.rounds : 0;
+      const dYield = d.godets > 0 ? d.deblayageReal / d.godets : 0;
+      const tonnage = d.extractionReal * 1.4;
+
+      const overallScore = (Math.min(100, fRate) * 0.40) + (Math.min(100, dRate) * 0.30) + (Math.min(100, eRate) * 0.30);
+      const h1Score = shiftH1[key];
+      const h2Score = shiftH2[key];
+      const trendStr = h2Score > h1Score * 1.05 ? 'HAUSSE' : h2Score < h1Score * 0.95 ? 'BAISSE' : 'STABLE';
+
+      shiftCalculations[key] = {
+        forageRate: fRate,
+        deblayageRate: dRate,
+        extractionRate: eRate,
+        forageYield: fYield,
+        deblayageYield: dYield,
+        extractionTonnage: tonnage,
+        score: overallScore,
+        trend: trendStr
+      };
+    });
+
+    // Rank the shifts to find the Best, Surveillance, and Danger ones
+    const rankedShifts = Object.entries(shiftCalculations)
+      .map(([key, stats]) => ({ key, ...stats }))
+      .sort((a, b) => b.score - a.score);
+
+    const bestShift = rankedShifts[0]?.key || 'p1';
+    const dangerShift = rankedShifts[rankedShifts.length - 1]?.key || 'p3';
+    const watchShift = ['p1', 'p2', 'p3'].find(k => k !== bestShift && k !== dangerShift) || 'p2';
+
     // Bottleneck and Fluidity Score
-    // Calculate lowest rate among the three
     const rates = [
       { step: 'FORAGE', rate: forageRate, desc: 'Forage des fronts' },
       { step: 'DÉBLAYAGE', rate: deblayageRate, desc: 'Chargement & Roulage LHD' },
       { step: 'EXTRACTION', rate: extractionRate, desc: 'Extraction & Treuillage Wagons' }
     ];
-    const lowest = rates.reduce((min, cur) => cur.rate < min.rate ? cur : min, rates[0]);
 
     let bottleneckMsg = '';
     let bottleneckAlertLevel: 'success' | 'warning' | 'danger' = 'success';
@@ -221,7 +284,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
       forageReal, foragePlan, forageRate, forageYield, forageTrendIcon: getTrendIcon(forageRealH1, forageRealH2), forageTrendText: getTrendText(forageRealH1, forageRealH2),
       deblayageReal, deblayagePlan, deblayageRate, deblayageYield, deblayageTrendIcon: getTrendIcon(deblayageRealH1, deblayageRealH2), deblayageTrendText: getTrendText(deblayageRealH1, deblayageRealH2),
       extractionReal, extractionPlan, extractionRate, tonnageReal, extractionTrendIcon: getTrendIcon(extractionRealH1, extractionRealH2), extractionTrendText: getTrendText(extractionRealH1, extractionRealH2),
-      bottleneckMsg, bottleneckAlertLevel, bottleneckDesc, fluidityScore, shiftDetails
+      bottleneckMsg, bottleneckAlertLevel, bottleneckDesc, fluidityScore, shiftDetails, shiftCalculations, bestShift, watchShift, dangerShift
     };
   }, [allProductionDocs, allPlanningSheets]);
 
@@ -417,30 +480,153 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
       </div>
 
       {/* SHIFTS DETAILS BREAKDOWN */}
-      <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-4">
-        <h4 className="text-[11.5px] font-black uppercase text-slate-800">Détails d'Équilibre Opérationnel par Poste</h4>
+      <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <div>
+            <h4 className="text-[11.5px] font-black uppercase text-slate-800">Détails & Diagnostic Opérationnel Multi-Postes</h4>
+            <p className="text-[10px] text-slate-500 font-medium">Analyse comparative des performances et rendements du Bure Imiter Est par quart de travail (Matin, Après-midi, Nuit)</p>
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-wider bg-slate-200 px-2.5 py-1 rounded text-slate-700">Multi-Postes Premium</span>
+        </div>
+
+        {/* Executive summary of roles */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {/* Best Shift Callout */}
+          <div className="bg-emerald-50 border border-emerald-150 p-3.5 rounded-xl flex items-center justify-between gap-3">
+            <div>
+              <span className="text-[8px] font-black uppercase text-emerald-600 block">Meilleur Poste du Bure 👑</span>
+              <span className="text-xs font-black text-slate-800 block mt-0.5">
+                {stats.bestShift === 'p1' ? 'Poste 1 (Matin)' : stats.bestShift === 'p2' ? 'Poste 2 (Après-midi)' : 'Poste 3 (Nuit)'}
+              </span>
+            </div>
+            <span className="text-xs font-mono font-black text-emerald-700 bg-white border border-emerald-200 px-2 py-0.5 rounded">
+              {stats.shiftCalculations[stats.bestShift as 'p1'|'p2'|'p3'].score.toFixed(0)}%
+            </span>
+          </div>
+
+          {/* Watch Shift Callout */}
+          <div className="bg-amber-50 border border-amber-150 p-3.5 rounded-xl flex items-center justify-between gap-3">
+            <div>
+              <span className="text-[8px] font-black uppercase text-amber-600 block">Poste du Bure à surveiller ⚠️</span>
+              <span className="text-xs font-black text-slate-800 block mt-0.5">
+                {stats.watchShift === 'p1' ? 'Poste 1 (Matin)' : stats.watchShift === 'p2' ? 'Poste 2 (Après-midi)' : 'Poste 3 (Nuit)'}
+              </span>
+            </div>
+            <span className="text-xs font-mono font-black text-amber-700 bg-white border border-amber-200 px-2 py-0.5 rounded">
+              {stats.shiftCalculations[stats.watchShift as 'p1'|'p2'|'p3'].score.toFixed(0)}%
+            </span>
+          </div>
+
+          {/* Danger Shift Callout */}
+          <div className="bg-rose-50 border border-rose-150 p-3.5 rounded-xl flex items-center justify-between gap-3">
+            <div>
+              <span className="text-[8px] font-black uppercase text-rose-600 block">Poste du Bure en difficulté 🚨</span>
+              <span className="text-xs font-black text-slate-800 block mt-0.5">
+                {stats.dangerShift === 'p1' ? 'Poste 1 (Matin)' : stats.dangerShift === 'p2' ? 'Poste 2 (Après-midi)' : 'Poste 3 (Nuit)'}
+              </span>
+            </div>
+            <span className="text-xs font-mono font-black text-rose-700 bg-white border border-rose-200 px-2 py-0.5 rounded">
+              {stats.shiftCalculations[stats.dangerShift as 'p1'|'p2'|'p3'].score.toFixed(0)}%
+            </span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {['p1', 'p2', 'p3'].map((shiftKey, sIdx) => {
+          {['p1', 'p2', 'p3'].map((shiftKey) => {
             const shiftName = shiftKey === 'p1' ? 'Poste 1 (Matin)' : shiftKey === 'p2' ? 'Poste 2 (Après-midi)' : 'Poste 3 (Nuit)';
-            const data = stats.shiftDetails[shiftKey as 'p1' | 'p2' | 'p3'];
+            const rawData = stats.shiftDetails[shiftKey as 'p1' | 'p2' | 'p3'];
+            const calcData = stats.shiftCalculations[shiftKey as 'p1' | 'p2' | 'p3'];
+
+            // Role tag color coding
+            const isBest = stats.bestShift === shiftKey;
+            const isDanger = stats.dangerShift === shiftKey;
+            const roleBadge = isBest ? 'bg-emerald-100 text-emerald-800 border-emerald-200 👑 MEILLEUR' : isDanger ? 'bg-rose-100 text-rose-800 border-rose-200 🚨 EN DIFFICULTÉ' : 'bg-amber-100 text-amber-800 border-amber-200 ⚠️ À SURVEILLER';
 
             return (
-              <div key={shiftKey} className="bg-white border border-slate-150 p-4 rounded-xl space-y-3">
-                <span className="text-[9.5px] font-black uppercase text-slate-800 block border-b border-slate-100 pb-1.5">{shiftName}</span>
-                
-                <div className="space-y-2.5 text-[10px]">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-bold">FORAGE :</span>
-                    <span className="font-mono text-slate-800 font-black">{data.forageReal.toFixed(1)}m <span className="text-[9px] font-normal text-slate-400">/ {data.foragePlan.toFixed(1)}m</span></span>
+              <div key={shiftKey} className="bg-white border border-slate-150 p-5 rounded-xl space-y-4 shadow-3xs flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
+                    <span className="text-[10px] font-black uppercase text-slate-800 block">{shiftName}</span>
+                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 border rounded-full ${roleBadge}`} />
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-bold">DÉBLAYAGE :</span>
-                    <span className="font-mono text-slate-800 font-black">{data.deblayageReal.toFixed(1)}m³ <span className="text-[9px] font-normal text-slate-400">/ {data.deblayagePlan.toFixed(1)}m³</span></span>
+                  
+                  {/* Overall score for the shift */}
+                  <div className="flex justify-between items-baseline mb-4 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    <span className="text-[8.5px] font-black uppercase text-slate-400">Efficacité Globale :</span>
+                    <span className="font-mono text-sm font-black text-slate-800">{calcData.score.toFixed(1)}%</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-bold">EXTRACTION :</span>
-                    <span className="font-mono text-slate-800 font-black">{data.extractionReal}wg <span className="text-[9px] font-normal text-slate-400">/ {data.extractionPlan}wg</span></span>
+
+                  {/* Operational indicators bars */}
+                  <div className="space-y-3.5 border-b border-slate-100 pb-3.5 mb-3.5">
+                    {/* Forage */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase">
+                        <span>FORAGE : {rawData.forageReal.toFixed(1)}m</span>
+                        <span>{calcData.forageRate.toFixed(0)}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                        <div className="h-full bg-[#b8860b]" style={{ width: `${Math.min(100, calcData.forageRate)}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Deblayage */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase">
+                        <span>DÉBLAYAGE : {rawData.deblayageReal.toFixed(0)}m³</span>
+                        <span>{calcData.deblayageRate.toFixed(0)}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                        <div className="h-full bg-sky-500" style={{ width: `${Math.min(100, calcData.deblayageRate)}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Extraction */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase">
+                        <span>EXTRACTION : {rawData.extractionReal}wg</span>
+                        <span>{calcData.extractionRate.toFixed(0)}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500" style={{ width: `${Math.min(100, calcData.extractionRate)}%` }} />
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Yield and trend detailed breakdown */}
+                  <div className="space-y-2 text-[10px] font-semibold text-slate-700">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 font-bold text-[8.5px] uppercase">Rendement Forage :</span>
+                      <span className="font-mono text-slate-800 font-black">
+                        {calcData.forageYield > 0 ? `${calcData.forageYield.toFixed(2)} m/v` : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 font-bold text-[8.5px] uppercase">Efficacité Déblayage :</span>
+                      <span className="font-mono text-slate-800 font-black">
+                        {calcData.deblayageYield > 0 ? `${calcData.deblayageYield.toFixed(2)} m³/gt` : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 font-bold text-[8.5px] uppercase">Tonnage Extrait :</span>
+                      <span className="font-mono text-slate-800 font-black">
+                        {calcData.extractionTonnage.toFixed(1)} T
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-3.5 border-t border-slate-100">
+                  <span className="text-[8.5px] font-black uppercase text-slate-400">Tendance Poste :</span>
+                  <span className={`text-[8.5px] font-black uppercase flex items-center gap-1 ${
+                    calcData.trend === 'HAUSSE' ? 'text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100' :
+                    calcData.trend === 'BAISSE' ? 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 animate-pulse' :
+                    'text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-100'
+                  }`}>
+                    {calcData.trend === 'HAUSSE' && <TrendingUp className="w-3 h-3 text-emerald-500 inline" />}
+                    {calcData.trend === 'BAISSE' && <TrendingDown className="w-3 h-3 text-rose-500 inline" />}
+                    {calcData.trend === 'STABLE' && <Minus className="w-3 h-3 text-slate-400 inline" />}
+                    {calcData.trend}
+                  </span>
                 </div>
               </div>
             );

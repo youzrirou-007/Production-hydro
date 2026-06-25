@@ -47,6 +47,7 @@ export const ExpressDirectionScorecard: React.FC<ExpressDirectionScorecardProps>
     };
 
     const half = Math.floor(allProductionDocs.length / 2);
+    const planningMap = new Map<string, any>(allPlanningSheets.map(s => [s.id, s]));
 
     return sectors.map(sec => {
       let realMet = 0;
@@ -61,7 +62,7 @@ export const ExpressDirectionScorecard: React.FC<ExpressDirectionScorecardProps>
       allProductionDocs.forEach((pDoc, idx) => {
         const dateStr = pDoc.id;
         const prevDateStr = getPreviousDateStr(dateStr);
-        const sDoc = allPlanningSheets.find(s => s.id === prevDateStr);
+        const sDoc = planningMap.get(prevDateStr);
 
         ['poste1', 'poste2', 'poste3'].forEach(pKey => {
           // Reel Minage

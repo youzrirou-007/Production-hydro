@@ -16,17 +16,19 @@ import {
 interface SmartAlertsCenterProps {
   allProductionDocs: any[];
   allPlanningSheets: any[];
-  chantiers: any[];
-  employees: any[];
-  engines: any[];
+  chantiers?: any[];
+  employees?: any[];
+  engines?: any[];
+  smartExecutiveAlerts?: any[];
 }
 
 export const SmartAlertsCenter: React.FC<SmartAlertsCenterProps> = ({
   allProductionDocs,
   allPlanningSheets,
-  chantiers,
-  employees,
-  engines
+  chantiers = [],
+  employees = [],
+  engines = [],
+  smartExecutiveAlerts
 }) => {
   const [severityFilter, setSeverityFilter] = useState<'all' | 'red' | 'amber' | 'blue'>('all');
 
@@ -44,6 +46,7 @@ export const SmartAlertsCenter: React.FC<SmartAlertsCenterProps> = ({
 
   // Compile statistical anomalies across the entire dataset
   const generatedAlerts = useMemo(() => {
+    if (smartExecutiveAlerts) return smartExecutiveAlerts;
     const list: {
       id: string;
       type: 'red' | 'amber' | 'blue';
