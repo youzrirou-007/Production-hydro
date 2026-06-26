@@ -288,8 +288,9 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Banner / Explanation */}
-      <div className="bg-slate-50 border border-slate-150 p-6 rounded-2xl flex flex-col md:flex-row gap-5 items-center justify-between">
-        <div className="space-y-1.5 max-w-2xl">
+      <div className="bg-slate-50 border border-[#d4af37]/35 p-6 rounded-2xl flex flex-col md:flex-row gap-5 items-center justify-between relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+        <div className="space-y-1.5 max-w-2xl mt-1">
           <h2 className="text-xs font-black uppercase text-slate-800 flex items-center gap-2">
             <Layers className="w-4 h-4 text-[#b8860b]" />
             Analyse Comparative Consolidée des Secteurs
@@ -309,8 +310,9 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
       {/* Highlights / Podiums */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Top Forage */}
-        <div className="bg-white border border-slate-150 p-4.5 rounded-xl shadow-2xs relative overflow-hidden flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0">
+        <div className="bg-white border border-[#d4af37]/35 p-4.5 rounded-xl shadow-2xs relative overflow-hidden flex items-center gap-4">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0 mt-1">
             <TrendingUp className="w-5 h-5 text-sky-600" />
           </div>
           <div>
@@ -322,8 +324,9 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
         </div>
 
         {/* Top Volumétrie */}
-        <div className="bg-white border border-slate-150 p-4.5 rounded-xl shadow-2xs relative overflow-hidden flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shrink-0">
+        <div className="bg-white border border-[#d4af37]/35 p-4.5 rounded-xl shadow-2xs relative overflow-hidden flex items-center gap-4">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center shrink-0 mt-1">
             <Layers className="w-5 h-5 text-teal-600" />
           </div>
           <div>
@@ -335,8 +338,9 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
         </div>
 
         {/* Top Blasting Yield */}
-        <div className="bg-white border border-slate-150 p-4.5 rounded-xl shadow-2xs relative overflow-hidden flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+        <div className="bg-white border border-[#d4af37]/35 p-4.5 rounded-xl shadow-2xs relative overflow-hidden flex items-center gap-4">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0 mt-1">
             <Zap className="w-5 h-5 text-amber-600" />
           </div>
           <div>
@@ -351,8 +355,9 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
       {/* Main Comparative Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart 1: Drilling Progress Real vs Target */}
-        <div className="bg-white border border-slate-150 rounded-2xl p-5 space-y-3">
-          <h3 className="text-xs font-black uppercase text-slate-800">Forage Réalisé vs Objectif de Planification (m)</h3>
+        <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 space-y-3 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <h3 className="text-xs font-black uppercase text-slate-800 mt-1">Forage Réalisé vs Objectif de Planification (m)</h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={compareData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
@@ -369,8 +374,9 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
         </div>
 
         {/* Chart 2: Volumetric Rock Moving */}
-        <div className="bg-white border border-slate-150 rounded-2xl p-5 space-y-3">
-          <h3 className="text-xs font-black uppercase text-slate-800">Chargement LHD Réalisé vs Objectif de Volume (m³)</h3>
+        <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 space-y-3 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <h3 className="text-xs font-black uppercase text-slate-800 mt-1">Chargement LHD Réalisé vs Objectif de Volume (m³)</h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={compareData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
@@ -390,8 +396,9 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
       {/* Chart 3 & 4: Specific Explosives Intensity and Fuel Intensity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Specific Explosive consumption per meter */}
-        <div className="bg-white border border-slate-150 rounded-2xl p-5 space-y-4">
-          <div className="flex justify-between items-center">
+        <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <div className="flex justify-between items-center mt-1">
             <h3 className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
               <Flame className="w-4 h-4 text-orange-500" />
               Intensité d'Explosifs (kg/m)
@@ -415,8 +422,9 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
         </div>
 
         {/* Fuel consumption per m³ of rock moved */}
-        <div className="bg-white border border-slate-150 rounded-2xl p-5 space-y-4">
-          <div className="flex justify-between items-center">
+        <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <div className="flex justify-between items-center mt-1">
             <h3 className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
               <Fuel className="w-4 h-4 text-emerald-600" />
               Consommation Spécifique de Carburant (L/m³)
@@ -441,8 +449,9 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
       </div>
 
       {/* Main Comparison Master Matrix Grid */}
-      <div className="bg-white border border-slate-150 rounded-2xl p-5 space-y-4">
-        <h3 className="text-xs font-black uppercase text-slate-800">Matrice de Comparaison Analytique des Secteurs</h3>
+      <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+        <h3 className="text-xs font-black uppercase text-slate-800 mt-1">Matrice de Comparaison Analytique des Secteurs</h3>
         <div className="overflow-x-auto border border-slate-100 rounded-xl">
           <table className="w-full text-left border-collapse text-[10.5px]">
             <thead>

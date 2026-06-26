@@ -24,7 +24,9 @@ import {
   Activity,
   ArrowUpRight,
   ShieldAlert,
-  Fuel
+  Fuel,
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -51,6 +53,8 @@ import { ExpressDirectionScorecard } from '../components/ExpressDirectionScoreca
 import { ChantierAnalysisPremium } from '../components/ChantierAnalysisPremium';
 import { BureImiterEstPremium } from '../components/BureImiterEstPremium';
 import { SmartAlertsCenter } from '../components/SmartAlertsCenter';
+import { PredictiveIntelligencePremium } from '../components/PredictiveIntelligencePremium';
+import { RHDossiersPremium } from '../components/RHDossiersPremium';
 import { 
   calculateMinerStats, 
   calculateDriverStats, 
@@ -69,13 +73,33 @@ const getPreviousDateStr = (dateStr: string) => {
   }
 };
 
-export const AnalyseDashboard: React.FC = () => {
-  const [reportType, setReportType] = useState<'day' | 'month'>('day');
+export interface AnalyseDashboardProps {
+  pillar?: 'strategie' | 'terrain' | 'rh' | 'logistique';
+}
+
+export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) => {
+  const [reportType, setReportType] = useState<'day' | 'month'>('month');
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterMonth, setFilterMonth] = useState(format(new Date(), 'yyyy-MM'));
   
+  // Set default active tab based on pillar if provided, otherwise default to 'cockpit'
+  const defaultTab = useMemo(() => {
+    if (pillar === 'strategie') return 'cockpit';
+    if (pillar === 'terrain') return 'chantiers_premium';
+    if (pillar === 'rh') return 'rh_premium';
+    if (pillar === 'logistique') return 'materiel';
+    return 'cockpit';
+  }, [pillar]);
+
   // Tabs State
-  const [activeTab, setActiveTab] = useState<'cockpit' | 'alerts' | 'chantiers_premium' | 'sectors_compare' | 'rankings' | 'trends' | 'bure' | 'secteurs' | 'rh' | 'materiel'>('cockpit');
+  const [activeTab, setActiveTab] = useState<'cockpit' | 'alerts' | 'chantiers_premium' | 'predictive' | 'rh_premium' | 'sectors_compare' | 'rankings' | 'trends' | 'bure' | 'secteurs' | 'rh' | 'materiel'>('cockpit');
+  const [selectedBriefingActor, setSelectedBriefingActor] = useState<'dg' | 'dt' | 'smi' | 'expert'>('expert');
+  const [showClinicalAlerts, setShowClinicalAlerts] = useState(false);
+
+  // Sync activeTab when pillar or defaultTab changes
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
   const [hrSearchMatricule, setHrSearchMatricule] = useState('');
   
   // Drilldown sub-filters inside Secteurs tab
@@ -1179,9 +1203,10 @@ export const AnalyseDashboard: React.FC = () => {
       {/* BANNER HEADER */}
       <div 
         id="analyse-dashboard-header" 
-        className="bg-white p-6 md:p-8 border border-gray-150 rounded-[20px] w-full shadow-xs"
+        className="bg-white p-6 md:p-8 border border-[#d4af37]/45 rounded-[20px] w-full shadow-xs relative overflow-hidden"
         style={{ boxShadow: '0 4px 24px -2px rgba(184, 134, 11, 0.05)' }}
       >
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
         <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
           <div className="shrink-0 flex items-center justify-center">
             <img 
@@ -1250,34 +1275,190 @@ export const AnalyseDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* METRIC CORE COCKPIT TABS */}
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-px">
-        {[
-          { id: 'cockpit', label: 'Cockpit Direction', icon: <Activity className="w-4 h-4" /> },
-          { id: 'alerts', label: "Centre d'Alertes", icon: <ShieldAlert className="w-4 h-4 text-rose-500 animate-pulse" /> },
-          { id: 'chantiers_premium', label: 'Analyse Chantiers', icon: <Gauge className="w-4 h-4" /> },
-          { id: 'sectors_compare', label: 'Comparatif Secteurs', icon: <Layers className="w-4 h-4" /> },
-          { id: 'rankings', label: 'Classements & Palmarès', icon: <Award className="w-4 h-4" /> },
-          { id: 'trends', label: 'Historique & Tendances', icon: <TrendingUp className="w-4 h-4" /> },
-          { id: 'bure', label: 'Focus Bure Est (N340)', icon: <Train className="w-4 h-4" /> },
-          { id: 'secteurs', label: 'Détail Secteurs', icon: <Layers className="w-4 h-4" /> },
-          { id: 'rh', label: 'Ressources Humaines', icon: <HardHat className="w-4 h-4" /> },
-          { id: 'materiel', label: 'Matériels & Maintenance', icon: <Wrench className="w-4 h-4" /> },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id as any)}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-3 border-b-2 font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all cursor-pointer ${
-              activeTab === t.id 
-                ? 'border-[#b8860b] text-[#b8860b] bg-amber-50/10' 
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            {t.icon}
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* SECTIONS CATÉGORIES (PILIERS DE DIRECTION) */}
+      {!pillar && (
+        <div className="space-y-3">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block px-1">
+            Piliers d'Analyse Stratégique & Opérationnelle
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                id: 'strategie',
+                label: 'Pilotage & Stratégie',
+                description: 'Tableaux de bord consolidés, alertes et IA',
+                icon: <Activity className="w-5 h-5" />,
+                borderColor: 'border-l-[#0ea5e9]',
+                colorName: '#0ea5e9',
+                bgActive: 'bg-sky-50/45 border-sky-200/80 shadow-xs ring-1 ring-sky-100',
+                textActive: 'text-sky-950',
+                iconBgActive: 'bg-[#0ea5e9] text-white',
+                iconBgInactive: 'bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600',
+                tabs: [
+                  { id: 'cockpit', label: 'Cockpit Direction' },
+                  { id: 'alerts', label: "Centre d'Alertes" },
+                  { id: 'predictive', label: 'Intelligence Prédictive' },
+                ]
+              },
+              {
+                id: 'terrain',
+                label: 'Performance Terrain',
+                description: 'Suivi des chantiers, secteurs et fronts',
+                icon: <Layers className="w-5 h-5" />,
+                borderColor: 'border-l-[#ef4444]',
+                colorName: '#ef4444',
+                bgActive: 'bg-rose-50/45 border-rose-200/80 shadow-xs ring-1 ring-rose-100',
+                textActive: 'text-rose-950',
+                iconBgActive: 'bg-[#ef4444] text-white',
+                iconBgInactive: 'bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600',
+                tabs: [
+                  { id: 'chantiers_premium', label: 'Analyse Chantiers' },
+                  { id: 'secteurs', label: 'Détail Secteurs' },
+                  { id: 'sectors_compare', label: 'Comparatif Secteurs' },
+                  { id: 'bure', label: 'Focus Bure Est (N340)' },
+                ]
+              },
+              {
+                id: 'rh',
+                label: 'Ressources Humaines',
+                description: 'Rendements individuels, dossiers & classements',
+                icon: <HardHat className="w-5 h-5" />,
+                borderColor: 'border-l-[#0ea5e9]',
+                colorName: '#0ea5e9',
+                bgActive: 'bg-sky-50/45 border-sky-200/80 shadow-xs ring-1 ring-sky-100',
+                textActive: 'text-sky-950',
+                iconBgActive: 'bg-[#0ea5e9] text-white',
+                iconBgInactive: 'bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600',
+                tabs: [
+                  { id: 'rh_premium', label: 'Dossiers RH Premium' },
+                  { id: 'rh', label: 'Ressources Humaines' },
+                  { id: 'rankings', label: 'Classements & Palmarès' },
+                ]
+              },
+              {
+                id: 'logistique',
+                label: 'Matériel & Historiques',
+                description: 'Maintenance des engins, tendances long-terme',
+                icon: <Wrench className="w-5 h-5" />,
+                borderColor: 'border-l-[#ef4444]',
+                colorName: '#ef4444',
+                bgActive: 'bg-rose-50/45 border-rose-200/80 shadow-xs ring-1 ring-rose-100',
+                textActive: 'text-rose-950',
+                iconBgActive: 'bg-[#ef4444] text-white',
+                iconBgInactive: 'bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-600',
+                tabs: [
+                  { id: 'materiel', label: 'Matériels & Maintenance' },
+                  { id: 'trends', label: 'Historique & Tendances' },
+                ]
+              }
+            ].map(cat => {
+              const isCategoryActive = cat.tabs.some(t => t.id === activeTab);
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveTab(cat.tabs[0].id as any)}
+                  className={`group border-l-4 text-left p-4 rounded-2xl border transition-all duration-200 relative overflow-hidden cursor-pointer ${cat.borderColor} ${
+                    isCategoryActive 
+                      ? `${cat.bgActive} border-slate-300/60` 
+                      : 'bg-white border-slate-200/80 hover:bg-slate-50/50 hover:shadow-2xs text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {/* Visual Accent glow inside active category */}
+                  {isCategoryActive && (
+                    <div 
+                      className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-10"
+                      style={{ backgroundColor: cat.colorName }}
+                    />
+                  )}
+                  
+                  <div className="flex items-start gap-3 relative z-10">
+                    <span className={`p-2 rounded-xl transition-colors duration-200 ${isCategoryActive ? cat.iconBgActive : cat.iconBgInactive}`}>
+                      {cat.icon}
+                    </span>
+                    <div className="space-y-0.5">
+                      <span className={`text-xs font-black uppercase tracking-wide block leading-tight ${isCategoryActive ? cat.textActive : 'text-slate-800'}`}>
+                        {cat.label}
+                      </span>
+                      <span className="text-[9px] font-medium text-slate-400 block leading-tight">
+                        {cat.description}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TABS NAVIGATION (For the active pillar) */}
+      {(() => {
+        const categoriesData = [
+          {
+            id: 'strategie',
+            tabs: [
+              { id: 'cockpit', label: 'Cockpit Direction', icon: <Activity className="w-4 h-4" /> },
+              { id: 'alerts', label: "Centre d'Alertes", icon: <ShieldAlert className="w-4 h-4 text-rose-500 animate-pulse" /> },
+              { id: 'predictive', label: 'Intelligence Prédictive', icon: <Sparkles className="w-4 h-4 text-amber-500" /> },
+            ]
+          },
+          {
+            id: 'terrain',
+            tabs: [
+              { id: 'chantiers_premium', label: 'Analyse Chantiers', icon: <Gauge className="w-4 h-4" /> },
+              { id: 'secteurs', label: 'Détail Secteurs', icon: <Layers className="w-4 h-4" /> },
+              { id: 'sectors_compare', label: 'Comparatif Secteurs', icon: <Layers className="w-4 h-4" /> },
+              { id: 'bure', label: 'Focus Bure Est (N340)', icon: <Train className="w-4 h-4" /> },
+            ]
+          },
+          {
+            id: 'rh',
+            tabs: [
+              { id: 'rh_premium', label: 'Dossiers RH Premium', icon: <FileText className="w-4 h-4 text-amber-500" /> },
+              { id: 'rh', label: 'Ressources Humaines', icon: <HardHat className="w-4 h-4" /> },
+              { id: 'rankings', label: 'Classements & Palmarès', icon: <Award className="w-4 h-4" /> },
+            ]
+          },
+          {
+            id: 'logistique',
+            tabs: [
+              { id: 'materiel', label: 'Matériels & Maintenance', icon: <Wrench className="w-4 h-4" /> },
+              { id: 'trends', label: 'Historique & Tendances', icon: <TrendingUp className="w-4 h-4" /> },
+            ]
+          }
+        ];
+
+        const activeCategoryData = pillar 
+          ? (categoriesData.find(cat => cat.id === pillar) || { tabs: [] })
+          : (categoriesData.find(cat => cat.tabs.some(t => t.id === activeTab)) || { tabs: [] });
+
+        return (
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-200/50 p-1.5 rounded-2xl w-full">
+            <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider pl-2 pr-2.5 border-r border-slate-200 shrink-0">
+              Module Actif :
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {activeCategoryData.tabs.map(t => {
+                const isSubTabActive = activeTab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveTab(t.id as any)}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-[10.5px] uppercase tracking-wide transition-all cursor-pointer ${
+                      isSubTabActive 
+                        ? 'bg-white border border-slate-200/80 text-slate-850 shadow-3xs font-black' 
+                        : 'border border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/40'
+                    }`}
+                  >
+                    {t.icon}
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* RENDER ACTIVE TAB */}
       <AnimatePresence mode="wait">
@@ -1302,14 +1483,19 @@ export const AnalyseDashboard: React.FC = () => {
             <>
               {/* TAB: ALERTS CENTER */}
               {activeTab === 'alerts' && (
-                <SmartAlertsCenter 
-                  allProductionDocs={allProductionDocs}
-                  allPlanningSheets={allPlanningSheets}
-                  chantiers={chantiers}
-                  employees={employees}
-                  engines={engines}
-                  smartExecutiveAlerts={smartExecutiveAlerts}
-                />
+                <div className="bg-white border border-[#d4af37]/35 rounded-3xl p-6 relative overflow-hidden shadow-xs text-slate-800">
+                  <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                  <div className="mt-1">
+                    <SmartAlertsCenter 
+                      allProductionDocs={allProductionDocs}
+                      allPlanningSheets={allPlanningSheets}
+                      chantiers={chantiers}
+                      employees={employees}
+                      engines={engines}
+                      smartExecutiveAlerts={smartExecutiveAlerts}
+                    />
+                  </div>
+                </div>
               )}
 
               {/* TAB: CHANTIERS PREMIUM */}
@@ -1319,6 +1505,23 @@ export const AnalyseDashboard: React.FC = () => {
                   allPlanningSheets={allPlanningSheets}
                   chantiers={chantiers}
                 />
+              )}
+
+              {/* TAB: PREDICTIVE INTELLIGENCE */}
+              {activeTab === 'predictive' && (
+                <div className="bg-white border border-[#d4af37]/35 rounded-3xl p-6 relative overflow-hidden shadow-xs text-slate-800">
+                  <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                  <div className="mt-1">
+                    <PredictiveIntelligencePremium 
+                      allProductionDocs={allProductionDocs}
+                      allPlanningSheets={allPlanningSheets}
+                      chantiers={chantiers}
+                      reportType={reportType}
+                      filterDate={filterDate}
+                      filterMonth={filterMonth}
+                    />
+                  </div>
+                </div>
               )}
 
               {/* TAB: COMPARATIF SECTEURS */}
@@ -1358,98 +1561,215 @@ export const AnalyseDashboard: React.FC = () => {
 
               {/* TAB 1: COCKPIT DIRECTION GÉNÉRALE */}
               {activeTab === 'cockpit' && (
-                <div className="space-y-8">
-                  {/* ACTIONS PRIORITAIRES DU JOUR BLOCK */}
-                  {(() => {
-                    const priorities = smartExecutiveAlerts.filter(a => a.type === 'red' || a.type === 'amber').slice(0, 4);
+                <div className="space-y-6 animate-fade-in">
+                  
+                  {/* Executive Grid: Stakeholders Interactive Briefing & Actions Prioritaires */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
-                    return (
-                      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
-                        {/* Background subtle mesh or gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-900/40 opacity-90 z-0" />
-                        <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#b8860b]/10 rounded-full blur-3xl" />
-                        
-                        <div className="relative z-10 space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
-                            <div className="flex items-center gap-2.5">
-                              <span className="p-2 bg-[#b8860b]/20 text-[#ffd700] rounded-xl border border-[#b8860b]/30">
-                                <Activity className="w-5 h-5" />
-                              </span>
-                              <div>
-                                <h3 className="text-sm font-black uppercase tracking-wider text-slate-100 flex items-center gap-2">
-                                  🎯 ACTIONS PRIORITAIRES DU JOUR
-                                </h3>
-                                <p className="text-[10px] text-slate-400 font-medium">Diagnostic quotidien automatisé à destination de la Direction Générale</p>
-                              </div>
-                            </div>
-                            <span className="text-[8.5px] font-black uppercase bg-[#b8860b]/20 text-[#ffd700] border border-[#b8860b]/40 px-3 py-1 rounded-full tracking-wider">
-                              Arbitrage Décisionnel
+                    {/* Interactive Stakeholder Briefing (Parole des Responsables) */}
+                    <div id="executive-briefing-panel" className="lg:col-span-2 bg-white border border-[#d4af37]/35 rounded-3xl p-5 text-slate-800 relative overflow-hidden shadow-xs flex flex-col justify-between">
+                      {/* Hydromines identity lines */}
+                      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      
+                      <div className="space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1.5 bg-[#0ea5e9]/10 text-[#0ea5e9] rounded-lg">
+                              <Sparkles className="w-4 h-4 text-[#0ea5e9]" />
                             </span>
-                          </div>
-
-                          {priorities.length === 0 ? (
-                            <div className="flex items-center gap-3 bg-slate-950/40 border border-emerald-500/30 p-4 rounded-xl text-emerald-400">
-                              <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                              <div>
-                                <span className="text-[11px] font-black uppercase block">Toutes les opérations sont fluides</span>
-                                <span className="text-[10px] text-slate-400 font-medium">Aucun goulot d'étranglement ou anomalie majeure détectée sur les chantiers actifs aujourd'hui.</span>
-                              </div>
+                            <div>
+                              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                                Synthèse Décisionnelle Consolidée
+                              </h3>
+                              <p className="text-[9px] text-slate-400 font-bold uppercase">Briefing de l'Audit & Alignement Stratégique SMI</p>
                             </div>
-                          ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {priorities.map((p, idx) => {
-                                // Get matching icon
-                                let IconComp = AlertTriangle;
-                                if (p.category === 'FORAGE') IconComp = Bomb;
-                                else if (p.category === 'DÉBLAYAGE') IconComp = Truck;
-                                else if (p.category === 'EXTRACTION') IconComp = Train;
-                                else if (p.category === 'RH') IconComp = HardHat;
-                                else if (p.category === 'MAINTENANCE') IconComp = Wrench;
+                          </div>
+                          <span className="text-[8.5px] font-black uppercase bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg">
+                            Perspectives Réunion
+                          </span>
+                        </div>
 
-                                const isRed = p.type === 'red';
-                                const badgeColor = isRed ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' : 'bg-amber-500/15 text-amber-400 border-amber-500/30';
-                                const actionText = isRed ? 'Action Immédiate' : 'Surveillance';
+                        {/* Interactive Tabs for Stakeholders */}
+                        <div className="grid grid-cols-4 gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200/50">
+                          <button
+                            id="btn-briefing-dg"
+                            onClick={() => setSelectedBriefingActor('dg')}
+                            className={`px-1 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer text-center ${
+                              selectedBriefingActor === 'dg' 
+                                ? 'bg-white text-slate-900 border border-slate-200 shadow-3xs font-extrabold' 
+                                : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                          >
+                            💼 DG
+                          </button>
+                          <button
+                            id="btn-briefing-dt"
+                            onClick={() => setSelectedBriefingActor('dt')}
+                            className={`px-1 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer text-center ${
+                              selectedBriefingActor === 'dt' 
+                                ? 'bg-white text-slate-900 border border-slate-200 shadow-3xs font-extrabold' 
+                                : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                          >
+                            🔧 DT
+                          </button>
+                          <button
+                            id="btn-briefing-smi"
+                            onClick={() => setSelectedBriefingActor('smi')}
+                            className={`px-1 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer text-center ${
+                              selectedBriefingActor === 'smi' 
+                                ? 'bg-white text-slate-900 border border-slate-200 shadow-3xs font-extrabold' 
+                                : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                          >
+                            ⛏️ SMI
+                          </button>
+                          <button
+                            id="btn-briefing-expert"
+                            onClick={() => setSelectedBriefingActor('expert')}
+                            className={`px-1 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer text-center ${
+                              selectedBriefingActor === 'expert' 
+                                ? 'bg-white text-slate-900 border border-slate-200 shadow-3xs font-extrabold' 
+                                : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                          >
+                            🔮 L'Expert
+                          </button>
+                        </div>
 
-                                return (
-                                  <div key={p.id || idx} className="bg-slate-950/50 border border-slate-800 hover:border-slate-700 transition p-4 rounded-xl flex items-start gap-3">
-                                    <span className={`p-2 rounded-lg border ${isRed ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'} flex-shrink-0`}>
-                                      <IconComp className="w-4 h-4" />
-                                    </span>
-                                    <div className="space-y-1 min-w-0 flex-1">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <span className="text-[10px] font-black uppercase text-slate-200 tracking-wide truncate block">{p.title.replace(/[🔴⚠️]/g, '').trim()}</span>
-                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 border rounded-full shrink-0 ${badgeColor}`}>
-                                          {actionText}
-                                        </span>
-                                      </div>
-                                      <p className="text-[10px] text-slate-400 font-medium leading-relaxed">{p.message}</p>
-                                      
-                                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1.5 text-[9px] text-slate-500 font-bold border-t border-slate-900">
-                                        {p.metric && <span>Métrique: <span className="text-slate-300 font-mono">{p.metric}</span></span>}
-                                        {p.deviation && <span>Déviation: <span className="text-rose-400 font-mono">{p.deviation}</span></span>}
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                        {/* Briefing Text Content */}
+                        <div className="min-h-[105px] bg-slate-50/50 border border-slate-100 rounded-xl p-3 text-[10px] leading-relaxed font-medium text-slate-600 transition-all">
+                          {selectedBriefingActor === 'dg' && (
+                            <div className="space-y-2 animate-fade-in">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-xs font-black uppercase text-slate-900">Directeur Général (DG)</span>
+                                <span className="text-[7.5px] font-bold bg-[#0ea5e9]/10 text-[#0ea5e9] px-1.5 py-0.2 rounded uppercase">Performance Industrielle</span>
+                              </div>
+                              <p>
+                                « Notre objectif suprême est d'atteindre l'excellence industrielle sur l'ensemble du complexe d'Imiter. Pour ce mois, notre score de performance global s'établit à <strong className="text-slate-950 font-black">{globalWeightedScore.toFixed(1)}%</strong>. Je demande une concentration totale sur le goulet d'étranglement du forage pour sécuriser les volumes futurs. »
+                              </p>
+                              <p className="text-[9px] text-slate-400 italic">
+                                * Directive DG : Réduire le gaspillage de carburant et exiger des ratios spécifiques conformes à la planification financière.
+                              </p>
+                            </div>
+                          )}
+
+                          {selectedBriefingActor === 'dt' && (
+                            <div className="space-y-2 animate-fade-in">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-xs font-black uppercase text-slate-900">Directeur Technique (DT)</span>
+                                <span className="text-[7.5px] font-bold bg-[#ef4444]/10 text-[#ef4444] px-1.5 py-0.2 rounded uppercase">Efficience & Rendement</span>
+                              </div>
+                              <p>
+                                « D'un point de vue purement opérationnel, le rendement du forage est à <strong className="text-slate-950 font-black">{minageRate.toFixed(1)}%</strong> (soit <strong className="text-slate-950 font-mono">{metrics.totalRealMeterage.toFixed(1)}m</strong> forés). C'est le moteur de notre cycle. Nous devons optimiser la disponibilité de nos jumbos et assurer une cadence stricte sur chaque front de tir. »
+                              </p>
+                              <p className="text-[9px] text-slate-400 italic">
+                                * Diagnostic DT : Le ratio gasoil de <strong className="text-slate-950">{metrics.totalRealVolume > 0 ? (metrics.totalDeblayageGasoil / metrics.totalRealVolume).toFixed(2) : '0.00'} L/m³</strong> sur le déblayage exige de renforcer l'éco-conduite et la maintenance préventive des chargeuses LHD.
+                              </p>
+                            </div>
+                          )}
+
+                          {selectedBriefingActor === 'smi' && (
+                            <div className="space-y-2 animate-fade-in">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-xs font-black uppercase text-slate-900">Responsable Chantier SMI</span>
+                                <span className="text-[7.5px] font-bold bg-[#b8860b]/10 text-[#b8860b] px-1.5 py-0.2 rounded uppercase">Souterrain & Front</span>
+                              </div>
+                              <p>
+                                « Au fond, nos équipes font face à des contraintes de terrain intenses (dureté géologique, ventilation secondaire). Pour ce cycle, nous avons réussi à extraire <strong className="text-slate-950 font-black">{metrics.totalRealWagons} Wg</strong> (soit <strong className="text-slate-950">{extractionRate.toFixed(0)}%</strong> de notre cible d'évacuation). »
+                              </p>
+                              <p className="text-[9px] text-slate-400 italic">
+                                * Demande Chantier : Réduire le temps d'arrêt curatif de la maintenance (<strong className="text-slate-950 font-mono">{metrics.totalRealMaintHours.toFixed(1)}h</strong>) pour stabiliser la cadence de minage sans compromettre la sécurité.
+                              </p>
+                            </div>
+                          )}
+
+                          {selectedBriefingActor === 'expert' && (
+                            <div className="space-y-2 animate-fade-in text-slate-800">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-xs font-black uppercase text-amber-700">Expert Process & IA</span>
+                                <span className="text-[7.5px] font-bold bg-amber-150 text-amber-800 px-1.5 py-0.2 rounded uppercase">Analytique & Arbitrage</span>
+                              </div>
+                              <p className="leading-relaxed">
+                                « L'analyse approfondie des données cliniques montre une corrélation forte entre le taux de présence des mineurs certifiés (<strong className="text-slate-950">{metrics.realPresence} présents</strong>) et la régularité linéaire de forage. Les tirs défaillants s'expliquent à 80% par des variations d'effectifs sur les shifts 2 et 3. »
+                              </p>
+                              <div className="text-[9px] bg-slate-900 text-slate-100 p-2 rounded-lg mt-2 flex items-center justify-between font-mono">
+                                <span>Recommandation : Planification dynamique inter-postes & Éco-conduite</span>
+                                <span className="text-[#ffd700] text-[8px] font-black">ACTION IMMÉDIATE</span>
+                              </div>
                             </div>
                           )}
                         </div>
                       </div>
-                    );
-                  })()}
 
-                  {/* Vue Direction Générale Express */}
-                  <ExpressDirectionScorecard 
-                    allProductionDocs={allProductionDocs}
-                    allPlanningSheets={allPlanningSheets}
-                  />
+                      {/* Micro-briefing credit */}
+                      <div className="text-[8px] text-slate-400 font-bold uppercase mt-3 pt-2 border-t border-slate-100 flex justify-between items-center">
+                        <span>Hydromines Decision Engine v2.0</span>
+                        <span>Dernière mise à jour : {filterMonth}</span>
+                      </div>
+                    </div>
+
+                    {/* Actions Prioritaires du Jour (Side-by-side to save scroll) */}
+                    <div id="priority-actions-panel" className="bg-white border border-[#d4af37]/35 rounded-3xl p-5 text-slate-800 shadow-xs flex flex-col justify-between relative overflow-hidden">
+                      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1.5 bg-[#ef4444]/10 text-[#ef4444] rounded-lg">
+                              <ShieldAlert className="w-4 h-4 text-[#ef4444]" />
+                            </span>
+                            <span className="text-xs font-black uppercase text-slate-800 tracking-wide">Priorités d'Action</span>
+                          </div>
+                          <span className="text-[8px] font-black bg-rose-600 text-white px-2 py-0.5 rounded-full animate-pulse">
+                            CRITIQUE
+                          </span>
+                        </div>
+
+                        <div className="space-y-3 max-h-[175px] overflow-y-auto pr-0.5">
+                          {(() => {
+                            const priorities = smartExecutiveAlerts.filter(a => a.type === 'red' || a.type === 'amber').slice(0, 2);
+                            if (priorities.length > 0) {
+                              return priorities.map((alert, idx) => {
+                                const borderStyle = alert.type === 'red' ? 'border-rose-100 bg-rose-50/10' : 'border-amber-100 bg-amber-50/10';
+                                const colorText = alert.type === 'red' ? 'text-rose-900' : 'text-amber-950';
+                                const dotColor = alert.type === 'red' ? 'bg-rose-500' : 'bg-amber-500';
+                                return (
+                                  <div key={idx} className={`border rounded-xl p-3 space-y-1 ${borderStyle} ${colorText}`}>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                                      <span className="text-[9.5px] font-black uppercase tracking-wide truncate">{alert.title}</span>
+                                    </div>
+                                    <p className="text-[9px] text-slate-500 font-medium leading-relaxed">{alert.message}</p>
+                                  </div>
+                                );
+                              });
+                            } else {
+                              return (
+                                <div className="text-center py-6 border border-dashed border-slate-100 bg-slate-50/50 rounded-xl">
+                                  <CheckCircle className="w-6 h-6 text-emerald-500 mx-auto animate-pulse mb-1.5" />
+                                  <h4 className="text-[10px] font-black uppercase text-slate-700">Aucune alerte prioritaire</h4>
+                                  <p className="text-[8px] text-slate-400 uppercase font-bold">Toutes les cadences de la SMI sont alignées.</p>
+                                </div>
+                              );
+                            }
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Actions count indicator */}
+                      <div className="text-[8px] text-slate-400 font-black uppercase mt-3 pt-2 border-t border-slate-100 flex justify-between items-center">
+                        <span>Anomalies actives : {smartExecutiveAlerts.length}</span>
+                        <span className="text-[#0ea5e9]">Consulter l'onglet Alerte ➔</span>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* KPI Row */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                     {/* Efficacite Globale */}
-                    <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-2xs relative flex flex-col justify-between">
-                      <div className="flex justify-between items-start">
+                    <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-4 shadow-2xs relative overflow-hidden flex flex-col justify-between">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="flex justify-between items-start mt-1">
                         <span className="text-[9.5px] font-bold text-slate-400 uppercase">1. Efficacité Globale</span>
                         <span className={`px-1.5 py-0.5 border text-[7px] font-black uppercase rounded ${efficiencyColor}`}>
                           {efficiencyBadge}
@@ -1484,8 +1804,9 @@ export const AnalyseDashboard: React.FC = () => {
                     </div>
 
                     {/* Forage */}
-                    <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
-                      <div className="flex justify-between items-start">
+                    <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-4 shadow-2xs relative overflow-hidden flex flex-col justify-between">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="flex justify-between items-start mt-1">
                         <span className="text-[9.5px] font-bold text-slate-400 uppercase">2. Forage & Minage</span>
                         <span className="text-[#b8860b]"><Bomb className="w-4 h-4" /></span>
                       </div>
@@ -1501,8 +1822,9 @@ export const AnalyseDashboard: React.FC = () => {
                     </div>
 
                     {/* Déblayage */}
-                    <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
-                      <div className="flex justify-between items-start">
+                    <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-4 shadow-2xs relative overflow-hidden flex flex-col justify-between">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="flex justify-between items-start mt-1">
                         <span className="text-[9.5px] font-bold text-slate-400 uppercase">3. Déblayage & Charge</span>
                         <span className="text-sky-600"><Tractor className="w-4 h-4" /></span>
                       </div>
@@ -1518,8 +1840,9 @@ export const AnalyseDashboard: React.FC = () => {
                     </div>
 
                     {/* Extraction */}
-                    <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-2xs flex flex-col justify-between">
-                      <div className="flex justify-between items-start">
+                    <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-4 shadow-2xs relative overflow-hidden flex flex-col justify-between">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="flex justify-between items-start mt-1">
                         <span className="text-[9.5px] font-bold text-slate-400 uppercase">4. Extraction Wagons</span>
                         <span className="text-indigo-600"><Train className="w-4 h-4" /></span>
                       </div>
@@ -1537,8 +1860,9 @@ export const AnalyseDashboard: React.FC = () => {
 
                   {/* Explosives & Fuel Consumptions */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white border border-gray-150 p-6 rounded-2xl space-y-4">
-                      <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <div className="bg-white border border-[#d4af37]/35 p-6 rounded-2xl space-y-4 relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2 mt-1">
                         <span className="text-slate-800 font-black text-xs uppercase tracking-wide">Ratio Spécifique Explosifs</span>
                         <span className="text-[9.5px] font-bold bg-rose-50 text-rose-700 px-2 py-0.5 rounded uppercase">
                           {expVariancePct > 0 ? `+${expVariancePct.toFixed(1)}%` : `${expVariancePct.toFixed(1)}%`} Variance
@@ -1566,8 +1890,9 @@ export const AnalyseDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="bg-white border border-gray-150 p-6 rounded-2xl space-y-4">
-                      <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <div className="bg-white border border-[#d4af37]/35 p-6 rounded-2xl space-y-4 relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2 mt-1">
                         <span className="text-slate-800 font-black text-xs uppercase tracking-wide">Indicateurs Énergie & LHD</span>
                         <span className="text-[9.5px] font-bold bg-sky-50 text-sky-700 px-2 py-0.5 rounded uppercase"><Fuel className="w-3.5 h-3.5 inline mr-1" />Gasoil</span>
                       </div>
@@ -1598,30 +1923,31 @@ export const AnalyseDashboard: React.FC = () => {
 
                   {/* Monthly Charts */}
                   {reportType === 'month' && chartData.length > 0 && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-white border border-gray-150 rounded-2xl p-6">
-                      <div className="space-y-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-white border border-[#d4af37]/35 rounded-2xl p-6 relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="space-y-2 mt-1">
                         <h4 className="text-xs font-black uppercase text-slate-800">Évolution Quotidienne Minage (m)</h4>
                         <div className="h-64 font-mono text-[9px]">
                           <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={chartData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
                               <defs>
                                 <linearGradient id="colorMet" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor="#b8860b" stopOpacity={0.2}/>
-                                  <stop offset="95%" stopColor="#b8860b" stopOpacity={0}/>
+                                  <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.25}/>
+                                  <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
                                 </linearGradient>
                               </defs>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                               <XAxis dataKey="day" stroke="#94a3b8" />
                               <YAxis stroke="#94a3b8" unit="m" />
                               <Tooltip contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '10px' }} />
-                              <Area type="monotone" dataKey="realMeterage" name="Réel (m)" stroke="#b8860b" strokeWidth={2} fill="url(#colorMet)" />
-                              <Area type="monotone" dataKey="planMeterage" name="Prévu (m)" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" fill="none" />
+                              <Area type="monotone" dataKey="realMeterage" name="Réel (m) [Bleu Ciel]" stroke="#0ea5e9" strokeWidth={2.5} fill="url(#colorMet)" />
+                              <Area type="monotone" dataKey="planMeterage" name="Prévu (m) [Rouge]" stroke="#ef4444" strokeWidth={2} strokeDasharray="4 4" fill="none" />
                             </AreaChart>
                           </ResponsiveContainer>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-2 mt-1">
                         <h4 className="text-xs font-black uppercase text-slate-800">Évolution Quotidienne Extraction (wg)</h4>
                         <div className="h-64 font-mono text-[9px]">
                           <ResponsiveContainer width="100%" height="100%">
@@ -1630,8 +1956,8 @@ export const AnalyseDashboard: React.FC = () => {
                               <XAxis dataKey="day" stroke="#94a3b8" />
                               <YAxis stroke="#94a3b8" unit="wg" />
                               <Tooltip contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '10px' }} />
-                              <Bar dataKey="realWagons" name="Réel (wg)" fill="#b8860b" radius={[2, 2, 0, 0]} />
-                              <Bar dataKey="planWagons" name="Planifié (wg)" fill="#cbd5e1" radius={[2, 2, 0, 0]} />
+                              <Bar dataKey="realWagons" name="Réel (wg) [Bleu Ciel]" fill="#0ea5e9" radius={[2, 2, 0, 0]} />
+                              <Bar dataKey="planWagons" name="Planifié (wg) [Rouge]" fill="#ef4444" radius={[2, 2, 0, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
@@ -1640,14 +1966,44 @@ export const AnalyseDashboard: React.FC = () => {
                   )}
 
                   {/* AUTOMATIC ALERTS SYSTEM */}
-                  <SmartAlertsCenter 
-                    allProductionDocs={allProductionDocs}
-                    allPlanningSheets={allPlanningSheets}
-                    chantiers={chantiers}
-                    employees={employees}
-                    engines={engines}
-                    smartExecutiveAlerts={smartExecutiveAlerts}
-                  />
+                  <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-6 relative overflow-hidden shadow-2xs">
+                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-1">
+                      <div className="flex items-center gap-3">
+                        <span className="p-2.5 bg-rose-50 text-rose-600 rounded-xl border border-rose-100">
+                          <ShieldAlert className="w-5 h-5 animate-pulse" />
+                        </span>
+                        <div>
+                          <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">Centre d'Alertes Cliniques</h4>
+                          <p className="text-[10px] text-slate-500 font-medium">Diagnostic en temps réel des anomalies de production & déviations d'exploitation</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowClinicalAlerts(prev => !prev)}
+                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer flex items-center gap-2 ${
+                          showClinicalAlerts 
+                            ? 'bg-slate-900 text-white hover:bg-slate-800' 
+                            : 'bg-gradient-to-r from-[#0ea5e9] to-[#ef4444] text-white hover:opacity-90 shadow-sm'
+                        }`}
+                      >
+                        {showClinicalAlerts ? 'Masquer les alertes ➔' : 'AFFICHER LES ALERTES ➔'}
+                      </button>
+                    </div>
+
+                    {showClinicalAlerts && (
+                      <div className="mt-6 border-t border-slate-100 pt-6 animate-fade-in text-slate-800">
+                        <SmartAlertsCenter 
+                          allProductionDocs={allProductionDocs}
+                          allPlanningSheets={allPlanningSheets}
+                          chantiers={chantiers}
+                          employees={employees}
+                          engines={engines}
+                          smartExecutiveAlerts={smartExecutiveAlerts}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1674,8 +2030,9 @@ export const AnalyseDashboard: React.FC = () => {
                       const plan = s.totals.planMet;
                       const pct = plan > 0 ? (real / plan) * 100 : 100;
                       return (
-                        <div key={s.id} className="border border-gray-150 p-4 rounded-xl flex flex-col justify-between hover:shadow-2xs transition-all bg-white">
-                          <div className="flex justify-between items-center mb-2">
+                        <div key={s.id} className="border border-[#d4af37]/35 p-4 rounded-xl flex flex-col justify-between hover:shadow-2xs transition-all bg-white relative overflow-hidden">
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                          <div className="flex justify-between items-center mb-2 mt-1">
                             <span className="text-[10px] font-black uppercase text-slate-500">{s.label}</span>
                             <span className={`w-2 h-2 rounded-full bg-${s.color}-500`} />
                           </div>
@@ -1714,8 +2071,9 @@ export const AnalyseDashboard: React.FC = () => {
                   </div>
 
                   {/* Drilling & Minage Master Table */}
-                  <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-4 shadow-2xs">
-                    <h3 className="text-xs font-black uppercase text-slate-800">Détail des Tirées (Forage & Minage)</h3>
+                  <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 space-y-4 relative overflow-hidden shadow-2xs">
+                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                    <h3 className="text-xs font-black uppercase text-slate-800 mt-1">Détail des Tirées (Forage & Minage)</h3>
                     <div className="overflow-x-auto border border-gray-100 rounded-xl">
                       <table className="w-full text-left border-collapse text-[10.5px]">
                         <thead>
@@ -1776,8 +2134,9 @@ export const AnalyseDashboard: React.FC = () => {
                   </div>
 
                   {/* Deblayage LHD table */}
-                  <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-4 shadow-2xs">
-                    <h3 className="text-xs font-black uppercase text-slate-800">Efficacité des Chargeuses LHD</h3>
+                  <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 space-y-4 relative overflow-hidden shadow-2xs">
+                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                    <h3 className="text-xs font-black uppercase text-slate-800 mt-1">Efficacité des Chargeuses LHD</h3>
                     <div className="overflow-x-auto border border-gray-100 rounded-xl">
                       <table className="w-full text-left border-collapse text-[10.5px]">
                         <thead>
@@ -1828,8 +2187,9 @@ export const AnalyseDashboard: React.FC = () => {
                 <div className="space-y-8">
                   {/* Attendance info block */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white border border-gray-150 p-5 rounded-2xl flex items-center justify-between shadow-2xs">
-                      <div>
+                    <div className="bg-white border border-[#d4af37]/35 p-5 rounded-2xl flex items-center justify-between relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="mt-1">
                         <span className="text-[10px] text-slate-400 font-black uppercase">Présence Réelle Effectif</span>
                         <h4 className="text-2xl font-black text-slate-800 my-1">{metrics.realPresence} Agents</h4>
                         <span className="text-[9px] text-slate-500 font-bold uppercase">Mobilisés en fond de mine</span>
@@ -1837,8 +2197,9 @@ export const AnalyseDashboard: React.FC = () => {
                       <HardHat className="w-8 h-8 text-[#b8860b]" />
                     </div>
 
-                    <div className="bg-white border border-gray-150 p-5 rounded-2xl flex items-center justify-between shadow-2xs">
-                      <div>
+                    <div className="bg-white border border-[#d4af37]/35 p-5 rounded-2xl flex items-center justify-between relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="mt-1">
                         <span className="text-[10px] text-slate-400 font-black uppercase">Taux d'Engagement Planifié</span>
                         <h4 className="text-2xl font-black text-slate-800 my-1">
                           {metrics.planPresence > 0 ? ((metrics.realPresence / metrics.planPresence) * 100).toFixed(1) : '100'}%
@@ -1848,8 +2209,9 @@ export const AnalyseDashboard: React.FC = () => {
                       <Activity className="w-8 h-8 text-sky-600" />
                     </div>
 
-                    <div className="bg-white border border-gray-150 p-5 rounded-2xl flex items-center justify-between shadow-2xs">
-                      <div>
+                    <div className="bg-white border border-[#d4af37]/35 p-5 rounded-2xl flex items-center justify-between relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="mt-1">
                         <span className="text-[10px] text-slate-400 font-black uppercase">Productivité Forage Moyenne</span>
                         <h4 className="text-2xl font-black text-slate-800 my-1">
                           {metrics.totalRealRounds > 0 ? (metrics.totalRealMeterage / metrics.totalRealRounds).toFixed(2) : '0.00'} <span className="text-xs font-bold text-slate-400">m/v</span>
@@ -1862,8 +2224,9 @@ export const AnalyseDashboard: React.FC = () => {
 
                   {/* Miner Productivity Leaderboard */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white border border-gray-150 p-6 rounded-2xl space-y-4 shadow-2xs">
-                      <h3 className="text-xs font-black uppercase text-slate-800 tracking-wide flex items-center gap-1.5">
+                    <div className="bg-white border border-[#d4af37]/35 p-6 rounded-2xl space-y-4 relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <h3 className="text-xs font-black uppercase text-slate-800 tracking-wide flex items-center gap-1.5 mt-1">
                         <Award className="w-4 h-4 text-amber-500" /> Leaderboard Mineurs (Performance Forage)
                       </h3>
                       <div className="overflow-x-auto">
@@ -1905,8 +2268,9 @@ export const AnalyseDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="bg-white border border-gray-150 p-6 rounded-2xl space-y-4 shadow-2xs">
-                      <h3 className="text-xs font-black uppercase text-slate-800 tracking-wide flex items-center gap-1.5">
+                    <div className="bg-white border border-[#d4af37]/35 p-6 rounded-2xl space-y-4 relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <h3 className="text-xs font-black uppercase text-slate-800 tracking-wide flex items-center gap-1.5 mt-1">
                         <Truck className="w-4 h-4 text-sky-500" /> Leaderboard LHD (Volumes Déblayés)
                       </h3>
                       <div className="overflow-x-auto">
@@ -1950,8 +2314,9 @@ export const AnalyseDashboard: React.FC = () => {
                   </div>
 
                   {/* PREMIUM DYNAMIC HR INDIVIDUAL PROFILE ENGINE (MODULE 6) */}
-                  <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-6 space-y-4 shadow-lg">
-                    <div className="border-b border-slate-800 pb-3">
+                  <div className="bg-slate-900 border border-[#d4af37]/45 text-white rounded-3xl p-6 space-y-4 relative overflow-hidden shadow-lg">
+                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                    <div className="border-b border-slate-800 pb-3 mt-1">
                       <span className="text-[#ffd700] text-[8.5px] font-black uppercase tracking-widest block">Module Préparatoire aux Dossiers RH</span>
                       <h3 className="text-xs font-black uppercase tracking-wide text-white mt-1">Calculateur de Rendement Individuel Premium</h3>
                       <p className="text-[9.5px] text-slate-400 font-medium leading-normal mt-1">
@@ -2107,12 +2472,22 @@ export const AnalyseDashboard: React.FC = () => {
                 </div>
               )}
 
+              {/* TAB: DOSSIERS RH PREMIUM */}
+              {activeTab === 'rh_premium' && (
+                <RHDossiersPremium 
+                  employees={employees}
+                  allProductionDocs={allProductionDocs}
+                  allPlanningSheets={allPlanningSheets}
+                />
+              )}
+
               {/* TAB 5: MATÉRIEL & MAINTENANCE */}
               {activeTab === 'materiel' && (
                 <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white border border-gray-150 p-5 rounded-2xl flex items-center justify-between shadow-2xs">
-                      <div>
+                    <div className="bg-white border border-[#d4af37]/35 p-5 rounded-2xl flex items-center justify-between relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="mt-1">
                         <span className="text-[10px] text-slate-400 font-black uppercase">Engins Actifs Détectés</span>
                         <h4 className="text-2xl font-black text-slate-800 my-1">{lhdStats.length} Machines</h4>
                         <span className="text-[9px] text-slate-500 font-bold uppercase">LHD mobilisées sur la période</span>
@@ -2120,8 +2495,9 @@ export const AnalyseDashboard: React.FC = () => {
                       <Cpu className="w-8 h-8 text-purple-600" />
                     </div>
 
-                    <div className="bg-white border border-gray-150 p-5 rounded-2xl flex items-center justify-between shadow-2xs">
-                      <div>
+                    <div className="bg-white border border-[#d4af37]/35 p-5 rounded-2xl flex items-center justify-between relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="mt-1">
                         <span className="text-[10px] text-slate-400 font-black uppercase">Volume Moyen par Engin</span>
                         <h4 className="text-2xl font-black text-slate-800 my-1">
                           {lhdStats.length > 0 ? (metrics.totalRealVolume / lhdStats.length).toFixed(1) : '0.0'} m³
@@ -2131,8 +2507,9 @@ export const AnalyseDashboard: React.FC = () => {
                       <Layers className="w-8 h-8 text-emerald-600" />
                     </div>
 
-                    <div className="bg-white border border-gray-150 p-5 rounded-2xl flex items-center justify-between shadow-2xs">
-                      <div>
+                    <div className="bg-white border border-[#d4af37]/35 p-5 rounded-2xl flex items-center justify-between relative overflow-hidden shadow-2xs">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                      <div className="mt-1">
                         <span className="text-[10px] text-slate-400 font-black uppercase">Cumul Heures Maintenance</span>
                         <h4 className="text-2xl font-black text-purple-700 my-1">{metrics.totalRealMaintHours.toFixed(1)} Heures</h4>
                         <span className="text-[9px] text-slate-500 font-bold uppercase">Interventions brigades techniques</span>
@@ -2142,8 +2519,9 @@ export const AnalyseDashboard: React.FC = () => {
                   </div>
 
                   {/* Loader Specific Fleet Performance */}
-                  <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-4 shadow-2xs">
-                    <h3 className="text-xs font-black uppercase text-slate-800">Efficacité Énergétique & Volumes LHD</h3>
+                  <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 space-y-4 relative overflow-hidden shadow-2xs">
+                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                    <h3 className="text-xs font-black uppercase text-slate-800 mt-1">Efficacité Énergétique & Volumes LHD</h3>
                     <div className="overflow-x-auto border border-gray-100 rounded-xl">
                       <table className="w-full text-left border-collapse text-[10.5px]">
                         <thead>

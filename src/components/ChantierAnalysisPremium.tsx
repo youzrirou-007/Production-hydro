@@ -273,8 +273,9 @@ export const ChantierAnalysisPremium: React.FC<ChantierAnalysisPremiumProps> = (
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header section with summary */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 border border-slate-150 p-4.5 rounded-2xl">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 border border-[#d4af37]/35 p-4.5 rounded-2xl relative overflow-hidden shadow-2xs">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+        <div className="flex items-center gap-2 mt-1">
           <Compass className="w-5 h-5 text-[#b8860b]" />
           <div>
             <h2 className="text-xs font-black uppercase text-slate-800">Analyse Premium d'Avancement Chantiers</h2>
@@ -318,7 +319,8 @@ export const ChantierAnalysisPremium: React.FC<ChantierAnalysisPremiumProps> = (
       </div>
 
       {/* Content pane */}
-      <div className="bg-white border border-slate-150 rounded-2xl p-5">
+      <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 relative overflow-hidden shadow-2xs">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
         
         {/* VIEW: TOP CHANTIERS & RETARD & CLOTURE & INACTIFS (LIST LAYOUT) */}
         {activeSubView !== 'evolution' && (
@@ -470,8 +472,9 @@ export const ChantierAnalysisPremium: React.FC<ChantierAnalysisPremiumProps> = (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 {/* Metres forés cumulative progress */}
-                <div className="border border-slate-150 rounded-xl p-4.5 bg-white space-y-3">
-                  <div className="flex justify-between items-center">
+                <div className="border border-[#d4af37]/35 rounded-xl p-4.5 bg-white space-y-3 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                  <div className="flex justify-between items-center mt-1">
                     <h4 className="text-[11px] font-black uppercase text-slate-800">Avancement cumulé linéaire (m)</h4>
                     <span className="text-[9px] font-black text-[#b8860b]">{activeEvoChantier.percentageCompleted.toFixed(1)}% Réalisé</span>
                   </div>
@@ -496,8 +499,9 @@ export const ChantierAnalysisPremium: React.FC<ChantierAnalysisPremiumProps> = (
                 </div>
 
                 {/* Volumes déblayés par jour */}
-                <div className="border border-slate-150 rounded-xl p-4.5 bg-white space-y-3">
-                  <div className="flex justify-between items-center">
+                <div className="border border-[#d4af37]/35 rounded-xl p-4.5 bg-white space-y-3 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                  <div className="flex justify-between items-center mt-1">
                     <h4 className="text-[11px] font-black uppercase text-slate-800">Évacuation et Chargement LHD par jour (m³)</h4>
                     <span className="text-[9px] font-black text-sky-600">{activeEvoChantier.deblayageVolume.toFixed(1)} m³ cumulés</span>
                   </div>

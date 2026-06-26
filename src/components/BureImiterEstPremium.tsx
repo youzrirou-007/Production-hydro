@@ -297,8 +297,9 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Banner / Indicator of fluidity */}
-      <div className={`border p-5 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-5 transition-all ${getAlertBg(stats.bottleneckAlertLevel)}`}>
-        <div className="flex items-center gap-4">
+      <div className={`border border-[#d4af37]/35 p-5 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-5 transition-all relative overflow-hidden shadow-2xs ${getAlertBg(stats.bottleneckAlertLevel)}`}>
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+        <div className="flex items-center gap-4 mt-1">
           <div className="p-3 bg-white/60 backdrop-blur-xs rounded-xl">
             <Zap className={`w-8 h-8 ${
               stats.bottleneckAlertLevel === 'danger' ? 'text-rose-600 animate-pulse' : stats.bottleneckAlertLevel === 'warning' ? 'text-amber-600' : 'text-emerald-600'
@@ -322,11 +323,12 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
         
         {/* CARD 1: FORAGE */}
-        <div className="bg-white border border-slate-150 p-5 rounded-2xl flex flex-col justify-between relative shadow-2xs">
+        <div className="bg-white border border-[#d4af37]/35 p-5 rounded-2xl flex flex-col justify-between relative overflow-hidden shadow-2xs">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
           <div className="absolute -right-3 top-1/2 transform -translate-y-1/2 hidden md:block z-10">
-            <ArrowRight className="w-5 h-5 text-slate-300 bg-white border border-slate-200 rounded-full p-0.5" />
+            <ArrowRight className="w-5 h-5 text-slate-300 bg-white border border-[#d4af37]/35 rounded-full p-0.5" />
           </div>
-          <div>
+          <div className="mt-1">
             <div className="flex justify-between items-center border-b border-slate-100 pb-2.5 mb-4">
               <span className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
                 <Bomb className="w-4 h-4 text-[#b8860b]" /> 1. FORAGE
@@ -375,11 +377,12 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
         </div>
 
         {/* CARD 2: DÉBLAYAGE */}
-        <div className="bg-white border border-slate-150 p-5 rounded-2xl flex flex-col justify-between relative shadow-2xs">
+        <div className="bg-white border border-[#d4af37]/35 p-5 rounded-2xl flex flex-col justify-between relative overflow-hidden shadow-2xs">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
           <div className="absolute -right-3 top-1/2 transform -translate-y-1/2 hidden md:block z-10">
-            <ArrowRight className="w-5 h-5 text-slate-300 bg-white border border-slate-200 rounded-full p-0.5" />
+            <ArrowRight className="w-5 h-5 text-slate-300 bg-white border border-[#d4af37]/35 rounded-full p-0.5" />
           </div>
-          <div>
+          <div className="mt-1">
             <div className="flex justify-between items-center border-b border-slate-100 pb-2.5 mb-4">
               <span className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-sky-600" /> 2. DÉBLAYAGE
@@ -428,8 +431,9 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
         </div>
 
         {/* CARD 3: EXTRACTION */}
-        <div className="bg-white border border-slate-150 p-5 rounded-2xl flex flex-col justify-between shadow-2xs">
-          <div>
+        <div className="bg-white border border-[#d4af37]/35 p-5 rounded-2xl flex flex-col justify-between relative overflow-hidden shadow-2xs">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <div className="mt-1">
             <div className="flex justify-between items-center border-b border-slate-100 pb-2.5 mb-4">
               <span className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
                 <Train className="w-4 h-4 text-indigo-600" /> 3. EXTRACTION
@@ -480,8 +484,9 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
       </div>
 
       {/* SHIFTS DETAILS BREAKDOWN */}
-      <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+      <div className="bg-slate-50 border border-[#d4af37]/35 p-5 rounded-2xl space-y-6 relative overflow-hidden shadow-2xs">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3 mt-1">
           <div>
             <h4 className="text-[11.5px] font-black uppercase text-slate-800">Détails & Diagnostic Opérationnel Multi-Postes</h4>
             <p className="text-[10px] text-slate-500 font-medium">Analyse comparative des performances et rendements du Bure Imiter Est par quart de travail (Matin, Après-midi, Nuit)</p>
@@ -543,8 +548,9 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
             const roleBadge = isBest ? 'bg-emerald-100 text-emerald-800 border-emerald-200 👑 MEILLEUR' : isDanger ? 'bg-rose-100 text-rose-800 border-rose-200 🚨 EN DIFFICULTÉ' : 'bg-amber-100 text-amber-800 border-amber-200 ⚠️ À SURVEILLER';
 
             return (
-              <div key={shiftKey} className="bg-white border border-slate-150 p-5 rounded-xl space-y-4 shadow-3xs flex flex-col justify-between">
-                <div>
+              <div key={shiftKey} className="bg-white border border-[#d4af37]/35 p-5 rounded-xl space-y-4 shadow-3xs flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                <div className="mt-1">
                   <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
                     <span className="text-[10px] font-black uppercase text-slate-800 block">{shiftName}</span>
                     <span className={`text-[8px] font-black uppercase px-2 py-0.5 border rounded-full ${roleBadge}`} />

@@ -23,7 +23,9 @@ import {
   MapPin,
   Calendar,
   RefreshCw,
-  Gauge
+  Gauge,
+  Activity,
+  Wrench
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
@@ -54,7 +56,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'rotation', label: 'Changement de Poste', icon: <RefreshCw className="w-5 h-5" />, category: 'production' },
   
   // ANALYSE
-  { id: 'analyse_dashboard', label: 'Tableau de Bord', icon: <Gauge className="w-5 h-5" />, category: 'analyse' },
+  { id: 'analyse_strategie', label: 'Pilotage & Stratégie', icon: <Activity className="w-5 h-5" />, category: 'analyse' },
+  { id: 'analyse_terrain', label: 'Performance Terrain', icon: <Layers className="w-5 h-5" />, category: 'analyse' },
+  { id: 'analyse_rh', label: 'Ressources Humaines', icon: <HardHat className="w-5 h-5" />, category: 'analyse' },
+  { id: 'analyse_logistique', label: 'Matériel & Historiques', icon: <Wrench className="w-5 h-5" />, category: 'analyse' },
 
   // ADMIN
   { id: 'admin', label: 'Administration', icon: <Users className="w-5 h-5" />, roles: ['admin'], category: 'admin' },

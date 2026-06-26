@@ -147,28 +147,29 @@ export const ExpressDirectionScorecard: React.FC<ExpressDirectionScorecardProps>
   }, [allProductionDocs, allPlanningSheets]);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 text-white shadow-md">
-      <div className="flex items-center gap-2 mb-3 border-b border-slate-800 pb-2">
-        <ShieldCheck className="w-4 h-4 text-[#ffd700]" />
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Vue Direction Générale Express (Lecture Rapide)</span>
+    <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 text-slate-800 shadow-2xs relative overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+      <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3 mt-1">
+        <ShieldCheck className="w-4 h-4 text-[#0ea5e9]" />
+        <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Vue Direction Générale Express (Lecture Rapide)</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {sectorScores.map(sec => {
           const statusColors = 
-            sec.status === 'excellent' ? { bg: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400', badge: 'EXCELLENT', dot: 'bg-emerald-500' } :
-            sec.status === 'surveillance' ? { bg: 'bg-amber-500/10 border-amber-500/20 text-amber-400', badge: 'SURVEILLANCE', dot: 'bg-amber-500' } :
-            { bg: 'bg-rose-500/10 border-rose-500/20 text-rose-400', badge: 'ATTENTION', dot: 'bg-rose-500' };
+            sec.status === 'excellent' ? { bg: 'bg-emerald-50/40 border-emerald-100 text-emerald-800', badge: 'EXCELLENT', dot: 'bg-emerald-500', textScore: 'text-emerald-900' } :
+            sec.status === 'surveillance' ? { bg: 'bg-amber-50/40 border-amber-100 text-amber-800', badge: 'SURVEILLANCE', dot: 'bg-amber-500', textScore: 'text-amber-900' } :
+            { bg: 'bg-rose-50/40 border-rose-100 text-rose-800', badge: 'ATTENTION', dot: 'bg-rose-500', textScore: 'text-rose-900' };
 
           return (
             <div 
               key={sec.id} 
-              className={`border rounded-xl p-3 flex flex-col justify-between h-24 transition-all hover:scale-[1.01] ${statusColors.bg}`}
+              className={`border border-[#d4af37]/25 rounded-xl p-3.5 flex flex-col justify-between h-28 transition-all hover:shadow-xs border-l-4 ${statusColors.bg}`}
             >
               {/* Sector Name & status badge */}
               <div className="flex justify-between items-start">
-                <span className="text-[10px] font-black text-white tracking-wide uppercase">{sec.name}</span>
-                <span className="text-[7.5px] font-black uppercase flex items-center gap-1">
+                <span className="text-[11px] font-extrabold text-slate-800 tracking-wide uppercase">{sec.name}</span>
+                <span className="text-[8px] font-extrabold uppercase flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white border border-slate-200/60 shadow-3xs">
                   <span className={`w-1.5 h-1.5 rounded-full ${statusColors.dot}`} />
                   {statusColors.badge}
                 </span>
@@ -177,25 +178,25 @@ export const ExpressDirectionScorecard: React.FC<ExpressDirectionScorecardProps>
               {/* Score and Trend Indicator */}
               <div className="flex justify-between items-end mt-2">
                 <div>
-                  <span className="text-2xl font-mono font-black text-white block leading-none">{sec.score}%</span>
-                  <span className="text-[7.5px] text-slate-400 uppercase font-bold tracking-wider mt-1 block">Score de Performance</span>
+                  <span className={`text-2xl font-mono font-black ${statusColors.textScore} block leading-none`}>{sec.score}%</span>
+                  <span className="text-[8px] text-slate-400 uppercase font-extrabold tracking-wider mt-1 block">Score de Performance</span>
                 </div>
 
                 {/* Trend icon container */}
                 <div className="text-right">
                   {sec.trend === 'up' && (
-                    <span className="text-[8px] font-black text-emerald-400 uppercase flex items-center gap-0.5">
-                      <TrendingUp className="w-3.5 h-3.5" /> HAUSSE
+                    <span className="text-[8.5px] font-black text-emerald-600 uppercase flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-emerald-100">
+                      <TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> HAUSSE
                     </span>
                   )}
                   {sec.trend === 'down' && (
-                    <span className="text-[8px] font-black text-rose-400 uppercase flex items-center gap-0.5">
-                      <TrendingDown className="w-3.5 h-3.5" /> BAISSE
+                    <span className="text-[8.5px] font-black text-rose-600 uppercase flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-rose-100">
+                      <TrendingDown className="w-3.5 h-3.5 text-rose-500" /> BAISSE
                     </span>
                   )}
                   {sec.trend === 'stable' && (
-                    <span className="text-[8px] font-black text-slate-400 uppercase flex items-center gap-0.5">
-                      <Minus className="w-3.5 h-3.5" /> STABLE
+                    <span className="text-[8.5px] font-black text-slate-500 uppercase flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-slate-100">
+                      <Minus className="w-3.5 h-3.5 text-slate-400" /> STABLE
                     </span>
                   )}
                 </div>

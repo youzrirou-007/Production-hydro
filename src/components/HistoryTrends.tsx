@@ -323,8 +323,9 @@ export const HistoryTrends: React.FC<HistoryTrendsProps> = ({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Top filter dashboard */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-slate-50 border border-slate-150 p-4.5 rounded-2xl">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-slate-50 border border-[#d4af37]/35 p-4.5 rounded-2xl relative overflow-hidden shadow-2xs">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+        <div className="flex items-center gap-2 mt-1">
           <ChartIcon className="w-5 h-5 text-[#b8860b]" />
           <div>
             <h2 className="text-xs font-black uppercase text-slate-800">Cockpit Historique & Tendances Long Terme</h2>
@@ -392,13 +393,14 @@ export const HistoryTrends: React.FC<HistoryTrendsProps> = ({
           <button
             key={m.id}
             onClick={() => setMetricTab(m.id as any)}
-            className={`p-3 border rounded-xl flex flex-col justify-between items-start text-left cursor-pointer transition-all shadow-3xs ${
+            className={`p-3 border rounded-xl flex flex-col justify-between items-start text-left cursor-pointer transition-all shadow-3xs relative overflow-hidden ${
               metricTab === m.id 
-                ? 'border-[#b8860b] bg-amber-50/10 text-[#b8860b]' 
-                : 'border-slate-150 bg-white text-slate-500 hover:border-slate-300'
+                ? 'border-[#d4af37] bg-amber-50/10 text-[#b8860b]' 
+                : 'border-[#d4af37]/35 bg-white text-slate-500 hover:border-[#d4af37]/75'
             }`}
           >
-            <div className="flex items-center gap-1.5">
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+            <div className="flex items-center gap-1.5 mt-1">
               {m.icon}
               <span className="text-[9.5px] font-black uppercase tracking-wide">{m.label}</span>
             </div>
@@ -411,8 +413,9 @@ export const HistoryTrends: React.FC<HistoryTrendsProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Period-over-period comparison card */}
-        <div className="bg-white border border-slate-150 rounded-2xl p-5 flex flex-col justify-between space-y-4">
-          <div>
+        <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 flex flex-col justify-between space-y-4 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <div className="mt-1">
             <span className="text-[8.5px] font-extrabold text-slate-400 uppercase tracking-widest block">Comparaison de Périodes</span>
             <h3 className="text-xs font-black uppercase text-slate-800 mt-1">Évolution de la Performance</h3>
             <p className="text-[9.5px] text-slate-400 uppercase font-bold leading-normal mt-1.5">
@@ -468,8 +471,9 @@ export const HistoryTrends: React.FC<HistoryTrendsProps> = ({
         </div>
 
         {/* Main Chart Card */}
-        <div className="bg-white border border-slate-150 rounded-2xl p-5 col-span-1 lg:col-span-2 space-y-4">
-          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+        <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 col-span-1 lg:col-span-2 space-y-4 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+          <div className="flex justify-between items-center border-b border-slate-100 pb-3 mt-1">
             <h3 className="text-xs font-black uppercase text-slate-800 tracking-wide flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-[#b8860b]" /> Graphique Temporel : {activeMetricLabel.name} ({activeMetricLabel.unit})
             </h3>
@@ -533,8 +537,9 @@ export const HistoryTrends: React.FC<HistoryTrendsProps> = ({
       </div>
 
       {/* CUMULATIVE GAP ANALYSIS (DÉFICIT AVANCEMENT linéaire) */}
-      <div className="bg-white border border-slate-150 rounded-2xl p-5 space-y-4">
-        <h3 className="text-xs font-black uppercase text-slate-800">Visualisation de l'Écart Cumulé et des Cibles de Rattrapage</h3>
+      <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+        <h3 className="text-xs font-black uppercase text-slate-800 mt-1">Visualisation de l'Écart Cumulé et des Cibles de Rattrapage</h3>
         <p className="text-[10px] text-slate-500 uppercase leading-relaxed">
           Permet de suivre l'évolution de la trajectoire cumulée de forage lineal (m) de la SMI par rapport aux objectifs planifiés. L'aire entre les deux courbes représente le déficit de production cumulé.
         </p>

@@ -395,8 +395,9 @@ export const GlobalRankings: React.FC<GlobalRankingsProps> = ({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Tab Header with Search */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 border border-slate-150 p-4 rounded-2xl">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50 border border-[#d4af37]/35 p-4 rounded-2xl relative overflow-hidden shadow-2xs">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+        <div className="flex items-center gap-2 mt-1">
           <Award className="w-5 h-5 text-[#b8860b]" />
           <h2 className="text-xs font-black uppercase text-slate-800">Classements Globaux de Performance</h2>
         </div>
@@ -442,7 +443,8 @@ export const GlobalRankings: React.FC<GlobalRankingsProps> = ({
       </div>
 
       {/* RENDER ACTIVE SUBTAB CONTENT */}
-      <div className="bg-white border border-slate-150 rounded-2xl p-5 shadow-2xs">
+      <div className="bg-white border border-[#d4af37]/35 rounded-2xl p-5 relative overflow-hidden shadow-2xs">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
         
         {/* MINEURS LEADERBOARD */}
         {activeSubTab === 'mineurs' && (
@@ -734,9 +736,10 @@ export const GlobalRankings: React.FC<GlobalRankingsProps> = ({
                 else if (sec.score >= 75) badgeColor = 'bg-amber-50 text-amber-800 border-amber-200';
 
                 return (
-                  <div key={sec.name} className="border border-slate-150 rounded-xl p-4 bg-white flex flex-col justify-between hover:shadow-2xs transition-all relative">
-                    <div className="absolute top-2 right-2 font-mono font-black text-slate-300 text-lg">#{idx + 1}</div>
-                    <div>
+                  <div key={sec.name} className="border border-[#d4af37]/35 rounded-xl p-4 bg-white flex flex-col justify-between hover:shadow-2xs transition-all relative overflow-hidden">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+                    <div className="absolute top-2 right-2 font-mono font-black text-slate-300 text-lg mt-1">#{idx + 1}</div>
+                    <div className="mt-1">
                       <span className="text-[9.5px] font-black text-slate-400 uppercase block">SECTEUR</span>
                       <span className="text-sm font-black text-slate-800 block uppercase mb-3">{sec.name}</span>
                       

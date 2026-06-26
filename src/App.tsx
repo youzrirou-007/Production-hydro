@@ -84,6 +84,10 @@ const AppContent: React.FC = () => {
       case 'chantiers': return <Chantiers />;
       case 'planning': return <Planning />;
       case 'rotation': return <RotationPoste />;
+      case 'analyse_strategie': return <AnalyseDashboard pillar="strategie" />;
+      case 'analyse_terrain': return <AnalyseDashboard pillar="terrain" />;
+      case 'analyse_rh': return <AnalyseDashboard pillar="rh" />;
+      case 'analyse_logistique': return <AnalyseDashboard pillar="logistique" />;
       case 'analyse_dashboard': return <AnalyseDashboard />;
       case 'admin': return <Admin />;
       default: return <Production />;

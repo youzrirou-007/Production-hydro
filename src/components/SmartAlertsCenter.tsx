@@ -313,10 +313,11 @@ export const SmartAlertsCenter: React.FC<SmartAlertsCenterProps> = ({
   }, [generatedAlerts]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in text-slate-800">
       {/* Filters bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900 text-white p-5 rounded-2xl border border-slate-800">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900 text-white p-5 rounded-2xl border border-[#d4af37]/35 relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+        <div className="flex items-center gap-3 mt-1">
           <ShieldAlert className="w-8 h-8 text-rose-500 animate-pulse shrink-0" />
           <div>
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-300">Centre d'Alertes Cliniques Opérationnelles</h3>
@@ -325,7 +326,7 @@ export const SmartAlertsCenter: React.FC<SmartAlertsCenterProps> = ({
         </div>
 
         {/* Severity toggles */}
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap mt-1">
           <button
             onClick={() => setSeverityFilter('all')}
             className={`px-3 py-1.5 rounded-lg text-[9.5px] font-black uppercase transition-all cursor-pointer ${
@@ -375,9 +376,10 @@ export const SmartAlertsCenter: React.FC<SmartAlertsCenterProps> = ({
           return (
             <div 
               key={alert.id} 
-              className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border p-4.5 rounded-xl transition-all hover:translate-x-1 ${typeStyle.bg} ${typeStyle.text}`}
+              className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-[#d4af37]/35 p-4.5 rounded-xl transition-all hover:translate-x-1 relative overflow-hidden ${typeStyle.bg} ${typeStyle.text}`}
             >
-              <div className="flex items-start gap-3">
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
+              <div className="flex items-start gap-3 mt-1">
                 <div className="mt-0.5 shrink-0">{typeStyle.icon}</div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -389,7 +391,7 @@ export const SmartAlertsCenter: React.FC<SmartAlertsCenterProps> = ({
               </div>
 
               {/* Statistics deviations block */}
-              <div className="flex sm:flex-col gap-4 sm:gap-1 text-right items-end justify-between w-full sm:w-auto border-t sm:border-t-0 border-slate-200/60 pt-2 sm:pt-0 shrink-0 font-mono">
+              <div className="flex sm:flex-col gap-4 sm:gap-1 text-right items-end justify-between w-full sm:w-auto border-t sm:border-t-0 border-slate-200/60 pt-2 sm:pt-0 shrink-0 font-mono mt-1">
                 <div>
                   <span className="text-[8px] text-slate-400 font-bold uppercase block">Mesure de l'écart</span>
                   <span className="text-xs font-black text-slate-800">{alert.metric}</span>
