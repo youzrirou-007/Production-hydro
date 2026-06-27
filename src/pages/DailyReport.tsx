@@ -20,18 +20,39 @@ import {
   Hammer,
   Wrench
 } from 'lucide-react';
-import { collection, query, onSnapshot, doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { collection, query, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { format, subDays } from 'date-fns';
 import { ExcelExportButton } from '../components/ExcelExportButton';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 export const DailyReport: React.FC = () => {
+  const { user } = useAuth();
   const [reportType, setReportType] = useState<'day' | 'month'>('day');
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterMonth, setFilterMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [activeTab, setActiveTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance'>('minage');
   const [dayProduction, setDayProduction] = useState<any | null>(null);
+  const [unexplainedGapsForDate, setUnexplainedGapsForDate] = useState(0);
+
+  useEffect(() => {
+    if (!user || !filterDate) return;
+    
+    const q = query(
+      collection(db, 'non_realisation_explanations'),
+      where('date', '==', filterDate),
+      where('status', '==', 'pending')
+    );
+    
+    const unsub = onSnapshot(q, (snap) => {
+      setUnexplainedGapsForDate(snap.size);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'non_realisation_explanations');
+    });
+    
+    return () => unsub();
+  }, [user, filterDate]);
 
   // Helper to determine sector group of a record robustly
   const getRecordSectorGroup = (rec: any) => {
@@ -702,6 +723,27 @@ export const DailyReport: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {unexplainedGapsForDate > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex items-center gap-3 animate-fade-in">
+          <AlertTriangle className="text-amber-600 w-5 h-5 flex-shrink-0" />
+          <div className="flex-1">
+            <span className="text-amber-800 text-sm">
+              ⚠️ Cette journée comporte <strong>{unexplainedGapsForDate}</strong> écart(s) non expliqué(s).
+            </span>
+          </div>
+          <button 
+            type="button"
+            onClick={() => {
+              window.sessionStorage.setItem('goto-explications-date', filterDate);
+              window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: { tab: 'explications' } }));
+            }}
+            className="text-amber-700 underline text-sm font-semibold hover:text-amber-900 whitespace-nowrap"
+          >
+            Aller aux explications →
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="py-24 text-center flex flex-col items-center justify-center space-y-3">

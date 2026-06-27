@@ -217,6 +217,30 @@
         "reopenUntil": { "type": "string" }
       },
       "required": ["requestedBy", "requestedByUid", "requestedAt", "reason", "status"]
+    },
+    "NonRealisationExplanation": {
+      "title": "NonRealisationExplanation",
+      "description": "Explanation for production gap of non-realisation",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "poste": { "type": "string" },
+        "chantierId": { "type": "string" },
+        "chantierName": { "type": "string" },
+        "activity": { "type": "string" },
+        "activityLabel": { "type": "string" },
+        "plannedValue": { "type": "number" },
+        "realValue": { "type": "number" },
+        "gapPercent": { "type": "number" },
+        "cause": { "type": "string" },
+        "causeLabel": { "type": "string" },
+        "otherDetails": { "type": "string" },
+        "reportedBy": { "type": "string" },
+        "reportedByUid": { "type": "string" },
+        "reportedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "explained", "unjustified"] }
+      },
+      "required": ["date", "poste", "chantierId", "activity", "cause", "status"]
     }
   },
   "firestore": {
@@ -234,6 +258,7 @@
     "/daily_planning_sheets/{sheetId}/modification_requests": { "schema": "ModificationRequest", "description": "Requests to reopen locked sheets" },
     "/planning": { "schema": "Planning", "description": "Planning assignments" },
     "/production_history": { "schema": "ProductionHistory", "description": "Workbook validation and action logs" },
-    "/deleted_plannings_log": { "schema": "DeletedPlanningLog", "description": "Deleted planning logs" }
+    "/deleted_plannings_log": { "schema": "DeletedPlanningLog", "description": "Deleted planning logs" },
+    "/non_realisation_explanations": { "schema": "NonRealisationExplanation", "description": "Explanations for non-realisation gaps" }
   }
 }

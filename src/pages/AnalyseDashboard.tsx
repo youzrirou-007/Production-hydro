@@ -28,8 +28,10 @@ import {
   Sparkles,
   FileText
 } from 'lucide-react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { collection, query, onSnapshot, where } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
+import { CausesChart } from '../components/CausesChart';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { format, subDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { 
   ResponsiveContainer, 
@@ -78,6 +80,7 @@ export interface AnalyseDashboardProps {
 }
 
 export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) => {
+  const { user } = useAuth();
   const [reportType, setReportType] = useState<'day' | 'month'>('month');
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterMonth, setFilterMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -92,7 +95,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
   }, [pillar]);
 
   // Tabs State
-  const [activeTab, setActiveTab] = useState<'cockpit' | 'alerts' | 'chantiers_premium' | 'predictive' | 'rh_premium' | 'sectors_compare' | 'rankings' | 'trends' | 'bure' | 'secteurs' | 'rh' | 'materiel'>('cockpit');
+  const [activeTab, setActiveTab] = useState<'cockpit' | 'alerts' | 'chantiers_premium' | 'predictive' | 'rh_premium' | 'sectors_compare' | 'rankings' | 'trends' | 'bure' | 'secteurs' | 'rh' | 'materiel' | 'causes'>('cockpit');
   const [selectedBriefingActor, setSelectedBriefingActor] = useState<'dg' | 'dt' | 'smi' | 'expert'>('expert');
   const [showClinicalAlerts, setShowClinicalAlerts] = useState(false);
 
@@ -112,6 +115,153 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
   const [allPlanningSheets, setAllPlanningSheets] = useState<any[]>([]);
   const [allProductionDocs, setAllProductionDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Causes States & Config
+  const [selectedCauseMonth, setSelectedCauseMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [selectedCauseActivity, setSelectedCauseActivity] = useState<string>('all');
+  
+  const [globalCausesData, setGlobalCausesData] = useState<any[]>([]);
+  const [minageCausesData, setMinageCausesData] = useState<any[]>([]);
+  const [deblayageCausesData, setDeblayageCausesData] = useState<any[]>([]);
+  const [extractionCausesData, setExtractionCausesData] = useState<any[]>([]);
+  const [maintenanceCausesData, setMaintenanceCausesData] = useState<any[]>([]);
+
+  const CAUSE_COLORS: Record<string, string> = {
+    'roches_dures': '#9E1A1A',
+    'panne_engin': '#B8860B',
+    'manque_personnel': '#00BFFF',
+    'chantier_danger': '#EF4444',
+    'barre_conique_cassee': '#F59E0B',
+    'taillant_mauvais_etat': '#10B981',
+    'chantier_non_deblaye': '#8B5CF6',
+    'panne_chargeuse_lhd': '#EC4899',
+    'manque_conducteur': '#06B6D4',
+    'voie_encombree': '#84CC16',
+    'probleme_ventilation': '#6366F1',
+    'arret_consignation': '#F97316',
+    'manque_gasoil': '#14B8A6',
+    'panne_treuil': '#A855F7',
+    'probleme_voie': '#DC2626',
+    'manque_wagons': '#3B82F6',
+    'arret_electrique': '#FBBF24',
+    'manque_equipiers': '#22C55E',
+    'bourrage_bure': '#78716C',
+    'piece_indisponible': '#C2410C',
+    'diagnostic_complexe': '#64748B',
+    'arret_securite': '#E11D48',
+    'manque_personnel_technique': '#0EA5E9',
+    'priorite_changee': '#D946EF',
+    'autre': '#94A3B8'
+  };
+
+  const activityLabels: Record<string, string> = {
+    'minage': 'Forage & Minage',
+    'deblayage': 'Déblayage LHD',
+    'extraction': 'Extraction Treuil',
+    'maintenance': 'Maintenance'
+  };
+
+  useEffect(() => {
+    if (!user || activeTab !== 'causes') return;
+    
+    const startOfMonthDate = new Date(selectedCauseMonth + '-01');
+    const endOfMonthDate = new Date(startOfMonthDate.getFullYear(), startOfMonthDate.getMonth() + 1, 0);
+    
+    const startStr = format(startOfMonthDate, 'yyyy-MM-dd');
+    const endStr = format(endOfMonthDate, 'yyyy-MM-dd');
+    
+    const q = query(
+      collection(db, 'non_realisation_explanations'),
+      where('date', '>=', startStr),
+      where('date', '<=', endStr),
+      where('status', '==', 'explained')
+    );
+    
+    const unsub = onSnapshot(q, (snap) => {
+      const explanations = snap.docs.map(d => d.data());
+      
+      const groupByCause = (activityFilter?: string) => {
+        const filtered = activityFilter 
+          ? explanations.filter(e => e.activity === activityFilter)
+          : explanations;
+        
+        const grouped = filtered.reduce((acc, exp) => {
+          const cause = exp.cause;
+          if (!acc[cause]) {
+            acc[cause] = { 
+              name: exp.causeLabel || cause, 
+              value: 0, 
+              color: CAUSE_COLORS[cause] || '#94A3B8' 
+            };
+          }
+          acc[cause].value++;
+          return acc;
+        }, {} as Record<string, {name: string, value: number, color: string}>);
+        
+        return Object.values(grouped).sort((a, b) => b.value - a.value);
+      };
+      
+      setGlobalCausesData(groupByCause());
+      setMinageCausesData(groupByCause('minage'));
+      setDeblayageCausesData(groupByCause('deblayage'));
+      setExtractionCausesData(groupByCause('extraction'));
+      setMaintenanceCausesData(groupByCause('maintenance'));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'non_realisation_explanations');
+    });
+    
+    return () => unsub();
+  }, [user, activeTab, selectedCauseMonth]);
+
+  const getTop3Causes = (activity: string) => {
+    const dataMap: Record<string, any[]> = {
+      'minage': minageCausesData,
+      'deblayage': deblayageCausesData,
+      'extraction': extractionCausesData,
+      'maintenance': maintenanceCausesData
+    };
+    
+    const data = dataMap[activity] || [];
+    const total = data.reduce((sum, d) => sum + d.value, 0);
+    
+    return data.slice(0, 3).map(d => {
+      const id = Object.keys(CAUSE_COLORS).find(key => CAUSE_COLORS[key] === d.color) || 'autre';
+      return {
+        id,
+        label: d.name,
+        count: d.value,
+        percentage: total > 0 ? Math.round((d.value / total) * 100) : 0
+      };
+    });
+  };
+
+  const last12Months = useMemo(() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        value: format(d, 'yyyy-MM'),
+        label: format(d, 'MMMM yyyy')
+      });
+    }
+    return months;
+  }, []);
+
+  const selectedCauseMonthLabel = useMemo(() => {
+    const match = last12Months.find(m => m.value === selectedCauseMonth);
+    return match ? match.label : selectedCauseMonth;
+  }, [selectedCauseMonth, last12Months]);
+
+  const filteredCausesData = useMemo(() => {
+    const dataMap: Record<string, any[]> = {
+      'minage': minageCausesData,
+      'deblayage': deblayageCausesData,
+      'extraction': extractionCausesData,
+      'maintenance': maintenanceCausesData
+    };
+    return dataMap[selectedCauseActivity] || [];
+  }, [selectedCauseActivity, minageCausesData, deblayageCausesData, extractionCausesData, maintenanceCausesData]);
 
   // Inject animations
   useEffect(() => {
@@ -153,23 +303,35 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
 
   // Firestore Subscriptions
   useEffect(() => {
+    if (!user) return;
     setLoading(true);
     const unsubChantiers = onSnapshot(query(collection(db, 'chantiers')), (snap) => {
       setChantiers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      console.warn("AnalyseDashboard: Error loading chantiers", err);
     });
     const unsubRH = onSnapshot(query(collection(db, 'personnel')), (snap) => {
       setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      console.warn("AnalyseDashboard: Error loading personnel", err);
     });
     const unsubEngines = onSnapshot(query(collection(db, 'engines')), (snap) => {
       setEngines(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      console.warn("AnalyseDashboard: Error loading engines", err);
     });
     const unsubPlannings = onSnapshot(query(collection(db, 'daily_planning_sheets')), (snap) => {
       setAllPlanningSheets(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      console.warn("AnalyseDashboard: Error loading daily_planning_sheets", err);
     });
     const unsubProd = onSnapshot(query(collection(db, 'production')), (snap) => {
       setAllProductionDocs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
-    }, () => setLoading(false));
+    }, (err) => {
+      console.warn("AnalyseDashboard: Error loading production", err);
+      setLoading(false);
+    });
 
     return () => {
       unsubChantiers();
@@ -178,7 +340,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
       unsubPlannings();
       unsubProd();
     };
-  }, []);
+  }, [user]);
 
   // MEMORY INDEX MAPS FOR INSTANT O(1) LOOKUPS
   const chantiersMap = useMemo(() => new Map(chantiers.map(c => [c.id, c])), [chantiers]);
@@ -1349,6 +1511,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                 tabs: [
                   { id: 'materiel', label: 'Matériels & Maintenance' },
                   { id: 'trends', label: 'Historique & Tendances' },
+                  { id: 'causes', label: 'Causes de Non-Réalisation' },
                 ]
               }
             ].map(cat => {
@@ -1424,6 +1587,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
             tabs: [
               { id: 'materiel', label: 'Matériels & Maintenance', icon: <Wrench className="w-4 h-4" /> },
               { id: 'trends', label: 'Historique & Tendances', icon: <TrendingUp className="w-4 h-4" /> },
+              { id: 'causes', label: 'Causes de Non-Réalisation', icon: <AlertTriangle className="w-4 h-4 text-amber-500 animate-pulse" /> },
             ]
           }
         ];
@@ -1471,7 +1635,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
           className="space-y-8"
         >
           {/* EMPTY DATA WARNING STATE */}
-          {metrics.alignedDays.length === 0 || (metrics.consolidatedMinageRows.length === 0 && metrics.consolidatedExtractionRows.length === 0) ? (
+          {activeTab !== 'causes' && (metrics.alignedDays.length === 0 || (metrics.consolidatedMinageRows.length === 0 && metrics.consolidatedExtractionRows.length === 0)) ? (
             <div className="bg-amber-50/40 border border-amber-100 p-8 rounded-3xl text-center space-y-3">
               <ShieldAlert className="w-10 h-10 text-amber-500 mx-auto" />
               <h3 className="text-sm font-black uppercase text-slate-800">Aucune donnée disponible pour cette période</h3>
@@ -1661,7 +1825,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                                 <span className="text-[7.5px] font-bold bg-[#ef4444]/10 text-[#ef4444] px-1.5 py-0.2 rounded uppercase">Efficience & Rendement</span>
                               </div>
                               <p>
-                                « D'un point de vue purement opérationnel, le rendement du forage est à <strong className="text-slate-950 font-black">{minageRate.toFixed(1)}%</strong> (soit <strong className="text-slate-950 font-mono">{metrics.totalRealMeterage.toFixed(1)}m</strong> forés). C'est le moteur de notre cycle. Nous devons optimiser la disponibilité de nos jumbos et assurer une cadence stricte sur chaque front de tir. »
+                                « D'un point de vue purement opérationnel, le rendement du forage est à <strong className="text-slate-950 font-black">{minageRate.toFixed(1)}%</strong> (soit <strong className="text-slate-950 font-mono">{metrics.totalRealMeterage.toFixed(1)}m</strong> forés). C'est le moteur de notre cycle. Nous devons optimiser la disponibilité de nos perforateurs Montabert T23 et assurer une cadence stricte sur chaque front de tir. »
                               </p>
                               <p className="text-[9px] text-slate-400 italic">
                                 * Diagnostic DT : Le ratio gasoil de <strong className="text-slate-950">{metrics.totalRealVolume > 0 ? (metrics.totalDeblayageGasoil / metrics.totalRealVolume).toFixed(2) : '0.00'} L/m³</strong> sur le déblayage exige de renforcer l'éco-conduite et la maintenance préventive des chargeuses LHD.
@@ -2593,6 +2757,134 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                           )}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: CAUSES DE NON-RÉALISATION */}
+              {activeTab === 'causes' && (
+                <div className="space-y-6">
+                  {/* Filtres */}
+                  <div className="flex flex-wrap gap-4 mb-6 bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                    <div className="flex flex-col gap-1 min-w-[200px]">
+                      <label className="text-xs font-semibold text-slate-500 uppercase">Mois</label>
+                      <select 
+                        value={selectedCauseMonth}
+                        onChange={(e) => setSelectedCauseMonth(e.target.value)}
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800"
+                      >
+                        {last12Months.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="flex flex-col gap-1 min-w-[200px]">
+                      <label className="text-xs font-semibold text-slate-500 uppercase">Activité</label>
+                      <select
+                        value={selectedCauseActivity}
+                        onChange={(e) => setSelectedCauseActivity(e.target.value)}
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-800"
+                      >
+                        <option value="all">Toutes activités</option>
+                        <option value="minage">Forage & Minage</option>
+                        <option value="deblayage">Déblayage LHD</option>
+                        <option value="extraction">Extraction Treuil</option>
+                        <option value="maintenance">Maintenance</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Grille de camemberts */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Camembert global */}
+                    <CausesChart 
+                      data={globalCausesData}
+                      title={`Répartition globale des causes — ${selectedCauseMonthLabel}`}
+                    />
+                    
+                    {/* Si filtre = all, afficher les 4 camemberts par activité */}
+                    {selectedCauseActivity === 'all' && (
+                      <>
+                        <CausesChart 
+                          data={minageCausesData}
+                          title="Causes — Forage & Minage"
+                        />
+                        <CausesChart 
+                          data={deblayageCausesData}
+                          title="Causes — Déblayage LHD"
+                        />
+                        <CausesChart 
+                          data={extractionCausesData}
+                          title="Causes — Extraction Treuil"
+                        />
+                        <CausesChart 
+                          data={maintenanceCausesData}
+                          title="Causes — Maintenance"
+                        />
+                      </>
+                    )}
+                    
+                    {/* Si filtre spécifique, afficher un seul camembert détaillé */}
+                    {selectedCauseActivity !== 'all' && (
+                      <CausesChart 
+                        data={filteredCausesData}
+                        title={`Causes — ${activityLabels[selectedCauseActivity]}`}
+                      />
+                    )}
+                  </div>
+
+                  {/* Top 3 causes par activité */}
+                  <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-800 mb-6 font-['Space_Grotesk']">
+                      Top 3 causes par activité — {selectedCauseMonthLabel}
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {['minage', 'deblayage', 'extraction', 'maintenance'].map(activity => {
+                        const top3 = getTop3Causes(activity);
+                        if (top3.length === 0) return (
+                          <div key={activity} className="space-y-4">
+                            <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider border-b border-slate-100 pb-2">
+                              {activityLabels[activity]}
+                            </h4>
+                            <p className="text-xs text-slate-400 italic">Aucune explication enregistrée ce mois-ci.</p>
+                          </div>
+                        );
+                        
+                        return (
+                          <div key={activity} className="space-y-4">
+                            <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider border-b border-slate-100 pb-2">
+                              {activityLabels[activity]}
+                            </h4>
+                            <div className="space-y-3">
+                              {top3.map((cause, idx) => (
+                                <div key={cause.id} className="flex items-center gap-3">
+                                  <span className="text-xs font-bold text-slate-400 w-6 text-center">
+                                    #{idx + 1}
+                                  </span>
+                                  <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full rounded-full transition-all duration-500"
+                                      style={{ 
+                                        width: `${cause.percentage}%`,
+                                        backgroundColor: CAUSE_COLORS[cause.id] || '#94A3B8'
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="text-sm text-slate-700 min-w-[140px] truncate">
+                                    {cause.label}
+                                  </span>
+                                  <span className="text-sm font-bold text-slate-900 tabular-nums">
+                                    {cause.count} <span className="text-slate-400 font-normal">({cause.percentage}%)</span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

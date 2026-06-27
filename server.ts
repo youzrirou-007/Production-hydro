@@ -63,6 +63,7 @@ app.post("/api/ia/vision", async (req, res) => {
         User Request: ${prompt}
         
         Provide professional, data-driven insights, identifying risks, anomalies, and optimization opportunities.
+        IMPORTANT: In your analysis, never use the words "jumbo", "Jumbo", or "jumbos". Always refer to this equipment as "perforateur pneumatique Montabert T23" (singular) or "perforateurs Montabert T23" (plural) or "Perforateur Montabert T23" (capitalized).
       `
     });
 
@@ -94,6 +95,7 @@ app.post("/api/ia/audit", async (req, res) => {
         Data to Analyze: ${JSON.stringify(contextData)}
         
         Return a score from 0 to 100 (where 100 is highly suspicious) and a brief justification.
+        IMPORTANT: In your justification and flags, never use the words "jumbo", "Jumbo", or "jumbos". Always refer to this equipment as "perforateur pneumatique Montabert T23" (singular) or "perforateurs Montabert T23" (plural) or "Perforateur Montabert T23" (capitalized).
     `;
 
     const result = await generateWithRetry("gemini-3-flash-preview", prompt, schema);
@@ -147,6 +149,7 @@ app.post("/api/ia/assistant", async (req, res) => {
  
         Generate 4-5 structured and actionable improvement suggestions.
         Each suggestion must have: category, title, description, and impact (High/Medium/Low).
+        IMPORTANT: In your suggestions, never use the words "jumbo", "Jumbo", or "jumbos". Always refer to this equipment as "perforateur pneumatique Montabert T23" (singular) or "perforateurs Montabert T23" (plural) or "Perforateur Montabert T23" (capitalized).
     `;
 
     const result = await generateWithRetry("gemini-3-flash-preview", prompt, schema);
@@ -186,6 +189,7 @@ app.post("/api/ia/expert-analysis", async (req, res) => {
         3. The underlying logic/framework you used for this analysis.
         
         Format your response as a JSON object.
+        IMPORTANT: In your response, never use the words "jumbo", "Jumbo", or "jumbos". Always refer to this equipment as "perforateur pneumatique Montabert T23" (singular) or "perforateurs Montabert T23" (plural) or "Perforateur Montabert T23" (capitalized).
     `;
 
     const result = await generateWithRetry("gemini-3-flash-preview", prompt, schema);

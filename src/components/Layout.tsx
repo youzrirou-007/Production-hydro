@@ -30,8 +30,9 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { db } from '../lib/firebase';
-import { doc, getDoc, collectionGroup, query, where, onSnapshot } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { doc, getDoc, collection, collectionGroup, query, where, onSnapshot } from 'firebase/firestore';
+import { format } from 'date-fns';
 import { getUpcomingSaturday } from '../lib/rotation';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
@@ -54,6 +55,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'chantiers', label: 'Chantiers', icon: <MapPin className="w-5 h-5" />, category: 'production' },
   { id: 'planning', label: 'Planification', icon: <Calendar className="w-5 h-5" />, category: 'production' },
   { id: 'rotation', label: 'Changement de Poste', icon: <RefreshCw className="w-5 h-5" />, category: 'production' },
+  { id: 'explications', label: 'Explications', icon: <AlertTriangle className="w-5 h-5" />, category: 'production' },
   
   // ANALYSE
   { id: 'analyse_strategie', label: 'Pilotage & Stratégie', icon: <Activity className="w-5 h-5" />, category: 'analyse' },
@@ -73,6 +75,35 @@ export const Layout: React.FC<{
   const [isOpen, setIsOpen] = React.useState(true);
   const [rotationPending, setRotationPending] = React.useState(false);
   const [hasPendingRequests, setHasPendingRequests] = React.useState(false);
+  const [unexplainedCount, setUnexplainedCount] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!user) {
+      setUnexplainedCount(0);
+      return;
+    }
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    const startStr = format(startOfMonth, 'yyyy-MM-dd');
+    const endStr = format(endOfMonth, 'yyyy-MM-dd');
+    
+    const q = query(
+      collection(db, 'non_realisation_explanations'),
+      where('date', '>=', startStr),
+      where('date', '<=', endStr),
+      where('status', '==', 'pending')
+    );
+    
+    const unsub = onSnapshot(q, (snap) => {
+      setUnexplainedCount(snap.size);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'non_realisation_explanations');
+    });
+    
+    return () => unsub();
+  }, [user]);
 
   React.useEffect(() => {
     if (!user || !profile || profile.role !== 'admin') {
@@ -173,17 +204,35 @@ export const Layout: React.FC<{
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-none transition-all duration-200 group relative",
                     activeTab === item.id 
                       ? "bg-[#141414] text-white shadow-lg" 
-                      : "text-[#141414]/60 hover:bg-[#141414]/5 hover:text-[#141414]"
+                      : "text-[#141414]/60 hover:bg-[#141414]/5 hover:text-[#141414]",
+                    item.id === 'explications' && unexplainedCount > 0 && activeTab !== 'explications' && [
+                      "animate-pulse",
+                      "shadow-[0_0_15px_rgba(239,68,68,0.6)]",
+                      "border-l-2 border-red-500",
+                      "bg-red-50/10"
+                    ]
                   )}
                 >
                   <div className={cn(
                     "flex-shrink-0 transition-transform duration-300",
-                    activeTab === item.id && "scale-110"
+                    activeTab === item.id && "scale-110",
+                    item.id === 'explications' && unexplainedCount > 0 && activeTab !== 'explications' && "text-red-500 animate-bounce"
                   )}>
                     {item.icon}
                   </div>
                   {isOpen && (
                     <span className="font-bold text-[10.5px] uppercase tracking-tight flex-1 text-left">{item.label}</span>
+                  )}
+                  {item.id === 'explications' && isOpen && (
+                    unexplainedCount > 0 ? (
+                      <span className="ml-auto bg-red-500 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center animate-bounce">
+                        {unexplainedCount}
+                      </span>
+                    ) : (
+                      <span className="ml-auto bg-emerald-600 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center">
+                        ✓
+                      </span>
+                    )
                   )}
                   {item.id === 'rotation' && rotationPending && (
                     <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse absolute right-4 top-1/2 -translate-y-1/2" />

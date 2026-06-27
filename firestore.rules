@@ -130,6 +130,11 @@ service cloud.firestore {
       allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief']);
     }
 
+    // Non Realisation Explanations
+    match /non_realisation_explanations/{expId} {
+      allow read, write: if isSignedIn();
+    }
+
     // Modification Requests subcollection & collection group
     match /{path=**}/modification_requests/{requestId} {
       allow read: if isSignedIn();

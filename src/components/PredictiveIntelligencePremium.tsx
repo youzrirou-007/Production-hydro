@@ -175,7 +175,7 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
         causes: [
           'Taux d\'absentéisme ou de rotation décalée des Mineurs certifiés.',
           'Rendement spécifique par tirée inférieur à la cible (mètres par volée < 1.5m).',
-          'Temps d\'attente ou arrêts techniques fréquents sur les jumbos ou perforateurs.'
+          'Temps d\'attente ou arrêts techniques fréquents sur les perforateurs Montabert T23.'
         ],
         actions: [
           'Réajuster la rotation de poste (Shift 2 & 3) pour maximiser le temps de présence utile au front.',
@@ -652,7 +652,7 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
                         <span className="text-[9px] text-[#ffd700] font-bold uppercase tracking-wider block">Avis d'expert technique :</span>
                         <p className="text-slate-300 leading-relaxed font-medium">
                           {selectedChantierPredictive.delayRisk === 'high' && 
-                            "ALERTE : Ce chantier progresse à un rythme nettement inférieur à la vitesse de conception théorique. Une réaffectation des jumbos de forage ou un contrôle des effectifs qualifiés du front est requis pour éviter un retard majeur."}
+                            "ALERTE : Ce chantier progresse à un rythme nettement inférieur à la vitesse de conception théorique. Une réaffectation des perforateurs Montabert T23 de forage ou un contrôle des effectifs qualifiés du front est requis pour éviter un retard majeur."}
                           {selectedChantierPredictive.delayRisk === 'medium' && 
                             "SURVEILLANCE : Cadence moyenne détectée. Un gain mineur de productivité sur la rotation de poste permettrait de sécuriser l'échéance nominale théorique."}
                           {selectedChantierPredictive.delayRisk === 'low' && 
@@ -792,7 +792,7 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
                 </p>
                 <ul className="list-disc pl-4 space-y-1.5 text-slate-600 font-medium">
                   <li><strong className="text-slate-900">La Géologie clinique :</strong> Intégrer l'indice de forabilité du terrain (RQD, dureté de la roche) pour ajuster dynamiquement les temps théoriques de forage.</li>
-                  <li><strong className="text-slate-900">Télémétrie en temps réel :</strong> Récupérer directement les capteurs de pression hydraulique et températures moteurs des chargeuses LHD et Jumbos.</li>
+                  <li><strong className="text-slate-900">Télémétrie en temps réel :</strong> Récupérer directement les capteurs de pression hydraulique et températures moteurs des chargeuses LHD et Perforateurs Montabert T23.</li>
                   <li><strong className="text-slate-900">Suivi d'usure des consommables :</strong> Suivre l'historique de changement des couronnes de foration pour prédire mathématiquement leur rupture.</li>
                 </ul>
               </div>

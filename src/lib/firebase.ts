@@ -66,3 +66,31 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
+
+export enum NonRealisationCause {
+  BARRE_CONIQUE_CASSEE = 'barre_conique_cassee',
+  CHANTIER_DANGER = 'chantier_danger',
+  TAILLANT_MAUVAIS_ETAT = 'taillant_mauvais_etat',
+  ROCHES_DURES = 'roches_dures',
+  MANQUE_PERSONNEL = 'manque_personnel',
+  PANNE_ENGIN = 'panne_engin',
+  CHANTIER_NON_DEBLAYE = 'chantier_non_deblaye',
+  PANNE_CHARGEUSE_LHD = 'panne_chargeuse_lhd',
+  MANQUE_CONDUCTEUR = 'manque_conducteur',
+  VOIE_ENCOMBREE = 'voie_encombree',
+  PROBLEME_VENTILATION = 'probleme_ventilation',
+  ARRET_CONSIGNATION = 'arret_consignation',
+  MANQUE_GASOIL = 'manque_gasoil',
+  PANNE_TREUIL = 'panne_treuil',
+  PROBLEME_VOIE = 'probleme_voie',
+  MANQUE_WAGONS = 'manque_wagons',
+  ARRET_ELECTRIQUE = 'arret_electrique',
+  MANQUE_EQUIPIERS = 'manque_equipiers',
+  BOURRAGE_BURE = 'bourrage_bure',
+  PIECE_INDISPONIBLE = 'piece_indisponible',
+  DIAGNOSTIC_COMPLEXE = 'diagnostic_complexe',
+  ARRET_SECURITE = 'arret_securite',
+  MANQUE_PERSONNEL_TECHNIQUE = 'manque_personnel_technique',
+  PRIORITE_CHANGEE = 'priorite_changee',
+  AUTRE = 'autre'
+}

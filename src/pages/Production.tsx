@@ -34,7 +34,7 @@ import {
   Pencil
 } from 'lucide-react';
 import { collection, query, onSnapshot, setDoc, doc, arrayUnion, orderBy, where, getDocs, deleteDoc, getDoc, addDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, subDays } from 'date-fns';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
@@ -64,6 +64,22 @@ const DEFAULT_ENGINES = [
   { id: 'lhd_03', code: 'LHD-03', name: 'LHD Toro 400 Souterrain' },
 ];
 
+function calculateDuration(startTime: string, endTime: string): number {
+  if (!startTime || !endTime) return 0;
+  const [startH, startM] = startTime.split(':').map(Number);
+  const [endH, endM] = endTime.split(':').map(Number);
+  
+  let startMinutes = startH * 60 + startM;
+  let endMinutes = endH * 60 + endM;
+  
+  if (endMinutes < startMinutes) {
+    endMinutes += 24 * 60;
+  }
+  
+  const durationMinutes = endMinutes - startMinutes;
+  return durationMinutes / 60;
+}
+
 // Dynamic interfaces for Excel Sheets
 interface ExcelMinage {
   sector: string; // Imiter 1, Imiter 2, Imiter Est
@@ -77,6 +93,8 @@ interface ExcelMinage {
   gallerySize: number; // m² (e.g., 9 | 12, renamed to Section galerie)
   plannedHoles: number;
   realHoles: number; // trous forés
+  chargedHoles?: number; // Trous chargés d'explosifs
+  emptyHoles?: number; // Trous forés mais non chargés
   plannedRounds: number;
   realRounds: number; // Nombre de volées
   barType?: '1.8m' | '2.4m';
@@ -366,6 +384,25 @@ export const Production: React.FC = () => {
   const [infoModal, setInfoModal] = useState<{ title: string; message: string; type: 'error' | 'info' | 'success' } | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [successToastMsg, setSuccessToastMsg] = useState('');
+  const [unexplainedGaps, setUnexplainedGaps] = useState(0);
+
+  useEffect(() => {
+    if (!user || !selectedDate) return;
+    
+    const q = query(
+      collection(db, 'non_realisation_explanations'),
+      where('date', '==', selectedDate),
+      where('status', '==', 'pending')
+    );
+    
+    const unsub = onSnapshot(q, (snap) => {
+      setUnexplainedGaps(snap.size);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'non_realisation_explanations');
+    });
+    
+    return () => unsub();
+  }, [user, selectedDate]);
 
   const safeConfirm = (message: string, onConfirm: () => void, onCancel?: () => void) => {
     setConfirmModal({
@@ -518,6 +555,8 @@ export const Production: React.FC = () => {
     gallerySize: 12,
     plannedHoles: 32,
     realHoles: 0,
+    chargedHoles: 0,
+    emptyHoles: 0,
     plannedRounds: 1,
     realRounds: 0,
     meterage: 0,
@@ -1660,6 +1699,10 @@ export const Production: React.FC = () => {
     if (!row) return;
 
     const performCopy = () => {
+      const realH = row.plan.plannedHoles || row.reel.realHoles || 0;
+      const chargedH = row.plan.plannedHoles || row.reel.chargedHoles || 0;
+      const emptyH = Math.max(0, realH - chargedH);
+
       const updatedReel = {
         ...row.reel,
         chantierId: row.plan.chantierId || row.reel.chantierId || '',
@@ -1668,7 +1711,9 @@ export const Production: React.FC = () => {
         assistantMatricule: row.plan.assistantMatricule || row.reel.assistantMatricule || '',
         assistantName: row.plan.assistantName || row.reel.assistantName || '',
         gallerySize: row.plan.gallerySize || row.reel.gallerySize || 12,
-        realHoles: row.plan.plannedHoles || row.reel.realHoles || 0,
+        realHoles: realH,
+        chargedHoles: chargedH,
+        emptyHoles: emptyH,
         realRounds: row.plan.plannedRounds || row.reel.realRounds || 0,
         realMeterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
         meterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
@@ -1691,6 +1736,10 @@ export const Production: React.FC = () => {
     const hasFilled = minageRows.some(row => isMinageReelFilled(row.reel));
     const performCopy = () => {
       const updated = minageRows.map(row => {
+        const realH = row.plan.plannedHoles || row.reel.realHoles || 0;
+        const chargedH = row.plan.plannedHoles || row.reel.chargedHoles || 0;
+        const emptyH = Math.max(0, realH - chargedH);
+
         const updatedReel = {
           ...row.reel,
           chantierId: row.plan.chantierId || row.reel.chantierId || '',
@@ -1699,7 +1748,9 @@ export const Production: React.FC = () => {
           assistantMatricule: row.plan.assistantMatricule || row.reel.assistantMatricule || '',
           assistantName: row.plan.assistantName || row.reel.assistantName || '',
           gallerySize: row.plan.gallerySize || row.reel.gallerySize || 12,
-          realHoles: row.plan.plannedHoles || row.reel.realHoles || 0,
+          realHoles: realH,
+          chargedHoles: chargedH,
+          emptyHoles: emptyH,
           realRounds: row.plan.plannedRounds || row.reel.realRounds || 0,
           realMeterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
           meterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
@@ -1959,6 +2010,11 @@ export const Production: React.FC = () => {
       const computed = Number(value) * advanceFactor;
       updatedReel.meterage = computed;
       updatedReel.realMeterage = computed;
+    }
+    if (field === 'realHoles' || field === 'chargedHoles') {
+      const realH = field === 'realHoles' ? Number(value) : (Number(updatedReel.realHoles) || 0);
+      const chargedH = field === 'chargedHoles' ? Number(value) : (Number(updatedReel.chargedHoles) || 0);
+      updatedReel.emptyHoles = Math.max(0, realH - chargedH);
     }
     if (field === 'chantierId') {
       const foundChan = chantiers.find(c => c.id === value);
@@ -2690,6 +2746,8 @@ export const Production: React.FC = () => {
               <th className="p-2 border-r border-slate-700/50 min-w-[155px] text-sky-200">Aide-Mineur / Assistant</th>
               <th className="p-2 border-r border-slate-700/50 w-16 text-center text-rose-250">Section</th>
               <th className="p-2 border-r border-slate-700/50 w-16 text-center">Trous (u)</th>
+              <th className="p-2 border-r border-slate-700/50 w-20 text-center text-[#ffd700]">Trous chargés</th>
+              <th className="p-2 border-r border-slate-700/50 w-24 text-center">Trous vides</th>
               <th className="p-2 border-r border-slate-700/50 w-16 text-center">Volées (u)</th>
               <th className="p-2 border-r border-slate-700/50 w-20 text-center text-amber-200">Métrage (m)</th>
               <th className="p-2 border-r border-slate-700/50 w-16 text-center">ANFO (kg)</th>
@@ -2741,9 +2799,9 @@ export const Production: React.FC = () => {
 
               return (
                 <React.Fragment key={secName}>
-                  {/* Sector Header Row spanning all 14 columns */}
+                  {/* Sector Header Row spanning all 16 columns */}
                   <tr className="bg-slate-100/90 border-y border-slate-205 select-none font-bold">
-                    <td colSpan={14} className="py-2.5 px-3">
+                    <td colSpan={16} className="py-2.5 px-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                           <span className={`w-3 h-3 ${headerStyle.bullet} rounded-sm shrink-0`}></span>
@@ -2926,6 +2984,16 @@ export const Production: React.FC = () => {
                             {plan.plannedHoles || 32}
                           </td>
 
+                          {/* Plan Trous chargés */}
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-400 select-none bg-slate-100/30">
+                            -
+                          </td>
+
+                          {/* Plan Trous vides */}
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-400 select-none bg-slate-100/30">
+                            -
+                          </td>
+
                           {/* Plan Volées */}
                           <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-500 select-none">
                             {plan.plannedRounds || 1}
@@ -3033,6 +3101,42 @@ export const Production: React.FC = () => {
                               onKeyDown={handleKeyDown}
                               className="w-full font-mono text-center border border-slate-200 p-1 text-[10px] rounded focus:ring-1 focus:ring-[#8B0000] focus:border-[#8B0000]"
                             />
+                          </td>
+
+                          {/* Real Trous chargés input */}
+                          <td className="p-1 border-r border-slate-200 text-center w-20">
+                            <input
+                              type="number"
+                              value={row.chargedHoles === undefined ? '' : row.chargedHoles}
+                              onChange={e => updateMinageCell(postName, idx, 'chargedHoles', Number(e.target.value))}
+                              onKeyDown={handleKeyDown}
+                              placeholder="0"
+                              className="w-full font-mono text-center border border-slate-200 p-1 text-[10px] rounded focus:ring-1 focus:ring-[#8B0000] focus:border-[#8B0000] font-bold"
+                            />
+                          </td>
+
+                          {/* Real Trous vides display */}
+                          <td className="p-1 border-r border-slate-200 text-center w-24 bg-slate-50/10 text-[10px] font-bold">
+                            {(() => {
+                              const realH = Number(row.realHoles) || 0;
+                              const chargedH = Number(row.chargedHoles) || 0;
+                              const emptyH = Math.max(0, realH - chargedH);
+                              if (realH === 0) {
+                                return <span className="text-slate-400 font-medium">-</span>;
+                              }
+                              if (emptyH > 0) {
+                                return (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-800 border border-amber-200">
+                                    ⚠️ {emptyH} vides
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                  ✓ Tous chargés
+                                </span>
+                              );
+                            })()}
                           </td>
 
                           {/* Real Volées input */}
@@ -3655,6 +3759,9 @@ export const Production: React.FC = () => {
                             <th className="p-1 px-1.5 border-r border-slate-200 text-center w-12 font-black">Godets</th>
                             <th className="p-1 px-1.5 border-r border-slate-200 text-center w-14">Vol (m³)</th>
                             <th className="p-1 px-1.5 border-r border-slate-200 text-center w-24">Heures / Horaires</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-14">Durée</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-12">Norme</th>
+                            <th className="p-1 px-1.5 border-r border-slate-200 text-center w-24">Écart</th>
                             <th className="p-1 px-1.5 border-r border-slate-200 text-center w-12 text-blue-900 bg-blue-50/20 font-bold">Gasoil</th>
                             <th className="p-1 px-1.5 border-r border-slate-200 text-center">Lubrifiant 1</th>
                             <th className="p-1 px-1.5 text-center">Lubrifiant 2</th>
@@ -3673,6 +3780,9 @@ export const Production: React.FC = () => {
                             <td className="p-1 border-r border-slate-200 text-center font-mono">{plan.godets || 0}</td>
                             <td className="p-1 border-r border-slate-200 text-center font-mono font-bold">{(plan.volumeEstimated || 0).toFixed(1)} m³</td>
                             <td className="p-1 border-r border-slate-200 text-center font-mono">{(plan.hoursWorked || 6).toFixed(1)}h prév.</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono text-slate-400 select-none bg-slate-100/30">-</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono text-slate-400 select-none bg-slate-100/30">-</td>
+                            <td className="p-1 border-r border-slate-200 text-center font-mono text-slate-400 select-none bg-slate-100/30">-</td>
                             <td className="p-1 border-r border-slate-200 text-center font-mono">-</td>
                             <td className="p-1 border-r border-slate-200 text-center font-mono">-</td>
                             <td className="p-1 text-center font-mono">-</td>
@@ -3733,6 +3843,47 @@ export const Production: React.FC = () => {
                                 <span className="text-[9px] text-slate-400 font-bold select-none">→</span>
                                 {renderTimeSelect(row.endTime || '', (val) => updateDeblayageCell(postName, idx, 'endTime', val))}
                               </div>
+                            </td>
+                            {/* Real Durée display (non-editable, calculated) */}
+                            <td className="p-1 border-r border-slate-200 text-center font-mono text-[10px] bg-slate-50/50">
+                              {(() => {
+                                const dur = calculateDuration(row.startTime || '', row.endTime || '');
+                                return dur > 0 ? `${dur.toFixed(1)}h` : '-';
+                              })()}
+                            </td>
+
+                            {/* Real Norme display (non-editable, fixed) */}
+                            <td className="p-1 border-r border-slate-200 text-center font-mono text-[10px] text-slate-400 bg-slate-50/50">
+                              6.0h
+                            </td>
+
+                            {/* Real Écart display (non-editable, calculated badge) */}
+                            <td className="p-1 border-r border-slate-200 text-center font-mono text-[10px] bg-slate-50/50 min-w-[120px]">
+                              {(() => {
+                                const dur = calculateDuration(row.startTime || '', row.endTime || '');
+                                if (dur <= 0) return <span className="text-slate-400 font-medium">-</span>;
+                                const gap = dur - 6.0;
+                                
+                                if (gap > 0) {
+                                  return (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-850 border border-rose-200">
+                                      ⚠️ +{gap.toFixed(1)}h dépassement
+                                    </span>
+                                  );
+                                } else if (gap === 0) {
+                                  return (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-850 border border-emerald-200">
+                                      ✓ Conforme
+                                    </span>
+                                  );
+                                } else {
+                                  return (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-sky-50 text-sky-850 border border-sky-200">
+                                      ✓ {gap.toFixed(1)}h
+                                    </span>
+                                  );
+                                }
+                              })()}
                             </td>
                             <td className="p-1 border-r border-slate-200 text-center bg-blue-50/20">
                               <input
@@ -4125,6 +4276,29 @@ export const Production: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {(() => {
+        const status = allProductionDocs.find(doc => doc.id === selectedDate)?.status;
+        return status === 'scelle' && unexplainedGaps > 0 ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex items-center gap-3 animate-fade-in">
+            <AlertTriangle className="text-amber-600 w-5 h-5 flex-shrink-0" />
+            <div className="flex-1">
+              <span className="text-amber-800 text-sm">
+                ⚠️ Ce registre comporte <strong>{unexplainedGaps}</strong> écart(s) non expliqué(s).
+              </span>
+            </div>
+            <button 
+              onClick={() => {
+                window.sessionStorage.setItem('goto-explications-date', selectedDate);
+                window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: { tab: 'explications' } }));
+              }}
+              className="text-amber-700 underline text-sm font-semibold hover:text-amber-900 whitespace-nowrap"
+            >
+              Voir les explications →
+            </button>
+          </div>
+        ) : null;
+      })()}
 
       {loading ? (
         <div className="py-24 text-center text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse flex flex-col items-center justify-center gap-3">
