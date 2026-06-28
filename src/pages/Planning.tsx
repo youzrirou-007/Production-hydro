@@ -645,6 +645,20 @@ export const Planning: React.FC = () => {
     isMonthClosedForPlanning
   ]);
 
+  // Prevent closing the tab with unsaved modifications
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const draft = localStorage.getItem(`planning_draft_${selectedDate}`);
+      if (draft) {
+        e.preventDefault();
+        e.returnValue = "Vous avez des modifications non enregistrées sur cette Planification. Souhaitez-vous vraiment quitter ?";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [selectedDate]);
+
   // Pre-filled rows helpers for Maintenance & Extraction
   const getDefaultMaintenanceRows = (post: 'Poste 1' | 'Poste 2' | 'Poste 3'): ExcelMaintenance[] => {
     if (post === 'Poste 1') {

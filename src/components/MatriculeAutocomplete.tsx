@@ -191,9 +191,28 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
           disabled={disabled}
           onKeyDown={(e) => {
             if (disabled) return;
-            if (e.key === 'Enter' && suggestionsList().length > 0 && isOpen) {
-              e.preventDefault();
-              handleSelect(suggestionsList()[0]);
+            if (e.key === 'Enter' || e.key === 'Tab') {
+              const activeEmps = (employees || []).filter(e => e.status === 'actif');
+              const q = typed.trim().toUpperCase();
+              const matched = activeEmps.find(
+                emp => (emp.matricule || '').toUpperCase().trim() === q ||
+                       `${emp.nom || ''} ${emp.prenom || ''}`.toUpperCase().trim() === q ||
+                       `${emp.prenom || ''} ${emp.nom || ''}`.toUpperCase().trim() === q
+              );
+              if (matched) {
+                setTyped(matched.matricule);
+                onChange(matched.matricule, matched);
+                setIsOpen(false);
+              } else if (typed.trim() === '') {
+                onChange('', null);
+                setIsOpen(false);
+              } else if (suggestionsList().length > 0) {
+                e.preventDefault();
+                handleSelect(suggestionsList()[0]);
+              } else {
+                setTyped(value || '');
+                setIsOpen(false);
+              }
             }
             if (onKeyDown) onKeyDown(e);
           }}
@@ -203,17 +222,40 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
             setTyped(val);
             setIsOpen(true);
 
-            const matched = employees.find(
-              emp => (emp.matricule || '').toUpperCase().trim() === val.toUpperCase().trim()
+            const activeEmps = (employees || []).filter(e => e.status === 'actif');
+            const matched = activeEmps.find(
+              emp => (emp.matricule || '').toUpperCase().trim() === val.toUpperCase().trim() ||
+                     `${emp.nom || ''} ${emp.prenom || ''}`.toUpperCase().trim() === val.toUpperCase().trim() ||
+                     `${emp.prenom || ''} ${emp.nom || ''}`.toUpperCase().trim() === val.toUpperCase().trim()
             );
             if (matched) {
               onChange(matched.matricule, matched);
-            } else {
-              onChange(val, null);
             }
           }}
           onFocus={() => {
             if (!disabled) setIsOpen(true);
+          }}
+          onBlur={() => {
+            setTimeout(() => {
+              setIsOpen(false);
+              const activeEmps = (employees || []).filter(e => e.status === 'actif');
+              const q = typed.trim().toUpperCase();
+              const matched = activeEmps.find(
+                emp => (emp.matricule || '').toUpperCase().trim() === q ||
+                       `${emp.nom || ''} ${emp.prenom || ''}`.toUpperCase().trim() === q ||
+                       `${emp.prenom || ''} ${emp.nom || ''}`.toUpperCase().trim() === q
+              );
+              if (matched) {
+                setTyped(matched.matricule);
+                onChange(matched.matricule, matched);
+              } else {
+                if (typed.trim() === '') {
+                  onChange('', null);
+                } else {
+                  setTyped(value || '');
+                }
+              }
+            }, 250);
           }}
           className="w-full font-mono text-[11px] font-bold text-slate-800 bg-transparent outline-none uppercase placeholder-slate-400 py-0.5 disabled:text-gray-400 disabled:cursor-not-allowed"
         />

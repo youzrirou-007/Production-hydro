@@ -165,9 +165,10 @@ interface EmployeeCellProps {
   placeholder?: string;
   hideNameLabel?: boolean;
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
+  disabled?: boolean;
 }
 
-const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, employees, placeholder = "Matricule...", hideNameLabel = false, onKeyDown }) => {
+const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, employees, placeholder = "Matricule...", hideNameLabel = false, onKeyDown, disabled = false }) => {
   const [typed, setTyped] = React.useState(matricule || '');
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -175,47 +176,103 @@ const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, 
     setTyped(matricule || '');
   }, [matricule]);
 
-  // Try to find exact match
-  const exactEmp = employees.find(
-    e => (e.matricule || '').toUpperCase().trim() === typed.toUpperCase().trim()
-  );
+  // Only consider active employees for the search list!
+  const activeEmps = React.useMemo(() => {
+    return (employees || []).filter(e => e.status === 'actif');
+  }, [employees]);
+
+  // Try to find exact match in active list or by matching the typed value
+  const exactEmp = React.useMemo(() => {
+    const q = typed.trim().toUpperCase();
+    if (!q) return null;
+    return activeEmps.find(
+      e => (e.matricule || '').toUpperCase().trim() === q ||
+           `${e.nom || ''} ${e.prenom || ''}`.toUpperCase().trim() === q ||
+           `${e.prenom || ''} ${e.nom || ''}`.toUpperCase().trim() === q
+    );
+  }, [typed, activeEmps]);
 
   const query = typed.trim().toLowerCase();
 
-  // Filter employees matching query
-  const suggestions = query && !exactEmp ? employees.filter(emp => {
-    const m = (emp.matricule || '').toLowerCase();
-    const fullName = `${emp.nom || ''} ${emp.prenom || ''}`.toLowerCase();
-    const reverseFullName = `${emp.prenom || ''} ${emp.nom || ''}`.toLowerCase();
-    return m.includes(query) || fullName.includes(query) || reverseFullName.includes(query);
-  }) : [];
+  // Filter active employees matching query
+  const suggestions = React.useMemo(() => {
+    if (!query || exactEmp) return [];
+    return activeEmps.filter(emp => {
+      const m = (emp.matricule || '').toLowerCase();
+      const fullName = `${emp.nom || ''} ${emp.prenom || ''}`.toLowerCase();
+      const reverseFullName = `${emp.prenom || ''} ${emp.nom || ''}`.toLowerCase();
+      return m.includes(query) || fullName.includes(query) || reverseFullName.includes(query);
+    });
+  }, [query, exactEmp, activeEmps]);
 
   const isInvalid = typed.trim().length > 0 && !exactEmp && suggestions.length === 0;
 
+  const handleSelect = (emp: any) => {
+    setTyped(emp.matricule);
+    onChange(emp.matricule, `${emp.nom} ${emp.prenom}`);
+    setIsOpen(false);
+  };
+
   return (
     <div className="relative w-full min-w-[130px]">
-      <div className={`flex items-center transition-all bg-white px-1 py-0.5 border rounded ${isInvalid ? 'border-red-500 bg-red-50/70 border-2' : 'border-slate-200 focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-400'}`}>
+      <div className={`flex items-center transition-all px-1 py-0.5 border rounded ${disabled ? 'bg-slate-50 border-slate-200 opacity-80 cursor-not-allowed' : isInvalid ? 'border-red-500 bg-red-50/70 border-2' : 'border-slate-200 focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-400'} has-[:disabled]:bg-slate-50 has-[:disabled]:border-slate-200 has-[:disabled]:opacity-80 has-[:disabled]:cursor-not-allowed`}>
         <input
           type="text"
           placeholder={placeholder}
           value={typed}
-          onKeyDown={onKeyDown}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === 'Tab') {
+              if (exactEmp) {
+                handleSelect(exactEmp);
+              } else if (typed.trim() === '') {
+                onChange('', '');
+                setIsOpen(false);
+              } else if (suggestions.length > 0) {
+                handleSelect(suggestions[0]);
+              } else {
+                setTyped(matricule || '');
+                setIsOpen(false);
+              }
+            }
+            if (onKeyDown) onKeyDown(e);
+          }}
+          disabled={disabled}
           onChange={(e) => {
+            if (disabled) return;
             const val = e.target.value;
             setTyped(val);
             setIsOpen(true);
             
-            const matched = employees.find(emp => (emp.matricule || '').toUpperCase().trim() === val.toUpperCase().trim());
+            const matched = activeEmps.find(
+              emp => (emp.matricule || '').toUpperCase().trim() === val.toUpperCase().trim() ||
+                     `${emp.nom || ''} ${emp.prenom || ''}`.toUpperCase().trim() === val.toUpperCase().trim() ||
+                     `${emp.prenom || ''} ${emp.nom || ''}`.toUpperCase().trim() === val.toUpperCase().trim()
+            );
             if (matched) {
               onChange(matched.matricule, `${matched.nom} ${matched.prenom}`);
-            } else {
-              onChange(val, 'Inconnu');
             }
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            if (!disabled) setIsOpen(true);
+          }}
           onBlur={() => {
             setTimeout(() => {
               setIsOpen(false);
+              const matched = activeEmps.find(
+                emp => (emp.matricule || '').toUpperCase().trim() === typed.toUpperCase().trim() ||
+                       `${emp.nom || ''} ${emp.prenom || ''}`.toUpperCase().trim() === typed.toUpperCase().trim() ||
+                       `${emp.prenom || ''} ${emp.nom || ''}`.toUpperCase().trim() === typed.toUpperCase().trim()
+              );
+              if (matched) {
+                setTyped(matched.matricule);
+                onChange(matched.matricule, `${matched.nom} ${matched.prenom}`);
+              } else {
+                if (typed.trim() === '') {
+                  onChange('', '');
+                } else {
+                  setTyped(matricule || '');
+                }
+              }
             }, 250);
           }}
           className="w-full font-mono text-[10px] font-bold text-slate-800 bg-transparent py-0.5 px-1 outline-none uppercase placeholder-slate-400"
@@ -242,9 +299,7 @@ const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, 
                 key={emp.id || emp.matricule}
                 type="button"
                 onMouseDown={() => {
-                  setTyped(emp.matricule);
-                  onChange(emp.matricule, empName);
-                  setIsOpen(false);
+                  handleSelect(emp);
                 }}
                 className="w-full text-left px-2 py-1 hover:bg-sky-50 transition-colors flex items-center justify-between text-[10px]"
               >
@@ -1013,32 +1068,36 @@ export const Production: React.FC = () => {
     }
   }, [selectedDate]);
 
-  // Save drafts to localStorage to prevent data loss on accidental reload
+  // Save drafts to localStorage to prevent data loss on accidental reload (debounced to avoid UI lag on fast typing)
   useEffect(() => {
     if (!selectedDate || loading) return;
     
-    const draftPayload = {
-      p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
-      p1ChiefMatricule, p1ChiefName, p1SecondChiefMatricule, p1SecondChiefName,
-      p1SectorChefs,
-      p2MinageRows, p2DeblayageRows, p2ExtractionRows, p2MaintenanceRows,
-      p2ChiefMatricule, p2ChiefName, p2SecondChiefMatricule, p2SecondChiefName,
-      p2SectorChefs,
-      p3MinageRows, p3DeblayageRows, p3ExtractionRows, p3MaintenanceRows,
-      p3ChiefMatricule, p3ChiefName, p3SecondChiefMatricule, p3SecondChiefName,
-      p3SectorChefs,
-    };
+    const handler = setTimeout(() => {
+      const draftPayload = {
+        p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
+        p1ChiefMatricule, p1ChiefName, p1SecondChiefMatricule, p1SecondChiefName,
+        p1SectorChefs,
+        p2MinageRows, p2DeblayageRows, p2ExtractionRows, p2MaintenanceRows,
+        p2ChiefMatricule, p2ChiefName, p2SecondChiefMatricule, p2SecondChiefName,
+        p2SectorChefs,
+        p3MinageRows, p3DeblayageRows, p3ExtractionRows, p3MaintenanceRows,
+        p3ChiefMatricule, p3ChiefName, p3SecondChiefMatricule, p3SecondChiefName,
+        p3SectorChefs,
+      };
+      
+      // Check if there is some modified rows to justify saving a draft
+      const hasData = [
+        p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
+        p2MinageRows, p2DeblayageRows, p2ExtractionRows, p2MaintenanceRows,
+        p3MinageRows, p3DeblayageRows, p3ExtractionRows, p3MaintenanceRows
+      ].some(arr => arr && arr.length > 0);
+      
+      if (hasData) {
+        localStorage.setItem(`draft_production_${selectedDate}`, JSON.stringify(draftPayload));
+      }
+    }, 1000); // 1-second debounce
     
-    // Check if there is some modified rows to justify saving a draft
-    const hasData = [
-      p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
-      p2MinageRows, p2DeblayageRows, p2ExtractionRows, p2MaintenanceRows,
-      p3MinageRows, p3DeblayageRows, p3ExtractionRows, p3MaintenanceRows
-    ].some(arr => arr && arr.length > 0);
-    
-    if (hasData) {
-      localStorage.setItem(`draft_production_${selectedDate}`, JSON.stringify(draftPayload));
-    }
+    return () => clearTimeout(handler);
   }, [
     selectedDate, loading,
     p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
@@ -2335,6 +2394,72 @@ export const Production: React.FC = () => {
     }
   };
 
+  const unsealWorkbook = async () => {
+    if (isMonthClosed) {
+      safeAlert("❌ Ce mois est clôturé. Aucun déscellement n'est autorisé.", "Mois Clôturé", "error");
+      return;
+    }
+
+    const canUnseal = profile && ['admin', 'direction'].includes(profile.role);
+    if (!canUnseal) {
+      safeAlert("❌ Vous n'avez pas l'autorisation de désceller ce registre.", "Accès Refusé", "error");
+      return;
+    }
+
+    safeConfirm(
+      `🔓 Êtes-vous sûr de vouloir désceller le registre du ${formatFrenchDate(selectedDate)} ? Cela permettra d'apporter à nouveau des modifications au réalisé de cette journée.`,
+      async () => {
+        setSaveStatus('saving');
+        try {
+          const docRef = doc(db, 'production', selectedDate);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const currentData = docSnap.data();
+            
+            // Revert status to 'brouillon' or empty so it is no longer 'scelle'
+            const updatedPayload: any = {
+              ...currentData,
+              status: 'brouillon',
+              timestamp: new Date().toISOString(),
+              unsealedBy: user?.email || profile?.name || 'Secrétaire'
+            };
+
+            // Also, update the status field of each post in the document for completeness
+            if (updatedPayload.postes) {
+              for (const postKey of Object.keys(updatedPayload.postes)) {
+                if (updatedPayload.postes[postKey]) {
+                  updatedPayload.postes[postKey].status = 'brouillon';
+                }
+              }
+            }
+
+            await setDoc(docRef, updatedPayload);
+            
+            // Add to audit trail/logs
+            await setDoc(doc(db, 'audit_logs', `${selectedDate}_unseal_${Date.now()}`), {
+              date: selectedDate,
+              action: 'DESCELLAGE',
+              actor: user?.email || profile?.name || 'Secrétaire',
+              timestamp: new Date().toISOString()
+            });
+
+            setSaveStatus('saved');
+            setSuccessToastMsg(`Le registre journalier du ${formatFrenchDate(selectedDate)} a été déscellé avec succès. Vous pouvez maintenant le modifier.`);
+            setShowSuccessToast(true);
+            setTimeout(() => setSaveStatus('idle'), 2500);
+          } else {
+            safeAlert("❌ Aucun document enregistré trouvé pour cette date.", "Erreur", "error");
+            setSaveStatus('idle');
+          }
+        } catch (err) {
+          console.error("Error unsealing workbook: ", err);
+          setSaveStatus('error');
+        }
+      }
+    );
+  };
+
   const exportPlanningToProduction = async (targetDate: string) => {
     if (!targetDate) return;
     if (isMonthClosed) {
@@ -2856,7 +2981,7 @@ export const Production: React.FC = () => {
                   {/* Sector Rows */}
                   {rows.map(({ row: rowWrapper, idx }) => {
                     const row = rowWrapper.reel;
-                    const plan = rowWrapper.plan;
+                    const plan = rowWrapper.plan || {} as ExcelMinage;
 
                     const minerMismatch = !!(row.minerMatricule && plan.minerMatricule && row.minerMatricule.trim().toUpperCase() !== plan.minerMatricule.trim().toUpperCase());
                     const assistantMismatch = !!(row.assistantMatricule && plan.assistantMatricule && row.assistantMatricule.trim().toUpperCase() !== plan.assistantMatricule.trim().toUpperCase());
@@ -3283,7 +3408,7 @@ export const Production: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {rows.map(({ row: rowWrapper, idx }) => {
               const row = rowWrapper.reel;
-              const plan = rowWrapper.plan;
+              const plan = rowWrapper.plan || {} as ExcelMinage;
 
               const minerMismatch = !!(row.minerMatricule && plan.minerMatricule && row.minerMatricule.trim().toUpperCase() !== plan.minerMatricule.trim().toUpperCase());
               const assistantMismatch = !!(row.assistantMatricule && plan.assistantMatricule && row.assistantMatricule.trim().toUpperCase() !== plan.assistantMatricule.trim().toUpperCase());
@@ -3641,7 +3766,7 @@ export const Production: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {rows.map(({ row: rowWrapper, idx }) => {
               const row = rowWrapper.reel;
-              const plan = rowWrapper.plan;
+              const plan = rowWrapper.plan || {} as ExcelDeblayage;
               const driverValName = getEmployeeName(row.driverMatricule);
 
               const driverMismatch = !!(row.driverMatricule && plan.driverMatricule && row.driverMatricule.trim().toUpperCase() !== plan.driverMatricule.trim().toUpperCase());
@@ -4020,6 +4145,10 @@ export const Production: React.FC = () => {
   };
 
   const anomalies = calculateAnomalies();
+
+  const currentDocStatus = allProductionDocs.find(doc => doc.id === selectedDate)?.status;
+  const isReadOnly = isMonthClosed || currentDocStatus === 'scelle';
+  const canUnseal = profile && ['admin', 'direction'].includes(profile.role);
 
   return (
     <div className="space-y-4 font-sans select-none pb-12">
@@ -4521,6 +4650,8 @@ export const Production: React.FC = () => {
                 </label>
               </div>
             </div>
+
+            <fieldset disabled={isReadOnly} className="contents">
 
             {/* ASSISTANTS DE SAISIE POUR LE SECRETARIAT */}
             <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
@@ -5030,7 +5161,7 @@ export const Production: React.FC = () => {
                             );
                           }
                           const row = rowWrapper.reel;
-                          const plan = rowWrapper.plan;
+                          const plan = rowWrapper.plan || {} as ExcelExtraction;
                           const idx = 0;
                           
                           const freqMin = row.wagonsActual > 0 ? (360 / row.wagonsActual).toFixed(1) + ' min' : '0 min';
@@ -5086,8 +5217,12 @@ export const Production: React.FC = () => {
                             if (!start || !end) return 6.5;
                             const [h1, m1] = start.split(':').map(Number);
                             const [h2, m2] = end.split(':').map(Number);
-                            const mDifference = (h2 * 60 + m2) - (h1 * 60 + m1);
-                            const hours = mDifference / 60;
+                            let startMinutes = h1 * 60 + m1;
+                            let endMinutes = h2 * 60 + m2;
+                            if (endMinutes < startMinutes) {
+                              endMinutes += 24 * 60;
+                            }
+                            const hours = (endMinutes - startMinutes) / 60;
                             return hours > 0 ? hours : 6.5;
                           };
                           const durationHours = getHoursBetween(row.startTime || '07:00', row.endTime || '14:00');
@@ -5564,7 +5699,7 @@ export const Production: React.FC = () => {
                           <tbody className="divide-y divide-slate-150 text-[11px]">
                             {maintenanceRows.map((rowWrapper, idx) => {
                               const row = rowWrapper.reel;
-                              const plan = rowWrapper.plan;
+                              const plan = rowWrapper.plan || {} as ExcelMaintenance;
                               const agentValName = getEmployeeName(row.agentMatricule);
 
                               return (
@@ -5691,6 +5826,7 @@ export const Production: React.FC = () => {
                 })}
               </div>
             )}
+            </fieldset>
           </div>
         </div>
 
@@ -5719,13 +5855,39 @@ export const Production: React.FC = () => {
               </h4>
             </div>
 
-            <button
-              onClick={saveWorkbook}
-              disabled={saveStatus === 'saving' || isMonthClosed}
-              className={`w-full md:w-auto font-black py-3 px-8 text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-95 cursor-pointer ${isMonthClosed ? 'bg-red-700 text-white cursor-not-allowed opacity-50' : 'bg-[#00BFFF] hover:bg-sky-500 text-white'}`}
-            >
-              {isMonthClosed ? '🔒 MOIS CLÔTURÉ (Lecture seule)' : saveStatus === 'saving' ? 'Gravure en cours ...' : saveStatus === 'saved' ? '✓ GRAVÉ AVEC SUCCÈS !' : 'Enregistrer et figer la production du Poste'}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              {currentDocStatus === 'scelle' && !isMonthClosed && canUnseal && (
+                <button
+                  onClick={unsealWorkbook}
+                  disabled={saveStatus === 'saving'}
+                  className="w-full sm:w-auto font-black py-3 px-8 text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-95 cursor-pointer bg-amber-600 hover:bg-amber-500 text-white flex items-center justify-center gap-2"
+                >
+                  🔓 Désceller le Cahier
+                </button>
+              )}
+              
+              <button
+                onClick={saveWorkbook}
+                disabled={saveStatus === 'saving' || isMonthClosed || currentDocStatus === 'scelle'}
+                className={`w-full sm:w-auto font-black py-3 px-8 text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md hover:scale-[1.01] active:scale-95 cursor-pointer ${
+                  isMonthClosed 
+                    ? 'bg-red-700 text-white cursor-not-allowed opacity-50' 
+                    : currentDocStatus === 'scelle'
+                      ? 'bg-emerald-700 text-white cursor-not-allowed opacity-85'
+                      : 'bg-[#00BFFF] hover:bg-sky-500 text-white'
+                }`}
+              >
+                {isMonthClosed 
+                  ? '🔒 MOIS CLÔTURÉ (Lecture seule)' 
+                  : currentDocStatus === 'scelle'
+                    ? '🔒 REGISTRE SCÉLLÉ (SMI)'
+                    : saveStatus === 'saving' 
+                      ? 'Gravure en cours ...' 
+                      : saveStatus === 'saved' 
+                        ? '✓ GRAVÉ AVEC SUCCÈS !' 
+                        : 'Enregistrer et figer la production du Poste'}
+              </button>
+            </div>
           </div>
         </div>
       ) : (
