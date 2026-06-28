@@ -2595,7 +2595,8 @@ export const Planning: React.FC = () => {
               driverName: row.driverName,
               engineId: row.engineId,
               engineCode: row.engineCode,
-              engineName: row.engineCode || row.engineId || ''
+              engineName: row.engineCode || row.engineId || '',
+              sector: row.sectorGroup || ''
             });
           }
         }

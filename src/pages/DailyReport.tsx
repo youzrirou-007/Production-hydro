@@ -35,6 +35,22 @@ export const DailyReport: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance'>('minage');
   const [dayProduction, setDayProduction] = useState<any | null>(null);
   const [unexplainedGapsForDate, setUnexplainedGapsForDate] = useState(0);
+  const [monthlyData, setMonthlyData] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (reportType !== 'month' || !filterMonth) return;
+    const q = query(
+      collection(db, 'production_history'),
+      where('date', '>=', filterMonth + '-01'),
+      where('date', '<=', filterMonth + '-31')
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }) as any);
+      docs.sort((a: any, b: any) => (a.date || '').localeCompare(b.date || ''));
+      setMonthlyData(docs);
+    });
+    return () => unsub();
+  }, [reportType, filterMonth]);
 
   useEffect(() => {
     if (!user || !filterDate) return;
@@ -225,6 +241,12 @@ export const DailyReport: React.FC = () => {
     'Poste 3': dayProduction?.postes?.poste3?.sectorChefs || {},
   };
 
+  const sectorBoutefeuTasks: Record<string, any> = {
+    'Poste 1': dayProduction?.postes?.poste1?.sectorBoutefeuTasks || {},
+    'Poste 2': dayProduction?.postes?.poste2?.sectorBoutefeuTasks || {},
+    'Poste 3': dayProduction?.postes?.poste3?.sectorBoutefeuTasks || {},
+  };
+
   // Calculations for KPI Cards using filtered/target sectors
   // Sheet 1 - Minage Totals
   const sumMinageMeterage = [...targetMinageP1, ...targetMinageP2, ...targetMinageP3].reduce((acc, r) => acc + (Number(r.reel?.realMeterage || r.realMeterage) || 0), 0);
@@ -297,6 +319,7 @@ export const DailyReport: React.FC = () => {
             <th className="p-2.5 border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 text-center">Trous Forés</th>
             <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-gradient-to-b from-red-950/40 to-red-950/20 text-rose-250">Volées (u.)</th>
             <th className="p-2.5 border-r border-slate-700/50 text-center bg-gradient-to-b from-amber-950/15 to-transparent text-amber-200">Métrage (m)</th>
+            <th className="p-2.5 border-r border-slate-700/50 text-center bg-gradient-to-b from-slate-900/60 to-transparent text-slate-300">Objectif (m)</th>
             <th className="p-2.5 border-r border-slate-700/50 text-center bg-slate-900/60 text-slate-300">KPI Rendement (m/v)</th>
             <th className="p-2.5 text-center bg-gradient-to-b from-red-950/15 to-transparent text-rose-220">Consommation Explosifs</th>
           </tr>
@@ -304,17 +327,27 @@ export const DailyReport: React.FC = () => {
         <tbody className="divide-y divide-gray-150 text-[10.5px] font-bold text-slate-700 bg-white">
           {rows.map((r: any, idx: number) => {
             const row = r.reel || r;
+            const isChildVolee = !!(row.remarks && typeof row.remarks === 'string' && row.remarks.includes('(Volée'));
+            if (isChildVolee) return null;
+
             const rYield = row.realRounds > 0 ? (row.realMeterage / row.realRounds) : 0;
+            const is24 = row.barType === '2.4m';
+            const kpiGoodThreshold = is24 ? 2.1 : 1.6;
+            const kpiLowThreshold = is24 ? 2.0 : 1.5;
+            const planMeterage = Number(r.plan?.meterage || 0);
             let statusLabel = 'NORMAL';
             let statusColor = 'bg-blue-50 text-blue-700 border-blue-200';
             if (row.realRounds > 0) {
-                if (rYield >= 1.5) {
-                  statusLabel = 'PERFORMANT';
-                  statusColor = 'bg-emerald-50 text-emerald-800 border-emerald-250';
-                } else if (rYield <= 1.3) {
-                  statusLabel = 'SOUS-KPI';
-                  statusColor = 'bg-red-50 text-red-800 border-red-200 animate-pulse';
-                }
+              if (rYield >= kpiGoodThreshold) {
+                statusLabel = 'PERFORMANT';
+                statusColor = 'bg-emerald-50 text-emerald-800 border-emerald-250';
+              } else if (rYield >= kpiLowThreshold) {
+                statusLabel = 'MOYEN';
+                statusColor = 'bg-amber-50 text-amber-800 border-amber-200';
+              } else {
+                statusLabel = 'SOUS-KPI';
+                statusColor = 'bg-red-50 text-red-800 border-red-200 animate-pulse';
+              }
             }
 
             return (
@@ -331,6 +364,9 @@ export const DailyReport: React.FC = () => {
                 <td className="p-3 text-center border-r border-gray-200 font-mono text-[11px] text-gray-800 bg-slate-50/5">{row.realHoles || 0} trs</td>
                 <td className="p-3 text-center border-r border-gray-200 font-mono text-[11px] text-gray-800">{row.realRounds || 0} vol</td>
                 <td className="p-3 text-center border-r border-gray-200 font-mono text-[11px] font-extrabold text-slate-900 bg-amber-50/20">{row.realMeterage || 0} m</td>
+                <td className="p-3 text-center border-r border-gray-200 font-mono text-[11px] text-slate-400 bg-slate-50/10">
+                  {planMeterage > 0 ? `${planMeterage.toFixed(1)} m` : '—'}
+                </td>
                 <td className="p-3 text-center border-r border-gray-200 bg-slate-50/5">
                   <span className={`inline-flex px-2 py-0.5 border text-[8.5px] font-black uppercase rounded ${statusColor}`}>
                     {rYield > 0 ? `${rYield.toFixed(2)} m/v` : '0.00'} — {statusLabel}
@@ -724,7 +760,7 @@ export const DailyReport: React.FC = () => {
         </div>
       </div>
 
-      {unexplainedGapsForDate > 0 && (
+      {reportType === 'day' && unexplainedGapsForDate > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex items-center gap-3 animate-fade-in">
           <AlertTriangle className="text-amber-600 w-5 h-5 flex-shrink-0" />
           <div className="flex-1">
@@ -745,8 +781,9 @@ export const DailyReport: React.FC = () => {
         </div>
       )}
 
-      {loading ? (
-        <div className="py-24 text-center flex flex-col items-center justify-center space-y-3">
+      {reportType === 'day' && (
+        loading ? (
+          <div className="py-24 text-center flex flex-col items-center justify-center space-y-3">
           <Workflow className="w-10 h-10 text-gray-300 animate-spin" />
           <p className="text-xs uppercase font-black text-gray-400 tracking-wider">Chargement des registres...</p>
         </div>
@@ -1001,6 +1038,17 @@ export const DailyReport: React.FC = () => {
                                     </span>
                                   </div>
                                 )}
+                                {activeTab === 'minage' && (() => {
+                                  const shiftKey = shift.id === 'poste1' ? 'Poste 1' : shift.id === 'poste2' ? 'Poste 2' : 'Poste 3';
+                                  const task = sectorBoutefeuTasks[shiftKey]?.[sector];
+                                  if (!task) return null;
+                                  return (
+                                    <div className="text-[9px] font-bold text-amber-800 uppercase flex items-center gap-1.5 mt-1">
+                                      <span>💣 Boutefeu :</span>
+                                      <span className="font-black">{task}</span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
 
                               {/* Appropriate Table based on active tab */}
@@ -1022,6 +1070,106 @@ export const DailyReport: React.FC = () => {
 
           </div>
 
+        </div>
+      ))}
+
+      {reportType === 'month' && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-gray-100">
+            <h3 className="text-[12px] font-black uppercase tracking-wider text-slate-700">
+              Synthèse mensuelle — {filterMonth}
+            </h3>
+          </div>
+          {monthlyData.length === 0 ? (
+            <div className="p-12 text-center text-[10px] font-black uppercase text-gray-300">
+              Aucune donnée de production pour ce mois.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-[11px]">
+                <thead>
+                  <tr className="bg-[#0f172a] text-white text-[9.5px] font-extrabold uppercase tracking-wider">
+                    <th className="p-3 border-r border-slate-700/50 text-[#ffd700]">Date</th>
+                    <th className="p-3 border-r border-slate-700/50 text-amber-200">Métrage Prévu (m)</th>
+                    <th className="p-3 border-r border-slate-700/50 text-emerald-200">Métrage Réalisé (m)</th>
+                    <th className="p-3 border-r border-slate-700/50 text-sky-200">Vol. Déblayage Réel (m³)</th>
+                    <th className="p-3 border-r border-slate-700/50 text-slate-300">Wagons Prévus</th>
+                    <th className="p-3 border-r border-slate-700/50 text-emerald-200">Wagons Réalisés</th>
+                    <th className="p-3 border-r border-slate-700/50 text-amber-200">ANFO (kg)</th>
+                    <th className="p-3 text-slate-300">Secrétaire</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {monthlyData.map((day) => {
+                    const meterPct = day.totalMeteragePlanned > 0
+                      ? ((day.totalMeterageRealised / day.totalMeteragePlanned) * 100).toFixed(1)
+                      : null;
+                    const wagonPct = day.totalWagonsPlanned > 0
+                      ? ((day.totalWagonsRealised / day.totalWagonsPlanned) * 100).toFixed(1)
+                      : null;
+                    return (
+                      <tr key={day.id} className="hover:bg-slate-50/40 transition-colors">
+                        <td className="p-3 font-mono font-bold text-slate-800 border-r border-gray-100">
+                          {day.date ? format(new Date(day.date + 'T12:00:00'), 'dd/MM/yyyy') : day.id}
+                        </td>
+                        <td className="p-3 text-center font-mono text-slate-400 border-r border-gray-100">
+                          {(day.totalMeteragePlanned || 0).toFixed(1)}
+                        </td>
+                        <td className="p-3 text-center border-r border-gray-100">
+                          <span className={`font-mono font-extrabold ${meterPct && Number(meterPct) >= 90 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                            {(day.totalMeterageRealised || 0).toFixed(1)}
+                            {meterPct && <span className="text-[9px] ml-1 font-bold">({meterPct}%)</span>}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center font-mono text-sky-700 font-bold border-r border-gray-100">
+                          {(day.totalDeblayageRealised || 0).toFixed(1)}
+                        </td>
+                        <td className="p-3 text-center font-mono text-slate-400 border-r border-gray-100">
+                          {day.totalWagonsPlanned || 0}
+                        </td>
+                        <td className="p-3 text-center border-r border-gray-100">
+                          <span className={`font-mono font-extrabold ${wagonPct && Number(wagonPct) >= 90 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                            {day.totalWagonsRealised || 0}
+                            {wagonPct && <span className="text-[9px] ml-1 font-bold">({wagonPct}%)</span>}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center font-mono text-amber-700 font-bold border-r border-gray-100">
+                          {(day.totalAnfo || 0).toFixed(0)}
+                        </td>
+                        <td className="p-3 text-[10px] text-slate-500 font-bold uppercase">
+                          {(day.secretary || '').split('@')[0] || '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t-2 border-slate-200 font-black text-[10.5px]">
+                    <td className="p-3 text-slate-600 uppercase tracking-wider border-r border-gray-200">TOTAL MOIS</td>
+                    <td className="p-3 text-center font-mono text-slate-500 border-r border-gray-200">
+                      {monthlyData.reduce((s, d) => s + (d.totalMeteragePlanned || 0), 0).toFixed(1)} m
+                    </td>
+                    <td className="p-3 text-center font-mono text-emerald-700 border-r border-gray-200">
+                      {monthlyData.reduce((s, d) => s + (d.totalMeterageRealised || 0), 0).toFixed(1)} m
+                    </td>
+                    <td className="p-3 text-center font-mono text-sky-700 border-r border-gray-200">
+                      {monthlyData.reduce((s, d) => s + (d.totalDeblayageRealised || 0), 0).toFixed(1)} m³
+                    </td>
+                    <td className="p-3 text-center font-mono text-slate-500 border-r border-gray-200">
+                      {monthlyData.reduce((s, d) => s + (d.totalWagonsPlanned || 0), 0)}
+                    </td>
+                    <td className="p-3 text-center font-mono text-emerald-700 border-r border-gray-200">
+                      {monthlyData.reduce((s, d) => s + (d.totalWagonsRealised || 0), 0)}
+                    </td>
+                    <td className="p-3 text-center font-mono text-amber-700 border-r border-gray-200">
+                      {monthlyData.reduce((s, d) => s + (d.totalAnfo || 0), 0).toFixed(0)} kg
+                    </td>
+                    <td className="p-3 border-r border-gray-200"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
