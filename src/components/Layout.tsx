@@ -159,14 +159,25 @@ export const Layout: React.FC<{
       <motion.aside 
         initial={false}
         animate={{ 
-          width: isOpen ? 260 : 0,
-          borderRightWidth: isOpen ? 1 : 0
+          width: isOpen ? 260 : 72,
+          borderRightWidth: 1
         }}
         className="bg-white border-[#141414]/10 flex flex-col z-50 overflow-hidden relative shadow-2xl"
       >
-        <div className="p-4 border-b border-[#141414]/10 flex items-center justify-between gap-2.5">
+        <div className={cn(
+          "border-b border-[#141414]/10 flex items-center justify-between gap-2.5",
+          isOpen ? "p-4" : "p-3 justify-center"
+        )}>
           <div className="flex items-center gap-2.5">
-            <img src={logoImg} alt="HydroMines logo" className="w-[72px] h-[72px] object-contain rounded-lg shrink-0" referrerPolicy="no-referrer" />
+            <img 
+              src={logoImg} 
+              alt="HydroMines logo" 
+              className={cn(
+                "object-contain rounded-lg shrink-0 transition-all duration-300",
+                isOpen ? "w-[72px] h-[72px]" : "w-10 h-10"
+              )} 
+              referrerPolicy="no-referrer" 
+            />
             {isOpen && (
               <h1 className="text-sm font-black tracking-tighter leading-none uppercase animate-fade-in">
                 <span className="text-[#b8860b]">Hydro</span>
@@ -185,7 +196,10 @@ export const Layout: React.FC<{
           )}
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto custom-scrollbar">
+        <nav className={cn(
+          "flex-1 py-4 space-y-6 overflow-y-auto custom-scrollbar",
+          isOpen ? "px-4" : "px-2"
+        )}>
           {categories.map(cat => (
             <div key={cat.id} className="space-y-1">
               {isOpen && (
@@ -198,10 +212,10 @@ export const Layout: React.FC<{
                   key={item.id}
                   onClick={() => {
                     setActiveTab(item.id);
-                    setIsOpen(false);
                   }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-none transition-all duration-200 group relative",
+                    "w-full flex items-center rounded-none transition-all duration-200 group relative",
+                    isOpen ? "gap-3 px-3 py-2.5" : "justify-center p-3",
                     activeTab === item.id 
                       ? "bg-[#141414] text-white shadow-lg" 
                       : "text-[#141414]/60 hover:bg-[#141414]/5 hover:text-[#141414]",
@@ -212,6 +226,7 @@ export const Layout: React.FC<{
                       "bg-red-50/10"
                     ]
                   )}
+                  title={!isOpen ? item.label : undefined}
                 >
                   <div className={cn(
                     "flex-shrink-0 transition-transform duration-300",
@@ -223,22 +238,38 @@ export const Layout: React.FC<{
                   {isOpen && (
                     <span className="font-bold text-[10.5px] uppercase tracking-tight flex-1 text-left">{item.label}</span>
                   )}
-                  {item.id === 'explications' && isOpen && (
+                  {item.id === 'explications' && (
                     unexplainedCount > 0 ? (
-                      <span className="ml-auto bg-red-500 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center animate-bounce">
-                        {unexplainedCount}
-                      </span>
+                      isOpen ? (
+                        <span className="ml-auto bg-red-500 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center animate-bounce">
+                          {unexplainedCount}
+                        </span>
+                      ) : (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center animate-bounce">
+                          {unexplainedCount}
+                        </span>
+                      )
                     ) : (
-                      <span className="ml-auto bg-emerald-600 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center">
-                        ✓
-                      </span>
+                      isOpen && (
+                        <span className="ml-auto bg-emerald-600 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center">
+                          ✓
+                        </span>
+                      )
                     )
                   )}
                   {item.id === 'rotation' && rotationPending && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse absolute right-4 top-1/2 -translate-y-1/2" />
+                    isOpen ? (
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse absolute right-4 top-1/2 -translate-y-1/2" />
+                    ) : (
+                      <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse absolute right-1.5 top-1.5" />
+                    )
                   )}
                   {item.id === 'admin' && hasPendingRequests && (
-                    <span className="w-2.5 h-2.5 bg-red-600 border border-white rounded-full h-3 w-3 flex items-center justify-center text-[7px] text-white font-extrabold absolute right-4 top-1/2 -translate-y-1/2 animate-pulse" title="Demande en attente admin" />
+                    isOpen ? (
+                      <span className="w-2.5 h-2.5 bg-red-600 border border-white rounded-full h-3 w-3 flex items-center justify-center text-[7px] text-white font-extrabold absolute right-4 top-1/2 -translate-y-1/2 animate-pulse" title="Demande en attente admin" />
+                    ) : (
+                      <span className="w-2 h-2 bg-red-600 border border-white rounded-full flex items-center justify-center absolute right-1.5 top-1.5 animate-pulse" title="Demande en attente admin" />
+                    )
                   )}
                   {activeTab === item.id && (
                     <motion.div 
@@ -252,18 +283,26 @@ export const Layout: React.FC<{
           ))}
         </nav>
 
-        <div className="p-4 border-t border-[#141414]/10 space-y-2">
+        <div className={cn("p-4 border-t border-[#141414]/10 space-y-2", !isOpen && "px-2 text-center")}>
           <button 
             onClick={() => setIsOpen(!isOpen)}
-            className="w-full flex items-center gap-3 px-3 py-2 text-[#141414]/60 hover:text-[#141414] transition-colors"
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2 text-[#141414]/60 hover:text-[#141414] transition-colors",
+              !isOpen && "justify-center"
+            )}
+            title={!isOpen ? "Agrandir" : "Réduire"}
           >
-            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {isOpen ? <X className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
             {isOpen && <span className="text-xs font-bold uppercase tracking-widest">Réduire</span>}
           </button>
           
           <button 
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors",
+              !isOpen && "justify-center"
+            )}
+            title={!isOpen ? "Déconnexion" : undefined}
           >
             <LogOut className="w-5 h-5" />
             {isOpen && <span className="text-sm font-bold uppercase tracking-widest">Déconnexion</span>}

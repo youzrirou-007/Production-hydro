@@ -69,6 +69,7 @@ export const Admin: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('Tous');
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('Tous');
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeAdminSubTab, setActiveAdminSubTab] = useState<'effectifs' | 'hierarchie' | 'parametres' | 'demandes'>('effectifs');
@@ -469,7 +470,48 @@ export const Admin: React.FC = () => {
     return 'bg-slate-50 text-slate-700 border-slate-200';
   };
 
-  // Filter & Search Logic
+  // Filter & Search Logic with perfect hierarchy sorting
+  const getSectorPriority = (sec: string | undefined): number => {
+    if (!sec) return 99;
+    const s = sec.toLowerCase().trim();
+    if (s === 'imiter 2') return 1;
+    if (s === 'imiter 1') return 2;
+    if (s === 'imiter est') return 3;
+    if (s === 'imiter est bure') return 4;
+    if (s === 'atelier / surface') return 5;
+    if (s === 'non assigné') return 6;
+    return 99;
+  };
+
+  const getRolePriority = (roleId: string | undefined): number => {
+    if (!roleId) return 99;
+    const r = roleId.toUpperCase().trim();
+    if (r === 'CHEF') return 1;
+    if (r === 'BOUTEFEU') return 2;
+    if (r === 'MINEUR') return 3;
+    if (r === 'AIDE_MINEUR') return 4;
+    if (r === 'CONDUCTEUR_ENGIN') return 5;
+    if (r === 'TREUILLISTE') return 6;
+    if (r === 'MECANICIEN') return 7;
+    if (r === 'CHAUDRONNIER') return 8;
+    if (r === 'ELECTRICIEN') return 9;
+    if (r === 'POMPISTE') return 10;
+    if (r === 'OUVRIER') return 11;
+    if (r === 'SECRETAIRE_CHANTIER') return 12;
+    if (r === 'MAGASINIER') return 13;
+    if (r === 'RESPONSABLE_CHANTIER') return 14;
+    return 99;
+  };
+
+  const compareMatricule = (m1: string, m2: string): number => {
+    const n1 = parseInt(m1, 10);
+    const n2 = parseInt(m2, 10);
+    if (!isNaN(n1) && !isNaN(n2)) {
+      return n1 - n2;
+    }
+    return m1.localeCompare(m2);
+  };
+
   const filteredEmployees = employees.filter(emp => {
     const matchesSearch = 
       emp.matricule.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -477,8 +519,27 @@ export const Admin: React.FC = () => {
       emp.prenom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       getRoleLabel(emp.fonction).toLowerCase().includes(searchQuery.toLowerCase());
     
-    if (selectedSectorFilter === 'Tous') return matchesSearch;
-    return matchesSearch && emp.sector?.toLowerCase() === selectedSectorFilter.toLowerCase();
+    const matchesSector = selectedSectorFilter === 'Tous' || emp.sector?.toLowerCase() === selectedSectorFilter.toLowerCase();
+    const matchesRole = selectedRoleFilter === 'Tous' || emp.fonction === selectedRoleFilter;
+    
+    return matchesSearch && matchesSector && matchesRole;
+  }).sort((a, b) => {
+    // 1. Sort by Sector priority: Imiter 2 first, then Imiter 1, then Imiter Est, then others
+    const sectorA = getSectorPriority(a.sector);
+    const sectorB = getSectorPriority(b.sector);
+    if (sectorA !== sectorB) {
+      return sectorA - sectorB;
+    }
+    
+    // 2. Sort by Role priority inside sector
+    const roleA = getRolePriority(a.fonction);
+    const roleB = getRolePriority(b.fonction);
+    if (roleA !== roleB) {
+      return roleA - roleB;
+    }
+    
+    // 3. Sort by Matricule ascending
+    return compareMatricule(a.matricule, b.matricule);
   });
 
   // Hierarchy variables computed based on live personnel data
@@ -656,6 +717,33 @@ export const Admin: React.FC = () => {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Role Custom Select Dropdown Filter */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-t border-slate-100 pt-3 mt-2">
+              <span className="text-[9.5px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5 shrink-0">
+                <Briefcase className="w-3.5 h-3.5" /> Hiérarchie / Fonction :
+              </span>
+              <div className="relative w-full sm:max-w-xs">
+                <select
+                  value={selectedRoleFilter}
+                  onChange={e => setSelectedRoleFilter(e.target.value)}
+                  className="appearance-none w-full bg-white border border-slate-300 px-3.5 py-1.5 pr-9 font-bold text-[9.5px] uppercase tracking-wide text-slate-700 outline-none focus:border-[#8B0000] focus:ring-1 focus:ring-[#8B0000]/15 cursor-pointer rounded-none transition-colors"
+                >
+                  <option value="Tous">Tous les rôles ({employees.length})</option>
+                  {ROLES.map(role => {
+                    const count = employees.filter(emp => emp.fonction === role.id).length;
+                    return (
+                      <option key={role.id} value={role.id}>
+                        {role.label} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center border-l border-slate-200 pl-1.5">
+                  <ChevronDown className="w-3.5 h-3.5 text-[#8B0000]" />
+                </div>
+              </div>
             </div>
           </div>
 
