@@ -33,7 +33,7 @@ import {
   Lock,
   Pencil
 } from 'lucide-react';
-import { collection, query, onSnapshot, setDoc, doc, arrayUnion, orderBy, where, getDocs, deleteDoc, getDoc, addDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, setDoc, doc, arrayUnion, orderBy, where, getDocs, getDoc, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, subDays } from 'date-fns';
@@ -932,18 +932,6 @@ export const Production: React.FC = () => {
     const unsubHist = onSnapshot(qHistory, (snapshot) => {
       const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setDataHistory(records);
-      
-      // Background cleanup of unwanted demo history rows on client-side
-      records.forEach(async (rec) => {
-        if (rec.id !== '2026-06-24') {
-          try {
-            await deleteDoc(doc(db, 'production_history', rec.id));
-            console.log('Cleaned up demo history record:', rec.id);
-          } catch (err: any) {
-            console.warn('Could not clean up demo history:', err.message);
-          }
-        }
-      });
     }, (err) => {
       console.warn("Permission logs on Snapshot production_history:", err.message);
     });
@@ -1000,18 +988,6 @@ export const Production: React.FC = () => {
     const unsubDailyPlannings = onSnapshot(qDailyPlannings, (snapshot) => {
       const sheets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAllPlanningSheets(sheets);
-      
-      // Background cleanup of unwanted demo planning sheets on client-side
-      sheets.forEach(async (sheet) => {
-        if (sheet.id === '2026-06-14') {
-          try {
-            await deleteDoc(doc(db, 'daily_planning_sheets', '2026-06-14'));
-            console.log('Cleaned up demo planning sheet: 2026-06-14');
-          } catch (err: any) {
-            console.warn('Could not clean up demo planning sheet:', err.message);
-          }
-        }
-      });
     }, (err) => {
       console.warn("Permission logs on Snapshot daily_planning_sheets:", err.message);
     });

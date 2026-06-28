@@ -2542,8 +2542,10 @@ export const Planning: React.FC = () => {
       const qExist = query(planColl, where('date', '==', selectedDate));
       const existSnap = await getDocs(qExist);
       
-      for (const d of existSnap.docs) {
-        await deleteDoc(doc(db, 'planning', d.id));
+      if (!existSnap.empty) {
+        const deleteBatch = writeBatch(db);
+        existSnap.docs.forEach(docD => deleteBatch.delete(docD.ref));
+        await deleteBatch.commit();
       }
 
       // Populate discrete collection records

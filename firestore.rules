@@ -77,6 +77,13 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
+    // Audit Logs (déscellement, opérations sensibles)
+    match /audit_logs/{logId} {
+      allow read: if isSignedIn() && hasRole(['admin', 'direction']);
+      allow create: if isSignedIn() && hasRole(['admin', 'direction']);
+      allow update, delete: if false;
+    }
+
     // Daily Planning Sheets
     match /daily_planning_sheets/{sheetId} {
       allow read: if isSignedIn();
@@ -132,7 +139,9 @@ service cloud.firestore {
 
     // Non Realisation Explanations
     match /non_realisation_explanations/{expId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+      allow update, delete: if isSignedIn() && hasRole(['admin', 'direction', 'chief']);
     }
 
     // Modification Requests subcollection & collection group

@@ -46,10 +46,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Auto bootstrap default profile as admin
           try {
             await setDoc(doc(db, 'users', user.uid), {
-              role: 'admin',
+              role: 'secretary',
               siteIds: ['SMI'],
               name: user.displayName || user.email?.split('@')[0] || 'Utilisateur'
             });
+            setLoading(false);
           } catch (err) {
             console.error("Bootstrapping profile failed", err);
             setProfile(null);
