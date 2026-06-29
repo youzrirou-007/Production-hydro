@@ -27,7 +27,6 @@ import {
 
 interface HydroMinesIAProps {
   allProductionDocs: any[];
-  productionHistory: any[];
   chantiers: any[];
   employees: any[];
   platformSettings?: any;
@@ -35,7 +34,6 @@ interface HydroMinesIAProps {
 
 export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
   allProductionDocs,
-  productionHistory,
   chantiers,
   employees,
   platformSettings

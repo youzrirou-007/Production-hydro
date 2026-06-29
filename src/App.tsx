@@ -11,6 +11,7 @@ import { AnalyseDashboard } from './pages/AnalyseDashboard';
 import { ExplicationNonRealise } from './pages/ExplicationNonRealise';
 import { Analytics } from './pages/Analytics';
 import { Messages } from './pages/Messages';
+import { TechniqueMiniere } from './pages/TechniqueMiniere';
 import { Factory, ShieldCheck, Mail, LogIn, HardHat } from 'lucide-react';
 
 const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
@@ -96,6 +97,7 @@ const AppContent: React.FC = () => {
       case 'messages': return <Messages />;
       case 'explication_non_realise':
       case 'explications': return <ExplicationNonRealise />;
+      case 'technique': return <TechniqueMiniere />;
       case 'admin': return <Admin />;
       default: return <Production />;
     }

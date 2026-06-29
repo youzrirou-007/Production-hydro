@@ -59,6 +59,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'planning', label: 'Planification', icon: <Calendar className="w-5 h-5" />, category: 'production' },
   { id: 'rotation', label: 'Changement de Poste', icon: <RefreshCw className="w-5 h-5" />, category: 'production' },
   { id: 'explications', label: 'Explications', icon: <AlertTriangle className="w-5 h-5" />, category: 'production' },
+  { id: 'technique', label: '📐 Technique Minière', icon: <Wrench className="w-5 h-5" />, category: 'production' },
   { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'production' },
   
   // ANALYSE

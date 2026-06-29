@@ -29,7 +29,7 @@ import {
   FileText,
   Brain
 } from 'lucide-react';
-import { collection, query, onSnapshot, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { CausesChart } from '../components/CausesChart';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -115,6 +115,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
   const [engines, setEngines] = useState<any[]>([]);
   const [allPlanningSheets, setAllPlanningSheets] = useState<any[]>([]);
   const [allProductionDocs, setAllProductionDocs] = useState<any[]>([]);
+  const [platformSettings, setPlatformSettings] = useState<any>({});
   const [loading, setLoading] = useState(true);
 
   // Causes States & Config
@@ -300,6 +301,13 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
         document.head.removeChild(styleEl);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'platform_settings', 'config'), (snap) => {
+      if (snap.exists()) setPlatformSettings(snap.data());
+    }, () => {});
+    return () => unsub();
   }, []);
 
   // Firestore Subscriptions
@@ -1729,9 +1737,9 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
               {activeTab === 'ia' && (
                 <HydroMinesIA
                   allProductionDocs={allProductionDocs}
-                  productionHistory={allProductionDocs}
                   chantiers={chantiers}
                   employees={employees}
+                  platformSettings={platformSettings}
                 />
               )}
 
