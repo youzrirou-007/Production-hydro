@@ -26,7 +26,8 @@ import {
   ShieldAlert,
   Fuel,
   Sparkles,
-  FileText
+  FileText,
+  Brain
 } from 'lucide-react';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,7 +48,6 @@ import {
 } from 'recharts';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
-// Import newly added analytics modules
 import { SectorsCompare } from '../components/SectorsCompare';
 import { GlobalRankings } from '../components/GlobalRankings';
 import { HistoryTrends } from '../components/HistoryTrends';
@@ -57,6 +57,7 @@ import { BureImiterEstPremium } from '../components/BureImiterEstPremium';
 import { SmartAlertsCenter } from '../components/SmartAlertsCenter';
 import { PredictiveIntelligencePremium } from '../components/PredictiveIntelligencePremium';
 import { RHDossiersPremium } from '../components/RHDossiersPremium';
+import { HydroMinesIA } from '../components/HydroMinesIA';
 import { 
   calculateMinerStats, 
   calculateDriverStats, 
@@ -95,7 +96,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
   }, [pillar]);
 
   // Tabs State
-  const [activeTab, setActiveTab] = useState<'cockpit' | 'alerts' | 'chantiers_premium' | 'predictive' | 'rh_premium' | 'sectors_compare' | 'rankings' | 'trends' | 'bure' | 'secteurs' | 'rh' | 'materiel' | 'causes'>('cockpit');
+  const [activeTab, setActiveTab] = useState<'cockpit' | 'alerts' | 'predictive' | 'ia' | 'chantiers_premium' | 'rh_premium' | 'sectors_compare' | 'rankings' | 'trends' | 'bure' | 'secteurs' | 'rh' | 'materiel' | 'causes'>('cockpit');
   const [selectedBriefingActor, setSelectedBriefingActor] = useState<'dg' | 'dt' | 'smi' | 'expert'>('expert');
   const [showClinicalAlerts, setShowClinicalAlerts] = useState(false);
 
@@ -1460,6 +1461,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                   { id: 'cockpit', label: 'Cockpit Direction' },
                   { id: 'alerts', label: "Centre d'Alertes" },
                   { id: 'predictive', label: 'Intelligence Prédictive' },
+                  { id: 'ia', label: '🤖 Intelligence IA' }
                 ]
               },
               {
@@ -1563,6 +1565,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
               { id: 'cockpit', label: 'Cockpit Direction', icon: <Activity className="w-4 h-4" /> },
               { id: 'alerts', label: "Centre d'Alertes", icon: <ShieldAlert className="w-4 h-4 text-rose-500 animate-pulse" /> },
               { id: 'predictive', label: 'Intelligence Prédictive', icon: <Sparkles className="w-4 h-4 text-amber-500" /> },
+              { id: 'ia', label: 'Intelligence IA', icon: <Brain className="w-4 h-4 text-[#ffd700]" /> }
             ]
           },
           {
@@ -1635,7 +1638,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
           className="space-y-8"
         >
           {/* EMPTY DATA WARNING STATE */}
-          {activeTab !== 'causes' && (metrics.alignedDays.length === 0 || (metrics.consolidatedMinageRows.length === 0 && metrics.consolidatedExtractionRows.length === 0)) ? (
+          {activeTab !== 'causes' && activeTab !== 'ia' && (metrics.alignedDays.length === 0 || (metrics.consolidatedMinageRows.length === 0 && metrics.consolidatedExtractionRows.length === 0)) ? (
             <div className="bg-amber-50/40 border border-amber-100 p-8 rounded-3xl text-center space-y-3">
               <ShieldAlert className="w-10 h-10 text-amber-500 mx-auto" />
               <h3 className="text-sm font-black uppercase text-slate-800">Aucune donnée disponible pour cette période</h3>
@@ -1720,6 +1723,15 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                 <HistoryTrends 
                   allProductionDocs={allProductionDocs}
                   allPlanningSheets={allPlanningSheets}
+                />
+              )}
+
+              {activeTab === 'ia' && (
+                <HydroMinesIA
+                  allProductionDocs={allProductionDocs}
+                  productionHistory={allProductionDocs}
+                  chantiers={chantiers}
+                  employees={employees}
                 />
               )}
 

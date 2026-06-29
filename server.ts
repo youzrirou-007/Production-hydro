@@ -51,7 +51,7 @@ app.post("/api/ia/vision", async (req, res) => {
     const { productionData, maintenanceData, safetyData, prompt } = req.body;
     
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash",
       contents: `
         You are the HydroMines Vision IA, a strategic brain for a mining subcontractor.
         Analyze the following data and answer the request:
@@ -98,7 +98,7 @@ app.post("/api/ia/audit", async (req, res) => {
         IMPORTANT: In your justification and flags, never use the words "jumbo", "Jumbo", or "jumbos". Always refer to this equipment as "perforateur pneumatique Montabert T23" (singular) or "perforateurs Montabert T23" (plural) or "Perforateur Montabert T23" (capitalized).
     `;
 
-    const result = await generateWithRetry("gemini-3-flash-preview", prompt, schema);
+    const result = await generateWithRetry("gemini-2.0-flash", prompt, schema);
     res.json(result);
   } catch (error: any) {
     console.error("IA Audit Error:", error);
@@ -152,7 +152,7 @@ app.post("/api/ia/assistant", async (req, res) => {
         IMPORTANT: In your suggestions, never use the words "jumbo", "Jumbo", or "jumbos". Always refer to this equipment as "perforateur pneumatique Montabert T23" (singular) or "perforateurs Montabert T23" (plural) or "Perforateur Montabert T23" (capitalized).
     `;
 
-    const result = await generateWithRetry("gemini-3-flash-preview", prompt, schema);
+    const result = await generateWithRetry("gemini-2.0-flash", prompt, schema);
     res.json(result);
   } catch (error: any) {
     console.error("Assistant IA Error:", error);
@@ -192,7 +192,7 @@ app.post("/api/ia/expert-analysis", async (req, res) => {
         IMPORTANT: In your response, never use the words "jumbo", "Jumbo", or "jumbos". Always refer to this equipment as "perforateur pneumatique Montabert T23" (singular) or "perforateurs Montabert T23" (plural) or "Perforateur Montabert T23" (capitalized).
     `;
 
-    const result = await generateWithRetry("gemini-3-flash-preview", prompt, schema);
+    const result = await generateWithRetry("gemini-2.0-flash", prompt, schema);
     res.json(result);
   } catch (error: any) {
     console.error(`Expert Analysis Error:`, error);
