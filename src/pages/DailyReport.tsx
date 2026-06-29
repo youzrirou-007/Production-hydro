@@ -106,6 +106,41 @@ export const DailyReport: React.FC = () => {
   const [allPlanningSheets, setAllPlanningSheets] = useState<any[]>([]);
   const [allProductionDocs, setAllProductionDocs] = useState<any[]>([]);
 
+  const [operationalSettings, setOperationalSettings] = useState<{
+    advance_18m: number;
+    advance_24m: number;
+    kpi_18m_good: number;
+    kpi_18m_low: number;
+    kpi_24m_good: number;
+    kpi_24m_low: number;
+  }>({
+    advance_18m: 1.7,
+    advance_24m: 2.3,
+    kpi_18m_good: 1.6,
+    kpi_18m_low: 1.5,
+    kpi_24m_good: 2.1,
+    kpi_24m_low: 2.0,
+  });
+
+  useEffect(() => {
+    const unsubOpSettings = onSnapshot(doc(db, 'platform_settings', 'config'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setOperationalSettings({
+          advance_18m: data.advance_18m ?? 1.7,
+          advance_24m: data.advance_24m ?? 2.3,
+          kpi_18m_good: data.kpi_18m_good ?? 1.6,
+          kpi_18m_low: data.kpi_18m_low ?? 1.5,
+          kpi_24m_good: data.kpi_24m_good ?? 2.1,
+          kpi_24m_low: data.kpi_24m_low ?? 2.0,
+        });
+      }
+    }, (err) => {
+      console.warn("Error loading operational settings in DailyReport.tsx:", err);
+    });
+    return () => unsubOpSettings();
+  }, []);
+
   // Subscribe to all planning sheets and production documents for unfilled check
   useEffect(() => {
     const qDailyPlannings = query(collection(db, 'daily_planning_sheets'));
@@ -325,34 +360,37 @@ export const DailyReport: React.FC = () => {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-150 text-[10.5px] font-bold text-slate-700 bg-white">
-          {rows.map((r: any, idx: number) => {
-            const row = r.reel || r;
-            const isChildVolee = !!(row.remarks && typeof row.remarks === 'string' && row.remarks.includes('(Volée'));
-            if (isChildVolee) return null;
+          {(() => {
+            let displayIndex = 0;
+            return rows.map((r: any, idx: number) => {
+              const row = r.reel || r;
+              const isChildVolee = !!(row.remarks && typeof row.remarks === 'string' && row.remarks.includes('(Volée'));
+              if (isChildVolee) return null;
+              displayIndex++;
 
-            const rYield = row.realRounds > 0 ? (row.realMeterage / row.realRounds) : 0;
-            const is24 = row.barType === '2.4m';
-            const kpiGoodThreshold = is24 ? 2.1 : 1.6;
-            const kpiLowThreshold = is24 ? 2.0 : 1.5;
-            const planMeterage = Number(r.plan?.meterage || 0);
-            let statusLabel = 'NORMAL';
-            let statusColor = 'bg-blue-50 text-blue-700 border-blue-200';
-            if (row.realRounds > 0) {
-              if (rYield >= kpiGoodThreshold) {
-                statusLabel = 'PERFORMANT';
-                statusColor = 'bg-emerald-50 text-emerald-800 border-emerald-250';
-              } else if (rYield >= kpiLowThreshold) {
-                statusLabel = 'MOYEN';
-                statusColor = 'bg-amber-50 text-amber-800 border-amber-200';
-              } else {
-                statusLabel = 'SOUS-KPI';
-                statusColor = 'bg-red-50 text-red-800 border-red-200 animate-pulse';
+              const rYield = row.realRounds > 0 ? (row.realMeterage / row.realRounds) : 0;
+              const is24 = row.barType === '2.4m';
+              const kpiGoodThreshold = is24 ? (operationalSettings?.kpi_24m_good ?? 2.1) : (operationalSettings?.kpi_18m_good ?? 1.6);
+              const kpiLowThreshold = is24 ? (operationalSettings?.kpi_24m_low ?? 2.0) : (operationalSettings?.kpi_18m_low ?? 1.5);
+              const planMeterage = Number(r.plan?.meterage || 0);
+              let statusLabel = 'NORMAL';
+              let statusColor = 'bg-blue-50 text-blue-700 border-blue-200';
+              if (row.realRounds > 0) {
+                if (rYield >= kpiGoodThreshold) {
+                  statusLabel = 'PERFORMANT';
+                  statusColor = 'bg-emerald-50 text-emerald-800 border-emerald-250';
+                } else if (rYield >= kpiLowThreshold) {
+                  statusLabel = 'MOYEN';
+                  statusColor = 'bg-amber-50 text-amber-800 border-amber-200';
+                } else {
+                  statusLabel = 'SOUS-KPI';
+                  statusColor = 'bg-red-50 text-red-800 border-red-200 animate-pulse';
+                }
               }
-            }
 
-            return (
-              <tr key={idx} className="hover:bg-slate-50/50 transition-colors border-b border-gray-200">
-                <td className="p-3 text-center text-gray-500 font-mono text-[10.5px] bg-slate-50/50 border-r border-gray-200 w-12">{idx + 1}</td>
+              return (
+                <tr key={idx} className="hover:bg-slate-50/50 transition-colors border-b border-gray-200">
+                  <td className="p-3 text-center text-gray-500 font-mono text-[10.5px] bg-slate-50/50 border-r border-gray-200 w-12">{displayIndex}</td>
                 <td className="p-3 border-r border-gray-200">
                   <div className="text-[11px] font-extrabold text-[#b8860b] uppercase">{getChantierName(row.chantierId)}</div>
                   <div className="text-[8.5px] text-gray-455 font-normal">Section : {row.gallerySize || 12}m² • {row.barType || '1.8m'}</div>
@@ -382,6 +420,7 @@ export const DailyReport: React.FC = () => {
               </tr>
             );
           })}
+          )()}
         </tbody>
       </table>
     </div>
@@ -1096,6 +1135,8 @@ export const DailyReport: React.FC = () => {
                     <th className="p-3 border-r border-slate-700/50 text-slate-300">Wagons Prévus</th>
                     <th className="p-3 border-r border-slate-700/50 text-emerald-200">Wagons Réalisés</th>
                     <th className="p-3 border-r border-slate-700/50 text-amber-200">ANFO (kg)</th>
+                    <th className="p-3 border-r border-slate-700/50 text-amber-200">Tovex (kg)</th>
+                    <th className="p-3 border-r border-slate-700/50 text-slate-300">Amorces (u.)</th>
                     <th className="p-3 text-slate-300">Secrétaire</th>
                   </tr>
                 </thead>
@@ -1136,6 +1177,12 @@ export const DailyReport: React.FC = () => {
                         <td className="p-3 text-center font-mono text-amber-700 font-bold border-r border-gray-100">
                           {(day.totalAnfo || 0).toFixed(0)}
                         </td>
+                        <td className="p-3 text-center font-mono text-amber-600 font-bold border-r border-gray-100">
+                          {(day.totalTovex || 0).toFixed(2)}
+                        </td>
+                        <td className="p-3 text-center font-mono text-slate-600 font-bold border-r border-gray-100">
+                          {day.totalAmorces || 0}
+                        </td>
                         <td className="p-3 text-[10px] text-slate-500 font-bold uppercase">
                           {(day.secretary || '').split('@')[0] || '—'}
                         </td>
@@ -1163,6 +1210,12 @@ export const DailyReport: React.FC = () => {
                     </td>
                     <td className="p-3 text-center font-mono text-amber-700 border-r border-gray-200">
                       {monthlyData.reduce((s, d) => s + (d.totalAnfo || 0), 0).toFixed(0)} kg
+                    </td>
+                    <td className="p-3 text-center font-mono text-amber-700 border-r border-gray-200">
+                      {monthlyData.reduce((s: number, d: any) => s + (d.totalTovex || 0), 0).toFixed(2)} kg
+                    </td>
+                    <td className="p-3 text-center font-mono text-slate-600 border-r border-gray-200">
+                      {monthlyData.reduce((s: number, d: any) => s + (d.totalAmorces || 0), 0)}
                     </td>
                     <td className="p-3 border-r border-gray-200"></td>
                   </tr>

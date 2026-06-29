@@ -123,13 +123,23 @@ const POST_HOURS: Record<'Poste 1' | 'Poste 2' | 'Poste 3', { start: string; end
   'Poste 3': { start: '23:00', end: '06:00', duration: 7 },
 };
 
-const EXPLOSIVES_PER_ROUND: Record<9 | 12, { anfo: number; tovex: number; ammorces: number; plannedHoles: number }> = {
-  9:  { anfo: 35, tovex: 2.6, ammorces: 26, plannedHoles: 28 }, // 28 trous prévus, 26 chargés (ammorces)
-  12: { anfo: 40, tovex: 3.2, ammorces: 32, plannedHoles: 38 }, // 38 trous prévus, 32 chargés (ammorces)
-};
+const computeExplosives = (gallerySize: 9 | 12, plannedRounds: number, platformSettings?: any) => {
+  const getExplosivesPerRound = (size: 9 | 12) => {
+    if (size === 9) return {
+      anfo:    platformSettings?.explosifs_9m2_anfo    ?? 35,
+      tovex:   platformSettings?.explosifs_9m2_tovex   ?? 2.6,
+      ammorces: platformSettings?.explosifs_9m2_amorces ?? 26,
+      plannedHoles: platformSettings?.explosifs_9m2_trous ?? 28,
+    };
+    return {
+      anfo:    platformSettings?.explosifs_12m2_anfo    ?? 40,
+      tovex:   platformSettings?.explosifs_12m2_tovex   ?? 3.2,
+      ammorces: platformSettings?.explosifs_12m2_amorces ?? 32,
+      plannedHoles: platformSettings?.explosifs_12m2_trous ?? 38,
+    };
+  };
 
-const computeExplosives = (gallerySize: 9 | 12, plannedRounds: number) => {
-  const base = EXPLOSIVES_PER_ROUND[gallerySize] || EXPLOSIVES_PER_ROUND[9];
+  const base = getExplosivesPerRound(gallerySize);
   const rounds = plannedRounds || 0;
   return {
     anfo: Math.round(base.anfo * rounds * 100) / 100,
@@ -147,7 +157,7 @@ const isMinageRowActive = (row: any): boolean => {
   return !!(row.chantierId && (row.minerMatricule || row.assistantMatricule));
 };
 
-const recalculateExplosivesIfNeeded = (row: any) => {
+const recalculateExplosivesIfNeeded = (row: any, platformSettings?: any) => {
   if (!isMinageRowActive(row)) {
     return {
       ...row,
@@ -159,7 +169,7 @@ const recalculateExplosivesIfNeeded = (row: any) => {
     };
   } else {
     if (!row.explosivesManualOverride) {
-      const computed = computeExplosives(row.gallerySize || 12, 1);
+      const computed = computeExplosives(row.gallerySize || 12, 1, platformSettings);
       return {
         ...row,
         plannedHoles: computed.plannedHoles,
@@ -306,7 +316,8 @@ const ensureMinimumRows = (
   loadedRows: any[],
   type: 'minage' | 'deblayage',
   post: 'Poste 1' | 'Poste 2' | 'Poste 3',
-  chantiersList: any[]
+  chantiersList: any[],
+  platformSettings?: any
 ) => {
   const sectors: ('Imiter 2' | 'Imiter 1' | 'Imiter Est')[] = ['Imiter 2', 'Imiter 1', 'Imiter Est'];
   const result: any[] = [];
@@ -326,11 +337,12 @@ const ensureMinimumRows = (
       } else {
         if (type === 'minage') {
           const sizeVal: 9 | 12 = chan.galleryType === '9m2' ? 9 : 12;
-          const explosives = computeExplosives(sizeVal, 1);
+          const explosives = computeExplosives(sizeVal, 1, platformSettings);
+          const defMeterage = platformSettings?.advance_18m ?? 1.7;
           finalSectorRows.push({
             chantierId: chan.id, chiefMatricule: '', chiefName: '', minerMatricule: '', minerName: '',
             assistantMatricule: '', assistantName: '', gallerySize: sizeVal, plannedHoles: explosives.plannedHoles, realHoles: explosives.plannedHoles,
-            plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
+            plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: defMeterage, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
             sectorGroup: sec, explosivesManualOverride: false
           });
         } else {
@@ -359,11 +371,12 @@ const ensureMinimumRows = (
     // 4. Fallback default empty row if absolutely no chantiers exist
     if (finalSectorRows.length === 0) {
       if (type === 'minage') {
-        const explosives = computeExplosives(12, 1);
+        const explosives = computeExplosives(12, 1, platformSettings);
+        const defMeterage = platformSettings?.advance_18m ?? 1.7;
         finalSectorRows.push({
           chantierId: '', chiefMatricule: '', chiefName: '', minerMatricule: '', minerName: '',
           assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: explosives.plannedHoles, realHoles: explosives.plannedHoles,
-          plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
+          plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: defMeterage, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
           sectorGroup: sec, explosivesManualOverride: false
         });
       } else {
@@ -379,7 +392,7 @@ const ensureMinimumRows = (
   });
 
   if (type === 'minage') {
-    return result.map(recalculateExplosivesIfNeeded);
+    return result.map(row => recalculateExplosivesIfNeeded(row, platformSettings));
   }
   return result;
 };
@@ -410,6 +423,35 @@ export const Planning: React.FC = () => {
   const [recordToDelete, setRecordToDelete] = useState<any | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletionNotification, setDeletionNotification] = useState<{ date: string; deletedBy: string } | null>(null);
+  const [planConfirmModal, setPlanConfirmModal] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  } | null>(null);
+
+  const [planInfoModal, setPlanInfoModal] = useState<{
+    title: string;
+    message: string;
+    type: 'error' | 'info' | 'success';
+  } | null>(null);
+
+  const safeAlert = (
+    message: string,
+    title: string = 'Planification SMI',
+    type: 'error' | 'info' | 'success' = 'info'
+  ) => {
+    setPlanInfoModal({ title, message, type });
+  };
+
+  const safeConfirm = (
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void
+  ) => {
+    setPlanConfirmModal({ title: 'Confirmation SMI', message, onConfirm, onCancel });
+  };
+
   const [chantiers, setChantiers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [engines, setEngines] = useState<any[]>([]);
@@ -419,6 +461,20 @@ export const Planning: React.FC = () => {
     oils: string[];
     defaultWagonsTarget?: number;
     lhdBucketCapacities?: Record<string, number>;
+    advance_18m?: number;
+    advance_24m?: number;
+    kpi_18m_good?: number;
+    kpi_18m_low?: number;
+    kpi_24m_good?: number;
+    kpi_24m_low?: number;
+    explosifs_9m2_anfo?: number;
+    explosifs_9m2_tovex?: number;
+    explosifs_9m2_amorces?: number;
+    explosifs_9m2_trous?: number;
+    explosifs_12m2_anfo?: number;
+    explosifs_12m2_tovex?: number;
+    explosifs_12m2_amorces?: number;
+    explosifs_12m2_trous?: number;
   }>({
     sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est'],
     engines: ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
@@ -432,7 +488,21 @@ export const Planning: React.FC = () => {
       'ST2G 4': 2.0,
       'ST2G 5': 2.0,
       'ST2G 6': 2.0,
-    }
+    },
+    advance_18m: 1.7,
+    advance_24m: 2.3,
+    kpi_18m_good: 1.6,
+    kpi_18m_low: 1.5,
+    kpi_24m_good: 2.1,
+    kpi_24m_low: 2.0,
+    explosifs_9m2_anfo: 35,
+    explosifs_9m2_tovex: 2.6,
+    explosifs_9m2_amorces: 26,
+    explosifs_9m2_trous: 28,
+    explosifs_12m2_anfo: 40,
+    explosifs_12m2_tovex: 3.2,
+    explosifs_12m2_amorces: 32,
+    explosifs_12m2_trous: 38,
   });
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -772,7 +842,8 @@ export const Planning: React.FC = () => {
     const unsubSettings = onSnapshot(doc(db, 'settings', 'platform'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setPlatformSettings({
+        setPlatformSettings(prev => ({
+          ...prev,
           sectors: data.sectors || ['Imiter 1', 'Imiter 2', 'Imiter Est'],
           engines: data.engines || ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
           oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
@@ -786,10 +857,35 @@ export const Planning: React.FC = () => {
             'ST2G 5': 2.0,
             'ST2G 6': 2.0,
           }
-        });
+        }));
       }
     }, (err) => {
       console.warn("Permission logs on Snapshot setting platform:", err.message);
+    });
+
+    const unsubOpSettings = onSnapshot(doc(db, 'platform_settings', 'config'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setPlatformSettings(prev => ({
+          ...prev,
+          advance_18m: data.advance_18m ?? 1.7,
+          advance_24m: data.advance_24m ?? 2.3,
+          kpi_18m_good: data.kpi_18m_good ?? 1.6,
+          kpi_18m_low: data.kpi_18m_low ?? 1.5,
+          kpi_24m_good: data.kpi_24m_good ?? 2.1,
+          kpi_24m_low: data.kpi_24m_low ?? 2.0,
+          explosifs_9m2_anfo: data.explosifs_9m2_anfo ?? 35,
+          explosifs_9m2_tovex: data.explosifs_9m2_tovex ?? 2.6,
+          explosifs_9m2_amorces: data.explosifs_9m2_amorces ?? 26,
+          explosifs_9m2_trous: data.explosifs_9m2_trous ?? 28,
+          explosifs_12m2_anfo: data.explosifs_12m2_anfo ?? 40,
+          explosifs_12m2_tovex: data.explosifs_12m2_tovex ?? 3.2,
+          explosifs_12m2_amorces: data.explosifs_12m2_amorces ?? 32,
+          explosifs_12m2_trous: data.explosifs_12m2_trous ?? 38,
+        }));
+      }
+    }, (err) => {
+      console.warn("Permission logs on Snapshot platform_settings config:", err.message);
     });
 
     // 6. Real-time tracking of filled production/registry dates
@@ -808,7 +904,7 @@ export const Planning: React.FC = () => {
       console.warn("Permission warning or error reading production sub:", err.message);
     });
 
-    return () => { unsubHist(); unsubChan(); unsubRH(); unsubEngs(); unsubSettings(); unsubProd(); };
+    return () => { unsubHist(); unsubChan(); unsubRH(); unsubEngs(); unsubSettings(); unsubOpSettings(); unsubProd(); };
   }, []);
 
   // Synchronize Deletion Logs Tracker ONLY when user profile is loaded
@@ -954,8 +1050,8 @@ export const Planning: React.FC = () => {
           const pk = p === 'Poste 1' ? 'poste1' : p === 'Poste 2' ? 'poste2' : 'poste3';
           const pData = docData.postes?.[pk];
           const currentDefaults = POST_HOURS[p];
-          loadedMinageByPost[p] = ensureMinimumRows(pData?.minage || [], 'minage', p, chantiers);
-          loadedDeblayageByPost[p] = ensureMinimumRows(pData?.deblayage || [], 'deblayage', p, chantiers);
+          loadedMinageByPost[p] = ensureMinimumRows(pData?.minage || [], 'minage', p, chantiers, platformSettings);
+          loadedDeblayageByPost[p] = ensureMinimumRows(pData?.deblayage || [], 'deblayage', p, chantiers, platformSettings);
           loadedExtractionByPost[p] = sanitizeExtractionRows(pData?.extraction, currentDefaults, platformSettings.defaultWagonsTarget ?? 48);
           loadedMaintenanceByPost[p] = pData?.maintenance || [];
           if (loadedMaintenanceByPost[p].length === 0) {
@@ -973,8 +1069,8 @@ export const Planning: React.FC = () => {
 
       // If doc Snap does not exist, build templates
       posts.forEach(p => {
-        loadedMinageByPost[p] = ensureMinimumRows([], 'minage', p, chantiers);
-        loadedDeblayageByPost[p] = ensureMinimumRows([], 'deblayage', p, chantiers).map(row => ({
+        loadedMinageByPost[p] = ensureMinimumRows([], 'minage', p, chantiers, platformSettings);
+        loadedDeblayageByPost[p] = ensureMinimumRows([], 'deblayage', p, chantiers, platformSettings).map(row => ({
           ...row,
           hoursWorked: POST_HOURS[p].duration
         }));
@@ -1010,10 +1106,10 @@ export const Planning: React.FC = () => {
       
       setLastAutosaveTime(new Date(data.savedAt));
       setDraftAvailable(null);
-      alert("📥 Le brouillon local a été restauré avec succès ! N'oubliez pas de cliquer sur 'Graver' pour l'enregistrer durablement.");
+      safeAlert("📥 Le brouillon local a été restauré avec succès ! N'oubliez pas de cliquer sur 'Graver' pour l'enregistrer durablement.", "Planification SMI", "success");
     } catch (err) {
       console.error("Error restoring draft:", err);
-      alert("Échec de la restauration du brouillon.");
+      safeAlert("Échec de la restauration du brouillon.", "Planification SMI", "error");
     }
   };
 
@@ -1173,7 +1269,7 @@ export const Planning: React.FC = () => {
     
     if (oldVal) {
       // Repasser en automatique, relancer compute
-      clone[flatIdx] = recalculateExplosivesIfNeeded(clone[flatIdx]);
+      clone[flatIdx] = recalculateExplosivesIfNeeded(clone[flatIdx], platformSettings);
     }
     setMinageRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
@@ -1221,7 +1317,7 @@ export const Planning: React.FC = () => {
               assistantMatricule: clone[index].assistantMatricule,
               assistantName: clone[index].assistantName,
             };
-            clone[i] = recalculateExplosivesIfNeeded(clone[i]);
+            clone[i] = recalculateExplosivesIfNeeded(clone[i], platformSettings);
           }
         }
       }
@@ -1237,7 +1333,7 @@ export const Planning: React.FC = () => {
               ...clone[i],
               gallerySize: value
             };
-            clone[i] = recalculateExplosivesIfNeeded(clone[i]);
+            clone[i] = recalculateExplosivesIfNeeded(clone[i], platformSettings);
           }
         }
       }
@@ -1247,7 +1343,7 @@ export const Planning: React.FC = () => {
       const newBarType = value as '1.8m' | '2.4m';
       clone[index].barType = newBarType;
       const rounds = clone[index].plannedRounds || 1;
-      const advanceFactor = newBarType === '2.4m' ? 2.3 : 1.7;
+      const advanceFactor = newBarType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
       clone[index].meterage = rounds * advanceFactor;
       
       // Update any child rows to also have the same barType and meterage
@@ -1267,7 +1363,7 @@ export const Planning: React.FC = () => {
     if (field === 'plannedRounds') {
       const newRounds = Number(value);
       clone[index].plannedRounds = newRounds;
-      const advanceFactor = clone[index].barType === '2.4m' ? 2.3 : 1.7;
+      const advanceFactor = clone[index].barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
       clone[index].meterage = newRounds * advanceFactor;
 
       // 1. Remove existing associated child rows (Volée 2/3) right below the parent row
@@ -1306,14 +1402,14 @@ export const Planning: React.FC = () => {
             sectorGroup: clone[index].sectorGroup,
             explosivesManualOverride: false
           };
-          const resolvedNewRow = recalculateExplosivesIfNeeded(newRow);
+          const resolvedNewRow = recalculateExplosivesIfNeeded(newRow, platformSettings);
           clone.splice(index + rNum - 1, 0, resolvedNewRow);
         }
       }
     }
 
     // Cleanly and dynamically recalculate explosives of the targeted row based on activity
-    clone[index] = recalculateExplosivesIfNeeded(clone[index]);
+    clone[index] = recalculateExplosivesIfNeeded(clone[index], platformSettings);
 
     setMinageRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
@@ -1473,9 +1569,9 @@ export const Planning: React.FC = () => {
     const newRow: ExcelMinage = recalculateExplosivesIfNeeded({
       chantierId: '', chiefMatricule: '', chiefName: '', minerMatricule: '', minerName: '',
       assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: 0, realHoles: 0,
-      plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, anfo: 0, tovex: 0, ammorces: 0, remarks: '',
+      plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: platformSettings?.advance_18m ?? 1.7, anfo: 0, tovex: 0, ammorces: 0, remarks: '',
       sectorGroup: sec, explosivesManualOverride: false
-    });
+    }, platformSettings);
 
     const clone = [...currentRows];
     if (lastIndex !== -1) {
@@ -1582,14 +1678,14 @@ export const Planning: React.FC = () => {
   const triggerDuplicatePreviousDay = () => {
     const parts = selectedDate.split('-');
     if (parts.length !== 3) {
-      alert("Date non valide.");
+      safeAlert("Date non valide.", "Planification SMI", "error");
       return;
     }
     const sourceDateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
     
     // Check if the selected target date is a Monday (1)
     if (sourceDateObj.getDay() === 1) {
-      alert("⚠️ Les lundis, la composition des équipes et la rotation des postes changent de manière réglementaire à SMI Imiter. La planification du lundi doit impérativement être configurée manuellement. La duplication du dimanche vers le lundi est désactivée.");
+      safeAlert("⚠️ Les lundis, la composition des équipes et la rotation des postes changent de manière réglementaire à SMI Imiter. La planification du lundi doit impérativement être configurée manuellement. La duplication du dimanche vers le lundi est désactivée.", "Planification SMI", "info");
       return;
     }
 
@@ -1607,7 +1703,7 @@ export const Planning: React.FC = () => {
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
-        alert(`Aucune planification trouvée pour le jour précédent (J-1 : ${yesterdayDateStr}).`);
+        safeAlert(`Aucune planification trouvée pour le jour précédent (J-1 : ${yesterdayDateStr}).`, "Planification SMI", "info");
         setLoading(false);
         return;
       }
@@ -1666,7 +1762,7 @@ export const Planning: React.FC = () => {
             }
             return finalRow;
           });
-          clonedMinage[p] = ensureMinimumRows(clonedMinage[p], 'minage', p, chantiers);
+          clonedMinage[p] = ensureMinimumRows(clonedMinage[p], 'minage', p, chantiers, platformSettings);
 
           // Clone Deblayage direct - safely preserving existing driver names
           clonedDeblayage[p] = (srcData.deblayage || []).map((row: ExcelDeblayage) => {
@@ -1677,7 +1773,7 @@ export const Planning: React.FC = () => {
             }
             return finalRow;
           });
-          clonedDeblayage[p] = ensureMinimumRows(clonedDeblayage[p], 'deblayage', p, chantiers);
+          clonedDeblayage[p] = ensureMinimumRows(clonedDeblayage[p], 'deblayage', p, chantiers, platformSettings);
 
           // Clone Extraction direct
           clonedExtraction[p] = sanitizeExtractionRows(srcData.extraction, POST_HOURS[p], platformSettings.defaultWagonsTarget ?? 48);
@@ -1719,8 +1815,8 @@ export const Planning: React.FC = () => {
             'Imiter Est': srcSectorBoutefeuTasks['Imiter Est'] || ''
           };
         } else {
-          clonedMinage[p] = ensureMinimumRows([], 'minage', p, chantiers);
-          clonedDeblayage[p] = ensureMinimumRows([], 'deblayage', p, chantiers);
+          clonedMinage[p] = ensureMinimumRows([], 'minage', p, chantiers, platformSettings);
+          clonedDeblayage[p] = ensureMinimumRows([], 'deblayage', p, chantiers, platformSettings);
           clonedExtraction[p] = getDefaultExtractionRows(p);
           clonedMaintenance[p] = getDefaultMaintenanceRows(p);
         }
@@ -1734,10 +1830,10 @@ export const Planning: React.FC = () => {
       setExtractionRowsByPost(clonedExtraction);
       setMaintenanceRowsByPost(clonedMaintenance);
 
-      alert(`Données du J-1 (${yesterdayDateStr}) importées avec succès ! Le secrétaire de permanence doit maintenant ajuster les planifications de la journée si nécessaire.`);
+      safeAlert(`Données du J-1 (${yesterdayDateStr}) importées avec succès ! Le secrétaire de permanence doit maintenant ajuster les planifications de la journée si nécessaire.`, "Planification SMI", "success");
     } catch (err) {
       console.error("Erreur de duplication J-1: ", err);
-      alert("Une erreur est survenue lors de la duplication de la journée d'hier.");
+      safeAlert("Une erreur est survenue lors de la duplication de la journée d'hier.", "Planification SMI", "error");
     } finally {
       setLoading(false);
     }
@@ -2012,7 +2108,7 @@ export const Planning: React.FC = () => {
     try {
       const parts = selectedDate.split('-');
       if (parts.length !== 3) {
-        alert("Date non valide.");
+        safeAlert("Date non valide.", "Planification SMI", "error");
         setLoading(false);
         return;
       }
@@ -2070,7 +2166,7 @@ export const Planning: React.FC = () => {
         });
 
         // Seed Minage rows prefilled with active miners/assistants
-        proposedMinage = ensureMinimumRows([], 'minage', selectedPost, chantiers).map(row => {
+        proposedMinage = ensureMinimumRows([], 'minage', selectedPost, chantiers, platformSettings).map(row => {
           const finalRow = { ...row };
           const chan = chantiers.find(c => c.id === row.chantierId);
           if (chan) {
@@ -2096,7 +2192,7 @@ export const Planning: React.FC = () => {
         });
 
         // Seed Deblayage drivers & engines
-        proposedDeblayage = ensureMinimumRows([], 'deblayage', selectedPost, chantiers).map((row, idx) => {
+        proposedDeblayage = ensureMinimumRows([], 'deblayage', selectedPost, chantiers, platformSettings).map((row, idx) => {
           const finalRow = { ...row };
           const chan = chantiers.find(c => c.id === row.chantierId);
           if (chan) {
@@ -2183,7 +2279,7 @@ export const Planning: React.FC = () => {
           return found ? found.matricule : '';
         };
 
-        proposedMinage = ensureMinimumRows(copiedMinage, 'minage', selectedPost, chantiers).map(row => {
+        proposedMinage = ensureMinimumRows(copiedMinage, 'minage', selectedPost, chantiers, platformSettings).map(row => {
           const finalRow = { ...row };
           finalRow.chiefMatricule = findActiveMatricule(row.chiefMatricule);
           finalRow.chiefName = getEmpName(finalRow.chiefMatricule);
@@ -2194,7 +2290,7 @@ export const Planning: React.FC = () => {
           return finalRow;
         });
 
-        proposedDeblayage = ensureMinimumRows(copiedDeblayage, 'deblayage', selectedPost, chantiers).map(row => {
+        proposedDeblayage = ensureMinimumRows(copiedDeblayage, 'deblayage', selectedPost, chantiers, platformSettings).map(row => {
           const finalRow = { ...row };
           finalRow.driverMatricule = findActiveMatricule(row.driverMatricule);
           finalRow.driverName = getEmpName(finalRow.driverMatricule);
@@ -2313,7 +2409,7 @@ export const Planning: React.FC = () => {
 
     } catch (err) {
       console.error("Erreur de génération automatique :", err);
-      alert("Une erreur s'est produite lors de la génération de la proposition.");
+      safeAlert("Une erreur s'est produite lors de la génération de la proposition.", "Planification SMI", "error");
     } finally {
       setLoading(false);
     }
@@ -2345,7 +2441,7 @@ export const Planning: React.FC = () => {
 
     } catch (err) {
       console.error("Erreur d'application :", err);
-      alert("Impossible d'appliquer la proposition.");
+      safeAlert("Impossible d'appliquer la proposition.", "Planification SMI", "error");
     }
   };
 
@@ -2418,11 +2514,11 @@ export const Planning: React.FC = () => {
   // Master Workbook Persistence and Sync to granular discrete planning collection
   const savePlanningWorkbook = async () => {
     if (isMonthClosedForPlanning) {
-      alert("⚠️ Ce mois est clôturé. Aucune modification n'est permise sur cette planification.");
+      safeAlert("⚠️ Ce mois est clôturé. Aucune modification n'est permise sur cette planification.", "Planification SMI", "error");
       return;
     }
     if (duplicatedFromDayData && !isEcartAccepted) {
-      alert(`⚠️ ÉCARTS NON VALIDÉS : Vous avez dupliqué la planification d'hier (${yesterdayDateStr}) mais vous n'avez pas encore validé les écarts ou changements.\n\nVeuillez vérifier la liste d'analyse des écarts en bas de page et cliquer sur le bouton "Valider les écarts de planification J-1" pour autoriser l'enregistrement.`);
+      safeAlert(`⚠️ ÉCARTS NON VALIDÉS : Vous avez dupliqué la planification d'hier (${yesterdayDateStr}) mais vous n'avez pas encore validé les écarts ou changements.\n\nVeuillez vérifier la liste d'analyse des écarts en bas de page et cliquer sur le bouton "Valider les écarts de planification J-1" pour autoriser l'enregistrement.`, "Planification SMI", "info");
       setSaveStatus('idle');
       return;
     }
@@ -2672,64 +2768,67 @@ export const Planning: React.FC = () => {
 
   const validatePlanningWorkbook = async () => {
     if (isMonthClosedForPlanning) {
-      alert("⚠️ Ce mois est clôturé. Aucune validation n'est permise.");
+      safeAlert("⚠️ Ce mois est clôturé. Aucune validation n'est permise.", "Planification SMI", "error");
       return;
     }
     if (!isPlanningSavedInDb) {
-      alert("⚠️ Veuillez d'abord enregistrer la planification avant de la valider.");
+      safeAlert("⚠️ Veuillez d'abord enregistrer la planification avant de la valider.", "Planification SMI", "info");
       return;
     }
-    const confirmVal = window.confirm("✓ Voulez-vous vraiment valider cette planification ?\n\nAprès validation, une fenêtre d'édition libre de 24 heures sera ouverte. Au-delà, toute modification demandera une approbation.");
-    if (!confirmVal) return;
+    safeConfirm(
+      "✓ Voulez-vous vraiment valider cette planification ?\n\nAprès validation, une fenêtre d'édition libre de 24 heures sera ouverte. Au-delà, toute modification demandera une approbation.",
+      async () => {
+        try {
+          setSaveStatus('saving');
+          const docRef = doc(db, 'daily_planning_sheets', selectedDate);
+          const validatorName = profile?.name || user?.displayName || user?.email || 'Planificateur de Direction SMI';
+          const validatorUid = user?.uid || '';
+          const nowStr = new Date().toISOString();
 
-    try {
-      setSaveStatus('saving');
-      const docRef = doc(db, 'daily_planning_sheets', selectedDate);
-      const validatorName = profile?.name || user?.displayName || user?.email || 'Planificateur de Direction SMI';
-      const validatorUid = user?.uid || '';
-      const nowStr = new Date().toISOString();
+          const updateValData = {
+            status: 'valide',
+            validatedBy: validatorName,
+            validatedByUid: validatorUid,
+            validatedAt: nowStr
+          };
 
-      const updateValData = {
-        status: 'valide',
-        validatedBy: validatorName,
-        validatedByUid: validatorUid,
-        validatedAt: nowStr
-      };
+          await setDoc(docRef, updateValData, { merge: true });
 
-      await setDoc(docRef, updateValData, { merge: true });
+          setValidationInfo({
+            validatedBy: validatorName,
+            validatedByUid: validatorUid,
+            validatedAt: nowStr,
+            status: 'valide'
+          });
+          setSaveStatus('saved');
+          
+          try {
+            await logPlanningAction(
+              user?.email || 'Planificateur SMI',
+              'VALIDATION PLAN',
+              'TOUS LES POSTES',
+              selectedDate,
+              `Validation officielle de la planification journalière par ${validatorName}.`
+            );
+          } catch (logErr) {
+            console.warn("Audit logs error writing: ", logErr);
+          }
 
-      setValidationInfo({
-        validatedBy: validatorName,
-        validatedByUid: validatorUid,
-        validatedAt: nowStr,
-        status: 'valide'
-      });
-      setSaveStatus('saved');
-      
-      try {
-        await logPlanningAction(
-          user?.email || 'Planificateur SMI',
-          'VALIDATION PLAN',
-          'TOUS LES POSTES',
-          selectedDate,
-          `Validation officielle de la planification journalière par ${validatorName}.`
-        );
-      } catch (logErr) {
-        console.warn("Audit logs error writing: ", logErr);
+          setTimeout(() => setSaveStatus('idle'), 2500);
+        } catch (err: any) {
+          console.error("Erreur de validation : ", err);
+          safeAlert(`Erreur de validation : ${err.message}`, "Planification SMI", "error");
+          setSaveStatus('error');
+        }
       }
-
-      setTimeout(() => setSaveStatus('idle'), 2500);
-    } catch (err: any) {
-      console.error("Erreur de validation : ", err);
-      alert(`Erreur de validation : ${err.message}`);
-      setSaveStatus('error');
-    }
+    );
+    return;
   };
 
   const handleDeleteHistoryRecord = async (record: any) => {
     const allowedRoles = ['admin', 'direction', 'chief', 'responsible', 'secretary'];
     if (!profile || !allowedRoles.includes(profile.role)) {
-      alert("Seuls les administrateurs et planificateurs de la plateforme peuvent supprimer des cahiers.");
+      safeAlert("Seuls les administrateurs et planificateurs de la plateforme peuvent supprimer des cahiers.", "Planification SMI", "error");
       return;
     }
 
@@ -2821,7 +2920,7 @@ export const Planning: React.FC = () => {
 
     } catch (err) {
       console.error("Erreur lors de la suppression de la planification :", err);
-      alert("Une erreur est survenue lors de la suppression.");
+      safeAlert("Une erreur est survenue lors de la suppression.", "Planification SMI", "error");
       // Just in case, close modal
       setIsDeleteModalOpen(false);
       setRecordToDelete(null);
@@ -2830,7 +2929,7 @@ export const Planning: React.FC = () => {
 
   const submitModificationRequest = async () => {
     if (!requestReason.trim()) {
-      alert("La raison de la modification est obligatoire.");
+      safeAlert("La raison de la modification est obligatoire.", "Planification SMI", "info");
       return;
     }
 
@@ -2862,7 +2961,7 @@ export const Planning: React.FC = () => {
       setRequestReason('');
     } catch (err) {
       console.error("Error submitting modification request :", err);
-      alert("Une erreur est survenue lors de la soumission de la demande.");
+      safeAlert("Une erreur est survenue lors de la soumission de la demande.", "Planification SMI", "error");
     }
   };
 
@@ -5360,6 +5459,77 @@ export const Planning: React.FC = () => {
         onClose={() => setIsAuditDrawerOpen(false)}
         selectedDate={selectedDate}
       />
+
+      {/* Modal Info/Alert */}
+      {planInfoModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-md w-full mx-4 overflow-hidden">
+            <div className={`px-6 py-4 flex items-center gap-3 ${
+              planInfoModal.type === 'error' ? 'bg-rose-600' :
+              planInfoModal.type === 'success' ? 'bg-emerald-600' : 'bg-[#1a5276]'
+            }`}>
+              <span className="text-white text-lg">
+                {planInfoModal.type === 'error' ? '⛔' : planInfoModal.type === 'success' ? '✅' : 'ℹ️'}
+              </span>
+              <h3 className="text-white font-extrabold text-sm uppercase tracking-wider">
+                {planInfoModal.title}
+              </h3>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                {planInfoModal.message}
+              </p>
+            </div>
+            <div className="px-6 pb-5 flex justify-end">
+              <button
+                onClick={() => setPlanInfoModal(null)}
+                className="px-5 py-2 bg-[#1a5276] text-white text-xs font-extrabold uppercase rounded-xl hover:bg-[#154360] transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirm */}
+      {planConfirmModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-md w-full mx-4 overflow-hidden">
+            <div className="px-6 py-4 bg-[#1a5276] flex items-center gap-3">
+              <span className="text-white text-lg">❓</span>
+              <h3 className="text-white font-extrabold text-sm uppercase tracking-wider">
+                {planConfirmModal.title}
+              </h3>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                {planConfirmModal.message}
+              </p>
+            </div>
+            <div className="px-6 pb-5 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  planConfirmModal.onCancel?.();
+                  setPlanConfirmModal(null);
+                }}
+                className="px-5 py-2 bg-gray-100 text-gray-700 text-xs font-extrabold uppercase rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  planConfirmModal.onConfirm();
+                  setPlanConfirmModal(null);
+                }}
+                className="px-5 py-2 bg-[#1a5276] text-white text-xs font-extrabold uppercase rounded-xl hover:bg-[#154360] transition-colors"
+              >
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

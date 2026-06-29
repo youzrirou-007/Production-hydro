@@ -408,11 +408,15 @@ export const Production: React.FC = () => {
     engines: string[];
     oils: string[];
     defaultWagonsTarget?: number;
+    advance_18m?: number;
+    advance_24m?: number;
   }>({
     sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est'],
     engines: ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
     oils: ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
-    defaultWagonsTarget: 48
+    defaultWagonsTarget: 48,
+    advance_18m: 1.7,
+    advance_24m: 2.3
   });
 
   const [isMonthClosed, setIsMonthClosed] = useState(false);
@@ -797,7 +801,7 @@ export const Production: React.FC = () => {
         // Ensure each separated card represents exactly 1 volée
         reelValue.plannedRounds = 1;
         reelValue.realRounds = 1;
-        const advanceFactor = reelValue.barType === '2.4m' ? 2.3 : 1.7;
+        const advanceFactor = reelValue.barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
         reelValue.meterage = advanceFactor;
         reelValue.realMeterage = advanceFactor;
       } else if (typeName === 'deblayage') {
@@ -972,15 +976,30 @@ export const Production: React.FC = () => {
     const unsubSettings = onSnapshot(doc(db, 'settings', 'platform'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setPlatformSettings({
+        setPlatformSettings(prev => ({
+          ...prev,
           sectors: data.sectors || ['Imiter 1', 'Imiter 2', 'Imiter Est'],
           engines: data.engines || ['ST2D', 'ST2G 1', 'ST2G 3', 'ST2G 4', 'ST2G 5', 'ST2G6'],
           oils: data.oils || ['Huile Moteur 15W40', 'Huile Hydraulique HV46', 'Huile Hydraulique HV68', 'Huile Transmission SAE30', 'Huile Transmission SAE50', 'Graisse Extrême Pression'],
           defaultWagonsTarget: data.defaultWagonsTarget !== undefined ? data.defaultWagonsTarget : 48
-        });
+        }));
       }
     }, (err) => {
       console.warn("Permission logs on Snapshot setting platform:", err.message);
+    });
+
+    // 6b. Operational Settings Configuration
+    const unsubOpSettings = onSnapshot(doc(db, 'platform_settings', 'config'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setPlatformSettings(prev => ({
+          ...prev,
+          advance_18m: data.advance_18m ?? 1.7,
+          advance_24m: data.advance_24m ?? 2.3
+        }));
+      }
+    }, (err) => {
+      console.warn("Permission logs on Snapshot setting platform config:", err.message);
     });
 
     // 7. Daily Planning Sheets (for notifications of unfilled plannings)
@@ -1007,6 +1026,7 @@ export const Production: React.FC = () => {
       unsubEngs(); 
       unsubPlan(); 
       unsubSettings(); 
+      unsubOpSettings();
       unsubDailyPlannings();
       unsubProduction();
     };
@@ -1201,7 +1221,7 @@ export const Production: React.FC = () => {
     const minageImiter2: ExcelMinage[] = Array.from({ length: Math.max(lengthImiter2, plansImiter2.length) }, (_, i) => {
       const matchingPlan = plansImiter2[i];
       if (matchingPlan) {
-        const m = 1 * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
+        const m = 1 * (matchingPlan.barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7));
         return {
           sector: 'Imiter 2',
           chantierId: matchingPlan.chantierId || '',
@@ -1231,7 +1251,7 @@ export const Production: React.FC = () => {
         chiefName: '',
         minerMatricule: '', minerName: '',
         assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: 32, realHoles: 32,
-        plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, realMeterage: 1.7, anfo: 0, tovex: 0, ammorces: 0
+        plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: platformSettings?.advance_18m ?? 1.7, realMeterage: platformSettings?.advance_18m ?? 1.7, anfo: 0, tovex: 0, ammorces: 0
       };
     });
 
@@ -1239,7 +1259,7 @@ export const Production: React.FC = () => {
     const minageImiter1: ExcelMinage[] = Array.from({ length: Math.max(lengthImiter1, plansImiter1.length) }, (_, i) => {
       const matchingPlan = plansImiter1[i];
       if (matchingPlan) {
-        const m = 1 * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
+        const m = 1 * (matchingPlan.barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7));
         return {
           sector: 'Imiter 1',
           chantierId: matchingPlan.chantierId || '',
@@ -1269,7 +1289,7 @@ export const Production: React.FC = () => {
         chiefName: '',
         minerMatricule: '', minerName: '',
         assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: 32, realHoles: 32,
-        plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, realMeterage: 1.7, anfo: 0, tovex: 0, ammorces: 0
+        plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: platformSettings?.advance_18m ?? 1.7, realMeterage: platformSettings?.advance_18m ?? 1.7, anfo: 0, tovex: 0, ammorces: 0
       };
     });
 
@@ -1277,7 +1297,7 @@ export const Production: React.FC = () => {
     const minageImiterEst: ExcelMinage[] = Array.from({ length: Math.max(lengthImiterEst, plansImiterEst.length) }, (_, i) => {
       const matchingPlan = plansImiterEst[i];
       if (matchingPlan) {
-        const m = 1 * (matchingPlan.barType === '2.4m' ? 2.3 : 1.7);
+        const m = 1 * (matchingPlan.barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7));
         return {
           sector: 'Imiter Est',
           chantierId: matchingPlan.chantierId || '',
@@ -1307,7 +1327,7 @@ export const Production: React.FC = () => {
         chiefName: '',
         minerMatricule: '', minerName: '',
         assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: 32, realHoles: 32,
-        plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: 1.7, realMeterage: 1.7, anfo: 0, tovex: 0, ammorces: 0
+        plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: platformSettings?.advance_18m ?? 1.7, realMeterage: platformSettings?.advance_18m ?? 1.7, anfo: 0, tovex: 0, ammorces: 0
       };
     });
 
@@ -1750,8 +1770,8 @@ export const Production: React.FC = () => {
         chargedHoles: chargedH,
         emptyHoles: emptyH,
         realRounds: row.plan.plannedRounds || row.reel.realRounds || 0,
-        realMeterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
-        meterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
+        realMeterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * (row.plan.barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7))) : row.reel.realMeterage || 0,
+        meterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * (row.plan.barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7))) : row.reel.meterage || 0,
       };
       clone[originalIndex] = { ...row, reel: updatedReel };
       setMinageRows(clone);
@@ -1787,8 +1807,8 @@ export const Production: React.FC = () => {
           chargedHoles: chargedH,
           emptyHoles: emptyH,
           realRounds: row.plan.plannedRounds || row.reel.realRounds || 0,
-          realMeterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.realMeterage || 0,
-          meterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * 1.7) : row.reel.meterage || 0,
+          realMeterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * (row.plan.barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7))) : row.reel.realMeterage || 0,
+          meterage: row.plan.plannedRounds ? (row.plan.meterage || row.plan.plannedRounds * (row.plan.barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7))) : row.reel.meterage || 0,
         };
         return { ...row, reel: updatedReel };
       });
@@ -2041,7 +2061,8 @@ export const Production: React.FC = () => {
       updatedReel.assistantName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
     }
     if (field === 'realRounds') {
-      const advanceFactor = rowWrapper.plan?.barType === '2.4m' || rowWrapper.reel?.barType === '2.4m' ? 2.3 : 1.7;
+      const is24m = rowWrapper.plan?.barType === '2.4m' || rowWrapper.reel?.barType === '2.4m';
+      const advanceFactor = is24m ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
       const computed = Number(value) * advanceFactor;
       updatedReel.meterage = computed;
       updatedReel.realMeterage = computed;
@@ -2777,7 +2798,7 @@ export const Production: React.FC = () => {
           const cName = chantierObj ? chantierObj.name : 'Chantier';
           
           if (blast) {
-            const advanceFactor = blast.barType === '2.4m' ? 2.3 : 1.7;
+            const advanceFactor = blast.barType === '2.4m' ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
             const inSituVol = blast.realRounds * advanceFactor * (blast.gallerySize || 12);
             const looseVol = inSituVol * 1.5;
             const expectedBuckets = Math.ceil(looseVol / 1.5);
@@ -4794,7 +4815,8 @@ export const Production: React.FC = () => {
                             // Let's compute a PERFECT rate of blast pull (taux d'arrachement):
                             // Arrachement % = (Real meterage / Theoretical length of drilled holes) * 100
                             const totalExpectedAdvanceForRealRounds = activeRows.reduce((sum, r) => {
-                              const advanceFactor = r.plan?.barType === '2.4m' || r.reel?.barType === '2.4m' ? 2.3 : 1.7;
+                              const is24m = r.plan?.barType === '2.4m' || r.reel?.barType === '2.4m';
+                              const advanceFactor = is24m ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
                               return sum + ((r.reel?.realRounds || 0) * advanceFactor);
                             }, 0);
                             
@@ -4817,7 +4839,8 @@ export const Production: React.FC = () => {
                           const totalTheoreticalExpectedAdvance = shiftsList.reduce((sumSh, s) => {
                             const activeRows = s.rows.filter(r => r.reel?.chantierId);
                             return sumSh + activeRows.reduce((sumR, r) => {
-                              const advanceFactor = r.plan?.barType === '2.4m' || r.reel?.barType === '2.4m' ? 2.3 : 1.7;
+                              const is24m = r.plan?.barType === '2.4m' || r.reel?.barType === '2.4m';
+                              const advanceFactor = is24m ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
                               return sumR + ((r.reel?.realRounds || 0) * advanceFactor);
                             }, 0);
                           }, 0);

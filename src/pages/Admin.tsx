@@ -224,6 +224,39 @@ export const Admin: React.FC = () => {
       'ST2G 6': 2.0,
     }
   });
+
+  const [operationalSettings, setOperationalSettings] = useState<{
+    advance_18m: number;
+    advance_24m: number;
+    kpi_18m_good: number;
+    kpi_18m_low: number;
+    kpi_24m_good: number;
+    kpi_24m_low: number;
+    explosifs_9m2_anfo: number;
+    explosifs_9m2_tovex: number;
+    explosifs_9m2_amorces: number;
+    explosifs_9m2_trous: number;
+    explosifs_12m2_anfo: number;
+    explosifs_12m2_tovex: number;
+    explosifs_12m2_amorces: number;
+    explosifs_12m2_trous: number;
+  }>({
+    advance_18m: 1.7,
+    advance_24m: 2.3,
+    kpi_18m_good: 1.6,
+    kpi_18m_low: 1.5,
+    kpi_24m_good: 2.1,
+    kpi_24m_low: 2.0,
+    explosifs_9m2_anfo: 35,
+    explosifs_9m2_tovex: 2.6,
+    explosifs_9m2_amorces: 26,
+    explosifs_9m2_trous: 28,
+    explosifs_12m2_anfo: 40,
+    explosifs_12m2_tovex: 3.2,
+    explosifs_12m2_amorces: 32,
+    explosifs_12m2_trous: 38,
+  });
+
   const [newSector, setNewSector] = useState('');
   const [newEngine, setNewEngine] = useState('');
   const [newOil, setNewOil] = useState('');
@@ -270,9 +303,34 @@ export const Admin: React.FC = () => {
       console.warn("Error loading closures:", err);
     });
 
+    const unsubOpSettings = onSnapshot(doc(db, 'platform_settings', 'config'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setOperationalSettings({
+          advance_18m: data.advance_18m ?? 1.7,
+          advance_24m: data.advance_24m ?? 2.3,
+          kpi_18m_good: data.kpi_18m_good ?? 1.6,
+          kpi_18m_low: data.kpi_18m_low ?? 1.5,
+          kpi_24m_good: data.kpi_24m_good ?? 2.1,
+          kpi_24m_low: data.kpi_24m_low ?? 2.0,
+          explosifs_9m2_anfo: data.explosifs_9m2_anfo ?? 35,
+          explosifs_9m2_tovex: data.explosifs_9m2_tovex ?? 2.6,
+          explosifs_9m2_amorces: data.explosifs_9m2_amorces ?? 26,
+          explosifs_9m2_trous: data.explosifs_9m2_trous ?? 28,
+          explosifs_12m2_anfo: data.explosifs_12m2_anfo ?? 40,
+          explosifs_12m2_tovex: data.explosifs_12m2_tovex ?? 3.2,
+          explosifs_12m2_amorces: data.explosifs_12m2_amorces ?? 32,
+          explosifs_12m2_trous: data.explosifs_12m2_trous ?? 38,
+        });
+      }
+    }, (err) => {
+      console.warn("Error loading operational settings:", err);
+    });
+
     return () => {
       unsubSettings();
       unsubClosures();
+      unsubOpSettings();
     };
   }, []);
 
@@ -1469,6 +1527,235 @@ export const Admin: React.FC = () => {
               <div className="text-[9.5px] text-slate-500 font-medium max-w-sm mt-3 pt-1">
                 ℹ️ Cette valeur est modifiable en temps réel. Elle met à jour automatiquement les objectifs théoriques de tous les nouveaux plannings et fiches de production.
               </div>
+            </div>
+          </div>
+
+          {/* SECTION: PARAMÈTRES OPÉRATIONNELS */}
+          <div className="border-t border-slate-150 pt-5 mt-4 space-y-4">
+            <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
+              ⚙️ Paramètres Opérationnels
+            </h4>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              Configuration globale des rendements, KPI de minage et consommations d'explosifs théoriques.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Groupe 1: Avancement par type de barre */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded space-y-3">
+                <h5 className="text-[10px] font-black uppercase text-slate-700 tracking-wider border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
+                  📐 Avancement par barre
+                </h5>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Barre 1.8m (m)</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.advance_18m}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, advance_18m: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Barre 2.4m (m)</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.advance_24m}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, advance_24m: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Groupe 2: Seuils KPI minage barre 1.8m */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded space-y-3">
+                <h5 className="text-[10px] font-black uppercase text-slate-700 tracking-wider border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
+                  ⚡ KPI Barre 1.8m
+                </h5>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Seuil Performant</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.kpi_18m_good}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, kpi_18m_good: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Seuil Sous-KPI</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.kpi_18m_low}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, kpi_18m_low: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Groupe 3: Seuils KPI minage barre 2.4m */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded space-y-3">
+                <h5 className="text-[10px] font-black uppercase text-slate-700 tracking-wider border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
+                  ⚡ KPI Barre 2.4m
+                </h5>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Seuil Performant</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.kpi_24m_good}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, kpi_24m_good: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Seuil Sous-KPI</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.kpi_24m_low}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, kpi_24m_low: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Groupe 4: Explosifs par volée galerie 9m² */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded space-y-3 col-span-1 md:col-span-2 lg:col-span-1">
+                <h5 className="text-[10px] font-black uppercase text-slate-700 tracking-wider border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
+                  🧨 Explosifs Galerie 9m²
+                </h5>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Anfo (kg)</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.explosifs_9m2_anfo}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, explosifs_9m2_anfo: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Tovex (kg)</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.explosifs_9m2_tovex}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, explosifs_9m2_tovex: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Amorces (u)</label>
+                    <input 
+                      type="number" 
+                      step="1" 
+                      value={operationalSettings.explosifs_9m2_amorces}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, explosifs_9m2_amorces: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Trous prévus</label>
+                    <input 
+                      type="number" 
+                      step="1" 
+                      value={operationalSettings.explosifs_9m2_trous}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, explosifs_9m2_trous: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Groupe 5: Explosifs par volée galerie 12m² */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded space-y-3 col-span-1 md:col-span-2 lg:col-span-1">
+                <h5 className="text-[10px] font-black uppercase text-slate-700 tracking-wider border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
+                  🧨 Explosifs Galerie 12m²
+                </h5>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Anfo (kg)</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.explosifs_12m2_anfo}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, explosifs_12m2_anfo: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Tovex (kg)</label>
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      value={operationalSettings.explosifs_12m2_tovex}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, explosifs_12m2_tovex: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Amorces (u)</label>
+                    <input 
+                      type="number" 
+                      step="1" 
+                      value={operationalSettings.explosifs_12m2_amorces}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, explosifs_12m2_amorces: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Trous prévus</label>
+                    <input 
+                      type="number" 
+                      step="1" 
+                      value={operationalSettings.explosifs_12m2_trous}
+                      onChange={(e) => setOperationalSettings(prev => ({ ...prev, explosifs_12m2_trous: Number(e.target.value) || 0 }))}
+                      className="text-xs border border-slate-300 p-2 font-black outline-none focus:border-[#8B0000] bg-white text-center rounded shadow-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={async () => {
+                  try {
+                    await setDoc(doc(db, 'platform_settings', 'config'), {
+                      advance_18m: Number(operationalSettings.advance_18m) || 1.7,
+                      advance_24m: Number(operationalSettings.advance_24m) || 2.3,
+                      kpi_18m_good: Number(operationalSettings.kpi_18m_good) || 1.6,
+                      kpi_18m_low: Number(operationalSettings.kpi_18m_low) || 1.5,
+                      kpi_24m_good: Number(operationalSettings.kpi_24m_good) || 2.1,
+                      kpi_24m_low: Number(operationalSettings.kpi_24m_low) || 2.0,
+                      explosifs_9m2_anfo: Number(operationalSettings.explosifs_9m2_anfo) || 35,
+                      explosifs_9m2_tovex: Number(operationalSettings.explosifs_9m2_tovex) || 2.6,
+                      explosifs_9m2_amorces: Number(operationalSettings.explosifs_9m2_amorces) || 26,
+                      explosifs_9m2_trous: Number(operationalSettings.explosifs_9m2_trous) || 28,
+                      explosifs_12m2_anfo: Number(operationalSettings.explosifs_12m2_anfo) || 40,
+                      explosifs_12m2_tovex: Number(operationalSettings.explosifs_12m2_tovex) || 3.2,
+                      explosifs_12m2_amorces: Number(operationalSettings.explosifs_12m2_amorces) || 32,
+                      explosifs_12m2_trous: Number(operationalSettings.explosifs_12m2_trous) || 38,
+                    }, { merge: true });
+                    alert("💾 Paramètres opérationnels enregistrés avec succès !");
+                  } catch (err) {
+                    console.error("Erreur de sauvegarde des paramètres:", err);
+                    alert("Une erreur est survenue lors de l'enregistrement des paramètres.");
+                  }
+                }}
+                className="px-5 py-2.5 bg-[#8B0000] text-white text-[10px] font-black uppercase tracking-wider rounded-none hover:bg-red-800 transition-colors flex items-center gap-2 shadow-sm"
+              >
+                💾 Enregistrer les paramètres opérationnels
+              </button>
             </div>
           </div>
 
