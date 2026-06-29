@@ -58,6 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'explications', label: 'Explications', icon: <AlertTriangle className="w-5 h-5" />, category: 'production' },
   
   // ANALYSE
+  { id: 'analytics', label: '📊 Analytique', icon: <BarChart3 className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_strategie', label: 'Pilotage & Stratégie', icon: <Activity className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_terrain', label: 'Performance Terrain', icon: <Layers className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_rh', label: 'Ressources Humaines', icon: <HardHat className="w-5 h-5" />, category: 'analyse' },

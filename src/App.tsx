@@ -9,6 +9,7 @@ import { Planning } from './pages/Planning';
 import { RotationPoste } from './pages/RotationPoste';
 import { AnalyseDashboard } from './pages/AnalyseDashboard';
 import { ExplicationNonRealise } from './pages/ExplicationNonRealise';
+import { Analytics } from './pages/Analytics';
 import { Factory, ShieldCheck, Mail, LogIn, HardHat } from 'lucide-react';
 
 const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
@@ -90,6 +91,7 @@ const AppContent: React.FC = () => {
       case 'analyse_rh': return <AnalyseDashboard pillar="rh" />;
       case 'analyse_logistique': return <AnalyseDashboard pillar="logistique" />;
       case 'analyse_dashboard': return <AnalyseDashboard />;
+      case 'analytics': return <Analytics />;
       case 'explication_non_realise':
       case 'explications': return <ExplicationNonRealise />;
       case 'admin': return <Admin />;
