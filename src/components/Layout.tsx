@@ -25,13 +25,16 @@ import {
   RefreshCw,
   Gauge,
   Activity,
-  Wrench
+  Wrench,
+  Mail,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { doc, getDoc, collection, collectionGroup, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, collectionGroup, query, where, onSnapshot, updateDoc, orderBy } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { getUpcomingSaturday } from '../lib/rotation';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
@@ -56,6 +59,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'planning', label: 'Planification', icon: <Calendar className="w-5 h-5" />, category: 'production' },
   { id: 'rotation', label: 'Changement de Poste', icon: <RefreshCw className="w-5 h-5" />, category: 'production' },
   { id: 'explications', label: 'Explications', icon: <AlertTriangle className="w-5 h-5" />, category: 'production' },
+  { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'production' },
   
   // ANALYSE
   { id: 'analytics', label: '📊 Analytique', icon: <BarChart3 className="w-5 h-5" />, category: 'analyse' },
@@ -77,6 +81,163 @@ export const Layout: React.FC<{
   const [rotationPending, setRotationPending] = React.useState(false);
   const [hasPendingRequests, setHasPendingRequests] = React.useState(false);
   const [unexplainedCount, setUnexplainedCount] = React.useState(0);
+
+  // Unread alerts (System messages) states
+  const [unreadAlerts, setUnreadAlerts] = React.useState<any[]>([]);
+  const [activeAlert, setActiveAlert] = React.useState<any | null>(null);
+  const [alertReply, setAlertReply] = React.useState('');
+  const prevAlertReplyRef = React.useRef('');
+  const [alertDeletedDrafts, setAlertDeletedDrafts] = React.useState<string[]>([]);
+  const [alertKeystrokes, setAlertKeystrokes] = React.useState(0);
+  const [submittingAlertReply, setSubmittingAlertReply] = React.useState(false);
+
+  // Listen to unread critical or standard alerts in real-time
+  React.useEffect(() => {
+    if (!user || !profile) return;
+    
+    const q = query(collection(db, 'system_messages'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const emailKey = user.email?.replace(/\./g, '_') || '';
+      const unreadList: any[] = [];
+      
+      snapshot.forEach((doc) => {
+        const msg = { id: doc.id, ...doc.data() } as any;
+        
+        // Match target criteria
+        const matchesRole = msg.targetRole === 'all' || msg.targetRole === profile.role;
+        const matchesEmail = !msg.targetUserEmail || msg.targetUserEmail.toLowerCase().trim() === user.email?.toLowerCase().trim();
+        const isNotRead = !msg.reads || !msg.reads[emailKey];
+        
+        if (matchesRole && matchesEmail && isNotRead) {
+          unreadList.push(msg);
+        }
+      });
+      
+      setUnreadAlerts(unreadList);
+      
+      // Auto-open alert if none is active
+      if (unreadList.length > 0) {
+        // Prioritize critical urgency alerts
+        const critical = unreadList.find(m => m.urgency === 'critical');
+        setActiveAlert(critical || unreadList[0]);
+      } else {
+        setActiveAlert(null);
+      }
+    }, (err) => {
+      console.warn("Unread system messages listener warning:", err);
+    });
+    
+    return () => unsub();
+  }, [user, profile]);
+
+  // Keystroke telemetry draft tracker for in-app alert popup
+  React.useEffect(() => {
+    if (!activeAlert) return;
+    
+    const prev = prevAlertReplyRef.current;
+    if (alertReply === prev) return;
+    
+    setAlertKeystrokes(k => k + 1);
+    
+    if (prev.length > alertReply.length) {
+      const diffLength = prev.length - alertReply.length;
+      let deletedPart = '';
+      if (prev.startsWith(alertReply)) {
+        deletedPart = prev.substring(alertReply.length);
+      } else if (prev.endsWith(alertReply)) {
+        deletedPart = prev.substring(0, diffLength);
+      } else {
+        let firstDiff = 0;
+        while (firstDiff < alertReply.length && prev[firstDiff] === alertReply[firstDiff]) {
+          firstDiff++;
+        }
+        deletedPart = prev.substring(firstDiff, firstDiff + diffLength);
+      }
+      
+      const trimmed = deletedPart.trim();
+      if (trimmed.length > 2) {
+        setAlertDeletedDrafts(prevList => {
+          if (!prevList.includes(trimmed)) return [...prevList, trimmed];
+          return prevList;
+        });
+      }
+    }
+    
+    prevAlertReplyRef.current = alertReply;
+    
+    // Live telemetry sync to Firestore for active draft
+    const emailKey = user?.email?.replace(/\./g, '_') || '';
+    const delayTimer = setTimeout(() => {
+      if (!activeAlert.reads?.[emailKey]?.response) {
+        const msgRef = doc(db, 'system_messages', activeAlert.id);
+        const readAt = activeAlert.reads?.[emailKey]?.readAt || new Date().toISOString();
+        const delaySeconds = activeAlert.reads?.[emailKey]?.delaySeconds || 0;
+        
+        updateDoc(msgRef, {
+          [`reads.${emailKey}`]: {
+            userEmail: user?.email || '',
+            userName: profile?.nom ? `${profile.prenom} ${profile.nom}` : user?.displayName || 'Utilisateur',
+            userRole: profile?.role || 'operator',
+            readAt,
+            delaySeconds,
+            lastActiveDraft: alertReply,
+            deletedDrafts: alertDeletedDrafts,
+            totalKeystrokes: alertKeystrokes + 1
+          }
+        }).catch(err => console.warn("Live popup telemetry warning ignored:", err));
+      }
+    }, 1500);
+    
+    return () => clearTimeout(delayTimer);
+  }, [alertReply, activeAlert]);
+
+  // Handle acknowledging the popup alert
+  const handleAcknowledgeAlert = async () => {
+    if (!activeAlert) return;
+    setSubmittingAlertReply(true);
+    
+    try {
+      const emailKey = user?.email?.replace(/\./g, '_') || '';
+      const msgRef = doc(db, 'system_messages', activeAlert.id);
+      const now = new Date();
+      
+      let delaySecs = 0;
+      if (activeAlert.createdAt) {
+        const createdTime = activeAlert.createdAt.seconds 
+          ? new Date(activeAlert.createdAt.seconds * 1000) 
+          : new Date(activeAlert.createdAt);
+        delaySecs = Math.max(0, Math.floor((now.getTime() - createdTime.getTime()) / 1000));
+      }
+      
+      const updateData: any = {
+        [`reads.${emailKey}.userEmail`]: user?.email || '',
+        [`reads.${emailKey}.userName`]: profile?.nom ? `${profile.prenom} ${profile.nom}` : user?.displayName || 'Utilisateur',
+        [`reads.${emailKey}.userRole`]: profile?.role || 'operator',
+        [`reads.${emailKey}.readAt`]: now.toISOString(),
+        [`reads.${emailKey}.delaySeconds`]: delaySecs,
+        [`reads.${emailKey}.deletedDrafts`]: alertDeletedDrafts,
+        [`reads.${emailKey}.totalKeystrokes`]: alertKeystrokes,
+        [`reads.${emailKey}.finalizedAt`]: now.toISOString()
+      };
+      
+      if (alertReply.trim()) {
+        updateData[`reads.${emailKey}.response`] = alertReply.trim();
+      }
+      
+      await updateDoc(msgRef, updateData);
+      
+      // Clear alert states
+      setAlertReply('');
+      prevAlertReplyRef.current = '';
+      setAlertDeletedDrafts([]);
+      setAlertKeystrokes(0);
+      setActiveAlert(null);
+      setSubmittingAlertReply(false);
+    } catch (err) {
+      setSubmittingAlertReply(false);
+      console.error("Error acknowledging critical alert:", err);
+    }
+  };
 
   React.useEffect(() => {
     if (!user) {
@@ -357,6 +518,86 @@ export const Layout: React.FC<{
           </AnimatePresence>
         </div>
       </main>
+
+      {/* Real-time In-App Notification Modal Overlay (God Level) */}
+      <AnimatePresence>
+        {activeAlert && (
+          <div className="fixed inset-0 bg-[#141414]/75 backdrop-blur-md flex items-center justify-center z-[9999] p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white max-w-xl w-full rounded-[32px] overflow-hidden border border-[#141414]/10 shadow-2xl flex flex-col relative"
+            >
+              {/* Alert Header bar */}
+              <div className={`p-6 text-white flex items-center justify-between ${activeAlert.urgency === 'critical' ? 'bg-gradient-to-r from-red-600 to-red-800 animate-pulse' : 'bg-[#141414]'}`}>
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-6 h-6" />
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-white/70">Alerte de Direction SMI</h3>
+                    <h4 className="text-sm font-black uppercase tracking-tight">Consigne Technique Obligatoire</h4>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-md">
+                  {activeAlert.urgency === 'critical' ? 'CRITIQUE' : 'IMPORTANT'}
+                </span>
+              </div>
+
+              {/* Body */}
+              <div className="p-8 flex flex-col gap-6">
+                <div>
+                  <h4 className="text-xs font-bold text-[#141414]/40 uppercase tracking-widest">
+                    Diffusé par {activeAlert.senderName} ({activeAlert.senderEmail})
+                  </h4>
+                  <h3 className="text-xl font-black uppercase tracking-tight text-[#141414] mt-1">
+                    {activeAlert.title}
+                  </h3>
+                </div>
+
+                <div className="bg-[#F5F5F0] p-6 rounded-2xl border border-[#141414]/5 text-sm font-semibold text-[#141414]/80 whitespace-pre-wrap leading-relaxed max-h-[180px] overflow-y-auto">
+                  {activeAlert.body}
+                </div>
+
+                {/* Reply section in alert */}
+                <div className="flex flex-col gap-2 relative">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-[#141414]/50">
+                    Saisir une réponse / Accusé de réception technique (Optionnel)
+                  </label>
+                  <input
+                    type="text"
+                    value={alertReply}
+                    onChange={(e) => setAlertReply(e.target.value)}
+                    placeholder="Saisir votre retour d'information pour la Direction..."
+                    className="w-full px-4 py-3 bg-[#F5F5F0] border border-[#141414]/10 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#00BFFF]"
+                  />
+                  {alertKeystrokes > 0 && (
+                    <div className="absolute right-3 top-8 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md">
+                      <span className="w-1 h-1 bg-red-500 rounded-full animate-ping" />
+                      Télémétrie active
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="p-6 bg-[#F5F5F0]/50 border-t border-[#141414]/5 flex justify-end">
+                <button
+                  onClick={handleAcknowledgeAlert}
+                  disabled={submittingAlertReply}
+                  className="px-8 py-4 bg-[#141414] hover:bg-[#252525] text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg disabled:opacity-40"
+                >
+                  {submittingAlertReply ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  )}
+                  Confirmer la bonne lecture
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

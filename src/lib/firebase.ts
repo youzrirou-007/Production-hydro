@@ -1,11 +1,22 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, enableIndexedDbPersistence } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
 export const auth = getAuth(app);
+
+// Enable Firestore offline persistence for subterranean operations (SMI Imiter isolated network)
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    console.warn('Firestore offline persistence failed: Multiple tabs open.');
+  } else if (err.code === 'unimplemented') {
+    console.warn('Firestore offline persistence is not supported by this browser.');
+  } else {
+    console.warn('Firestore offline persistence error:', err);
+  }
+});
 
 // Connectivity check
 async function testConnection() {

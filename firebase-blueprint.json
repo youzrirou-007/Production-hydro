@@ -241,6 +241,23 @@
         "status": { "type": "string", "enum": ["pending", "explained", "unjustified"] }
       },
       "required": ["date", "poste", "chantierId", "activity", "cause", "status"]
+    },
+    "SystemMessage": {
+      "title": "SystemMessage",
+      "description": "Critical communications, real-time messaging, notifications, read status, and telemetry tracking",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "senderEmail": { "type": "string" },
+        "senderName": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "targetRole": { "type": "string" },
+        "targetUserEmail": { "type": "string" },
+        "urgency": { "type": "string" },
+        "reads": { "type": "object" }
+      },
+      "required": ["title", "body", "senderEmail", "createdAt"]
     }
   },
   "firestore": {
@@ -259,6 +276,7 @@
     "/planning": { "schema": "Planning", "description": "Planning assignments" },
     "/production_history": { "schema": "ProductionHistory", "description": "Workbook validation and action logs" },
     "/deleted_plannings_log": { "schema": "DeletedPlanningLog", "description": "Deleted planning logs" },
-    "/non_realisation_explanations": { "schema": "NonRealisationExplanation", "description": "Explanations for non-realisation gaps" }
+    "/non_realisation_explanations": { "schema": "NonRealisationExplanation", "description": "Explanations for non-realisation gaps" },
+    "/system_messages": { "schema": "SystemMessage", "description": "System messaging, notifications, read receipts, response telemetry, and drafts tracking" }
   }
 }

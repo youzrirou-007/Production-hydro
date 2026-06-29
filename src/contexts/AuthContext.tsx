@@ -40,13 +40,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       const unsubProfile = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
         if (docSnap.exists()) {
-          setProfile(docSnap.data() as UserProfile);
-          setLoading(false);
+          const data = docSnap.data() as UserProfile;
+          const userEmailLower = user.email?.toLowerCase();
+          if (userEmailLower === 'youzrirou@gmail.com' && data.role !== 'admin') {
+            try {
+              await setDoc(doc(db, 'users', user.uid), {
+                ...data,
+                role: 'admin'
+              }, { merge: true });
+            } catch (err) {
+              console.error("Auto-promoting profile to admin failed", err);
+              setProfile(data);
+              setLoading(false);
+            }
+          } else {
+            setProfile(data);
+            setLoading(false);
+          }
         } else {
           // Auto bootstrap default profile as admin
           try {
             await setDoc(doc(db, 'users', user.uid), {
-              role: 'secretary',
+              role: 'admin',
               siteIds: ['SMI'],
               name: user.displayName || user.email?.split('@')[0] || 'Utilisateur'
             });

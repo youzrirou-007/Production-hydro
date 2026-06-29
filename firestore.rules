@@ -8,11 +8,13 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) ? get(path).data : null;
     }
 
     function hasRole(roles) {
-      return isSignedIn() && getUserData().role in roles;
+      let data = getUserData();
+      return isSignedIn() && data != null && ('role' in data) && (data.role in roles);
     }
 
     // Default Deny
@@ -28,9 +30,9 @@ service cloud.firestore {
 
     // Users
     match /users/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || hasRole(['admin', 'direction']));
+      allow read: if isSignedIn();
       allow create: if isSignedIn() && (request.auth.uid == userId || hasRole(['admin']));
-      allow update: if isSignedIn() && hasRole(['admin']);
+      allow update: if isSignedIn() && (request.auth.uid == userId || hasRole(['admin']));
     }
 
     // Production
@@ -137,6 +139,12 @@ service cloud.firestore {
       allow write: if isSignedIn() && hasRole(['admin', 'direction', 'chief']);
     }
 
+    // Platform Settings
+    match /platform_settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && hasRole(['admin']);
+    }
+
     // Non Realisation Explanations
     match /non_realisation_explanations/{expId} {
       allow read: if isSignedIn();
@@ -149,6 +157,14 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && hasRole(['admin', 'direction']);
+      allow delete: if isSignedIn() && hasRole(['admin', 'direction']);
+    }
+
+    // System Messages (Notifications, Messenger, Read Status & Draft Telemetry)
+    match /system_messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && hasRole(['admin', 'direction']);
+      allow update: if isSignedIn();
       allow delete: if isSignedIn() && hasRole(['admin', 'direction']);
     }
   }
