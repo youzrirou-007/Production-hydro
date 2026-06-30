@@ -36,6 +36,8 @@ import {
 import { collection, query, onSnapshot, setDoc, doc, arrayUnion, orderBy, where, getDocs, getDoc, addDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSite } from '../contexts/SiteContext';
+import { getDocId } from '../lib/siteHelpers';
 import { format, subDays } from 'date-fns';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
@@ -355,6 +357,7 @@ const renderTimeSelect = (value: string, onChange: (val: string) => void) => {
 
 export const Production: React.FC = () => {
   const { user, profile } = useAuth();
+  const { activeSiteId } = useSite();
 
   // Helper for Enter/Tab keyboard navigation between inputs/selects on cards
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -1193,7 +1196,7 @@ export const Production: React.FC = () => {
 
   useEffect(() => {
     loadGlobalWorkbook();
-  }, [selectedDate, employees, chantiers, engines]);
+  }, [selectedDate, employees, chantiers, engines, activeSiteId]);
 
   const buildTemplateForPost = (postName: string, yesterdayDateStr: string) => {
     const shiftPlans = plannings.filter(p => p.date === yesterdayDateStr && p.post === postName);
@@ -1438,7 +1441,7 @@ export const Production: React.FC = () => {
       yesterdayDateObj.setDate(yDateObj.getDate() - 1);
       const yesterdayDateStr = format(yesterdayDateObj, 'yyyy-MM-dd');
 
-      const planRefForD = doc(db, 'daily_planning_sheets', yesterdayDateStr);
+      const planRefForD = doc(db, 'daily_planning_sheets', getDocId(activeSiteId, yesterdayDateStr));
       const planSnapForD = await getDoc(planRefForD);
       let exactPlanExistsAndExploitable = false;
       if (planSnapForD.exists()) {
@@ -1475,7 +1478,7 @@ export const Production: React.FC = () => {
       const yesterdayDateStr = format(yesterdayDateObj, 'yyyy-MM-dd');
 
       // Fetch consolidated production document for the selected date
-      const docRef = doc(db, 'production', selectedDate);
+      const docRef = doc(db, 'production', getDocId(activeSiteId, selectedDate));
       const snap = await getDoc(docRef);
 
       if (snap.exists()) {
@@ -1554,7 +1557,7 @@ export const Production: React.FC = () => {
       } else {
         // No production, try loaded daily_planning_sheets
         // Force loading only from yesterday's planning (D-1) as today's production is linked to yesterday's plan
-        const planSnap = await getDoc(doc(db, 'daily_planning_sheets', yesterdayDateStr));
+        const planSnap = await getDoc(doc(db, 'daily_planning_sheets', getDocId(activeSiteId, yesterdayDateStr)));
         const activePlanDateStr = yesterdayDateStr;
 
         if (planSnap.exists()) {
@@ -2277,6 +2280,7 @@ export const Production: React.FC = () => {
 
         const payload = {
           date: selectedDate,
+          siteId: activeSiteId,
           status: 'scelle',
           operator: user?.email || 'Secrétaire de Direction SMI',
           timestamp: new Date().toISOString(),
@@ -2284,7 +2288,7 @@ export const Production: React.FC = () => {
         };
 
         // Save to production under a single daily document with merging enabled
-        await setDoc(doc(db, 'production', selectedDate), payload, { merge: true });
+        await setDoc(doc(db, 'production', getDocId(activeSiteId, selectedDate)), payload, { merge: true });
 
         // Compute consolidated totals for the whole day (all 3 posts combined)
         let totalMeteragePlanned = 0;
@@ -2344,9 +2348,10 @@ export const Production: React.FC = () => {
         }
 
         // Save a single daily consolidated record to production_history
-        const histId = selectedDate;
+        const histId = getDocId(activeSiteId, selectedDate);
         await setDoc(doc(db, 'production_history', histId), {
           date: selectedDate,
+          siteId: activeSiteId,
           totalMeteragePlanned: Number(totalMeteragePlanned) || 0,
           totalMeterageRealised: Number(totalMeterageRealised) || 0,
           totalDeblayagePlanned: Number(totalDeblayagePlanned) || 0,
@@ -2408,7 +2413,7 @@ export const Production: React.FC = () => {
       async () => {
         setSaveStatus('saving');
         try {
-          const docRef = doc(db, 'production', selectedDate);
+          const docRef = doc(db, 'production', getDocId(activeSiteId, selectedDate));
           const docSnap = await getDoc(docRef);
           
           if (docSnap.exists()) {
@@ -2417,6 +2422,7 @@ export const Production: React.FC = () => {
             // Revert status to 'brouillon' or empty so it is no longer 'scelle'
             const updatedPayload: any = {
               ...currentData,
+              siteId: activeSiteId,
               status: 'brouillon',
               timestamp: new Date().toISOString(),
               unsealedBy: user?.email || profile?.name || 'Secrétaire'
@@ -2471,7 +2477,7 @@ export const Production: React.FC = () => {
         setBridgeSuccessDate('');
         try {
           // 1. Fetch the daily planning sheet for targetDate
-          const planSnap = await getDoc(doc(db, 'daily_planning_sheets', targetDate));
+          const planSnap = await getDoc(doc(db, 'daily_planning_sheets', getDocId(activeSiteId, targetDate)));
           if (!planSnap.exists()) {
             safeAlert(`❌ Aucune planification trouvée pour le ${formatFrenchDate(targetDate)}. Veuillez d'avance enregistrer une planification pour ce jour.`, "Saisie SMI requise", "error");
             setSyncingBridge(false);
@@ -2530,6 +2536,7 @@ export const Production: React.FC = () => {
 
           const payload = {
             date: selectedDate,
+            siteId: activeSiteId,
             status: 'scelle', // Treat as initialized/sealed template ready for editing
             operator: user?.email || 'Pont d\'Export SMI',
             timestamp: new Date().toISOString(),
@@ -2537,7 +2544,7 @@ export const Production: React.FC = () => {
           };
 
           // Save to production without merge to prevent ghost fields from previous states
-          await setDoc(doc(db, 'production', selectedDate), payload);
+          await setDoc(doc(db, 'production', getDocId(activeSiteId, selectedDate)), payload);
 
           setBridgeSuccessDate(targetDate);
           
@@ -2582,7 +2589,7 @@ export const Production: React.FC = () => {
       const yesterdayStr = format(yesterdayObj, 'yyyy-MM-dd');
 
       // Fetch unified yesterday production document
-      const yesterdayDocSnap = await getDoc(doc(db, 'production', yesterdayStr));
+      const yesterdayDocSnap = await getDoc(doc(db, 'production', getDocId(activeSiteId, yesterdayStr)));
 
       if (yesterdayDocSnap.exists()) {
         const docData = yesterdayDocSnap.data();

@@ -31,6 +31,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSite } from '../contexts/SiteContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -78,6 +79,24 @@ export const Layout: React.FC<{
   children: React.ReactNode;
 }> = ({ activeTab, setActiveTab, children }) => {
   const { user, profile, logout } = useAuth();
+  const { activeSiteId, setActiveSiteId, siteConfig } = useSite();
+  const accessibleSites = profile?.siteIds && profile.siteIds.length > 0
+    ? profile.siteIds
+    : ['SMI'];
+
+  const STORAGE_KEY = 'hydromines_active_site';
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved && accessibleSites.includes(saved)) {
+      setActiveSiteId(saved);
+    }
+  }, [accessibleSites.join(',')]);
+
+  React.useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, activeSiteId);
+  }, [activeSiteId]);
+
   const [isOpen, setIsOpen] = React.useState(true);
   const [rotationPending, setRotationPending] = React.useState(false);
   const [hasPendingRequests, setHasPendingRequests] = React.useState(false);
@@ -490,6 +509,28 @@ export const Layout: React.FC<{
             </h2>
           </div>
           <div className="flex items-center gap-4">
+            {accessibleSites.length === 1 ? (
+              <div className="bg-slate-800 border border-slate-700 text-[#ffd700] text-[11px] font-black uppercase tracking-wider rounded-lg px-3 py-1.5">
+                🏔️ {siteConfig?.name || 'SMI Imiter'}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                  🏔️ Site Actif
+                </span>
+                <select
+                  value={activeSiteId}
+                  onChange={(e) => setActiveSiteId(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-[#ffd700] text-[11px] font-black uppercase tracking-wider rounded-lg px-3 py-1.5 outline-none cursor-pointer hover:bg-slate-700 transition-colors"
+                >
+                  {accessibleSites.map((siteId: string) => (
+                    <option key={siteId} value={siteId}>
+                      {siteId === 'SMI' ? 'SMI Imiter' : siteId}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="text-right hidden sm:block">
               <p className="text-xs font-black uppercase text-[#141414] leading-none mb-1">
                 {user.displayName || user.email?.split('@')[0]}

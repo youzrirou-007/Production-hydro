@@ -20,9 +20,10 @@ import {
   TrendingUp,
   Tractor
 } from 'lucide-react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, orderBy, updateDoc, setDoc, collectionGroup, deleteField } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, getDoc, orderBy, updateDoc, setDoc, collectionGroup, deleteField } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { SMI_SEED } from '../config/siteSeed';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 interface Employee {
@@ -65,12 +66,43 @@ const SECTORS = [
 ];
 
 export const Admin: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('Tous');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('Tous');
   const [showAdd, setShowAdd] = useState(false);
+  const [smiSite, setSmiSite] = useState<any>(null);
+  const [loadingSmiSite, setLoadingSmiSite] = useState(true);
+
+  useEffect(() => {
+    const fetchSmiSite = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'sites', 'SMI'));
+        if (snap.exists()) {
+          setSmiSite(snap.data());
+        } else {
+          setSmiSite(null);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingSmiSite(false);
+      }
+    };
+    fetchSmiSite();
+  }, []);
+
+  const handleInitSmiSite = async () => {
+    try {
+      await setDoc(doc(db, 'sites', 'SMI'), SMI_SEED);
+      setSmiSite(SMI_SEED);
+      alert("Site SMI Imiter initialisé avec succès !");
+    } catch (err) {
+      console.error(err);
+      alert("Une erreur est survenue lors de l'initialisation.");
+    }
+  };
   const [loading, setLoading] = useState(false);
   const [activeAdminSubTab, setActiveAdminSubTab] = useState<'effectifs' | 'hierarchie' | 'parametres' | 'demandes'>('effectifs');
 
@@ -1758,6 +1790,92 @@ export const Admin: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {profile?.role === 'admin' && (
+            <div className="border-t border-slate-150 pt-5 mt-4 space-y-4">
+              <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
+                🏔️ Gestion des Sites
+              </h4>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                Configuration multi-sites de la plateforme. Initialisation et visualisation des caractéristiques géologiques et opérationnelles des sites miniers.
+              </p>
+
+              {loadingSmiSite ? (
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider p-4">Chargement du site...</div>
+              ) : !smiSite ? (
+                <div className="bg-slate-50 border border-slate-200 p-6 rounded text-center space-y-4">
+                  <div className="text-xs font-bold uppercase text-slate-500">Aucun site initialisé</div>
+                  <button
+                    onClick={handleInitSmiSite}
+                    className="px-5 py-2.5 bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 font-black text-[10px] uppercase tracking-wider rounded shadow-md cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                  >
+                    🚀 Initialiser le site SMI Imiter
+                  </button>
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <div className="bg-[#0f172a] text-white px-4 py-3 flex items-center justify-between">
+                    <span className="font-black text-xs uppercase tracking-wider">Fiche Technique : {smiSite.name || 'SMI Imiter'}</span>
+                    <span className="bg-[#ffd700] text-slate-950 text-[9px] font-black uppercase px-2 py-0.5 tracking-wider rounded">SMI</span>
+                  </div>
+                  <div className="bg-white p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Minerai extrait</span>
+                      <span className="block font-black text-xs text-slate-800 uppercase">{smiSite.minerai || 'N/A'}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Type de mine</span>
+                      <span className="block font-black text-xs text-slate-800 uppercase">{smiSite.type || 'N/A'}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nombre de postes</span>
+                      <span className="block font-black text-xs text-slate-800 uppercase">{smiSite.postes !== undefined ? `${smiSite.postes} postes` : 'N/A'}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Coefficient de roche</span>
+                      <span className="block text-xs font-bold text-slate-700">
+                        <strong className="font-black text-slate-800 uppercase">{smiSite.roche?.coefficient || 'N/A'}</strong> — {smiSite.roche?.description || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="space-y-1 col-span-1 md:col-span-2 lg:col-span-1">
+                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Taillant de foration</span>
+                      <span className="block text-xs font-bold text-slate-700">
+                        Diamètre <strong className="font-black text-slate-800">{smiSite.taillant?.diametre || 'N/A'} mm</strong> (Type : <strong className="font-black text-slate-800 uppercase">{smiSite.taillant?.type || 'N/A'}</strong>)
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 col-span-1 md:col-span-2">
+                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Secteurs géographiques</span>
+                      <div className="flex flex-wrap gap-1">
+                        {Array.isArray(smiSite.secteurs) && smiSite.secteurs.length > 0 ? (
+                          smiSite.secteurs.map((s: string, i: number) => (
+                            <span key={i} className="bg-[#ffd700]/15 text-[#b8860b] border border-[#b8860b]/20 px-2 py-0.5 text-[10px] font-bold uppercase rounded">
+                              {s}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-450 italic">Aucun secteur configuré</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-1.5 col-span-1 md:col-span-2 lg:col-span-1">
+                      <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Types de galeries (m²)</span>
+                      <div className="flex flex-wrap gap-1">
+                        {Array.isArray(smiSite.galleryTypes) && smiSite.galleryTypes.length > 0 ? (
+                          smiSite.galleryTypes.map((g: string, i: number) => (
+                            <span key={i} className="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded">
+                              {g} m²
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-450 italic">Aucun type de galerie configuré</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* SECTION: CAPACITÉS DES ENGINS LHD */}
           <div className="border-t border-slate-150 pt-5 mt-4 space-y-2">

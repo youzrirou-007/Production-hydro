@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SiteProvider } from './contexts/SiteContext';
 import { Layout } from './components/Layout';
 import { Production } from './pages/Production';
 import { Admin } from './pages/Admin';
@@ -113,7 +114,9 @@ const AppContent: React.FC = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <SiteProvider>
+        <AppContent />
+      </SiteProvider>
     </AuthProvider>
   );
 }

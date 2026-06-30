@@ -19,8 +19,9 @@ import {
   Edit2,
   SlidersHorizontal
 } from 'lucide-react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, orderBy, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { useSite } from '../contexts/SiteContext';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 interface Chantier {
@@ -36,6 +37,7 @@ interface Chantier {
 }
 
 export const Chantiers: React.FC = () => {
+  const { activeSiteId } = useSite();
   const [chantiers, setChantiers] = useState<Chantier[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -143,7 +145,10 @@ export const Chantiers: React.FC = () => {
   };
 
   useEffect(() => {
-    const q = query(collection(db, 'chantiers'), orderBy('createdAt', 'desc'));
+    const q = query(
+      collection(db, 'chantiers'),
+      where('siteId', '==', activeSiteId)
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       setChantiers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chantier)));
     }, (error) => {
@@ -151,7 +156,7 @@ export const Chantiers: React.FC = () => {
       showToast("Erreur lors de la synchronisation des données depuis le cloud.", "error");
     });
     return () => unsub();
-  }, []);
+  }, [activeSiteId]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -186,7 +191,7 @@ export const Chantiers: React.FC = () => {
       await addDoc(collection(db, 'chantiers'), {
         name: formData.name.toUpperCase().trim(),
         sector: formData.sector,
-        siteId: 'SMI',
+        siteId: activeSiteId,
         galleryType: formData.galleryType,
         plannedTotalMeterage: Number(formData.plannedTotalMeterage),
         currentMeterage: 0,
@@ -657,10 +662,8 @@ export const Chantiers: React.FC = () => {
       </div>
 
       {sortedChantiers.length === 0 ? (
-        <div className="py-24 text-center border border-dashed border-gray-200 rounded-2xl bg-slate-50/40">
-          <Layers className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h4 className="text-lg font-bold uppercase text-slate-700 tracking-tight">Aucun Chantier Enregistré</h4>
-          <p className="text-xs text-gray-400 font-bold mt-1 uppercase">Cliquez sur "Nouveau Chantier" pour configurer la production souterraine.</p>
+        <div className="p-12 text-center text-[11px] font-black uppercase text-slate-400 tracking-widest">
+          Aucun chantier enregistré pour ce site
         </div>
       ) : (
         <div className="space-y-10">
