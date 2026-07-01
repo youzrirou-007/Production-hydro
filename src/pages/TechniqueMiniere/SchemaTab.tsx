@@ -79,10 +79,10 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     if (gabarit === '9m2') {
       switch (activeStep) {
         case 0: return 0.0;
-        case 1: return Number((totalDepth * 0.20).toFixed(2));
-        case 2: return Number((totalDepth * 0.40).toFixed(2));
-        case 3: return Number((totalDepth * 0.60).toFixed(2));
-        case 4: return Number((totalDepth * 0.80).toFixed(2));
+        case 1: return Number((totalDepth * 0.15).toFixed(2));
+        case 2: return Number((totalDepth * 0.30).toFixed(2));
+        case 3: return Number((totalDepth * 0.50).toFixed(2));
+        case 4: return Number((totalDepth * 0.75).toFixed(2));
         case 5: return totalDepth;
         default: return 0.0;
       }
@@ -105,11 +105,11 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     if (gabarit === '9m2') {
       switch (activeStep) {
         case 0: return 0;
-        case 1: return 55;   // Bouchon central
-        case 2: return 110;  // G1
-        case 3: return 180;  // G2
-        case 4: return 260;  // G3
-        case 5: return 380;  // Finition
+        case 1: return 45;   // Bouchon central
+        case 2: return 90;   // G1
+        case 3: return 140;  // G2
+        case 4: return 200;  // G3
+        case 5: return 280;  // Finition
         default: return 0;
       }
     } else {
@@ -201,7 +201,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     {
       title: "Bouchon (0ms)",
       time: "0 ms",
-      desc: "Les 4 trous chargés du bouchon cylindrique détonent en instantané (0ms). Le trou vide central de 76mm permet la décompression et la pulvérisation de la carotte centrale rocheuse."
+      desc: "Les 4 trous chargés du bouchon cylindrique détonnent en instantané (0ms). Trou foré à 38mm mais non chargé (vide d'expansion). Offre un volume de dégagement initial central. Même profondeur et même diamètre que les trous chargés."
     },
     {
       title: "Groupe 1 (25ms)",
@@ -211,7 +211,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     {
       title: "Groupe 2 (50ms)",
       time: "50 ms",
-      desc: "Les 4 trous en croix du Groupe 2 (50ms, détonateur 2) détonent pour étendre la cavité vers les limites intermédiaires horizontales et verticales."
+      desc: "Les 4 trous en croix du Groupe 2 (50ms, détonateur 2) détonnent pour étendre la cavité vers les limites intermédiaires horizontales et verticales."
     },
     {
       title: "Groupe 3 (75ms)",
@@ -221,7 +221,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     {
       title: "Finition (100-125ms)",
       time: "100-125 ms",
-      desc: "Tirs de contour : les 4 trous de radier et les 4 trous de parements explosent à 100ms (détonateur 4), suivis des 3 trous de voûte contrôlée à 125ms (détonateur 5). Découpe finale rectangulaire cintrée parfaite."
+      desc: "Tirs de contour : les 4 trous de radier et les 4 trous de parements explosent à 100ms (détonateur 4), suivis des 3 trous de voûte contrôlée à 125ms (détonateur 5). Profil final : parois verticales (parements), sol plat (radier) et voûte en arc de cercle (voûte). La galerie 9m² est formée."
     }
   ];
 
@@ -370,7 +370,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
             {/* Gallery Tunnel Face Silhouette */}
             {gabarit === '9m2' ? (
               <path
-                d="M 220,540 L 220,300 A 280,280 0 0,1 780,300 L 780,540 Z"
+                d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
                 fill="url(#granite-rock)"
                 stroke="#0f172a"
                 strokeWidth="10"
@@ -389,7 +389,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
             {/* Internal edge shadow line */}
             {gabarit === '9m2' ? (
               <path
-                d="M 220,540 L 220,300 A 280,280 0 0,1 780,300 L 780,540 Z"
+                d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
                 fill="none"
                 stroke="#374151"
                 strokeWidth="2"
@@ -426,7 +426,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
             {/* STAGE COMPLETE: FULL Profile Excavation Complete */}
             {activeStep === maxStep && (
               <motion.path
-                d={gabarit === '9m2' ? "M 220,540 L 220,300 A 280,280 0 0,1 780,300 L 780,540 Z" : "M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"}
+                d={gabarit === '9m2' ? "M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z" : "M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"}
                 fill="#000000"
                 stroke="#22c55e"
                 strokeWidth="4"

@@ -286,7 +286,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                     <h4 className="text-xs font-black uppercase text-slate-900">Atelier Séquençage Numérique</h4>
                   </div>
                   <p className="text-[11px] font-semibold text-slate-600 leading-relaxed">
-                    Le boutefeu qualifié raccorde les {is9m2 ? '27' : '32 à 38'} détonateurs électroniques en série stricte à l'aide de connecteurs étanches à double bus. La résistance électrique de la ligne globale doit être mesurée à l'aide du consolateur numérique SMI en retrait de sécurité avant d'envoyer l'impulsion électrique codée finale de tir.
+                    Le boutefeu qualifié raccorde les {is9m2 ? '27' : '32'} détonateurs électroniques en série stricte à l'aide de connecteurs étanches à double bus. La résistance électrique de la ligne globale doit être mesurée à l'aide du consolateur numérique SMI en retrait de sécurité avant d'envoyer l'impulsion électrique codée finale de tir.
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl">

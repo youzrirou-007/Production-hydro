@@ -11,7 +11,7 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
 
   const anfoQty = is9m2 ? "30.0" : "40.0";
   const tovexQty = is9m2 ? "2.4" : "3.2";
-  const detonatorQty = is9m2 ? "27" : "32 à 38";
+  const detonatorQty = is9m2 ? "27" : "32";
 
   return (
     <div className="space-y-8 bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">

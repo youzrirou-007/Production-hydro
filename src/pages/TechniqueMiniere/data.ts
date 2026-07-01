@@ -412,7 +412,7 @@ export const HOLES_DATA_9: HoleInfo[] = [
     y: 350,
     type: 'vide',
     label: 'V',
-    desc: 'Trou vide d\'expansion. Offre un volume de dégagement initial central au cœur du massif.',
+    desc: 'Trou foré à 38mm mais non chargé (vide d\'expansion). Offre un volume de dégagement initial central. Même profondeur et même diamètre que les trous chargés.',
     delay: 0
   },
   {
