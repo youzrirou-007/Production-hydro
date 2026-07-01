@@ -126,31 +126,146 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     }
   };
 
+  // Helper to determine the blasting step for each hole type
+  const getBlastStepForHole = (hole: HoleInfo, gab: '12m2' | '9m2') => {
+    if (hole.type === 'vide') return -1;
+    if (gab === '9m2') {
+      if (hole.type === 'charge') return 1;
+      if (hole.type === 'g1') return 2;
+      if (hole.type === 'g2') return 3;
+      if (hole.type === 'g3') return 4;
+      return 5; // radier, parement, voute
+    } else {
+      if (hole.type === 'charge') return 1;
+      if (hole.type === 'g1') return 2;
+      if (hole.type === 'g2') return 3;
+      if (hole.type === 'g3') return 4;
+      if (hole.type === 'g4') return 5;
+      return 6; // radier, parement, voute
+    }
+  };
+
   // Helper to determine if a hole has already exploded at a given stage
   const getHoleStatus = (hole: HoleInfo) => {
-    const isVide = hole.type === 'vide';
-    if (isVide) return 'normal';
-
-    let blastStepForHole = 6; // default final for 12m2
-    if (gabarit === '9m2') {
-      if (hole.type === 'charge') blastStepForHole = 1;
-      else if (hole.type === 'g1') blastStepForHole = 2;
-      else if (hole.type === 'g2') blastStepForHole = 3;
-      else if (hole.type === 'g3') blastStepForHole = 4;
-      else blastStepForHole = 5; // radier, parement, voute
-    } else {
-      if (hole.type === 'charge') blastStepForHole = 1;
-      else if (hole.type === 'g1') blastStepForHole = 2;
-      else if (hole.type === 'g2') blastStepForHole = 3;
-      else if (hole.type === 'g3') blastStepForHole = 4;
-      else if (hole.type === 'g4') blastStepForHole = 5;
-      else blastStepForHole = 6;
-    }
-
+    if (hole.type === 'vide') return 'normal';
+    const blastStepForHole = getBlastStepForHole(hole, gabarit);
     if (activeStep === 0) return 'normal';
     if (activeStep === blastStepForHole) return 'blasting';
     if (activeStep > blastStepForHole) return 'exploded';
     return 'normal';
+  };
+
+  // Hex color lookup for holes
+  const getHoleColorHex = (hole: HoleInfo) => {
+    switch (hole.type) {
+      case 'charge': return '#f59e0b'; // Gold
+      case 'g1': return '#3b82f6'; // Blue
+      case 'g2': return '#ef4444'; // Red
+      case 'g3': return '#22d3ee'; // Cyan
+      case 'g4': return '#f97316'; // Orange
+      case 'radier': return '#8b5cf6'; // Violet
+      case 'parement': return '#14b8a6'; // Teal
+      case 'voute': return '#f43f5e'; // Rose
+      default: return '#94a3b8';
+    }
+  };
+
+  // Generate stable explosion particles per hole
+  const getParticlesForHole = (holeId: string, color: string) => {
+    const particles = [];
+    const count = 12 + (parseInt(holeId.replace(/\D/g, '') || '0') % 4); // 12 to 15 particles
+    for (let i = 0; i < count; i++) {
+      const angle = (i * (360 / count)) + (parseInt(holeId.replace(/\D/g, '') || '0') % 10) * 5;
+      const rad = (angle * Math.PI) / 180;
+      const dist = 30 + (((i * 7) + parseInt(holeId.replace(/\D/g, '') || '0')) % 50); // 30px to 80px
+      const targetX = Math.cos(rad) * dist;
+      const targetY = Math.sin(rad) * dist;
+      particles.push({
+        id: `${holeId}-part-${i}`,
+        tx: targetX,
+        ty: targetY,
+        color: color,
+        size: 2 + (i % 3)
+      });
+    }
+    return particles;
+  };
+
+  // Generate stable grey smoke bubbles
+  const getSmokeForHole = (holeId: string) => {
+    const smoke = [];
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * 90) + (parseInt(holeId.replace(/\D/g, '') || '0') % 10) * 15;
+      const rad = (angle * Math.PI) / 180;
+      const offsetX = Math.cos(rad) * (5 + (i * 3));
+      smoke.push({
+        id: `${holeId}-smoke-${i}`,
+        ox: offsetX,
+        delay: i * 0.2,
+        size: 10 + (i * 3)
+      });
+    }
+    return smoke;
+  };
+
+  // Generate stable outward rock fragments
+  const getFragmentsForHole = (hole: HoleInfo) => {
+    const fragments = [];
+    const count = 6 + (parseInt(hole.id.replace(/\D/g, '') || '0') % 3); // 6-8 fragments
+    const cx = 500;
+    const cy = gabarit === '9m2' ? 350 : 430;
+    
+    let dx = hole.x - cx;
+    let dy = hole.y - cy;
+    let len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) {
+      dx = 0;
+      dy = -1;
+      len = 1;
+    }
+    const ux = dx / len;
+    const uy = dy / len;
+
+    for (let i = 0; i < count; i++) {
+      const angleOffset = -45 + (((i * 15) + parseInt(hole.id.replace(/\D/g, '') || '0')) % 90);
+      const angleRad = (angleOffset * Math.PI) / 180;
+      
+      const rx = ux * Math.cos(angleRad) - uy * Math.sin(angleRad);
+      const ry = ux * Math.sin(angleRad) + uy * Math.cos(angleRad);
+      
+      const dist = 40 + (((i * 11) + parseInt(hole.id.replace(/\D/g, '') || '0')) % 60); // 40-100px
+      const tx = rx * dist;
+      const ty = ry * dist;
+      
+      const size = 3 + (i % 3);
+      const polyPoints = `0,0 ${size},-${size} ${size * 2},0 ${size},${size}`;
+
+      fragments.push({
+        id: `${hole.id}-frag-${i}`,
+        points: polyPoints,
+        tx,
+        ty,
+        rot: 360 + (i * 90)
+      });
+    }
+    return fragments;
+  };
+
+  // Generate stable dynamic organic void path
+  const getOrganicVoidPath = (cx: number, cy: number, r: number) => {
+    if (r <= 0) return "";
+    const points = [];
+    const numPoints = 16;
+    for (let i = 0; i < numPoints; i++) {
+      const angle = (i * (360 / numPoints)) * Math.PI / 180;
+      const seed = (i * 17) % 10;
+      const variation = 0.9 + (seed / 100) * 2; // stable -10% to +10%
+      const currentR = r * variation;
+      const x = cx + Math.cos(angle) * currentR;
+      const y = cy + Math.sin(angle) * currentR;
+      points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+    return `M ${points.join(" L ")} Z`;
   };
 
   // Descriptions for each step of the timeline
@@ -276,6 +391,21 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   const currentPercentage = Math.round((getFootage() / currentMaxDepth) * 100);
   const holesToRender = gabarit === '9m2' ? HOLES_DATA_9 : HOLES_DATA;
 
+  // Center of gravity calculation for the active blasting group
+  const blastingHoles = holesToRender.filter(h => {
+    if (h.type === 'vide') return false;
+    return activeStep === getBlastStepForHole(h, gabarit);
+  });
+  
+  const centerOfGravity = (() => {
+    if (blastingHoles.length > 0) {
+      const sumX = blastingHoles.reduce((acc, h) => acc + h.x, 0);
+      const sumY = blastingHoles.reduce((acc, h) => acc + h.y, 0);
+      return { x: sumX / blastingHoles.length, y: sumY / blastingHoles.length };
+    }
+    return { x: 500, y: gabarit === '9m2' ? 350 : 430 };
+  })();
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
       
@@ -362,161 +492,280 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               >
                 <path d="M 0 2 L 10 5 L 0 8 z" fill="#fbbf24" />
               </marker>
+
+              {/* Radial Glow Gradient */}
+              <radialGradient id="blast-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.8"/>
+                <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.3"/>
+                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0"/>
+              </radialGradient>
+
+              {/* Organic Void Edge Backlight */}
+              <radialGradient id="void-backlight" cx="50%" cy="50%" r="50%">
+                <stop offset="85%" stopColor="#000000" stopOpacity="1" />
+                <stop offset="96%" stopColor="#1e293b" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#334155" stopOpacity="0.3" />
+              </radialGradient>
             </defs>
 
-            {/* Background of the overall tunnel face (solid rock block) */}
-            <rect width="1000" height="700" fill="url(#granite-rock)" />
+            {/* SCREEN SHAKE WRAPPER */}
+            <motion.g
+              key={`shake-${activeStep}`}
+              animate={activeStep > 0 ? {
+                x: [0, -3, 3, -2, 2, 0],
+                y: [0, -2, 2, -1, 1, 0]
+              } : {}}
+              transition={{ duration: 0.15, ease: "easeInOut" }}
+            >
+              {/* Background of the overall tunnel face (solid rock block) */}
+              <rect width="1000" height="700" fill="url(#granite-rock)" />
 
-            {/* Gallery Tunnel Face Silhouette */}
-            {gabarit === '9m2' ? (
-              <path
-                d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
-                fill="url(#granite-rock)"
-                stroke="#0f172a"
-                strokeWidth="10"
-                className="drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
-              />
-            ) : (
-              <path
-                d="M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"
-                fill="url(#granite-rock)"
-                stroke="#0f172a"
-                strokeWidth="10"
-                className="drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
-              />
-            )}
+              {/* Gallery Tunnel Face Silhouette */}
+              {gabarit === '9m2' ? (
+                <path
+                  d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
+                  fill="url(#granite-rock)"
+                  stroke="#0f172a"
+                  strokeWidth="10"
+                  className="drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
+                />
+              ) : (
+                <path
+                  d="M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"
+                  fill="url(#granite-rock)"
+                  stroke="#0f172a"
+                  strokeWidth="10"
+                  className="drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
+                />
+              )}
 
-            {/* Internal edge shadow line */}
-            {gabarit === '9m2' ? (
-              <path
-                d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
-                fill="none"
-                stroke="#374151"
-                strokeWidth="2"
-                opacity="0.8"
-              />
-            ) : (
-              <path
-                d="M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"
-                fill="none"
-                stroke="#374151"
-                strokeWidth="2"
-                opacity="0.8"
-              />
-            )}
+              {/* Internal edge shadow line */}
+              {gabarit === '9m2' ? (
+                <path
+                  d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
+                  fill="none"
+                  stroke="#374151"
+                  strokeWidth="2"
+                  opacity="0.8"
+                />
+              ) : (
+                <path
+                  d="M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"
+                  fill="none"
+                  stroke="#374151"
+                  strokeWidth="2"
+                  opacity="0.8"
+                />
+              )}
 
-            {/* DYNAMIC EXCAVATED VOID (The Black Cavity that Expands Symmetrical) */}
-            {activeStep > 0 && activeStep < maxStep && (
-              <motion.circle
-                cx="500"
-                cy={gabarit === '9m2' ? "350" : "430"}
-                r={getCavityRadius()}
-                fill="#000000"
-                stroke="#ffffff"
-                strokeWidth="2.5"
-                strokeDasharray="6,4"
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="shadow-inner"
-                opacity="0.95"
-              />
-            )}
+              {/* DYNAMIC EXCAVATED ORGANIC VOID (Morphing jagged cavity) */}
+              {activeStep > 0 && activeStep < maxStep && (
+                <motion.path
+                  key={`organic-void-${gabarit}`}
+                  d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, getCavityRadius())}
+                  fill="url(#void-backlight)"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  strokeDasharray="6,4"
+                  initial={{ opacity: 0.8 }}
+                  animate={{ opacity: 0.95 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  className="shadow-inner"
+                />
+              )}
 
-            {/* STAGE COMPLETE: FULL Profile Excavation Complete */}
-            {activeStep === maxStep && (
-              <motion.path
-                d={gabarit === '9m2' ? "M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z" : "M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"}
-                fill="#000000"
-                stroke="#22c55e"
-                strokeWidth="4"
-                initial={{ opacity: 0.8 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-              />
-            )}
+              {/* STAGE COMPLETE: FULL Profile Excavation Complete */}
+              {activeStep === maxStep && (
+                <motion.path
+                  d={gabarit === '9m2' ? "M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z" : "M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"}
+                  fill="#000000"
+                  stroke="#22c55e"
+                  strokeWidth="4"
+                  initial={{ opacity: 0.8 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                />
+              )}
 
-            {/* VISUAL PUSH ARROWS ON HOVER */}
-            {hoveredHole && hoveredHole.type !== 'vide' && getHoleStatus(hoveredHole) === 'normal' && (
-              <>
-                {/* Golden line representing force vector */}
-                {(() => {
-                  const arrow = getArrowCoords(hoveredHole);
-                  if (!arrow) return null;
-                  return (
-                    <motion.line
-                      x1={arrow.x1}
-                      y1={arrow.y1}
-                      x2={arrow.x2}
-                      y2={arrow.y2}
-                      stroke="#fbbf24"
-                      strokeWidth="3.5"
-                      markerEnd="url(#marker-arrow)"
-                      initial={{ strokeDashoffset: 50, strokeDasharray: 100 }}
-                      animate={{ strokeDashoffset: 0 }}
-                      className="animate-pulse"
-                    />
-                  );
-                })()}
-              </>
-            )}
+              {/* SHOCK WAVE radiating from group gravity epicentre */}
+              {activeStep > 0 && (
+                <motion.circle
+                  key={`shockwave-${activeStep}`}
+                  cx={centerOfGravity.x}
+                  cy={centerOfGravity.y}
+                  initial={{ r: 10, opacity: 0.8 }}
+                  animate={{ r: gabarit === '9m2' ? 140 : 180, opacity: 0 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  fill="none"
+                  stroke="#fbbf24"
+                  strokeWidth="2.5"
+                  pointerEvents="none"
+                />
+              )}
 
-            {/* DRAW ALL HOLES */}
-            {holesToRender.map((hole) => {
-              const status = getHoleStatus(hole);
-              return (
-                <g key={hole.id}>
-                  {/* Explosion star overlay on current blasting step */}
-                  {status === 'blasting' && (
-                    <g>
+              {/* VISUAL PUSH ARROWS ON HOVER */}
+              {hoveredHole && hoveredHole.type !== 'vide' && getHoleStatus(hoveredHole) === 'normal' && (
+                <>
+                  {/* Golden line representing force vector */}
+                  {(() => {
+                    const arrow = getArrowCoords(hoveredHole);
+                    if (!arrow) return null;
+                    return (
+                      <motion.line
+                        x1={arrow.x1}
+                        y1={arrow.y1}
+                        x2={arrow.x2}
+                        y2={arrow.y2}
+                        stroke="#fbbf24"
+                        strokeWidth="3.5"
+                        markerEnd="url(#marker-arrow)"
+                        initial={{ strokeDashoffset: 50, strokeDasharray: 100 }}
+                        animate={{ strokeDashoffset: 0 }}
+                        className="animate-pulse"
+                      />
+                    );
+                  })()}
+                </>
+              )}
+
+              {/* DRAW ALL HOLES */}
+              {holesToRender.map((hole) => {
+                const status = getHoleStatus(hole);
+                return (
+                  <g key={hole.id}>
+                    
+                    {/* Blasted Hole Scar (Remains visible as crater in the void) */}
+                    {status === 'exploded' && (
+                      <g opacity="0.45">
+                        <circle
+                          cx={hole.x}
+                          cy={hole.y}
+                          r="10"
+                          fill="#111827"
+                          stroke="#374151"
+                          strokeWidth="1.5"
+                          strokeDasharray="3,2"
+                        />
+                        <circle
+                          cx={hole.x}
+                          cy={hole.y}
+                          r="3"
+                          fill="#ef4444"
+                          opacity="0.5"
+                        />
+                      </g>
+                    )}
+
+                    {/* Smoke trails from recently exploded group */}
+                    {(() => {
+                      const blastStep = getBlastStepForHole(hole, gabarit);
+                      if (activeStep > 0 && activeStep - 1 === blastStep) {
+                        return getSmokeForHole(hole.id).map((s) => (
+                          <motion.circle
+                            key={s.id}
+                            cx={hole.x + s.ox}
+                            cy={hole.y}
+                            r={s.size}
+                            fill="#6b7280"
+                            initial={{ y: 0, opacity: 0.4, scale: 0.8 }}
+                            animate={{ y: -60, opacity: 0, scale: 1.4 }}
+                            transition={{ duration: 1.8, delay: s.delay, ease: "easeOut" }}
+                            pointerEvents="none"
+                          />
+                        ));
+                      }
+                      return null;
+                    })()}
+
+                    {/* Active hole's physical circle */}
+                    {status !== 'exploded' && (
                       <circle
                         cx={hole.x}
                         cy={hole.y}
-                        r="35"
-                        fill="rgba(239, 68, 68, 0.45)"
-                        className="animate-ping"
+                        r={hoveredHole?.id === hole.id ? "24" : "18"}
+                        className={`${getHoleColorClasses(hole, status)} transition-all duration-300 cursor-pointer stroke-[3.5px]`}
+                        onMouseEnter={() => setHoveredHole(hole)}
+                        onMouseLeave={() => setHoveredHole(null)}
                       />
-                      <path
-                        d={`M ${hole.x} ${hole.y} l -25 -25 l 35 15 l 20 -35 l -5 45 l 40 5 l -40 20 l 15 35 l -30 -25 l -30 30 l 10 -40 z`}
-                        fill="#f59e0b"
-                        stroke="#f97316"
-                        strokeWidth="2"
-                        className="animate-pulse"
-                      />
-                    </g>
-                  )}
+                    )}
 
-                  {/* The hole physical circle */}
-                  <circle
-                    cx={hole.x}
-                    cy={hole.y}
-                    r={hoveredHole?.id === hole.id ? "24" : "18"}
-                    className={`${getHoleColorClasses(hole, status)} transition-all duration-300 cursor-pointer stroke-[3.5px]`}
-                    onMouseEnter={() => setHoveredHole(hole)}
-                    onMouseLeave={() => setHoveredHole(null)}
-                  />
+                    {/* Text label index inside the circle */}
+                    {status !== 'exploded' && (
+                      <text
+                        x={hole.x}
+                        y={hole.y + 5}
+                        textAnchor="middle"
+                        className="font-black text-[12px] uppercase tracking-tighter fill-current select-none pointer-events-none"
+                        fill={
+                          hole.type === 'vide'
+                            ? '#1e293b'
+                            : hole.type === 'charge'
+                            ? '#ffffff'
+                            : '#111827'
+                        }
+                      >
+                        {hole.label}
+                      </text>
+                    )}
 
-                  {/* Text label index inside the circle */}
-                  {status !== 'exploded' && (
-                    <text
-                      x={hole.x}
-                      y={hole.y + 5}
-                      textAnchor="middle"
-                      className="font-black text-[12px] uppercase tracking-tighter fill-current select-none pointer-events-none"
-                      fill={
-                        hole.type === 'vide'
-                          ? '#1e293b'
-                          : hole.type === 'charge'
-                          ? '#ffffff'
-                          : '#111827'
-                      }
-                    >
-                      {hole.label}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
+                    {/* Cinematic explosion triggers on 'blasting' */}
+                    {status === 'blasting' && (
+                      <g>
+                        {/* Golden Radial Blast Flare */}
+                        <motion.circle
+                          cx={hole.x}
+                          cy={hole.y}
+                          initial={{ r: 20, opacity: 0.8 }}
+                          animate={{ r: 80, opacity: 0 }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                          fill="url(#blast-glow)"
+                          pointerEvents="none"
+                        />
+
+                        {/* Outer expanding shock disk */}
+                        <circle
+                          cx={hole.x}
+                          cy={hole.y}
+                          r="35"
+                          fill="rgba(245, 158, 11, 0.35)"
+                          className="animate-ping"
+                        />
+
+                        {/* Spinning stone fragments flying outward */}
+                        {getFragmentsForHole(hole).map((f) => (
+                          <motion.polygon
+                            key={f.id}
+                            points={f.points}
+                            fill="#4b5563"
+                            stroke="#374151"
+                            strokeWidth="0.5"
+                            initial={{ x: hole.x, y: hole.y, opacity: 1, rotate: 0, scale: 1 }}
+                            animate={{ x: hole.x + f.tx, y: hole.y + f.ty, opacity: 0, rotate: f.rot, scale: 0.5 }}
+                            transition={{ duration: 0.9, ease: "easeOut" }}
+                            pointerEvents="none"
+                          />
+                        ))}
+
+                        {/* Fine explosion gas/fire particles */}
+                        {getParticlesForHole(hole.id, getHoleColorHex(hole)).map((p) => (
+                          <motion.circle
+                            key={p.id}
+                            cx={hole.x}
+                            cy={hole.y}
+                            r={p.size}
+                            fill={p.color}
+                            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                            animate={{ x: p.tx, y: p.ty, opacity: 0, scale: 0 }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                            pointerEvents="none"
+                          />
+                        ))}
+                      </g>
+                    )}
+                  </g>
+                );
+              })}
+            </motion.g>
           </svg>
 
           {/* ACTIVE HOVER DETAIL BOARD */}
