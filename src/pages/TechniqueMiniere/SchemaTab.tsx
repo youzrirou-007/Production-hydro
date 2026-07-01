@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, 
@@ -109,7 +109,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
         case 2: return 90;   // G1
         case 3: return 140;  // G2
         case 4: return 200;  // G3
-        case 5: return 280;  // Finition
+        case 5: return 200;  // Finition : le vide ne s'agrandit pas pendant la finition
         default: return 0;
       }
     } else {
@@ -120,7 +120,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
         case 3: return 200;  // G2 petite croix
         case 4: return 280;  // G3 grand carré
         case 5: return 360;  // G4 grande croix
-        case 6: return 500;  // Full profile
+        case 6: return 360;  // Finition : le vide ne s'agrandit pas pendant la finition
         default: return 0;
       }
     }
@@ -170,97 +170,20 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     }
   };
 
-  // Generate stable explosion particles per hole
-  const getParticlesForHole = (holeId: string, color: string) => {
-    const particles = [];
-    const count = 12 + (parseInt(holeId.replace(/\D/g, '') || '0') % 4); // 12 to 15 particles
-    for (let i = 0; i < count; i++) {
-      const angle = (i * (360 / count)) + (parseInt(holeId.replace(/\D/g, '') || '0') % 10) * 5;
-      const rad = (angle * Math.PI) / 180;
-      const dist = 30 + (((i * 7) + parseInt(holeId.replace(/\D/g, '') || '0')) % 50); // 30px to 80px
-      const targetX = Math.cos(rad) * dist;
-      const targetY = Math.sin(rad) * dist;
-      particles.push({
-        id: `${holeId}-part-${i}`,
-        tx: targetX,
-        ty: targetY,
-        color: color,
-        size: 2 + (i % 3)
-      });
-    }
-    return particles;
-  };
-
-  // Generate stable grey smoke bubbles
-  const getSmokeForHole = (holeId: string) => {
-    const smoke = [];
-    for (let i = 0; i < 4; i++) {
-      const angle = (i * 90) + (parseInt(holeId.replace(/\D/g, '') || '0') % 10) * 15;
-      const rad = (angle * Math.PI) / 180;
-      const offsetX = Math.cos(rad) * (5 + (i * 3));
-      smoke.push({
-        id: `${holeId}-smoke-${i}`,
-        ox: offsetX,
-        delay: i * 0.2,
-        size: 10 + (i * 3)
-      });
-    }
-    return smoke;
-  };
-
-  // Generate stable outward rock fragments
-  const getFragmentsForHole = (hole: HoleInfo) => {
-    const fragments = [];
-    const count = 6 + (parseInt(hole.id.replace(/\D/g, '') || '0') % 3); // 6-8 fragments
-    const cx = 500;
-    const cy = gabarit === '9m2' ? 350 : 430;
-    
-    let dx = hole.x - cx;
-    let dy = hole.y - cy;
-    let len = Math.sqrt(dx * dx + dy * dy);
-    if (len === 0) {
-      dx = 0;
-      dy = -1;
-      len = 1;
-    }
-    const ux = dx / len;
-    const uy = dy / len;
-
-    for (let i = 0; i < count; i++) {
-      const angleOffset = -45 + (((i * 15) + parseInt(hole.id.replace(/\D/g, '') || '0')) % 90);
-      const angleRad = (angleOffset * Math.PI) / 180;
-      
-      const rx = ux * Math.cos(angleRad) - uy * Math.sin(angleRad);
-      const ry = ux * Math.sin(angleRad) + uy * Math.cos(angleRad);
-      
-      const dist = 40 + (((i * 11) + parseInt(hole.id.replace(/\D/g, '') || '0')) % 60); // 40-100px
-      const tx = rx * dist;
-      const ty = ry * dist;
-      
-      const size = 3 + (i % 3);
-      const polyPoints = `0,0 ${size},-${size} ${size * 2},0 ${size},${size}`;
-
-      fragments.push({
-        id: `${hole.id}-frag-${i}`,
-        points: polyPoints,
-        tx,
-        ty,
-        rot: 360 + (i * 90)
-      });
-    }
-    return fragments;
-  };
-
-  // Generate stable dynamic organic void path
+  // Generate stable dynamic organic void path with jagged raw rock edges
   const getOrganicVoidPath = (cx: number, cy: number, r: number) => {
     if (r <= 0) return "";
     const points = [];
-    const numPoints = 16;
+    const numPoints = 36; // high frequency jaggedness
     for (let i = 0; i < numPoints; i++) {
       const angle = (i * (360 / numPoints)) * Math.PI / 180;
-      const seed = (i * 17) % 10;
-      const variation = 0.9 + (seed / 100) * 2; // stable -10% to +10%
-      const currentR = r * variation;
+      const seed = (i * 13) % 7;
+      const baseVariation = 0.95 + (seed / 140); // small organic swell
+      
+      // Alternate high frequency peaks/valleys to create a crisp jagged raw rock profile
+      const spikeFactor = i % 2 === 0 ? 0.97 : 1.03;
+      const currentR = r * baseVariation * spikeFactor;
+      
       const x = cx + Math.cos(angle) * currentR;
       const y = cy + Math.sin(angle) * currentR;
       points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
@@ -391,6 +314,151 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   const currentPercentage = Math.round((getFootage() / currentMaxDepth) * 100);
   const holesToRender = gabarit === '9m2' ? HOLES_DATA_9 : HOLES_DATA;
 
+  // Stable cached calculations using useMemo to fulfill the "RÈGLES DE PERFORMANCE"
+  const stableExplosionData = useMemo(() => {
+    const particlesMap: Record<string, any[]> = {};
+    const smokeMap: Record<string, any[]> = {};
+    const fragmentsMap: Record<string, any[]> = {};
+    const debrisMap: Record<string, any[]> = {};
+
+    const cx = 500;
+    const cy = gabarit === '9m2' ? 350 : 430;
+
+    holesToRender.forEach((hole) => {
+      // 1. PARTICLES (Polygons of rock, max 15 per hole)
+      const color = getHoleColorHex(hole);
+      const parts = [];
+      const partCount = 12 + (parseInt(hole.id.replace(/\D/g, '') || '0') % 4); // 12 to 15 particles
+      for (let i = 0; i < partCount; i++) {
+        const angle = (i * (360 / partCount)) + (parseInt(hole.id.replace(/\D/g, '') || '0') % 10) * 5;
+        const rad = (angle * Math.PI) / 180;
+        const dist = 30 + (((i * 7) + parseInt(hole.id.replace(/\D/g, '') || '0')) % 50); // 30px to 80px
+        const targetX = Math.cos(rad) * dist;
+        const targetY = Math.sin(rad) * dist;
+        
+        // Stable rock polygons (triangles or quads)
+        const seed = (i * 13 + parseInt(hole.id.replace(/\D/g, '') || '0')) % 7;
+        const size = 3 + (seed % 3);
+        let points = "";
+        if (seed % 2 === 0) {
+          points = `0,-${size} ${size},${size} -${size},${size}`;
+        } else {
+          points = `-${size},-${size} ${size + 1},-${size} ${size},${size + 1} -${size - 1},${size}`;
+        }
+
+        parts.push({
+          id: `${hole.id}-part-${i}`,
+          tx: targetX,
+          ty: targetY,
+          color: color,
+          points: points,
+          rot: 180 + (seed * 90)
+        });
+      }
+      particlesMap[hole.id] = parts;
+
+      // 2. SMOKE (Radial dispersion towards void, max 4 per hole)
+      const smk = [];
+      const isFinishing = ['radier', 'parement', 'voute'].includes(hole.type);
+      const smokeCount = isFinishing ? 2 : 4; // lighter smoke for finishing
+      let dx = cx - hole.x;
+      let dy = cy - hole.y;
+      let len = Math.sqrt(dx * dx + dy * dy);
+      if (len === 0) {
+        dx = 0;
+        dy = -1;
+        len = 1;
+      }
+      const ux = dx / len;
+      const uy = dy / len;
+
+      for (let i = 0; i < smokeCount; i++) {
+        const angleOffset = -30 + (i * 20);
+        const angleRad = (angleOffset * Math.PI) / 180;
+        const rx = ux * Math.cos(angleRad) - uy * Math.sin(angleRad);
+        const ry = ux * Math.sin(angleRad) + uy * Math.cos(angleRad);
+
+        const dist = 30 + (i * 15);
+        const tx = rx * dist;
+        const ty = ry * dist;
+
+        smk.push({
+          id: `${hole.id}-smoke-${i}`,
+          tx: tx,
+          ty: ty,
+          delay: i * 0.15,
+          size: 8 + (i * 3) // smaller bubbles for performance and aesthetics
+        });
+      }
+      smokeMap[hole.id] = smk;
+
+      // 3. FRAGMENTS (Finition vs Elargissement direction, max 8 per hole)
+      const frgs = [];
+      const fragmentCount = 6 + (parseInt(hole.id.replace(/\D/g, '') || '0') % 3); // 6 to 8 fragments
+      
+      // FINITION: fragments inwards towards center/void; ELARGISSEMENT: outwards away from center
+      let fdx = isFinishing ? cx - hole.x : hole.x - cx;
+      let fdy = isFinishing ? cy - hole.y : hole.y - cy;
+      let flen = Math.sqrt(fdx * fdx + fdy * fdy);
+      if (flen === 0) {
+        fdx = 0;
+        fdy = -1;
+        flen = 1;
+      }
+      const fux = fdx / flen;
+      const fuy = fdy / flen;
+
+      for (let i = 0; i < fragmentCount; i++) {
+        const angleOffset = -45 + (((i * 15) + parseInt(hole.id.replace(/\D/g, '') || '0')) % 90);
+        const angleRad = (angleOffset * Math.PI) / 180;
+        const rx = fux * Math.cos(angleRad) - fuy * Math.sin(angleRad);
+        const ry = fux * Math.sin(angleRad) + fuy * Math.cos(angleRad);
+        
+        const dist = 40 + (((i * 11) + parseInt(hole.id.replace(/\D/g, '') || '0')) % 60); // 40-100px
+        const tx = rx * dist;
+        const ty = ry * dist;
+        
+        const size = 4 + (i % 3);
+        const polyPoints = `0,0 ${size},-${size} ${size * 2},0 ${size},${size}`;
+
+        frgs.push({
+          id: `${hole.id}-frag-${i}`,
+          points: polyPoints,
+          tx,
+          ty,
+          rot: 360 + (i * 90)
+        });
+      }
+      fragmentsMap[hole.id] = frgs;
+
+      // 4. DEBRIS AT THE RADIER (Gravity falling, only for elargissement, max 5 per hole)
+      const dbr = [];
+      if (!isFinishing && hole.type !== 'vide') {
+        const debrisCount = 3 + (parseInt(hole.id.replace(/\D/g, '') || '0') % 3); // 3 to 5 debris pieces
+        const floorY = gabarit === '9m2' ? 520 : 650;
+        const fallDist = floorY - hole.y;
+
+        for (let i = 0; i < debrisCount; i++) {
+          const seed = (i * 23 + parseInt(hole.id.replace(/\D/g, '') || '0')) % 11;
+          const spreadX = -40 + (seed * 8); // horizontal bounce/slide
+          const size = 3 + (seed % 3);
+          const polyPoints = `0,0 ${size},-${size} ${size * 1.5},0 ${size},${size}`;
+          
+          dbr.push({
+            id: `${hole.id}-debris-${i}`,
+            points: polyPoints,
+            tx: spreadX,
+            ty: fallDist - 5,
+            delay: 0.1 + (i * 0.1)
+          });
+        }
+      }
+      debrisMap[hole.id] = dbr;
+    });
+
+    return { particlesMap, smokeMap, fragmentsMap, debrisMap };
+  }, [gabarit, holesToRender]);
+
   // Center of gravity calculation for the active blasting group
   const blastingHoles = holesToRender.filter(h => {
     if (h.type === 'vide') return false;
@@ -404,6 +472,14 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
       return { x: sumX / blastingHoles.length, y: sumY / blastingHoles.length };
     }
     return { x: 500, y: gabarit === '9m2' ? 350 : 430 };
+  })();
+
+  // Dynamic screen shake intensity and duration based on blasting step
+  const shake = (() => {
+    if (activeStep === 0) return { amplitude: 0, duration: 0 };
+    if (activeStep === 1) return { amplitude: 5, duration: 0.20 }; // Bouchon (Forte)
+    if (activeStep === maxStep) return { amplitude: 1.5, duration: 0.10 }; // Finition (Légère)
+    return { amplitude: 3, duration: 0.15 }; // G1-G4 (Moyenne)
   })();
 
   return (
@@ -506,16 +582,58 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                 <stop offset="96%" stopColor="#1e293b" stopOpacity="0.8" />
                 <stop offset="100%" stopColor="#334155" stopOpacity="0.3" />
               </radialGradient>
+
+              {/* ClipPaths to keep all dynamic explosion effects inside the gallery walls */}
+              <clipPath id="gallery-clip-9m2">
+                <path d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z" />
+              </clipPath>
+              <clipPath id="gallery-clip-12m2">
+                <path d="M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z" />
+              </clipPath>
+
+              {/* Linear gradients for colored rock fragments */}
+              <linearGradient id="grad-charge" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#374151" />
+              </linearGradient>
+              <linearGradient id="grad-g1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#3b82f6" />
+                <stop offset="100%" stopColor="#374151" />
+              </linearGradient>
+              <linearGradient id="grad-g2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ef4444" />
+                <stop offset="100%" stopColor="#374151" />
+              </linearGradient>
+              <linearGradient id="grad-g3" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#22d3ee" />
+                <stop offset="100%" stopColor="#374151" />
+              </linearGradient>
+              <linearGradient id="grad-g4" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f97316" />
+                <stop offset="100%" stopColor="#374151" />
+              </linearGradient>
+              <linearGradient id="grad-radier" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#8b5cf6" />
+                <stop offset="100%" stopColor="#374151" />
+              </linearGradient>
+              <linearGradient id="grad-parement" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#14b8a6" />
+                <stop offset="100%" stopColor="#374151" />
+              </linearGradient>
+              <linearGradient id="grad-voute" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f43f5e" />
+                <stop offset="100%" stopColor="#374151" />
+              </linearGradient>
             </defs>
 
             {/* SCREEN SHAKE WRAPPER */}
             <motion.g
               key={`shake-${activeStep}`}
               animate={activeStep > 0 ? {
-                x: [0, -3, 3, -2, 2, 0],
-                y: [0, -2, 2, -1, 1, 0]
+                x: [0, -shake.amplitude, shake.amplitude, -shake.amplitude * 0.6, shake.amplitude * 0.6, 0],
+                y: [0, -shake.amplitude * 0.7, shake.amplitude * 0.7, -shake.amplitude * 0.4, shake.amplitude * 0.4, 0]
               } : {}}
-              transition={{ duration: 0.15, ease: "easeInOut" }}
+              transition={{ duration: shake.duration, ease: "easeInOut" }}
             >
               {/* Background of the overall tunnel face (solid rock block) */}
               <rect width="1000" height="700" fill="url(#granite-rock)" />
@@ -558,20 +676,33 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                 />
               )}
 
-              {/* DYNAMIC EXCAVATED ORGANIC VOID (Morphing jagged cavity) */}
+              {/* DYNAMIC EXCAVATED ORGANIC VOID (Morphing jagged cavity with raw rock outline) */}
               {activeStep > 0 && activeStep < maxStep && (
-                <motion.path
-                  key={`organic-void-${gabarit}`}
-                  d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, getCavityRadius())}
-                  fill="url(#void-backlight)"
-                  stroke="#ffffff"
-                  strokeWidth="2"
-                  strokeDasharray="6,4"
-                  initial={{ opacity: 0.8 }}
-                  animate={{ opacity: 0.95 }}
-                  transition={{ duration: 0.5, ease: 'easeOut' }}
-                  className="shadow-inner"
-                />
+                <g>
+                  {/* Outer glow/rim shadow */}
+                  <motion.path
+                    key={`organic-void-bg-${gabarit}`}
+                    d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, getCavityRadius() + 3)}
+                    fill="none"
+                    stroke="#475569"
+                    strokeWidth="4"
+                    opacity="0.6"
+                    pointerEvents="none"
+                  />
+                  {/* The jagged raw rock void itself */}
+                  <motion.path
+                    key={`organic-void-${gabarit}`}
+                    d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, getCavityRadius())}
+                    fill="url(#void-backlight)"
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                    strokeDasharray="8,4"
+                    initial={{ opacity: 0.8 }}
+                    animate={{ opacity: 0.95 }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    className="shadow-inner"
+                  />
+                </g>
               )}
 
               {/* STAGE COMPLETE: FULL Profile Excavation Complete */}
@@ -587,20 +718,47 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                 />
               )}
 
+              {/* CONNECTED GROUP LINES (Show holes of the active/blasting group linked together) */}
+              {blastingHoles.length > 1 && (
+                <g opacity="0.35" pointerEvents="none">
+                  {blastingHoles.map((h, idx) => {
+                    const nextHole = blastingHoles[(idx + 1) % blastingHoles.length];
+                    const color = getHoleColorHex(h);
+                    return (
+                      <motion.line
+                        key={`line-${h.id}-${nextHole.id}`}
+                        x1={h.x}
+                        y1={h.y}
+                        x2={nextHole.x}
+                        y2={nextHole.y}
+                        stroke={color}
+                        strokeWidth="1.5"
+                        strokeDasharray="4,4"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 0.4 }}
+                      />
+                    );
+                  })}
+                </g>
+              )}
+
               {/* SHOCK WAVE radiating from group gravity epicentre */}
               {activeStep > 0 && (
-                <motion.circle
-                  key={`shockwave-${activeStep}`}
-                  cx={centerOfGravity.x}
-                  cy={centerOfGravity.y}
-                  initial={{ r: 10, opacity: 0.8 }}
-                  animate={{ r: gabarit === '9m2' ? 140 : 180, opacity: 0 }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                  fill="none"
-                  stroke="#fbbf24"
-                  strokeWidth="2.5"
-                  pointerEvents="none"
-                />
+                <g clipPath={`url(#gallery-clip-${gabarit})`}>
+                  <motion.circle
+                    key={`shockwave-${activeStep}`}
+                    cx={centerOfGravity.x}
+                    cy={centerOfGravity.y}
+                    initial={{ r: 10, opacity: 0.8 }}
+                    animate={{ r: gabarit === '9m2' ? 200 : 350, opacity: 0 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    fill="none"
+                    stroke="#fbbf24"
+                    strokeWidth="2.5"
+                    pointerEvents="none"
+                  />
+                </g>
               )}
 
               {/* VISUAL PUSH ARROWS ON HOVER */}
@@ -636,22 +794,36 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                     
                     {/* Blasted Hole Scar (Remains visible as crater in the void) */}
                     {status === 'exploded' && (
-                      <g opacity="0.45">
+                      <g opacity="0.5">
+                        {/* Dark crater background */}
                         <circle
                           cx={hole.x}
                           cy={hole.y}
                           r="10"
-                          fill="#111827"
-                          stroke="#374151"
+                          fill="#1a1a2e"
+                          stroke="#4b5563"
                           strokeWidth="1.5"
                           strokeDasharray="3,2"
                         />
+                        {/* Radial cracking lines */}
+                        <line x1={hole.x - 14} y1={hole.y} x2={hole.x - 6} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x + 6} y1={hole.y} x2={hole.x + 14} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x} y1={hole.y - 14} x2={hole.x} y2={hole.y - 6} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x} y1={hole.y + 6} x2={hole.x} y2={hole.y + 14} stroke="#4b5563" strokeWidth="1.5" />
+                        
+                        {/* Diagonal cracking lines */}
+                        <line x1={hole.x - 10} y1={hole.y - 10} x2={hole.x - 4} y2={hole.y - 4} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x + 4} y1={hole.y + 4} x2={hole.x + 10} y2={hole.y + 10} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x + 4} y1={hole.y - 4} x2={hole.x + 10} y2={hole.y - 10} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x - 10} y1={hole.y + 10} x2={hole.x - 4} y2={hole.y + 4} stroke="#4b5563" strokeWidth="1" />
+                        
+                        {/* Central hot spot */}
                         <circle
                           cx={hole.x}
                           cy={hole.y}
                           r="3"
                           fill="#ef4444"
-                          opacity="0.5"
+                          opacity="0.6"
                         />
                       </g>
                     )}
@@ -660,19 +832,23 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                     {(() => {
                       const blastStep = getBlastStepForHole(hole, gabarit);
                       if (activeStep > 0 && activeStep - 1 === blastStep) {
-                        return getSmokeForHole(hole.id).map((s) => (
-                          <motion.circle
-                            key={s.id}
-                            cx={hole.x + s.ox}
-                            cy={hole.y}
-                            r={s.size}
-                            fill="#6b7280"
-                            initial={{ y: 0, opacity: 0.4, scale: 0.8 }}
-                            animate={{ y: -60, opacity: 0, scale: 1.4 }}
-                            transition={{ duration: 1.8, delay: s.delay, ease: "easeOut" }}
-                            pointerEvents="none"
-                          />
-                        ));
+                        return (
+                          <g clipPath={`url(#gallery-clip-${gabarit})`}>
+                            {stableExplosionData.smokeMap[hole.id]?.map((s) => (
+                              <motion.circle
+                                key={s.id}
+                                cx={hole.x}
+                                cy={hole.y}
+                                r={s.size}
+                                fill="#4b5563"
+                                initial={{ x: 0, y: 0, opacity: 0.6, scale: 0.6 }}
+                                animate={{ x: s.tx, y: s.ty, opacity: 0, scale: 1.5 }}
+                                transition={{ duration: 2.0, delay: s.delay, ease: "easeOut" }}
+                                pointerEvents="none"
+                              />
+                            ))}
+                          </g>
+                        );
                       }
                       return null;
                     })()}
@@ -710,7 +886,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 
                     {/* Cinematic explosion triggers on 'blasting' */}
                     {status === 'blasting' && (
-                      <g>
+                      <g clipPath={`url(#gallery-clip-${gabarit})`}>
                         {/* Golden Radial Blast Flare */}
                         <motion.circle
                           cx={hole.x}
@@ -731,13 +907,26 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                           className="animate-ping"
                         />
 
-                        {/* Spinning stone fragments flying outward */}
-                        {getFragmentsForHole(hole).map((f) => (
+                        {/* MICRO-ONDE PAR TROU */}
+                        <motion.circle
+                          cx={hole.x}
+                          cy={hole.y}
+                          initial={{ r: 15, opacity: 0.9 }}
+                          animate={{ r: 50, opacity: 0 }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                          fill="none"
+                          stroke="#fbbf24"
+                          strokeWidth="1.5"
+                          pointerEvents="none"
+                        />
+
+                        {/* Spinning stone fragments flying (Colored by group gradient, max 8) */}
+                        {stableExplosionData.fragmentsMap[hole.id]?.map((f) => (
                           <motion.polygon
                             key={f.id}
                             points={f.points}
-                            fill="#4b5563"
-                            stroke="#374151"
+                            fill={`url(#grad-${hole.type})`}
+                            stroke="#111827"
                             strokeWidth="0.5"
                             initial={{ x: hole.x, y: hole.y, opacity: 1, rotate: 0, scale: 1 }}
                             animate={{ x: hole.x + f.tx, y: hole.y + f.ty, opacity: 0, rotate: f.rot, scale: 0.5 }}
@@ -746,17 +935,32 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                           />
                         ))}
 
-                        {/* Fine explosion gas/fire particles */}
-                        {getParticlesForHole(hole.id, getHoleColorHex(hole)).map((p) => (
-                          <motion.circle
+                        {/* Fine explosion rock particles (Triangular/Quad polygons, max 15) */}
+                        {stableExplosionData.particlesMap[hole.id]?.map((p) => (
+                          <motion.polygon
                             key={p.id}
-                            cx={hole.x}
-                            cy={hole.y}
-                            r={p.size}
+                            points={p.points}
                             fill={p.color}
-                            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                            animate={{ x: p.tx, y: p.ty, opacity: 0, scale: 0 }}
+                            stroke="#111827"
+                            strokeWidth="0.3"
+                            initial={{ x: hole.x, y: hole.y, opacity: 1, rotate: 0, scale: 1 }}
+                            animate={{ x: hole.x + p.tx, y: hole.y + p.ty, opacity: 0, rotate: p.rot, scale: 0.2 }}
                             transition={{ duration: 0.8, ease: "easeOut" }}
+                            pointerEvents="none"
+                          />
+                        ))}
+
+                        {/* Gravity falling debris (Only for elargissement, max 5) */}
+                        {stableExplosionData.debrisMap[hole.id]?.map((d) => (
+                          <motion.polygon
+                            key={d.id}
+                            points={d.points}
+                            fill="#1e293b"
+                            stroke="#475569"
+                            strokeWidth="0.5"
+                            initial={{ x: hole.x, y: hole.y, opacity: 1, rotate: 0 }}
+                            animate={{ x: hole.x + d.tx, y: hole.y + d.ty, opacity: [1, 1, 0], rotate: 360 }}
+                            transition={{ duration: 1.2, delay: d.delay, ease: "easeIn" }}
                             pointerEvents="none"
                           />
                         ))}
