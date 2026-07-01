@@ -50,10 +50,19 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   roles?: string[];
-  category: 'production' | 'ingenierie' | 'analyse' | 'admin';
+  category: 'direction' | 'production' | 'ingenierie' | 'analyse' | 'admin';
 }
 
 const NAV_ITEMS: NavItem[] = [
+  // DIRECTION
+  {
+    id: 'espace_dt',
+    label: 'Espace Directeur Technique',
+    icon: <Crown className="w-5 h-5" />,
+    roles: ['admin', 'direction_technique'],
+    category: 'direction'
+  },
+
   // OPÉRATIONS CHANTIER
   { id: 'production', label: 'Registre Journalier', icon: <Plus className="w-5 h-5" />, category: 'production' },
   { id: 'chantiers', label: 'Chantiers', icon: <MapPin className="w-5 h-5" />, category: 'production' },
@@ -62,7 +71,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'explications', label: 'Explications', icon: <AlertTriangle className="w-5 h-5" />, category: 'production' },
   
   // INGÉNIERIE & RÈGLEMENTS
-  { id: 'technique', label: '📐 Technique Minière', icon: <Wrench className="w-5 h-5" />, category: 'ingenierie' },
+  { id: 'technique', label: 'Technique Minière', icon: <Wrench className="w-5 h-5" />, category: 'ingenierie' },
   { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'ingenierie' },
   
   // ANALYSE & PERFORMANCE
@@ -72,13 +81,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'analyse_terrain', label: 'Performance Terrain', icon: <Layers className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_rh', label: 'Ressources Humaines', icon: <HardHat className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_logistique', label: 'Matériel & Historiques', icon: <Wrench className="w-5 h-5" />, category: 'analyse' },
-  {
-    id: 'espace_dt',
-    label: 'Espace Directeur Technique',
-    icon: <Crown className="w-5 h-5" />,
-    roles: ['admin', 'direction_technique'],
-    category: 'analyse'
-  },
 
   // ADMIN
   { id: 'admin', label: 'Administration', icon: <Users className="w-5 h-5" />, roles: ['admin'], category: 'admin' },
@@ -340,6 +342,7 @@ export const Layout: React.FC<{
   );
 
   const categories = [
+    { id: 'direction', label: 'Direction' },
     { id: 'production', label: 'Opérations Chantier' },
     { id: 'ingenierie', label: 'Ingénierie & Consignes' },
     { id: 'analyse', label: 'Analyses & Performance' },
@@ -372,10 +375,12 @@ export const Layout: React.FC<{
               referrerPolicy="no-referrer" 
             />
             {isOpen && (
-              <h1 className="text-sm font-black tracking-tighter leading-none uppercase animate-fade-in">
-                <span className="text-[#b8860b]">Hydro</span>
-                <span className="text-[#141414]">Mines</span>
-              </h1>
+              <div className="flex flex-col">
+                <h1 className="text-sm font-black tracking-tighter leading-none uppercase animate-fade-in">
+                  <span className="text-[#b8860b]">Hydro</span>
+                  <span className="text-[#141414]">Mines</span>
+                </h1>
+              </div>
             )}
           </div>
           {isOpen && (
@@ -393,87 +398,131 @@ export const Layout: React.FC<{
           "flex-1 py-4 space-y-6 overflow-y-auto custom-scrollbar",
           isOpen ? "px-4" : "px-2"
         )}>
-          {categories.map(cat => (
-            <div key={cat.id} className="space-y-1">
-              {isOpen && (
-                <p className="px-3 text-[8px] font-black uppercase tracking-[0.25em] text-[#141414]/40 mb-2">
-                  {cat.label}
-                </p>
-              )}
-              {filteredNav.filter(item => item.category === cat.id).map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                  }}
-                  className={cn(
-                    "w-full flex items-center rounded-none transition-all duration-200 group relative",
-                    isOpen ? "gap-3 px-3 py-2.5" : "justify-center p-3",
-                    activeTab === item.id 
-                      ? "bg-[#141414] text-white shadow-lg" 
-                      : "text-[#141414]/60 hover:bg-[#141414]/5 hover:text-[#141414]",
-                    item.id === 'explications' && unexplainedCount > 0 && activeTab !== 'explications' && [
-                      "animate-pulse",
-                      "shadow-[0_0_15px_rgba(239,68,68,0.6)]",
-                      "border-l-2 border-red-500",
-                      "bg-red-50/10"
-                    ]
-                  )}
-                  title={!isOpen ? item.label : undefined}
-                >
-                  <div className={cn(
-                    "flex-shrink-0 transition-transform duration-300",
-                    activeTab === item.id && "scale-110",
-                    item.id === 'explications' && unexplainedCount > 0 && activeTab !== 'explications' && "text-red-500 animate-bounce"
-                  )}>
-                    {item.icon}
-                  </div>
-                  {isOpen && (
-                    <span className="font-bold text-[10.5px] uppercase tracking-tight flex-1 text-left">{item.label}</span>
-                  )}
-                  {item.id === 'explications' && (
-                    unexplainedCount > 0 ? (
-                      isOpen ? (
-                        <span className="ml-auto bg-red-500 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center animate-bounce">
-                          {unexplainedCount}
+          {categories.map(cat => {
+            const items = filteredNav.filter(item => item.category === cat.id);
+            if (items.length === 0) return null;
+            return (
+              <div key={cat.id} className="space-y-1">
+                {isOpen && cat.label && (
+                  <p className="px-3 text-[8px] font-black uppercase tracking-[0.25em] text-[#141414]/40 mb-2">
+                    {cat.label}
+                  </p>
+                )}
+                {items.map((item) => {
+                  const isActive = activeTab === item.id;
+                  const isEspaceDT = item.id === 'espace_dt';
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id);
+                      }}
+                      className={cn(
+                        "w-full flex items-center rounded-none transition-all duration-300 group relative overflow-hidden",
+                        isOpen ? "gap-3 px-3 py-2.5" : "justify-center p-3",
+                        isEspaceDT
+                          ? isActive
+                            ? "bg-black text-[#ffd700] border border-[#ffd700]/50 shadow-[0_0_20px_rgba(255,215,0,0.4)] font-black"
+                            : "bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border border-amber-500/10 text-amber-500 hover:text-amber-400 hover:from-amber-500/20 font-extrabold shadow-[0_0_8px_rgba(218,165,32,0.05)]"
+                          : isActive
+                            ? "bg-black text-white shadow-lg font-bold"
+                            : "text-[#141414]/60 hover:bg-[#141414]/5 hover:text-[#141414]",
+                        item.id === 'explications' && unexplainedCount > 0 && activeTab !== 'explications' && [
+                          "animate-pulse",
+                          "shadow-[0_0_15px_rgba(239,68,68,0.6)]",
+                          "border-l-2 border-red-500",
+                          "bg-red-50/10"
+                        ]
+                      )}
+                      title={!isOpen ? item.label : undefined}
+                    >
+                      <div className={cn(
+                        "flex-shrink-0 transition-transform duration-300 relative",
+                        isActive && "scale-110",
+                        isEspaceDT && "text-[#ffd700]",
+                        item.id === 'explications' && unexplainedCount > 0 && activeTab !== 'explications' && "text-red-500 animate-bounce"
+                      )}>
+                        {isEspaceDT ? (
+                          <div className="relative flex items-center justify-center">
+                            <Crown className={cn(
+                              "w-5 h-5",
+                              isActive ? "text-[#ffd700] drop-shadow-[0_0_8px_#ffd700]" : "text-amber-500 animate-pulse"
+                            )} />
+                            <span className="absolute -inset-1 bg-[#ffd700]/20 rounded-full blur-sm animate-ping duration-1000" />
+                          </div>
+                        ) : (
+                          item.icon
+                        )}
+                      </div>
+                      {isOpen && (
+                        <span className={cn(
+                          "font-bold text-[10.5px] uppercase tracking-tight flex-1 text-left",
+                          isEspaceDT && (
+                            isActive
+                              ? "font-black bg-clip-text text-transparent bg-gradient-to-r from-[#ffd700] via-[#fcd34d] to-[#b8860b] drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] tracking-wider"
+                              : "font-black text-amber-700 group-hover:text-amber-800 tracking-wider"
+                          )
+                        )}>
+                          {item.label}
                         </span>
-                      ) : (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center animate-bounce">
-                          {unexplainedCount}
-                        </span>
-                      )
-                    ) : (
-                      isOpen && (
-                        <span className="ml-auto bg-emerald-600 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center">
-                          ✓
-                        </span>
-                      )
-                    )
-                  )}
-                  {item.id === 'rotation' && rotationPending && (
-                    isOpen ? (
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse absolute right-4 top-1/2 -translate-y-1/2" />
-                    ) : (
-                      <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse absolute right-1.5 top-1.5" />
-                    )
-                  )}
-                  {item.id === 'admin' && hasPendingRequests && (
-                    isOpen ? (
-                      <span className="w-2.5 h-2.5 bg-red-600 border border-white rounded-full h-3 w-3 flex items-center justify-center text-[7px] text-white font-extrabold absolute right-4 top-1/2 -translate-y-1/2 animate-pulse" title="Demande en attente admin" />
-                    ) : (
-                      <span className="w-2 h-2 bg-red-600 border border-white rounded-full flex items-center justify-center absolute right-1.5 top-1.5 animate-pulse" title="Demande en attente admin" />
-                    )
-                  )}
-                  {activeTab === item.id && (
-                    <motion.div 
-                      layoutId="active-indicator"
-                      className="absolute left-0 w-1 h-6 bg-[#b8860b]" 
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          ))}
+                      )}
+                      {isEspaceDT && isOpen && (
+                        <div className="ml-auto flex items-center gap-1.5">
+                          <span className="bg-[#ffd700] text-black text-[7.5px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest shadow-[0_0_6px_rgba(255,215,0,0.4)]">
+                            VIP
+                          </span>
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ffd700]"></span>
+                          </span>
+                        </div>
+                      )}
+                      {item.id === 'explications' && (
+                        unexplainedCount > 0 ? (
+                          isOpen ? (
+                            <span className="ml-auto bg-red-500 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center animate-bounce">
+                              {unexplainedCount}
+                            </span>
+                          ) : (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center animate-bounce">
+                              {unexplainedCount}
+                            </span>
+                          )
+                        ) : (
+                          isOpen && !isEspaceDT && (
+                            <span className="ml-auto bg-emerald-600 text-white text-[9px] font-extrabold rounded-full w-4 h-4 flex items-center justify-center">
+                              ✓
+                            </span>
+                          )
+                        )
+                      )}
+                      {item.id === 'rotation' && rotationPending && (
+                        isOpen ? (
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse absolute right-4 top-1/2 -translate-y-1/2" />
+                        ) : (
+                          <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse absolute right-1.5 top-1.5" />
+                        )
+                      )}
+                      {item.id === 'admin' && hasPendingRequests && (
+                        isOpen ? (
+                          <span className="w-2.5 h-2.5 bg-red-600 border border-white rounded-full h-3 w-3 flex items-center justify-center text-[7px] text-white font-extrabold absolute right-4 top-1/2 -translate-y-1/2 animate-pulse" title="Demande en attente admin" />
+                        ) : (
+                          <span className="w-2 h-2 bg-red-600 border border-white rounded-full flex items-center justify-center absolute right-1.5 top-1.5 animate-pulse" title="Demande en attente admin" />
+                        )
+                      )}
+                      {isActive && (
+                        <motion.div 
+                          layoutId="active-indicator"
+                          className="absolute left-0 w-1.5 h-full bg-[#ffd700] shadow-[0_0_8px_#ffd700]" 
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </nav>
 
         <div className={cn("p-4 border-t border-[#141414]/10 space-y-2", !isOpen && "px-2 text-center")}>
