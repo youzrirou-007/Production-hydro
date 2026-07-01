@@ -13,6 +13,7 @@ import { ExplicationNonRealise } from './pages/ExplicationNonRealise';
 import { Analytics } from './pages/Analytics';
 import { Messages } from './pages/Messages';
 import { TechniqueMiniere } from './pages/TechniqueMiniere';
+import { EspaceDT } from './pages/EspaceDT';
 import { Factory, ShieldCheck, Mail, LogIn, HardHat } from 'lucide-react';
 
 const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
@@ -99,6 +100,7 @@ const AppContent: React.FC = () => {
       case 'explication_non_realise':
       case 'explications': return <ExplicationNonRealise />;
       case 'technique': return <TechniqueMiniere />;
+      case 'espace_dt': return <EspaceDT />;
       case 'admin': return <Admin />;
       default: return <Production />;
     }

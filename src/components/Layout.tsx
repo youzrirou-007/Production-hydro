@@ -28,7 +28,8 @@ import {
   Wrench,
   Mail,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Crown
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
@@ -49,26 +50,35 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   roles?: string[];
-  category: 'production' | 'admin' | 'analyse';
+  category: 'production' | 'ingenierie' | 'analyse' | 'admin';
 }
 
 const NAV_ITEMS: NavItem[] = [
-  // CORE PRODUCTION
+  // OPÉRATIONS CHANTIER
   { id: 'production', label: 'Registre Journalier', icon: <Plus className="w-5 h-5" />, category: 'production' },
-  { id: 'daily_report', label: 'Rapport Consolidé', icon: <Layers className="w-5 h-5" />, category: 'production' },
   { id: 'chantiers', label: 'Chantiers', icon: <MapPin className="w-5 h-5" />, category: 'production' },
   { id: 'planning', label: 'Planification', icon: <Calendar className="w-5 h-5" />, category: 'production' },
   { id: 'rotation', label: 'Changement de Poste', icon: <RefreshCw className="w-5 h-5" />, category: 'production' },
   { id: 'explications', label: 'Explications', icon: <AlertTriangle className="w-5 h-5" />, category: 'production' },
-  { id: 'technique', label: '📐 Technique Minière', icon: <Wrench className="w-5 h-5" />, category: 'production' },
-  { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'production' },
   
-  // ANALYSE
+  // INGÉNIERIE & RÈGLEMENTS
+  { id: 'technique', label: '📐 Technique Minière', icon: <Wrench className="w-5 h-5" />, category: 'ingenierie' },
+  { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'ingenierie' },
+  
+  // ANALYSE & PERFORMANCE
+  { id: 'daily_report', label: 'Rapport Consolidé', icon: <Layers className="w-5 h-5" />, category: 'analyse' },
   { id: 'analytics', label: '📊 Analytique', icon: <BarChart3 className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_strategie', label: 'Pilotage & Stratégie', icon: <Activity className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_terrain', label: 'Performance Terrain', icon: <Layers className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_rh', label: 'Ressources Humaines', icon: <HardHat className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_logistique', label: 'Matériel & Historiques', icon: <Wrench className="w-5 h-5" />, category: 'analyse' },
+  {
+    id: 'espace_dt',
+    label: 'Espace Directeur Technique',
+    icon: <Crown className="w-5 h-5" />,
+    roles: ['admin', 'direction_technique'],
+    category: 'analyse'
+  },
 
   // ADMIN
   { id: 'admin', label: 'Administration', icon: <Users className="w-5 h-5" />, roles: ['admin'], category: 'admin' },
@@ -330,8 +340,9 @@ export const Layout: React.FC<{
   );
 
   const categories = [
-    { id: 'production', label: 'Production Core' },
-    { id: 'analyse', label: 'Analyses' },
+    { id: 'production', label: 'Opérations Chantier' },
+    { id: 'ingenierie', label: 'Ingénierie & Consignes' },
+    { id: 'analyse', label: 'Analyses & Performance' },
     { id: 'admin', label: 'Administration' },
   ];
 

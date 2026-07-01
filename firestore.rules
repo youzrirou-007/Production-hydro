@@ -167,5 +167,16 @@ service cloud.firestore {
       allow update: if isSignedIn();
       allow delete: if isSignedIn() && hasRole(['admin', 'direction']);
     }
+
+    // Attachements & Fiabilité
+    match /attachements/{attachementId} {
+      allow read: if isSignedIn() && hasRole([
+        'admin', 'direction', 'direction_technique'
+      ]);
+      allow create, update: if isSignedIn() && hasRole([
+        'admin', 'direction_technique'
+      ]);
+      allow delete: if isSignedIn() && hasRole(['admin']);
+    }
   }
 }

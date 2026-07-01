@@ -4,7 +4,7 @@ import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, GoogleAuthPr
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 interface UserProfile {
-  role: 'secretary' | 'responsible' | 'chief' | 'direction' | 'admin';
+  role: 'secretary' | 'responsible' | 'chief' | 'direction' | 'admin' | 'direction_technique';
   siteIds: string[];
   name: string;
 }
