@@ -548,7 +548,7 @@ export const HOLES_DATA_9: HoleInfo[] = [
     y: 200,
     type: 'g3',
     label: '3',
-    desc: 'Élargissement 3ème niveau (75ms). Débarrasse l\'épaule intermédiaire gauche.',
+    desc: 'Dernier élargissement (75ms). Nettoie les bords et finalise le vide central avant les tirs de contour.',
     delay: 75
   },
   {
@@ -558,7 +558,7 @@ export const HOLES_DATA_9: HoleInfo[] = [
     y: 200,
     type: 'g3',
     label: '3',
-    desc: 'Élargissement 3ème niveau (75ms). Débarrasse l\'épaule intermédiaire droite.',
+    desc: 'Dernier élargissement (75ms). Nettoie les bords et finalise le vide central avant les tirs de contour.',
     delay: 75
   },
   {
@@ -568,7 +568,7 @@ export const HOLES_DATA_9: HoleInfo[] = [
     y: 500,
     type: 'g3',
     label: '3',
-    desc: 'Élargissement 3ème niveau (75ms). Prépare l\'angle inférieur gauche.',
+    desc: 'Dernier élargissement (75ms). Nettoie les bords et finalise le vide central avant les tirs de contour.',
     delay: 75
   },
   {
@@ -578,7 +578,7 @@ export const HOLES_DATA_9: HoleInfo[] = [
     y: 500,
     type: 'g3',
     label: '3',
-    desc: 'Élargissement 3ème niveau (75ms). Prépare l\'angle inférieur droit.',
+    desc: 'Dernier élargissement (75ms). Nettoie les bords et finalise le vide central avant les tirs de contour.',
     delay: 75
   },
 

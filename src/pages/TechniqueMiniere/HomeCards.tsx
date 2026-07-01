@@ -79,7 +79,7 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
                 12 m²
               </h2>
               <p className="text-xs font-bold uppercase text-amber-600 tracking-widest mt-1">
-                Galerie souterraine standard (3.5m x 3.5m)
+                Galerie souterraine standard — 4.0m x 3.0m
               </p>
             </div>
 
@@ -164,16 +164,16 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
                 9 m²
               </h2>
               <p className="text-xs font-bold uppercase text-amber-600 tracking-widest mt-1">
-                Galerie de reconnaissance (2.8m x 2.8m)
+                Galerie de reconnaissance — 3.0m x 3.0m
               </p>
             </div>
 
             {/* Mini SVG representation of 28 holes */}
             <div className="bg-slate-950/95 rounded-2xl p-4 flex items-center justify-center h-32 relative border border-slate-800 overflow-hidden shadow-inner">
               <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]" />
-              <svg viewBox="200 100 600 500" className="w-full h-full max-h-24">
+              <svg viewBox="250 120 500 420" className="w-full h-full max-h-24">
                 <path
-                  d="M 220,540 L 220,300 A 280,280 0 0,1 780,300 L 780,540 Z"
+                  d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
                   fill="none"
                   stroke="#334155"
                   strokeWidth="3.5"

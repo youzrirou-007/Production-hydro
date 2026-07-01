@@ -221,7 +221,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     {
       title: "Finition (100-125ms)",
       time: "100-125 ms",
-      desc: "Tirs de contour : les 4 trous de radier et les 4 trous de parements explosent à 100ms (détonateur 4), suivis des 3 trous de voûte contrôlée à 125ms (détonateur 5). Profil final : parois verticales (parements), sol plat (radier) et voûte en arc de cercle (voûte). La galerie 9m² est formée."
+      desc: "Tirs de contour : radier et parements à 100ms (détonateur 4), voûte à 125ms (détonateur 5). Profil final : parois verticales (parements), sol plat (radier) et voûte en arc de cercle (voûte). La galerie 9m² est formée."
     }
   ];
 
