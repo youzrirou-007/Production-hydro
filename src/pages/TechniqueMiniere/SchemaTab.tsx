@@ -171,12 +171,61 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   };
 
   // Generate stable dynamic organic void path with jagged raw rock edges
-  const getOrganicVoidPath = (cx: number, cy: number, r: number) => {
-    if (r <= 0) return "";
+  const getOrganicVoidPath = (cx: number, cy: number, step: number, offset: number) => {
+    if (step <= 0) return "";
     const points = [];
     const numPoints = 36; // high frequency jaggedness
     for (let i = 0; i < numPoints; i++) {
       const angle = (i * (360 / numPoints)) * Math.PI / 180;
+      
+      // Determine the precise target radius for this angle and step
+      let r = 0;
+      if (gabarit === '9m2') {
+        switch (step) {
+          case 1: // Bouchon central
+            r = 45;
+            break;
+          case 2: // G1
+            r = 90;
+            break;
+          case 3: // G2
+            r = 140;
+            break;
+          case 4: // G3 (cloverleaf / star shape to reach diagonal G3 and avoid G4/radier)
+            // Diagonals need to reach ~210. Orthogonals stay smaller (~130) to avoid radier and outer boundary
+            r = 175 - 45 * Math.cos(4 * angle) - 20 * Math.max(0, Math.sin(angle));
+            break;
+          default:
+            r = 140;
+        }
+      } else {
+        // 12m2
+        switch (step) {
+          case 1: // Bouchon central
+            r = 60;
+            break;
+          case 2: // G1
+            r = 120;
+            break;
+          case 3: // G2
+            r = 190;
+            break;
+          case 4: // G3 (cloverleaf/star shape to reach diagonal G3 but avoid G4/radier)
+            // Diagonals reach ~275, orthogonals stay smaller (~160) to avoid G4 and radier
+            r = 215 - 55 * Math.cos(4 * angle) - 15 * Math.max(0, Math.sin(angle));
+            break;
+          case 5: // G4 (cross shape to reach G4 but avoid finishing boundary)
+            // Right/Left (0, pi): ~330. Top (3pi/2): ~270. Bottom (pi/2): ~195.
+            r = 250 + 80 * Math.abs(Math.cos(angle)) + 20 * Math.max(0, -Math.sin(angle)) - 55 * Math.max(0, Math.sin(angle));
+            break;
+          default:
+            r = 190;
+        }
+      }
+
+      // Add the offset (e.g. +3 for outer rim shadow)
+      r += offset;
+
       const seed = (i * 13) % 7;
       const baseVariation = 0.95 + (seed / 140); // small organic swell
       
@@ -482,11 +531,14 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     return { amplitude: 3, duration: 0.15 }; // G1-G4 (Moyenne)
   })();
 
+  // Dynamic zoom viewBox with expanded empty margins at top and bottom for optimal vertical space
+  const dynamicViewBox = gabarit === '9m2' ? "210 -10 580 580" : "0 -180 1000 920";
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
       
-      {/* LEFT COLUMN: THE CORE SVG PLAN DE TIR (8 Columns) */}
-      <div className="lg:col-span-8 space-y-6 flex flex-col justify-between">
+      {/* LEFT COLUMN: THE CORE SVG PLAN DE TIR (9 Columns) */}
+      <div className="lg:col-span-9 space-y-6 flex flex-col justify-between">
         
         {/* Toggle Rod type bar */}
         <div className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-2xl p-4">
@@ -524,7 +576,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
         </div>
 
         {/* INTERACTIVE SVG STAGE */}
-        <div className="bg-slate-950 rounded-3xl border border-slate-850 p-4 relative shadow-2xl flex items-center justify-center overflow-hidden min-h-[480px]">
+        <div className="bg-slate-950 rounded-3xl border border-slate-850 p-6 relative shadow-2xl flex items-center justify-center overflow-hidden">
           
           {/* Legend absolute inside top right */}
           <div className="absolute top-4 left-4 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-[9px] font-bold text-slate-400 uppercase tracking-wider space-y-1 z-10">
@@ -541,7 +593,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
             <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> Voûte : 125ms</p>
           </div>
 
-          <svg viewBox="0 0 1000 700" className="w-full h-auto select-none">
+          <svg viewBox={dynamicViewBox} className="w-full h-auto select-none">
             <defs>
               {/* Rocky Dark Granite Pattern */}
               <pattern id="granite-rock" width="120" height="120" patternUnits="userSpaceOnUse">
@@ -636,7 +688,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               transition={{ duration: shake.duration, ease: "easeInOut" }}
             >
               {/* Background of the overall tunnel face (solid rock block) */}
-              <rect width="1000" height="700" fill="url(#granite-rock)" />
+              <rect x="-1000" y="-1000" width="3000" height="3000" fill="url(#granite-rock)" />
 
               {/* Gallery Tunnel Face Silhouette */}
               {gabarit === '9m2' ? (
@@ -682,7 +734,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                   {/* Outer glow/rim shadow */}
                   <motion.path
                     key={`organic-void-bg-${gabarit}`}
-                    d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, getCavityRadius() + 3)}
+                    d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, activeStep, 3)}
                     fill="none"
                     stroke="#475569"
                     strokeWidth="4"
@@ -692,7 +744,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                   {/* The jagged raw rock void itself */}
                   <motion.path
                     key={`organic-void-${gabarit}`}
-                    d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, getCavityRadius())}
+                    d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, activeStep, 0)}
                     fill="url(#void-backlight)"
                     stroke="#ffffff"
                     strokeWidth="2"
@@ -799,29 +851,29 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                         <circle
                           cx={hole.x}
                           cy={hole.y}
-                          r="10"
+                          r={gabarit === '9m2' ? "6" : "10"}
                           fill="#1a1a2e"
                           stroke="#4b5563"
                           strokeWidth="1.5"
                           strokeDasharray="3,2"
                         />
                         {/* Radial cracking lines */}
-                        <line x1={hole.x - 14} y1={hole.y} x2={hole.x - 6} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
-                        <line x1={hole.x + 6} y1={hole.y} x2={hole.x + 14} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
-                        <line x1={hole.x} y1={hole.y - 14} x2={hole.x} y2={hole.y - 6} stroke="#4b5563" strokeWidth="1.5" />
-                        <line x1={hole.x} y1={hole.y + 6} x2={hole.x} y2={hole.y + 14} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x - (gabarit === '9m2' ? 9 : 14)} y1={hole.y} x2={hole.x - (gabarit === '9m2' ? 4 : 6)} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x + (gabarit === '9m2' ? 4 : 6)} y1={hole.y} x2={hole.x + (gabarit === '9m2' ? 9 : 14)} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x} y1={hole.y - (gabarit === '9m2' ? 9 : 14)} x2={hole.x} y2={hole.y - (gabarit === '9m2' ? 4 : 6)} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x} y1={hole.y + (gabarit === '9m2' ? 4 : 6)} x2={hole.x} y2={hole.y + (gabarit === '9m2' ? 9 : 14)} stroke="#4b5563" strokeWidth="1.5" />
                         
                         {/* Diagonal cracking lines */}
-                        <line x1={hole.x - 10} y1={hole.y - 10} x2={hole.x - 4} y2={hole.y - 4} stroke="#4b5563" strokeWidth="1" />
-                        <line x1={hole.x + 4} y1={hole.y + 4} x2={hole.x + 10} y2={hole.y + 10} stroke="#4b5563" strokeWidth="1" />
-                        <line x1={hole.x + 4} y1={hole.y - 4} x2={hole.x + 10} y2={hole.y - 10} stroke="#4b5563" strokeWidth="1" />
-                        <line x1={hole.x - 10} y1={hole.y + 10} x2={hole.x - 4} y2={hole.y + 4} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x - (gabarit === '9m2' ? 6 : 10)} y1={hole.y - (gabarit === '9m2' ? 6 : 10)} x2={hole.x - (gabarit === '9m2' ? 3 : 4)} y2={hole.y - (gabarit === '9m2' ? 3 : 4)} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x + (gabarit === '9m2' ? 3 : 4)} y1={hole.y + (gabarit === '9m2' ? 3 : 4)} x2={hole.x + (gabarit === '9m2' ? 6 : 10)} y2={hole.y + (gabarit === '9m2' ? 6 : 10)} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x + (gabarit === '9m2' ? 3 : 4)} y1={hole.y - (gabarit === '9m2' ? 3 : 4)} x2={hole.x + (gabarit === '9m2' ? 6 : 10)} y2={hole.y - (gabarit === '9m2' ? 6 : 10)} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x - (gabarit === '9m2' ? 6 : 10)} y1={hole.y + (gabarit === '9m2' ? 3 : 4)} x2={hole.x - (gabarit === '9m2' ? 3 : 4)} y2={hole.y + (gabarit === '9m2' ? 6 : 10)} stroke="#4b5563" strokeWidth="1" />
                         
                         {/* Central hot spot */}
                         <circle
                           cx={hole.x}
                           cy={hole.y}
-                          r="3"
+                          r={gabarit === '9m2' ? "2" : "3"}
                           fill="#ef4444"
                           opacity="0.6"
                         />
@@ -839,7 +891,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                                 key={s.id}
                                 cx={hole.x}
                                 cy={hole.y}
-                                r={s.size}
+                                r={gabarit === '9m2' ? s.size * 0.6 : s.size}
                                 fill="#4b5563"
                                 initial={{ x: 0, y: 0, opacity: 0.6, scale: 0.6 }}
                                 animate={{ x: s.tx, y: s.ty, opacity: 0, scale: 1.5 }}
@@ -855,23 +907,48 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 
                     {/* Active hole's physical circle */}
                     {status !== 'exploded' && (
-                      <circle
-                        cx={hole.x}
-                        cy={hole.y}
-                        r={hoveredHole?.id === hole.id ? "24" : "18"}
-                        className={`${getHoleColorClasses(hole, status)} transition-all duration-300 cursor-pointer stroke-[3.5px]`}
-                        onMouseEnter={() => setHoveredHole(hole)}
-                        onMouseLeave={() => setHoveredHole(null)}
-                      />
+                      <>
+                        {/* High-tech glow ring for unexploded holes (Solution C) */}
+                        {status === 'normal' && (
+                          <motion.circle
+                            cx={hole.x}
+                            cy={hole.y}
+                            r={gabarit === '9m2' ? "17" : "26"}
+                            fill="none"
+                            stroke={getHoleColorHex(hole)}
+                            strokeWidth="1.5"
+                            opacity="0.3"
+                            animate={{
+                              scale: [0.95, 1.12, 0.95],
+                              opacity: [0.25, 0.5, 0.25]
+                            }}
+                            transition={{
+                              duration: 2 + (hole.x % 3) * 0.4,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            }}
+                            pointerEvents="none"
+                          />
+                        )}
+                        <circle
+                          cx={hole.x}
+                          cy={hole.y}
+                          r={hoveredHole?.id === hole.id ? (gabarit === '9m2' ? "16" : "24") : (gabarit === '9m2' ? "11.5" : "18")}
+                          className={`${getHoleColorClasses(hole, status)} transition-all duration-300 cursor-pointer stroke-[3.5px]`}
+                          onMouseEnter={() => setHoveredHole(hole)}
+                          onMouseLeave={() => setHoveredHole(null)}
+                        />
+                      </>
                     )}
 
                     {/* Text label index inside the circle */}
                     {status !== 'exploded' && (
                       <text
                         x={hole.x}
-                        y={hole.y + 5}
+                        y={gabarit === '9m2' ? hole.y + 3.5 : hole.y + 5}
                         textAnchor="middle"
-                        className="font-black text-[12px] uppercase tracking-tighter fill-current select-none pointer-events-none"
+                        className="font-black uppercase tracking-tighter fill-current select-none pointer-events-none"
+                        style={{ fontSize: gabarit === '9m2' ? '8px' : '12px' }}
                         fill={
                           hole.type === 'vide'
                             ? '#1e293b'
@@ -891,8 +968,8 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                         <motion.circle
                           cx={hole.x}
                           cy={hole.y}
-                          initial={{ r: 20, opacity: 0.8 }}
-                          animate={{ r: 80, opacity: 0 }}
+                          initial={{ r: gabarit === '9m2' ? 12 : 20, opacity: 0.8 }}
+                          animate={{ r: gabarit === '9m2' ? 50 : 80, opacity: 0 }}
                           transition={{ duration: 0.5, ease: "easeOut" }}
                           fill="url(#blast-glow)"
                           pointerEvents="none"
@@ -902,7 +979,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                         <circle
                           cx={hole.x}
                           cy={hole.y}
-                          r="35"
+                          r={gabarit === '9m2' ? "22" : "35"}
                           fill="rgba(245, 158, 11, 0.35)"
                           className="animate-ping"
                         />
@@ -911,8 +988,8 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                         <motion.circle
                           cx={hole.x}
                           cy={hole.y}
-                          initial={{ r: 15, opacity: 0.9 }}
-                          animate={{ r: 50, opacity: 0 }}
+                          initial={{ r: gabarit === '9m2' ? 9 : 15, opacity: 0.9 }}
+                          animate={{ r: gabarit === '9m2' ? 32 : 50, opacity: 0 }}
                           transition={{ duration: 0.5, ease: "easeOut" }}
                           fill="none"
                           stroke="#fbbf24"
@@ -971,44 +1048,44 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               })}
             </motion.g>
           </svg>
+        </div>
 
-          {/* ACTIVE HOVER DETAIL BOARD */}
-          <div className="absolute bottom-4 left-4 right-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 text-xs font-semibold text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            {hoveredHole ? (
-              <div className="space-y-1 w-full">
-                <div className="flex items-center gap-2">
-                  <span className={`w-3 h-3 rounded-full ${
-                    hoveredHole.type === 'vide' ? 'bg-white border' : 'bg-amber-400'
-                  }`} />
-                  <span className="font-black uppercase tracking-wider text-amber-400">
-                    {hoveredHole.name}
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-300 uppercase">
-                  <p>Type: <span className="font-extrabold text-white">{hoveredHole.type}</span></p>
-                  <p>Délai: <span className="font-extrabold text-white">{hoveredHole.delay} ms</span></p>
-                  {hoveredHole.type !== 'vide' && (
-                    <p className="text-amber-300 flex items-center gap-1 font-black">
-                      🎯 Vecteur de poussée : VERS LE VIDE CENTRAL
-                    </p>
-                  )}
-                </div>
-                <p className="text-slate-400 text-[10.5px] font-medium leading-relaxed italic border-t border-slate-800/60 pt-1.5 mt-1">
-                  {hoveredHole.desc}
-                </p>
+        {/* ACTIVE HOVER DETAIL BOARD */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-xs font-semibold text-white shadow-xl">
+          {hoveredHole ? (
+            <div className="space-y-1.5 w-full">
+              <div className="flex items-center gap-2">
+                <span className={`w-3 h-3 rounded-full ${
+                  hoveredHole.type === 'vide' ? 'bg-white border' : 'bg-amber-400'
+                }`} />
+                <span className="font-black uppercase tracking-wider text-amber-400 text-sm">
+                  {hoveredHole.name}
+                </span>
               </div>
-            ) : (
-              <div className="text-slate-400 font-medium italic py-2 flex items-center gap-2">
-                <Info className="w-4 h-4 text-slate-400 shrink-0" />
-                Survolez un trou de forage sur le schéma pour analyser son délai, sa fonction et le vecteur de poussée mécanique.
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-300 uppercase">
+                <p>Type: <span className="font-extrabold text-white">{hoveredHole.type}</span></p>
+                <p>Délai: <span className="font-extrabold text-white">{hoveredHole.delay} ms</span></p>
+                {hoveredHole.type !== 'vide' && (
+                  <p className="text-amber-300 flex items-center gap-1 font-black">
+                    🎯 Vecteur de poussée : VERS LE VIDE CENTRAL
+                  </p>
+                )}
               </div>
-            )}
-          </div>
+              <p className="text-slate-400 text-[11px] font-medium leading-relaxed italic border-t border-slate-800/60 pt-2 mt-1.5">
+                {hoveredHole.desc}
+              </p>
+            </div>
+          ) : (
+            <div className="text-slate-400 font-medium italic py-2 flex items-center gap-2">
+              <Info className="w-4 h-4 text-slate-400 shrink-0 animate-pulse" />
+              Survolez un trou de forage sur le schéma pour analyser son délai, sa fonction et le vecteur de poussée mécanique.
+            </div>
+          )}
         </div>
       </div>
 
-      {/* RIGHT COLUMN: TIMELINE & FOOTAGE METERS (4 Columns) */}
-      <div className="lg:col-span-4 flex flex-col justify-between space-y-6">
+      {/* RIGHT COLUMN: TIMELINE & FOOTAGE METERS (3 Columns) */}
+      <div className="lg:col-span-3 flex flex-col justify-between space-y-6">
         
         {/* PROGRESS METRAGE PANEL */}
         <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 space-y-4">

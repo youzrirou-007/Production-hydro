@@ -150,6 +150,21 @@ interface ExcelMaintenance {
   workDescription: string;
 }
 
+interface ExcelBoulonnage {
+  sectorGroup?: string;
+  chantierId: string;
+  minerMatricule: string;
+  minerName: string;
+  assistantMatricule: string;
+  assistantName: string;
+  type: 'Boulonnage' | 'Soutenement';
+  plannedBolts: number;
+  realBolts: number;
+  hasGrillage: boolean;
+  grillageQuantity: number;
+  remarks?: string;
+}
+
 interface ExcelRow<T> {
   rowId: string;
   plan: T;
@@ -173,6 +188,16 @@ interface EmployeeCellProps {
 const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, employees, placeholder = "Matricule...", hideNameLabel = false, onKeyDown, disabled = false }) => {
   const [typed, setTyped] = React.useState(matricule || '');
   const [isOpen, setIsOpen] = React.useState(false);
+
+  const typedRef = React.useRef(typed);
+  React.useEffect(() => {
+    typedRef.current = typed;
+  }, [typed]);
+
+  const matriculeRef = React.useRef(matricule);
+  React.useEffect(() => {
+    matriculeRef.current = matricule;
+  }, [matricule]);
 
   React.useEffect(() => {
     setTyped(matricule || '');
@@ -260,19 +285,20 @@ const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, 
           onBlur={() => {
             setTimeout(() => {
               setIsOpen(false);
+              const q = typedRef.current.trim().toUpperCase();
               const matched = activeEmps.find(
-                emp => (emp.matricule || '').toUpperCase().trim() === typed.toUpperCase().trim() ||
-                       `${emp.nom || ''} ${emp.prenom || ''}`.toUpperCase().trim() === typed.toUpperCase().trim() ||
-                       `${emp.prenom || ''} ${emp.nom || ''}`.toUpperCase().trim() === typed.toUpperCase().trim()
+                emp => (emp.matricule || '').toUpperCase().trim() === q ||
+                       `${emp.nom || ''} ${emp.prenom || ''}`.toUpperCase().trim() === q ||
+                       `${emp.prenom || ''} ${emp.nom || ''}`.toUpperCase().trim() === q
               );
               if (matched) {
                 setTyped(matched.matricule);
                 onChange(matched.matricule, `${matched.nom} ${matched.prenom}`);
               } else {
-                if (typed.trim() === '') {
+                if (q === '') {
                   onChange('', '');
                 } else {
-                  setTyped(matricule || '');
+                  setTyped(matriculeRef.current || '');
                 }
               }
             }, 250);
@@ -300,7 +326,8 @@ const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, 
               <button
                 key={emp.id || emp.matricule}
                 type="button"
-                onMouseDown={() => {
+                onMouseDown={(e) => {
+                  e.preventDefault();
                   handleSelect(emp);
                 }}
                 className="w-full text-left px-2 py-1 hover:bg-sky-50 transition-colors flex items-center justify-between text-[10px]"
@@ -388,7 +415,7 @@ export const Production: React.FC = () => {
   
   // App views: 'sheet' (Excel Mode) or 'history' (Consolidated list)
   const [viewMode, setViewMode] = useState<'sheet' | 'history'>('sheet');
-  const [activeSheetTab, setActiveSheetTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance'>('minage');
+  const [activeSheetTab, setActiveSheetTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance' | 'boulonnage'>('minage');
   
   // Core filters
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -491,6 +518,7 @@ export const Production: React.FC = () => {
   // Excel grids state for Poste 1
   const [p1MinageRows, setP1MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
   const [p1DeblayageRows, setP1DeblayageRows] = useState<ExcelRow<ExcelDeblayage>[]>([]);
+  const [p1BoulonnageRows, setP1BoulonnageRows] = useState<ExcelRow<ExcelBoulonnage>[]>([]);
   const [p1ExtractionRowsRaw, setP1ExtractionRowsRaw] = useState<ExcelRow<ExcelExtraction>[]>([]);
   const [p1MaintenanceRows, setP1MaintenanceRows] = useState<ExcelRow<ExcelMaintenance>[]>([]);
   const [p1ChiefMatricule, setP1ChiefMatricule] = useState<string>('');
@@ -507,6 +535,7 @@ export const Production: React.FC = () => {
   // Excel grids state for Poste 2
   const [p2MinageRows, setP2MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
   const [p2DeblayageRows, setP2DeblayageRows] = useState<ExcelRow<ExcelDeblayage>[]>([]);
+  const [p2BoulonnageRows, setP2BoulonnageRows] = useState<ExcelRow<ExcelBoulonnage>[]>([]);
   const [p2ExtractionRowsRaw, setP2ExtractionRowsRaw] = useState<ExcelRow<ExcelExtraction>[]>([]);
   const [p2MaintenanceRows, setP2MaintenanceRows] = useState<ExcelRow<ExcelMaintenance>[]>([]);
   const [p2ChiefMatricule, setP2ChiefMatricule] = useState<string>('');
@@ -523,6 +552,7 @@ export const Production: React.FC = () => {
   // Excel grids state for Poste 3
   const [p3MinageRows, setP3MinageRows] = useState<ExcelRow<ExcelMinage>[]>([]);
   const [p3DeblayageRows, setP3DeblayageRows] = useState<ExcelRow<ExcelDeblayage>[]>([]);
+  const [p3BoulonnageRows, setP3BoulonnageRows] = useState<ExcelRow<ExcelBoulonnage>[]>([]);
   const [p3ExtractionRowsRaw, setP3ExtractionRowsRaw] = useState<ExcelRow<ExcelExtraction>[]>([]);
   const [p3MaintenanceRows, setP3MaintenanceRows] = useState<ExcelRow<ExcelMaintenance>[]>([]);
   const [p3ChiefMatricule, setP3ChiefMatricule] = useState<string>('');
@@ -669,6 +699,21 @@ export const Production: React.FC = () => {
     engineCode: '',
     hoursSpent: 0,
     workDescription: ''
+  });
+
+  const createEmptyBoulonnage = (sector: string = ''): ExcelBoulonnage => ({
+    sectorGroup: sector,
+    chantierId: '',
+    minerMatricule: '',
+    minerName: '',
+    assistantMatricule: '',
+    assistantName: '',
+    type: 'Boulonnage',
+    plannedBolts: 20,
+    realBolts: 0,
+    hasGrillage: false,
+    grillageQuantity: 0,
+    remarks: ''
   });
 
   const normalizeLoadedExtraction = (rows: ExcelRow<ExcelExtraction>[]): ExcelRow<ExcelExtraction>[] => {
@@ -860,6 +905,9 @@ export const Production: React.FC = () => {
       if (type === 'maintenance') {
         return !!(item.agentMatricule || item.roleLabel);
       }
+      if (type === 'boulonnage') {
+        return !!(item.chantierId || item.minerMatricule);
+      }
       return true;
     });
   };
@@ -909,7 +957,9 @@ export const Production: React.FC = () => {
       reel: createEmptyMaintenance()
     }));
 
-    return { minage, deblayage, extraction, maintenance };
+    const boulonnage: ExcelRow<ExcelBoulonnage>[] = [];
+
+    return { minage, deblayage, extraction, maintenance, boulonnage };
   };
 
   // Local draft state to prevent losing inputted data
@@ -1490,6 +1540,7 @@ export const Production: React.FC = () => {
         if (p1Data) {
           setP1MinageRows(mapToExcelRowArray(p1Data.minage || [], createEmptyMinage));
           setP1DeblayageRows(mapToExcelRowArray(p1Data.deblayage || [], createEmptyDeblayage));
+          setP1BoulonnageRows(mapToExcelRowArray(p1Data.boulonnage || [], createEmptyBoulonnage));
           setP1ExtractionRows(mapToExcelRowArray(p1Data.extraction || [], createEmptyExtraction));
           setP1MaintenanceRows(mapToExcelRowArray(p1Data.maintenance || [], createEmptyMaintenance));
           setP1ChiefMatricule(p1Data.chiefMatricule || '');
@@ -1501,6 +1552,7 @@ export const Production: React.FC = () => {
           const defaults = generateSaisieLibreDefaults('Poste 1');
           setP1MinageRows(defaults.minage);
           setP1DeblayageRows(defaults.deblayage);
+          setP1BoulonnageRows(defaults.boulonnage);
           setP1ExtractionRows(defaults.extraction);
           setP1MaintenanceRows(defaults.maintenance);
           setP1ChiefMatricule(''); setP1ChiefName('');
@@ -1513,6 +1565,7 @@ export const Production: React.FC = () => {
         if (p2Data) {
           setP2MinageRows(mapToExcelRowArray(p2Data.minage || [], createEmptyMinage));
           setP2DeblayageRows(mapToExcelRowArray(p2Data.deblayage || [], createEmptyDeblayage));
+          setP2BoulonnageRows(mapToExcelRowArray(p2Data.boulonnage || [], createEmptyBoulonnage));
           setP2ExtractionRows(mapToExcelRowArray(p2Data.extraction || [], createEmptyExtraction));
           setP2MaintenanceRows(mapToExcelRowArray(p2Data.maintenance || [], createEmptyMaintenance));
           setP2ChiefMatricule(p2Data.chiefMatricule || '');
@@ -1524,6 +1577,7 @@ export const Production: React.FC = () => {
           const defaults = generateSaisieLibreDefaults('Poste 2');
           setP2MinageRows(defaults.minage);
           setP2DeblayageRows(defaults.deblayage);
+          setP2BoulonnageRows(defaults.boulonnage);
           setP2ExtractionRows(defaults.extraction);
           setP2MaintenanceRows(defaults.maintenance);
           setP2ChiefMatricule(''); setP2ChiefName('');
@@ -1536,6 +1590,7 @@ export const Production: React.FC = () => {
         if (p3Data) {
           setP3MinageRows(mapToExcelRowArray(p3Data.minage || [], createEmptyMinage));
           setP3DeblayageRows(mapToExcelRowArray(p3Data.deblayage || [], createEmptyDeblayage));
+          setP3BoulonnageRows(mapToExcelRowArray(p3Data.boulonnage || [], createEmptyBoulonnage));
           setP3ExtractionRows(mapToExcelRowArray(p3Data.extraction || [], createEmptyExtraction));
           setP3MaintenanceRows(mapToExcelRowArray(p3Data.maintenance || [], createEmptyMaintenance));
           setP3ChiefMatricule(p3Data.chiefMatricule || '');
@@ -1547,6 +1602,7 @@ export const Production: React.FC = () => {
           const defaults = generateSaisieLibreDefaults('Poste 3');
           setP3MinageRows(defaults.minage);
           setP3DeblayageRows(defaults.deblayage);
+          setP3BoulonnageRows(defaults.boulonnage);
           setP3ExtractionRows(defaults.extraction);
           setP3MaintenanceRows(defaults.maintenance);
           setP3ChiefMatricule(''); setP3ChiefName('');
@@ -1573,6 +1629,8 @@ export const Production: React.FC = () => {
             setP1MinageRows(p1Min);
             const p1Deb = generateFromPlan(filterRealPlannedRows(p1Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 1', 'deblayage');
             setP1DeblayageRows(p1Deb);
+            const p1Bou = generateFromPlan(filterRealPlannedRows(p1Plan.boulonnage || [], 'boulonnage'), createEmptyBoulonnage, 'Poste 1', 'boulonnage');
+            setP1BoulonnageRows(p1Bou);
             const p1Ext = generateFromPlan(filterRealPlannedRows(p1Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 1', 'extraction');
             setP1ExtractionRows(p1Ext);
             const p1Maint = generateFromPlan(filterRealPlannedRows(p1Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 1', 'maintenance');
@@ -1585,6 +1643,7 @@ export const Production: React.FC = () => {
           } else {
             setP1MinageRows([]);
             setP1DeblayageRows([]);
+            setP1BoulonnageRows([]);
             setP1ExtractionRows([]);
             setP1MaintenanceRows([]);
             setP1ChiefMatricule(''); setP1ChiefName('');
@@ -1599,6 +1658,8 @@ export const Production: React.FC = () => {
             setP2MinageRows(p2Min);
             const p2Deb = generateFromPlan(filterRealPlannedRows(p2Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 2', 'deblayage');
             setP2DeblayageRows(p2Deb);
+            const p2Bou = generateFromPlan(filterRealPlannedRows(p2Plan.boulonnage || [], 'boulonnage'), createEmptyBoulonnage, 'Poste 2', 'boulonnage');
+            setP2BoulonnageRows(p2Bou);
             const p2Ext = generateFromPlan(filterRealPlannedRows(p2Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 2', 'extraction');
             setP2ExtractionRows(p2Ext);
             const p2Maint = generateFromPlan(filterRealPlannedRows(p2Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 2', 'maintenance');
@@ -1611,6 +1672,7 @@ export const Production: React.FC = () => {
           } else {
             setP2MinageRows([]);
             setP2DeblayageRows([]);
+            setP2BoulonnageRows([]);
             setP2ExtractionRows([]);
             setP2MaintenanceRows([]);
             setP2ChiefMatricule(''); setP2ChiefName('');
@@ -1625,6 +1687,8 @@ export const Production: React.FC = () => {
             setP3MinageRows(p3Min);
             const p3Deb = generateFromPlan(filterRealPlannedRows(p3Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 3', 'deblayage');
             setP3DeblayageRows(p3Deb);
+            const p3Bou = generateFromPlan(filterRealPlannedRows(p3Plan.boulonnage || [], 'boulonnage'), createEmptyBoulonnage, 'Poste 3', 'boulonnage');
+            setP3BoulonnageRows(p3Bou);
             const p3Ext = generateFromPlan(filterRealPlannedRows(p3Plan.extraction || [], 'extraction'), createEmptyExtraction, 'Poste 3', 'extraction');
             setP3ExtractionRows(p3Ext);
             const p3Maint = generateFromPlan(filterRealPlannedRows(p3Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 3', 'maintenance');
@@ -1637,6 +1701,7 @@ export const Production: React.FC = () => {
           } else {
             setP3MinageRows([]);
             setP3DeblayageRows([]);
+            setP3BoulonnageRows([]);
             setP3ExtractionRows([]);
             setP3MaintenanceRows([]);
             setP3ChiefMatricule(''); setP3ChiefName('');
@@ -1653,6 +1718,7 @@ export const Production: React.FC = () => {
           const default1 = generateSaisieLibreDefaults('Poste 1');
           setP1MinageRows(default1.minage);
           setP1DeblayageRows(default1.deblayage);
+          setP1BoulonnageRows(default1.boulonnage);
           setP1ExtractionRows(default1.extraction);
           setP1MaintenanceRows(default1.maintenance);
           setP1ChiefMatricule(''); setP1ChiefName('');
@@ -1662,6 +1728,7 @@ export const Production: React.FC = () => {
           const default2 = generateSaisieLibreDefaults('Poste 2');
           setP2MinageRows(default2.minage);
           setP2DeblayageRows(default2.deblayage);
+          setP2BoulonnageRows(default2.boulonnage);
           setP2ExtractionRows(default2.extraction);
           setP2MaintenanceRows(default2.maintenance);
           setP2ChiefMatricule(''); setP2ChiefName('');
@@ -1671,6 +1738,7 @@ export const Production: React.FC = () => {
           const default3 = generateSaisieLibreDefaults('Poste 3');
           setP3MinageRows(default3.minage);
           setP3DeblayageRows(default3.deblayage);
+          setP3BoulonnageRows(default3.boulonnage);
           setP3ExtractionRows(default3.extraction);
           setP3MaintenanceRows(default3.maintenance);
           setP3ChiefMatricule(''); setP3ChiefName('');
@@ -1700,6 +1768,7 @@ export const Production: React.FC = () => {
       return {
         minageRows: p1MinageRows, setMinageRows: setP1MinageRows,
         deblayageRows: p1DeblayageRows, setDeblayageRows: setP1DeblayageRows,
+        boulonnageRows: p1BoulonnageRows, setBoulonnageRows: setP1BoulonnageRows,
         extractionRows: p1ExtractionRows, setExtractionRows: setP1ExtractionRows,
         maintenanceRows: p1MaintenanceRows, setMaintenanceRows: setP1MaintenanceRows,
         chiefMatricule: p1ChiefMatricule, setChiefMatricule: setP1ChiefMatricule,
@@ -1712,6 +1781,7 @@ export const Production: React.FC = () => {
       return {
         minageRows: p2MinageRows, setMinageRows: setP2MinageRows,
         deblayageRows: p2DeblayageRows, setDeblayageRows: setP2DeblayageRows,
+        boulonnageRows: p2BoulonnageRows, setBoulonnageRows: setP2BoulonnageRows,
         extractionRows: p2ExtractionRows, setExtractionRows: setP2ExtractionRows,
         maintenanceRows: p2MaintenanceRows, setMaintenanceRows: setP2MaintenanceRows,
         chiefMatricule: p2ChiefMatricule, setChiefMatricule: setP2ChiefMatricule,
@@ -1724,6 +1794,7 @@ export const Production: React.FC = () => {
       return {
         minageRows: p3MinageRows, setMinageRows: setP3MinageRows,
         deblayageRows: p3DeblayageRows, setDeblayageRows: setP3DeblayageRows,
+        boulonnageRows: p3BoulonnageRows, setBoulonnageRows: setP3BoulonnageRows,
         extractionRows: p3ExtractionRows, setExtractionRows: setP3ExtractionRows,
         maintenanceRows: p3MaintenanceRows, setMaintenanceRows: setP3MaintenanceRows,
         chiefMatricule: p3ChiefMatricule, setChiefMatricule: setP3ChiefMatricule,
@@ -2199,6 +2270,67 @@ export const Production: React.FC = () => {
     setMaintenanceRows(clone);
   };
 
+  const addBoulonnageRow = (postName: string) => {
+    const { setBoulonnageRows, boulonnageRows } = getPostState(postName);
+    setBoulonnageRows([
+      ...boulonnageRows,
+      {
+        rowId: `boulonnage_add_${Math.random().toString(36).substr(2, 9)}`,
+        plan: createEmptyBoulonnage(),
+        reel: createEmptyBoulonnage()
+      }
+    ]);
+  };
+
+  const deleteBoulonnageRow = (postName: string, index: number) => {
+    const { setBoulonnageRows } = getPostState(postName);
+    setBoulonnageRows(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateBoulonnageCell = (postName: string, index: number, field: keyof ExcelBoulonnage, value: any) => {
+    const { setBoulonnageRows, boulonnageRows } = getPostState(postName);
+    const clone = [...boulonnageRows];
+    const rowWrapper = clone[index];
+    const updatedReel = { ...rowWrapper.reel, [field]: value };
+
+    if (field === 'minerMatricule') {
+      const emp = activeEmployees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
+      updatedReel.minerName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+    }
+    if (field === 'assistantMatricule') {
+      const emp = activeEmployees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
+      updatedReel.assistantName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
+    }
+    if (field === 'chantierId') {
+      const foundChan = chantiers.find(c => c.id === value);
+      if (foundChan && foundChan.sector) {
+        updatedReel.sectorName = foundChan.sector;
+      }
+    }
+    clone[index] = { ...rowWrapper, reel: updatedReel };
+    setBoulonnageRows(clone);
+  };
+
+  const copyAllBoulonnagePlanToReel = (postName: string) => {
+    const { setBoulonnageRows, boulonnageRows } = getPostState(postName);
+    const updated = boulonnageRows.map(row => ({
+      ...row,
+      reel: {
+        ...row.reel,
+        minerMatricule: row.plan.minerMatricule || row.reel.minerMatricule || '',
+        minerName: row.plan.minerName || row.reel.minerName || '',
+        assistantMatricule: row.plan.assistantMatricule || row.reel.assistantMatricule || '',
+        assistantName: row.plan.assistantName || row.reel.assistantName || '',
+        type: row.plan.type || row.reel.type || 'Boulonnage',
+        realBolts: row.plan.plannedBolts !== undefined ? row.plan.plannedBolts : (row.reel.realBolts || 0),
+        grillageQuantity: row.plan.grillageQuantity !== undefined ? row.plan.grillageQuantity : (row.reel.grillageQuantity || 0),
+        hasGrillage: row.plan.hasGrillage !== undefined ? row.plan.hasGrillage : row.reel.hasGrillage,
+        remarks: row.plan.remarks || row.reel.remarks || ''
+      }
+    }));
+    setBoulonnageRows(updated);
+  };
+
   // Save Workbook
   const saveWorkbook = async () => {
     if (isMonthClosed) {
@@ -2243,7 +2375,7 @@ export const Production: React.FC = () => {
         for (const pName of postsList) {
           const pKey = pName === 'Poste 1' ? 'poste1' : pName === 'Poste 2' ? 'poste2' : 'poste3';
           const {
-            minageRows, deblayageRows, extractionRows, maintenanceRows,
+            minageRows, deblayageRows, boulonnageRows, extractionRows, maintenanceRows,
             chiefMatricule, chiefName, secondChiefMatricule, secondChiefName,
             sectorChefs
           } = getPostState(pName);
@@ -2272,6 +2404,7 @@ export const Production: React.FC = () => {
             status: 'scelle',
             minage: finalMinageRows,
             deblayage: deblayageRows,
+            boulonnage: boulonnageRows || [],
             extraction: extractionRows,
             maintenance: maintenanceRows,
             sectorChefs: sectorChefs || {}
@@ -4620,8 +4753,9 @@ export const Production: React.FC = () => {
                 {[
                   { id: 'minage', label: '🔨 Sheet 1 - Forage & Minage' },
                   { id: 'deblayage', label: 'LHD - Déblayage & Charge' },
-                  { id: 'extraction', label: '🚃 Sheet 3 - Extraction' },
-                  { id: 'maintenance', label: '🔧 Sheet 4 - Brigade Tech' },
+                  { id: 'boulonnage', label: '🔩 Sheet 3 - Boulonnage' },
+                  { id: 'extraction', label: '🚃 Sheet 4 - Extraction' },
+                  { id: 'maintenance', label: '🔧 Sheet 5 - Brigade Tech' },
                 ].map(sheet => (
                   <button
                     key={sheet.id}
@@ -5077,6 +5211,210 @@ export const Production: React.FC = () => {
                     </table>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: BOULONNAGE */}
+            {activeSheetTab === 'boulonnage' && (
+              <div className="space-y-8">
+                <div className="bg-amber-50/50 p-4 border border-amber-500/20 rounded mb-1 animate-fade-in">
+                  <h3 className="text-xs font-black uppercase text-amber-700 tracking-wider flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-amber-600" /> 🔩 Boulonnage & Soutènement - SPLIT 1.7m et Grillage
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1">
+                    Saisie globale des boulons posés et grillages installés pour la sécurité et le soutènement des galeries par les équipes de mineurs sur les 3 postes.
+                  </p>
+                </div>
+
+                {['Poste 1', 'Poste 2', 'Poste 3'].map((shiftName) => {
+                  const { boulonnageRows } = getPostState(shiftName);
+
+                  return (
+                    <div key={shiftName} className="border border-slate-200 bg-white p-5 rounded-lg shadow-sm space-y-4">
+                      {/* Shift Title and Hours */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-3 gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">
+                            {shiftName === 'Poste 1' ? '☀️' : shiftName === 'Poste 2' ? '⛅' : '🌙'}
+                          </span>
+                          <h4 className="text-sm font-black uppercase text-slate-800 tracking-wider">
+                            {shiftName === 'Poste 1' ? 'POSTE 1 : MATIN' : shiftName === 'Poste 2' ? 'POSTE 2 : APRÈS-MIDI' : 'POSTE 3 : NUIT'}
+                          </h4>
+                          <span className="font-mono text-xs font-bold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                            {shiftName === 'Poste 1' ? '07:00 - 14:00 GMT' : shiftName === 'Poste 2' ? '15:00 - 22:00 GMT' : '23:00 - 06:00 GMT'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => copyAllBoulonnagePlanToReel(shiftName)}
+                            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-black uppercase tracking-wider rounded flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-amber-600" /> Copier Tout le Plan
+                          </button>
+                          {structureEditMode && (
+                            <button
+                              type="button"
+                              onClick={() => addBoulonnageRow(shiftName)}
+                              className="bg-[#00BFFF] hover:bg-[#00BFFF]/95 text-white font-black text-[10px] uppercase px-3 py-1.5 flex items-center gap-1.5 transition-all shadow-sm rounded cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Ajouter une ligne ({shiftName})
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Boulonnage details table */}
+                      <div className="overflow-x-auto rounded border border-slate-200 bg-white">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-extrabold uppercase text-[10px] tracking-wider">
+                              <th className="p-2 text-[10px] font-black uppercase text-center w-12 border-r border-slate-200 text-slate-500 bg-slate-50">#</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Chantier</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-44 border-r border-slate-200 text-slate-700">Type de Soutènement</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Mineur (Perforateur)</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Aide-Mineur</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-28 border-r border-slate-200 text-center text-slate-700">Boulons Planifiés</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-28 border-r border-slate-200 text-center text-slate-700 bg-emerald-50 text-emerald-950">Boulons Réalisés</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700">Grillage Planifié</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-24 border-r border-slate-200 text-center text-slate-700 bg-emerald-50 text-emerald-950">Grillage Réalisé</th>
+                              <th className="p-2 text-[10px] font-black uppercase border-r border-slate-200 text-slate-700">Remarques</th>
+                              {structureEditMode && <th className="p-2 text-[10px] font-black uppercase text-center w-14 text-slate-700">Action</th>}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-150 text-[11px]">
+                            {boulonnageRows.map((rowWrapper, idx) => {
+                              const row = rowWrapper.reel;
+                              const plan = rowWrapper.plan || {} as ExcelBoulonnage;
+                              const minerValName = getEmployeeName(row.minerMatricule);
+                              const assistantValName = getEmployeeName(row.assistantMatricule);
+
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                  <td className="p-2 font-mono text-slate-400 bg-slate-50/50 text-center font-bold border-r border-slate-200">{idx + 1}</td>
+                                  
+                                  {/* Chantier */}
+                                  <td className="p-2 border-r border-slate-200">
+                                    <select
+                                      value={row.chantierId || ''}
+                                      onChange={e => updateBoulonnageCell(shiftName, idx, 'chantierId', e.target.value)}
+                                      className="w-full border border-slate-200 p-1 font-mono text-xs uppercase bg-white text-slate-800"
+                                      disabled={!structureEditMode && !rowWrapper.rowId.startsWith('boulonnage_add_')}
+                                    >
+                                      <option value="">-- Choisir Chantier --</option>
+                                      {chantiers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                  </td>
+
+                                  {/* Type */}
+                                  <td className="p-2 border-r border-slate-200 bg-amber-50/10">
+                                    <select
+                                      value={row.type || 'Boulonnage'}
+                                      onChange={e => updateBoulonnageCell(shiftName, idx, 'type', e.target.value)}
+                                      className="w-full font-black text-amber-900 border border-slate-200 bg-white p-1 rounded-none text-xs"
+                                    >
+                                      <option value="Boulonnage">Boulonnage SPLIT 1.7m</option>
+                                      <option value="Soutenement">Soutènement & Grillage</option>
+                                    </select>
+                                  </td>
+
+                                  {/* Mineur */}
+                                  <td className="p-2 border-r border-slate-200">
+                                    <EmployeeCell
+                                      matricule={row.minerMatricule}
+                                      name={row.minerName}
+                                      onChange={(mat) => updateBoulonnageCell(shiftName, idx, 'minerMatricule', mat)}
+                                      employees={activeEmployees}
+                                      placeholder="Matr. Mineur..."
+                                      hideNameLabel={true}
+                                    />
+                                    <div className="text-[10px] font-bold text-slate-400 mt-0.5 truncate pl-1">
+                                      {minerValName || 'Non défini'}
+                                    </div>
+                                  </td>
+
+                                  {/* Aide-Mineur */}
+                                  <td className="p-2 border-r border-slate-200">
+                                    <EmployeeCell
+                                      matricule={row.assistantMatricule}
+                                      name={row.assistantName}
+                                      onChange={(mat) => updateBoulonnageCell(shiftName, idx, 'assistantMatricule', mat)}
+                                      employees={activeEmployees}
+                                      placeholder="Matr. Aide..."
+                                      hideNameLabel={true}
+                                    />
+                                    <div className="text-[10px] font-bold text-slate-400 mt-0.5 truncate pl-1">
+                                      {assistantValName || 'Non défini'}
+                                    </div>
+                                  </td>
+
+                                  {/* Planned Bolts */}
+                                  <td className="p-2 border-r border-slate-200 text-center font-mono text-slate-400 bg-slate-50/30">
+                                    {plan.plannedBolts !== undefined ? plan.plannedBolts : 0}
+                                  </td>
+
+                                  {/* Real Bolts */}
+                                  <td className="p-2 border-r border-slate-200 text-center font-mono bg-emerald-50/50">
+                                    <input
+                                      type="number"
+                                      value={row.realBolts === 0 ? '' : row.realBolts}
+                                      placeholder="0"
+                                      onChange={e => updateBoulonnageCell(shiftName, idx, 'realBolts', Number(e.target.value))}
+                                      className="w-16 text-center font-black p-1 border border-slate-200 bg-white select-all text-emerald-950"
+                                    />
+                                  </td>
+
+                                  {/* Planned Grillage */}
+                                  <td className="p-2 border-r border-slate-200 text-center font-mono text-slate-400 bg-slate-50/30">
+                                    {plan.hasGrillage ? (plan.grillageQuantity || 1) : 0}
+                                  </td>
+
+                                  {/* Real Grillage */}
+                                  <td className="p-2 border-r border-slate-200 text-center font-mono bg-emerald-50/50">
+                                    <input
+                                      type="number"
+                                      value={row.grillageQuantity === 0 ? '' : row.grillageQuantity}
+                                      placeholder="0"
+                                      onChange={e => updateBoulonnageCell(shiftName, idx, 'grillageQuantity', Number(e.target.value))}
+                                      className="w-16 text-center font-black p-1 border border-slate-200 bg-white select-all text-emerald-950"
+                                      disabled={row.type === 'Boulonnage'}
+                                    />
+                                  </td>
+
+                                  {/* Remarks */}
+                                  <td className="p-2 border-r border-slate-200">
+                                    <input
+                                      type="text"
+                                      placeholder="Présence de failles, roche trop fragile..."
+                                      value={row.remarks || ''}
+                                      onChange={e => updateBoulonnageCell(shiftName, idx, 'remarks', e.target.value)}
+                                      className="w-full border-0 outline-none uppercase bg-transparent text-slate-700"
+                                    />
+                                  </td>
+
+                                  {/* Action */}
+                                  {structureEditMode && (
+                                    <td className="p-1 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteBoulonnageRow(shiftName, idx)}
+                                        className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                                        title="Supprimer la ligne"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

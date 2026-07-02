@@ -26,7 +26,8 @@ import {
   ClipboardList,
   AlertCircle,
   Tractor,
-  Train
+  Train,
+  ShieldCheck
 } from 'lucide-react';
 import { collection, query, onSnapshot, setDoc, doc, getDocs, deleteDoc, where, writeBatch, addDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -77,6 +78,21 @@ interface ExcelDeblayage {
   remarks: string;
 
   // Custom UI grouping
+  sectorGroup?: string;
+}
+
+interface ExcelBoulonnage {
+  chantierId: string;
+  minerMatricule: string;
+  minerName: string;
+  assistantMatricule: string;
+  assistantName: string;
+  type: 'Boulonnage' | 'Soutenement';
+  plannedBolts: number;
+  realBolts: number;
+  hasGrillage: boolean;
+  grillageQuantity: number;
+  remarks: string;
   sectorGroup?: string;
 }
 
@@ -314,7 +330,7 @@ interface ExcelMaintenance {
 
 const ensureMinimumRows = (
   loadedRows: any[],
-  type: 'minage' | 'deblayage',
+  type: 'minage' | 'deblayage' | 'boulonnage',
   post: 'Poste 1' | 'Poste 2' | 'Poste 3',
   chantiersList: any[],
   platformSettings?: any
@@ -344,6 +360,12 @@ const ensureMinimumRows = (
             assistantMatricule: '', assistantName: '', gallerySize: sizeVal, plannedHoles: explosives.plannedHoles, realHoles: explosives.plannedHoles,
             plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: defMeterage, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
             sectorGroup: sec, explosivesManualOverride: false
+          });
+        } else if (type === 'boulonnage') {
+          finalSectorRows.push({
+            chantierId: chan.id, minerMatricule: '', minerName: '', assistantMatricule: '', assistantName: '',
+            type: 'Boulonnage', plannedBolts: 20, realBolts: 0, hasGrillage: false, grillageQuantity: 0, remarks: '',
+            sectorGroup: sec
           });
         } else {
           finalSectorRows.push({
@@ -378,6 +400,12 @@ const ensureMinimumRows = (
           assistantMatricule: '', assistantName: '', gallerySize: 12, plannedHoles: explosives.plannedHoles, realHoles: explosives.plannedHoles,
           plannedRounds: 1, realRounds: 1, barType: '1.8m', meterage: defMeterage, anfo: explosives.anfo, tovex: explosives.tovex, ammorces: explosives.ammorces, remarks: '',
           sectorGroup: sec, explosivesManualOverride: false
+        });
+      } else if (type === 'boulonnage') {
+        finalSectorRows.push({
+          chantierId: '', minerMatricule: '', minerName: '', assistantMatricule: '', assistantName: '',
+          type: 'Boulonnage', plannedBolts: 20, realBolts: 0, hasGrillage: false, grillageQuantity: 0, remarks: '',
+          sectorGroup: sec
         });
       } else {
         finalSectorRows.push({
@@ -635,7 +663,7 @@ export const Planning: React.FC = () => {
   // Pre-save validation report modal states
   const [isPreSaveModalOpen, setIsPreSaveModalOpen] = useState(false);
   const [preSaveReport, setPreSaveReport] = useState<{
-    summary: { minage: number; deblayage: number; extraction: number; maintenance: number; totalMeterageEstime: number; totalAnfo: number; totalTovex: number; };
+    summary: { minage: number; deblayage: number; boulonnage: number; extraction: number; maintenance: number; totalMeterageEstime: number; totalAnfo: number; totalTovex: number; };
     warnings: string[];
   } | null>(null);
 
@@ -646,6 +674,11 @@ export const Planning: React.FC = () => {
     'Poste 3': []
   });
   const [deblayageRowsByPost, setDeblayageRowsByPost] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelDeblayage[]>>({
+    'Poste 1': [],
+    'Poste 2': [],
+    'Poste 3': []
+  });
+  const [boulonnageRowsByPost, setBoulonnageRowsByPost] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelBoulonnage[]>>({
     'Poste 1': [],
     'Poste 2': [],
     'Poste 3': []
@@ -687,6 +720,7 @@ export const Planning: React.FC = () => {
           post: selectedPost,
           minageRowsByPost,
           deblayageRowsByPost,
+          boulonnageRowsByPost,
           extractionRowsByPost,
           maintenanceRowsByPost,
           sectorChiefs,
@@ -707,6 +741,7 @@ export const Planning: React.FC = () => {
     selectedPost, 
     minageRowsByPost, 
     deblayageRowsByPost, 
+    boulonnageRowsByPost,
     extractionRowsByPost, 
     maintenanceRowsByPost, 
     sectorChiefs, 
@@ -1022,6 +1057,7 @@ export const Planning: React.FC = () => {
 
       const loadedMinageByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const loadedDeblayageByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelDeblayage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
+      const loadedBoulonnageByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelBoulonnage[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const loadedExtractionByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelExtraction[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
       const loadedMaintenanceByPost: Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMaintenance[]> = { 'Poste 1': [], 'Poste 2': [], 'Poste 3': [] };
 
@@ -1052,6 +1088,7 @@ export const Planning: React.FC = () => {
           const currentDefaults = POST_HOURS[p];
           loadedMinageByPost[p] = ensureMinimumRows(pData?.minage || [], 'minage', p, chantiers, platformSettings);
           loadedDeblayageByPost[p] = ensureMinimumRows(pData?.deblayage || [], 'deblayage', p, chantiers, platformSettings);
+          loadedBoulonnageByPost[p] = ensureMinimumRows(pData?.boulonnage || [], 'boulonnage', p, chantiers, platformSettings);
           loadedExtractionByPost[p] = sanitizeExtractionRows(pData?.extraction, currentDefaults, platformSettings.defaultWagonsTarget ?? 48);
           loadedMaintenanceByPost[p] = pData?.maintenance || [];
           if (loadedMaintenanceByPost[p].length === 0) {
@@ -1061,6 +1098,7 @@ export const Planning: React.FC = () => {
 
         setMinageRowsByPost(loadedMinageByPost);
         setDeblayageRowsByPost(loadedDeblayageByPost);
+        setBoulonnageRowsByPost(loadedBoulonnageByPost);
         setExtractionRowsByPost(loadedExtractionByPost);
         setMaintenanceRowsByPost(loadedMaintenanceByPost);
         setLoading(false);
@@ -1074,12 +1112,14 @@ export const Planning: React.FC = () => {
           ...row,
           hoursWorked: POST_HOURS[p].duration
         }));
+        loadedBoulonnageByPost[p] = ensureMinimumRows([], 'boulonnage', p, chantiers, platformSettings);
         loadedExtractionByPost[p] = getDefaultExtractionRows(p);
         loadedMaintenanceByPost[p] = getDefaultMaintenanceRows(p);
       });
 
       setMinageRowsByPost(loadedMinageByPost);
       setDeblayageRowsByPost(loadedDeblayageByPost);
+      setBoulonnageRowsByPost(loadedBoulonnageByPost);
       setExtractionRowsByPost(loadedExtractionByPost);
       setMaintenanceRowsByPost(loadedMaintenanceByPost);
       setSignatureInfo(null);
@@ -1098,6 +1138,7 @@ export const Planning: React.FC = () => {
     try {
       if (data.minageRowsByPost) setMinageRowsByPost(data.minageRowsByPost);
       if (data.deblayageRowsByPost) setDeblayageRowsByPost(data.deblayageRowsByPost);
+      if (data.boulonnageRowsByPost) setBoulonnageRowsByPost(data.boulonnageRowsByPost);
       if (data.extractionRowsByPost) setExtractionRowsByPost(data.extractionRowsByPost);
       if (data.maintenanceRowsByPost) setMaintenanceRowsByPost(data.maintenanceRowsByPost);
       if (data.sectorChiefs) setSectorChiefs(data.sectorChiefs);
@@ -1552,9 +1593,92 @@ export const Planning: React.FC = () => {
           list.push({ matricule: r.agentMatricule.trim().toUpperCase(), name: r.agentName, role: r.roleLabel, sheet: `Maintenance (${p})`, location: r.engineCode || 'Fixe' });
         }
       });
+
+      const boulRows = boulonnageRowsByPost[p] || [];
+      boulRows.forEach((r, i) => {
+        const boulChantierName = chantiers.find(c => c.id === r.chantierId)?.name || `Ligne ${i + 1}`;
+        if (r.minerMatricule) {
+          list.push({ matricule: r.minerMatricule.trim().toUpperCase(), name: r.minerName, role: 'Mineur (Boulonnage)', sheet: `Boulonnage (${p})`, location: boulChantierName });
+        }
+        if (r.assistantMatricule) {
+          list.push({ matricule: r.assistantMatricule.trim().toUpperCase(), name: r.assistantName, role: 'Aide Mineur (Boulonnage)', sheet: `Boulonnage (${p})`, location: boulChantierName });
+        }
+      });
     });
 
     return list;
+  };
+
+  const addRowToBoulonnageSector = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', sec: string) => {
+    const currentRows = boulonnageRowsByPost[post] || [];
+    let lastIndex = -1;
+    for (let i = 0; i < currentRows.length; i++) {
+      if (currentRows[i].sectorGroup === sec) {
+        lastIndex = i;
+      }
+    }
+
+    const newRow: ExcelBoulonnage = {
+      chantierId: '', minerMatricule: '', minerName: '', assistantMatricule: '', assistantName: '',
+      type: 'Boulonnage', plannedBolts: 20, realBolts: 0, hasGrillage: false, grillageQuantity: 0, remarks: '',
+      sectorGroup: sec
+    };
+
+    const clone = [...currentRows];
+    if (lastIndex !== -1) {
+      clone.splice(lastIndex + 1, 0, newRow);
+    } else {
+      clone.push(newRow);
+    }
+    setBoulonnageRowsByPost(prev => ({ ...prev, [post]: clone }));
+  };
+
+  const isBoulonnageRowRemovable = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', flatIdx: number) => {
+    const currentRows = boulonnageRowsByPost[post] || [];
+    const row = currentRows[flatIdx];
+    if (!row) return false;
+    const sec = row.sectorGroup || 'Autres / Non classés';
+    
+    const minCount = 1;
+    const sectorIndices = currentRows
+      .map((r, i) => r.sectorGroup === sec ? i : -1)
+      .filter(i => i !== -1);
+      
+    const localIdx = sectorIndices.indexOf(flatIdx);
+    return localIdx >= minCount;
+  };
+
+  const deleteBoulonnageRowAt = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', flatIdx: number) => {
+    setBoulonnageRowsByPost(prev => ({
+      ...prev,
+      [post]: prev[post].filter((_, idx) => idx !== flatIdx)
+    }));
+  };
+
+  const updateBoulonnageCell = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', index: number, field: keyof ExcelBoulonnage, value: any) => {
+    const originalRows = boulonnageRowsByPost[post] || [];
+    const clone = [...originalRows];
+    if (!clone[index]) return;
+    
+    let updatedRow = { ...clone[index], [field]: value };
+    if (field === 'minerMatricule' || field === 'assistantMatricule') {
+      const emp = employees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
+      const nameField = field === 'minerMatricule' ? 'minerName' : 'assistantName';
+      updatedRow[nameField] = emp ? `${emp.nom} ${emp.prenom}` : '';
+    }
+    
+    if (field === 'type') {
+      if (value === 'Soutenement') {
+        updatedRow.hasGrillage = true;
+        updatedRow.grillageQuantity = 1;
+      } else {
+        updatedRow.hasGrillage = false;
+        updatedRow.grillageQuantity = 0;
+      }
+    }
+    
+    clone[index] = updatedRow;
+    setBoulonnageRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
 
   const addRowToMinageSector = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', sec: string) => {
@@ -2450,6 +2574,7 @@ export const Planning: React.FC = () => {
     const summary = {
       minage: 0,
       deblayage: 0,
+      boulonnage: 0,
       extraction: 0,
       maintenance: 0,
       totalMeterageEstime: 0,
@@ -2484,6 +2609,17 @@ export const Planning: React.FC = () => {
           warnings.push(`🚜 ${p} — Déblayage ligne ${idx + 1} : chantier renseigné mais aucun conducteur assigné`);
         } else if (!row.chantierId && row.driverMatricule) {
           warnings.push(`🚜 ${p} — Déblayage ligne ${idx + 1} : conducteur assigné mais aucun chantier sélectionné`);
+        }
+      });
+
+      // BOULONNAGE
+      (boulonnageRowsByPost[p] || []).forEach((row, idx) => {
+        if (row.chantierId && (row.minerMatricule || row.assistantMatricule)) {
+          summary.boulonnage++;
+        } else if (row.chantierId && !row.minerMatricule && !row.assistantMatricule) {
+          warnings.push(`🛡️ ${p} — Boulonnage/Soutènement ligne ${idx + 1} : chantier renseigné mais aucun agent assigné`);
+        } else if (!row.chantierId && (row.minerMatricule || row.assistantMatricule)) {
+          warnings.push(`🛡️ ${p} — Boulonnage/Soutènement ligne ${idx + 1} : agent assigné mais aucun chantier sélectionné`);
         }
       });
 
@@ -2576,6 +2712,7 @@ export const Planning: React.FC = () => {
             status: 'planifie',
             minage: [],
             deblayage: [],
+            boulonnage: [],
             extraction: [],
             maintenance: []
           };
@@ -2586,6 +2723,7 @@ export const Planning: React.FC = () => {
           status: 'planifie',
           minage: pMinage,
           deblayage: pDeblayage,
+          boulonnage: (boulonnageRowsByPost[p] || []).filter(r => r.chantierId !== ''),
           extraction: extractionRowsByPost[p] || [],
           maintenance: (maintenanceRowsByPost[p] || []).filter(r => r.agentMatricule !== ''),
           sectorChiefs: sectorChiefs[p] || {},
@@ -2692,6 +2830,36 @@ export const Planning: React.FC = () => {
               engineId: row.engineId,
               engineCode: row.engineCode,
               engineName: row.engineCode || row.engineId || '',
+              sector: row.sectorGroup || ''
+            });
+          }
+        }
+
+        if (pDataObj?.boulonnage) {
+          const chiefMat = sectorChiefs[p] || { 'Imiter 2': '', 'Imiter 1': '', 'Imiter Est': '' };
+          for (const row of pDataObj.boulonnage) {
+            const chantierObj = chantiers.find(c => c.id === row.chantierId);
+            const sec = row.sectorGroup || 'Imiter 2';
+            const chiefM = chiefMat[sec] || '';
+            const emp = employees.find(e => e.matricule?.toUpperCase() === chiefM.trim().toUpperCase());
+            await addDoc(planColl, {
+              date: selectedDate,
+              post: p,
+              type: 'boulonnage',
+              chantierId: row.chantierId,
+              chantierName: chantierObj?.name || 'Slick',
+              chiefMatricule: chiefM,
+              chiefName: emp ? `${emp.nom} ${emp.prenom}` : '',
+              minerMatricule: row.minerMatricule,
+              minerName: row.minerName,
+              assistantMatricule: row.assistantMatricule,
+              assistantName: row.assistantName,
+              boulonnageType: row.type, // 'Boulonnage' or 'Soutenement'
+              plannedBolts: row.plannedBolts,
+              realBolts: row.realBolts || 0,
+              hasGrillage: row.hasGrillage,
+              grillageQuantity: row.grillageQuantity,
+              remarks: row.remarks || '',
               sector: row.sectorGroup || ''
             });
           }
@@ -3449,6 +3617,14 @@ export const Planning: React.FC = () => {
                   activeClass: 'border-purple-500 text-purple-600 bg-gradient-to-b from-purple-50/70 via-white to-white shadow-[0_-4px_16px_rgba(168,85,247,0.18)] border-t-2', 
                   inactiveClass: 'text-gray-400 hover:text-purple-500 hover:bg-purple-50/5 border-t-2 border-transparent',
                   glowDot: 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.85)]'
+                },
+                { 
+                  id: 'boulonnage', 
+                  label: 'Sheet 5 - Boulonnage & Soutènement', 
+                  icon: ShieldCheck,
+                  activeClass: 'border-amber-500 text-amber-600 bg-gradient-to-b from-amber-50/70 via-white to-white shadow-[0_-4px_16px_rgba(245,158,11,0.18)] border-t-2', 
+                  inactiveClass: 'text-gray-400 hover:text-amber-500 hover:bg-amber-50/5 border-t-2 border-transparent',
+                  glowDot: 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.85)]'
                 },
               ].map(sheet => {
                 const isActive = activeSheetTab === sheet.id;
@@ -4610,6 +4786,231 @@ export const Planning: React.FC = () => {
                 })()}
               </div>
             )}
+
+            {/* SHEET 5: BOULONNAGE & SOUTENEMENT INTERACTIVE EXCEL GRID */}
+            {activeSheetTab === 'boulonnage' && (
+              <div className="space-y-8">
+                {(() => {
+                  let globalIdxCounter = 0;
+                  const posts: ('Poste 1' | 'Poste 2' | 'Poste 3')[] = ['Poste 1', 'Poste 2', 'Poste 3'];
+                  const postHoursLabels: Record<string, string> = {
+                    'Poste 1': '07h - 14h',
+                    'Poste 2': '15h - 22h',
+                    'Poste 3': '23h - 06h'
+                  };
+
+                  return posts.map(p => {
+                    const rowsForPost = boulonnageRowsByPost[p] || [];
+                    const SECTOR_ORDER = ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Autres / Non classés'];
+
+                    return (
+                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
+                        {/* Shifty/Post block banner */}
+                        <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
+                          <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-amber-500" />
+                            <span className="bg-gradient-to-r from-amber-600 via-[#b8860b] to-amber-600 bg-clip-text text-transparent">
+                              {p}
+                            </span>
+                            <span className="font-extrabold tracking-normal text-[11px] bg-gradient-to-r from-amber-600 via-[#b8860b] to-amber-600 bg-clip-text text-transparent">
+                              ({postHoursLabels[p]})
+                            </span>
+                          </h4>
+                          <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-amber-500/35 to-transparent mt-1.5" />
+                        </div>
+
+                        <div className="overflow-x-auto text-[11px] border border-gray-250 rounded-xl bg-white shadow-sm">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-[#0f172a] text-white border-b-2 border-amber-500 select-none text-[9.5px] font-extrabold tracking-wider uppercase">
+                                <th className="p-2.5 text-center w-8 bg-slate-900 border-r border-slate-700/50 text-[#ffd700] font-black">Row</th>
+                                <th className="p-2.5 min-w-[140px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider">Chantier</th>
+                                <th className="p-2.5 min-w-[180px] border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700] font-bold tracking-wider">Mineur</th>
+                                <th className="p-2.5 min-w-[180px] border-r border-slate-700/50 bg-gradient-to-b from-amber-950/35 to-amber-950/15 text-[#ffd700] font-bold tracking-wider">Aide-Mineur</th>
+                                <th className="p-2.5 w-36 border-r border-slate-700/50 text-center bg-slate-900/60 text-slate-300 font-bold">Type</th>
+                                <th className="p-2.5 w-28 border-r border-slate-700/50 text-center bg-gradient-to-b from-amber-950/15 to-transparent text-amber-200 font-bold">Boulons Planifiés</th>
+                                <th className="p-2.5 w-32 border-r border-slate-700/50 text-center bg-slate-900/60 text-slate-300 font-bold">Grillage (Qté)</th>
+                                <th className="p-2.5 border-r border-slate-700/50 text-slate-300 font-bold">Remarques</th>
+                                <th className="p-2.5 text-center w-12 bg-slate-100/5 border-l border-slate-700/50 text-amber-200 font-black">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {SECTOR_ORDER.map(sec => {
+                                const sectorRowsWithIdx = rowsForPost
+                                  .map((row, idx) => ({ row, idx }))
+                                  .filter(item => (item.row.sectorGroup || 'Autres / Non classés') === sec);
+
+                                if (sectorRowsWithIdx.length === 0) return null;
+
+                                return (
+                                  <React.Fragment key={sec}>
+                                    {/* Sector Header Badge Row */}
+                                    <tr className="bg-gray-50/80 border-y border-gray-200 select-none">
+                                      <td colSpan={9} className="py-2.5 px-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            {(() => {
+                                              const style = getSectorBadgeStyles(sec);
+                                              return (
+                                                <span className={`inline-flex items-center gap-2 px-3 py-1 text-[10px] font-extrabold uppercase rounded-lg ${style.bg}`}>
+                                                  <span className={`w-2 h-2 rounded-full ${style.dot} animate-pulse`} />
+                                                  {sec === 'Autres / Non classés' ? 'Autres chantiers non classés' : sec}
+                                                </span>
+                                              );
+                                            })()}
+                                          </div>
+                                          
+                                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                            <button
+                                              type="button"
+                                              onClick={() => addRowToBoulonnageSector(p, sec)}
+                                              className="text-[9.5px] font-black text-white hover:bg-amber-600 bg-amber-500 border border-transparent px-2.5 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 uppercase tracking-wider shadow-xs"
+                                              title={`Ajouter un chantier de boulonnage à ${sec}`}
+                                            >
+                                              + Ajouter Ligne
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+
+                                    {/* Group matching rows */}
+                                    {sectorRowsWithIdx.map(({ row, idx: flatIdx }) => {
+                                      const globalIdx = globalIdxCounter++;
+                                      const options = chantiers.filter(c => sec === 'Autres / Non classés' || isSectorMatching(c.sector, sec));
+                                      const hasChantier = options.some(o => o.id === row.chantierId);
+                                      const fallbackChantier = row.chantierId && !hasChantier ? chantiers.find(c => c.id === row.chantierId) : null;
+
+                                      return (
+                                        <tr 
+                                          key={flatIdx}
+                                          className="border-b border-gray-200 hover:bg-amber-50/10 transition-colors"
+                                        >
+                                          {/* Line Index & Delete Action */}
+                                          <td className="p-1 px-1.5 border-r border-gray-200 text-center text-[10.5px] text-gray-500 font-mono w-8 select-none relative group bg-gray-50/50">
+                                            <span className="group-hover:opacity-0 transition-opacity">{flatIdx + 1}</span>
+                                            {isBoulonnageRowRemovable(p, flatIdx) && (
+                                              <button
+                                                type="button"
+                                                onClick={() => deleteBoulonnageRowAt(p, flatIdx)}
+                                                className="absolute inset-x-0.5 top-0.5 bottom-0.5 bg-red-55 hover:bg-red-100 text-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded cursor-pointer text-[10.5px] font-black border-none outline-none"
+                                                title="Retirer cette ligne"
+                                              >
+                                                🗑️
+                                              </button>
+                                            )}
+                                          </td>
+
+                                          {/* Chantier dropdown selection */}
+                                          <td className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-amber-300 focus-within:ring-inset focus-within:bg-amber-50/10">
+                                            <select
+                                              value={row.chantierId}
+                                              onChange={e => updateBoulonnageCell(p, flatIdx, 'chantierId', e.target.value)}
+                                              className="w-full bg-transparent border-0 font-extrabold p-0.5 text-[11px] uppercase outline-none text-gray-800 font-sans"
+                                            >
+                                              <option value="">(Vide)</option>
+                                              {fallbackChantier && (
+                                                <option value={fallbackChantier.id}>
+                                                  {fallbackChantier.name || fallbackChantier.id} (Hors-sec)
+                                                </option>
+                                              )}
+                                              {options.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name || c.id}</option>
+                                              ))}
+                                            </select>
+                                          </td>
+
+                                          {/* Mineur */}
+                                          <td className="p-0.5 border-r border-gray-200 min-w-[180px] focus-within:ring-2 focus-within:ring-amber-300 focus-within:ring-inset focus-within:bg-amber-50/10 align-middle">
+                                            <MatriculeAutocomplete
+                                              value={row.minerMatricule}
+                                              onChange={(matricule) => updateBoulonnageCell(p, flatIdx, 'minerMatricule', matricule)}
+                                              employees={employees}
+                                              sector={sec !== 'Autres / Non classés' ? sec : undefined}
+                                              fonctions={['MINEUR']}
+                                              alternativeFonctions={['AIDE_MINEUR']}
+                                              post={p}
+                                              placeholder="M-..."
+                                            />
+                                          </td>
+
+                                          {/* Aide-Mineur */}
+                                          <td className="p-0.5 border-r border-gray-200 min-w-[180px] focus-within:ring-2 focus-within:ring-amber-300 focus-within:ring-inset focus-within:bg-amber-50/10 align-middle">
+                                            <MatriculeAutocomplete
+                                              value={row.assistantMatricule}
+                                              onChange={(matricule) => updateBoulonnageCell(p, flatIdx, 'assistantMatricule', matricule)}
+                                              employees={employees}
+                                              sector={sec !== 'Autres / Non classés' ? sec : undefined}
+                                              fonctions={['AIDE_MINEUR']}
+                                              post={p}
+                                              placeholder="M-..."
+                                            />
+                                          </td>
+
+                                          {/* Type selection: Boulonnage or Soutenement */}
+                                          <td className="p-1 border-r border-gray-200 text-center focus-within:ring-2 focus-within:ring-amber-300">
+                                            <select
+                                              value={row.type}
+                                              onChange={e => updateBoulonnageCell(p, flatIdx, 'type', e.target.value)}
+                                              className="w-full text-[11px] font-extrabold uppercase border-0 outline-none bg-transparent text-amber-800 text-center font-sans"
+                                            >
+                                              <option value="Boulonnage" className="text-slate-800">Boulonnage</option>
+                                              <option value="Soutenement" className="text-slate-800">Soutènement</option>
+                                            </select>
+                                          </td>
+
+                                          {/* Planned Bolts */}
+                                          <td className="p-1 border-r border-gray-200 text-center font-mono focus-within:ring-2 focus-within:ring-amber-300">
+                                            <input
+                                              type="number"
+                                              value={row.plannedBolts}
+                                              onChange={e => updateBoulonnageCell(p, flatIdx, 'plannedBolts', Number(e.target.value))}
+                                              className="w-full text-center text-[11px] font-black bg-transparent border-0 outline-none text-slate-800 font-mono"
+                                              min={0}
+                                            />
+                                          </td>
+
+                                          {/* Grillage Qté (1 or 0) */}
+                                          <td className="p-1.5 border-r border-gray-200 text-center text-[10.5px] font-extrabold text-slate-700 bg-gray-50/50 font-mono select-none">
+                                            {row.type === 'Soutenement' ? (
+                                              <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center justify-center gap-1 font-sans text-[10px]">
+                                                🕸️ Grillage : 1
+                                              </span>
+                                            ) : (
+                                              <span className="text-gray-400">Aucun</span>
+                                            )}
+                                          </td>
+
+                                          {/* Remarks */}
+                                          <td className="p-1 border-r border-gray-200 focus-within:ring-2 focus-within:ring-amber-300">
+                                            <input
+                                              type="text"
+                                              value={row.remarks || ''}
+                                              onChange={e => updateBoulonnageCell(p, flatIdx, 'remarks', e.target.value)}
+                                              placeholder="..."
+                                              className="w-full text-left text-[11px] font-semibold bg-transparent border-0 outline-none text-slate-800 font-sans"
+                                            />
+                                          </td>
+
+                                          {/* Actions */}
+                                          <td className="p-1 text-center bg-gray-50/30">
+                                            {/* Action cell */}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            )}
             </fieldset>
 
             {/* REAL-TIME WORKER DUPLICATE WARNING SYSTEM */}
@@ -5370,7 +5771,7 @@ export const Planning: React.FC = () => {
               {/* Aggregated Totals Grid */}
               <div className="space-y-3">
                 <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider">📊 RÉSUMÉ DES ACTIVITÉS PLANIFIÉES</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
                     <p className="text-[8px] font-black uppercase text-slate-505 tracking-wider">Minage</p>
                     <p className="text-lg font-black text-slate-800 mt-1">{preSaveReport.summary.minage}</p>
@@ -5380,6 +5781,11 @@ export const Planning: React.FC = () => {
                     <p className="text-[8px] font-black uppercase text-slate-505 tracking-wider">Déblayage</p>
                     <p className="text-lg font-black text-slate-800 mt-1">{preSaveReport.summary.deblayage}</p>
                     <p className="text-[8px] font-bold text-slate-400 uppercase">Engin(s) LHD</p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
+                    <p className="text-[8px] font-black uppercase text-slate-505 tracking-wider">Boulonnage</p>
+                    <p className="text-lg font-black text-slate-800 mt-1">{preSaveReport.summary.boulonnage || 0}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase">Chantier(s)</p>
                   </div>
                   <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center">
                     <p className="text-[8px] font-black uppercase text-slate-505 tracking-wider">Extraction</p>

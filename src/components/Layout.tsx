@@ -29,7 +29,8 @@ import {
   Mail,
   AlertCircle,
   CheckCircle2,
-  Crown
+  Crown,
+  Hammer
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
@@ -81,6 +82,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'analyse_terrain', label: 'Performance Terrain', icon: <Layers className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_rh', label: 'Ressources Humaines', icon: <HardHat className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_logistique', label: 'Matériel & Historiques', icon: <Wrench className="w-5 h-5" />, category: 'analyse' },
+  { id: 'boulonnage', label: 'Suivi Boulonnage', icon: <Hammer className="w-5 h-5" />, category: 'analyse' },
 
   // ADMIN
   { id: 'admin', label: 'Administration', icon: <Users className="w-5 h-5" />, roles: ['admin'], category: 'admin' },
@@ -469,9 +471,6 @@ export const Layout: React.FC<{
                       )}
                       {isEspaceDT && isOpen && (
                         <div className="ml-auto flex items-center gap-1.5">
-                          <span className="bg-[#ffd700] text-black text-[7.5px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest shadow-[0_0_6px_rgba(255,215,0,0.4)]">
-                            VIP
-                          </span>
                           <span className="relative flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ffd700]"></span>

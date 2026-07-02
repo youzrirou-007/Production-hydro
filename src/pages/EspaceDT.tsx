@@ -910,7 +910,7 @@ export const EspaceDT: React.FC = () => {
               <span className="text-[#ffd700] text-2xl">👑</span>
               <div>
                 <h1 className="text-[#ffd700] font-black text-xl uppercase tracking-[3px]">
-                  ESPACE DIRECTEUR TECHNIQUE
+                  ESPACE DIRECTEUR TECHNIQUE (Mr.EL YAAKOUBY HAMID)
                 </h1>
                 <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">
                   SMI Imiter — Tableau de Commandement Technique
@@ -923,7 +923,7 @@ export const EspaceDT: React.FC = () => {
               Bienvenue
             </div>
             <div className="text-white text-[11px] font-black uppercase">
-              {profile?.name || 'Directeur Technique'}
+              El yaakouby Hamid
             </div>
           </div>
         </div>

@@ -31,6 +31,16 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
   const [direction, setDirection] = useState<'up' | 'down'>('down');
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const typedRef = useRef(typed);
+  useEffect(() => {
+    typedRef.current = typed;
+  }, [typed]);
+
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
   useEffect(() => {
     setTyped(value || '');
   }, [value]);
@@ -239,7 +249,7 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
             setTimeout(() => {
               setIsOpen(false);
               const activeEmps = (employees || []).filter(e => e.status === 'actif');
-              const q = typed.trim().toUpperCase();
+              const q = typedRef.current.trim().toUpperCase();
               const matched = activeEmps.find(
                 emp => (emp.matricule || '').toUpperCase().trim() === q ||
                        `${emp.nom || ''} ${emp.prenom || ''}`.toUpperCase().trim() === q ||
@@ -249,10 +259,10 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                 setTyped(matched.matricule);
                 onChange(matched.matricule, matched);
               } else {
-                if (typed.trim() === '') {
+                if (q === '') {
                   onChange('', null);
                 } else {
-                  setTyped(value || '');
+                  setTyped(valueRef.current || '');
                 }
               }
             }, 250);
@@ -292,7 +302,10 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                 <button
                   key={`prim-${emp.id}`}
                   type="button"
-                  onClick={() => handleSelect(emp)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(emp);
+                  }}
                   className="w-full text-left px-2.5 py-1.5 hover:bg-emerald-50 transition-colors flex items-center justify-between text-[11px] group"
                 >
                   <div className="truncate pr-2">
@@ -322,7 +335,10 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                 <button
                   key={`other-prim-${emp.id}`}
                   type="button"
-                  onClick={() => handleSelect(emp)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(emp);
+                  }}
                   className="w-full text-left px-2.5 py-1.5 hover:bg-slate-100 transition-colors flex items-center justify-between text-[11px] group"
                 >
                   <div className="truncate pr-2 opacity-90 group-hover:opacity-100">
@@ -351,7 +367,10 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                 <button
                   key={`alt-${emp.id}`}
                   type="button"
-                  onClick={() => handleSelect(emp)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(emp);
+                  }}
                   className="w-full text-left px-2.5 py-1.5 hover:bg-amber-50/50 transition-colors flex items-center justify-between text-[11px] group"
                 >
                   <div className="truncate pr-2">
@@ -381,7 +400,10 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                 <button
                   key={`sec-${emp.id}`}
                   type="button"
-                  onClick={() => handleSelect(emp)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(emp);
+                  }}
                   className="w-full text-left px-2.5 py-1.5 hover:bg-slate-50 transition-colors flex items-center justify-between text-[11px] group"
                 >
                   <div className="truncate pr-2 opacity-75 group-hover:opacity-100">
