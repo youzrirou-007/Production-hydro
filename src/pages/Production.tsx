@@ -468,6 +468,14 @@ export const Production: React.FC = () => {
   const [planFoundType, setPlanFoundType] = useState<'same_date' | 'yesterday' | 'none'>('none');
   const [structureEditMode, setStructureEditMode] = useState<boolean>(false);
   
+  // Chef checklist modal states for Module 2
+  const [showChefChecklistModal, setShowChefChecklistModal] = useState(false);
+  const [checklistAlignment, setChecklistAlignment] = useState<'conforme' | 'non_conforme' | null>(null);
+  const [checklistDepth, setChecklistDepth] = useState<'conforme' | 'non_conforme' | null>(null);
+  const [checklistTamping, setChecklistTamping] = useState<'conforme' | 'non_conforme' | null>(null);
+  const [checklistTovex, setChecklistTovex] = useState<'conforme' | 'non_conforme' | null>(null);
+  const [checklistSequence, setChecklistSequence] = useState<'conforme' | 'non_conforme' | null>(null);
+  
   // Custom non-blocking popups
   const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; onConfirm: () => void; onCancel?: () => void } | null>(null);
   const [infoModal, setInfoModal] = useState<{ title: string; message: string; type: 'error' | 'info' | 'success' } | null>(null);
@@ -1545,6 +1553,22 @@ export const Production: React.FC = () => {
         const docData = snap.data();
         setIsTemplateLoaded(false);
 
+        // Load chef checklist for Module 2
+        const checklistData = docData?.chefChecklist || null;
+        if (checklistData) {
+          setChecklistAlignment(checklistData.alignment || null);
+          setChecklistDepth(checklistData.depth || null);
+          setChecklistTamping(checklistData.tamping || null);
+          setChecklistTovex(checklistData.tovex || null);
+          setChecklistSequence(checklistData.sequence || null);
+        } else {
+          setChecklistAlignment(null);
+          setChecklistDepth(null);
+          setChecklistTamping(null);
+          setChecklistTovex(null);
+          setChecklistSequence(null);
+        }
+
         // Post 1
         const p1Data = docData?.postes?.poste1;
         if (p1Data) {
@@ -1622,6 +1646,12 @@ export const Production: React.FC = () => {
 
       } else {
         // No production, try loaded daily_planning_sheets
+        setChecklistAlignment(null);
+        setChecklistDepth(null);
+        setChecklistTamping(null);
+        setChecklistTovex(null);
+        setChecklistSequence(null);
+        
         // Force loading only from yesterday's planning (D-1) as today's production is linked to yesterday's plan
         const planSnap = await getDoc(doc(db, 'daily_planning_sheets', getDocId(activeSiteId, yesterdayDateStr)));
         const activePlanDateStr = yesterdayDateStr;
@@ -2352,13 +2382,44 @@ export const Production: React.FC = () => {
     setBoulonnageRows(updated);
   };
 
-  // Save Workbook
+  // Helper to calculate daily totals of planned vs realized meterage for checklist validation
+  const calculateTotalsForChecklist = () => {
+    let totalMeteragePlanned = 0;
+    let totalMeterageRealised = 0;
+    const postsListCheck = ['Poste 1', 'Poste 2', 'Poste 3'];
+    
+    for (const pName of postsListCheck) {
+      const { minageRows } = getPostState(pName);
+      if (Array.isArray(minageRows)) {
+        for (const row of minageRows) {
+          // Planned meterage
+          const planMet = Number(row.plan?.meterage) || 0;
+          totalMeteragePlanned += planMet;
+
+          // Realised meterage
+          const rMet = row.reel?.realMeterage !== undefined && row.reel?.realMeterage !== null
+            ? row.reel.realMeterage
+            : (row.reel?.meterage !== undefined ? row.reel?.meterage : 0);
+          totalMeterageRealised += (Number(rMet) || 0);
+        }
+      }
+    }
+    return { totalPlanned: totalMeteragePlanned, totalRealised: totalMeterageRealised };
+  };
+
+  // Save Workbook (Opens Checklist Modal first for Module 2)
   const saveWorkbook = async () => {
     if (isMonthClosed) {
       safeAlert("⚠️ ERREUR : Ce mois est clôturé et verrouillé. Aucune modification n'est permise.", "Mois Clôturé", "error");
       return;
     }
 
+    // Open the checklist modal first
+    setShowChefChecklistModal(true);
+  };
+
+  // Final Sealing and Database Commit
+  const commitSealAndSave = async () => {
     // Direct, professional confirmation check for unchanged explosives consumption
     let anyActiveMinage = false;
     let allIdentical = true;
@@ -2432,18 +2493,6 @@ export const Production: React.FC = () => {
           };
         }
 
-        const payload = {
-          date: selectedDate,
-          siteId: activeSiteId,
-          status: 'scelle',
-          operator: user?.email || 'Secrétaire de Direction SMI',
-          timestamp: new Date().toISOString(),
-          postes: postesObj
-        };
-
-        // Save to production under a single daily document with merging enabled
-        await setDoc(doc(db, 'production', getDocId(activeSiteId, selectedDate)), payload, { merge: true });
-
         // Compute consolidated totals for the whole day (all 3 posts combined)
         let totalMeteragePlanned = 0;
         let totalMeterageRealised = 0;
@@ -2501,6 +2550,35 @@ export const Production: React.FC = () => {
           }
         }
 
+        const isAllConforme = checklistAlignment === 'conforme' &&
+                              checklistDepth === 'conforme' &&
+                              checklistTamping === 'conforme' &&
+                              checklistTovex === 'conforme' &&
+                              checklistSequence === 'conforme';
+        const isLieDetected = totalMeteragePlanned > 0 && totalMeterageRealised < 0.8 * totalMeteragePlanned && isAllConforme;
+
+        const payload = {
+          date: selectedDate,
+          siteId: activeSiteId,
+          status: 'scelle',
+          operator: user?.email || 'Secrétaire de Direction SMI',
+          timestamp: new Date().toISOString(),
+          postes: postesObj,
+          chefChecklist: {
+            alignment: checklistAlignment,
+            depth: checklistDepth,
+            tamping: checklistTamping,
+            tovex: checklistTovex,
+            sequence: checklistSequence,
+            filledBy: user?.email || 'Secrétaire de Direction SMI',
+            filledAt: new Date().toISOString(),
+            alertTriggered: isLieDetected
+          }
+        };
+
+        // Save to production under a single daily document with merging enabled
+        await setDoc(doc(db, 'production', getDocId(activeSiteId, selectedDate)), payload, { merge: true });
+
         // Save a single daily consolidated record to production_history
         const histId = getDocId(activeSiteId, selectedDate);
         await setDoc(doc(db, 'production_history', histId), {
@@ -2526,6 +2604,7 @@ export const Production: React.FC = () => {
         setIsTemplateLoaded(false);
         setTemplateDateHint('');
         setSaveStatus('saved');
+        setShowChefChecklistModal(false);
         
         // Show the beautiful Hydromines success toast
         setSuccessToastMsg(`Le registre journalier du ${formatFrenchDate(selectedDate)} a été enregistré avec succès et gravé au Registre SMI.`);
@@ -4403,6 +4482,232 @@ export const Production: React.FC = () => {
             </div>
           </div>
         )}
+
+        {showChefChecklistModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in" id="chef-checklist-modal">
+            <div className="bg-[#141414] border border-slate-800 rounded-2xl max-w-xl w-full p-6 text-slate-100 shadow-2xl relative flex flex-col my-8">
+              {/* Close Button */}
+              <button 
+                type="button"
+                onClick={() => setShowChefChecklistModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Title Section */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <UserCheck className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-sm md:text-base font-black uppercase text-slate-5 tracking-wider">
+                    Check-list de Validation — Chef d'Équipe
+                  </h3>
+                </div>
+                <p className="text-[10.5px] text-slate-400 font-bold leading-relaxed">
+                  Le secrétaire reporte ici les vérifications physiques effectuées et certifiées verbalement par le chef d'équipe sur le terrain avant le scellement définitif du registre d'exploitation.
+                </p>
+              </div>
+
+              {/* Progress Bar */}
+              {(() => {
+                const filledCount = [checklistAlignment, checklistDepth, checklistTamping, checklistTovex, checklistSequence].filter(v => v !== null).length;
+                const progressPercent = (filledCount / 5) * 100;
+                return (
+                  <div className="mb-5 bg-slate-900/60 border border-slate-800 p-3 rounded-xl">
+                    <div className="flex justify-between items-center text-[9px] text-slate-400 font-black uppercase tracking-wider mb-1.5">
+                      <span>Progression des vérifications du chef</span>
+                      <span className="font-mono text-amber-500">{filledCount}/5 critères renseignés</span>
+                    </div>
+                    <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                      <div 
+                        className="bg-gradient-to-r from-[#b8860b] to-[#ffd700] h-full transition-all duration-300" 
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Criteria List */}
+              <div className="space-y-3 mb-5 overflow-y-auto max-h-[380px] pr-1">
+                {[
+                  {
+                    id: 'alignment',
+                    label: "1. Alignement et parallélisme des trous",
+                    desc: "Les lignes de forage sont droites et alignées parallèlement, minimisant tout risque de déviation.",
+                    value: checklistAlignment,
+                    setter: setChecklistAlignment
+                  },
+                  {
+                    id: 'depth',
+                    label: "2. Profondeur de forage conforme",
+                    desc: "La profondeur des trous est uniforme selon le type de barre planifié (1.8m ou 2.4m).",
+                    value: checklistDepth,
+                    setter: setChecklistDepth
+                  },
+                  {
+                    id: 'tamping',
+                    label: "3. Bourrage correct (≥ 76cm)",
+                    desc: "Le bourrage est suffisant (≥ 76cm de matériau inerte) pour contenir la force de détonation.",
+                    value: checklistTamping,
+                    setter: setChecklistTamping
+                  },
+                  {
+                    id: 'tovex',
+                    label: "4. Tovex au fond des trous",
+                    desc: "La cartouche de Tovex d'amorçage est insérée correctement au fond de chaque trou chargé.",
+                    value: checklistTovex,
+                    setter: setChecklistTovex
+                  },
+                  {
+                    id: 'sequence',
+                    label: "5. Séquence d'amorçage stricte",
+                    desc: "La séquence de micro-retards de tir est conforme au plan (0 → 25 → 50 → 75 → 100 → 125ms).",
+                    value: checklistSequence,
+                    setter: setChecklistSequence
+                  }
+                ].map((crit) => {
+                  return (
+                    <div key={crit.id} className="p-3 bg-slate-900/40 border border-slate-800 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                      <div className="flex-1 pr-2">
+                        <span className="text-[11px] font-black text-slate-100 uppercase tracking-wide block">
+                          {crit.label}
+                        </span>
+                        <span className="text-[9.5px] text-slate-400 font-bold block mt-0.5 leading-normal">
+                          {crit.desc}
+                        </span>
+                      </div>
+                      
+                      {/* Radio button options */}
+                      <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                        <button
+                          type="button"
+                          disabled={isReadOnly}
+                          onClick={() => crit.setter('conforme')}
+                          className={`px-3 py-1.5 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                            crit.value === 'conforme'
+                              ? 'bg-emerald-950/50 border-emerald-500 text-emerald-400 font-extrabold shadow-sm'
+                              : isReadOnly
+                                ? 'border-slate-800/60 text-slate-600 opacity-40 cursor-not-allowed'
+                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                          }`}
+                        >
+                          Conforme
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isReadOnly}
+                          onClick={() => crit.setter('non_conforme')}
+                          className={`px-3 py-1.5 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                            crit.value === 'non_conforme'
+                              ? 'bg-rose-950/50 border-rose-500 text-rose-400 font-extrabold shadow-sm'
+                              : isReadOnly
+                                ? 'border-slate-800/60 text-slate-600 opacity-40 cursor-not-allowed'
+                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                          }`}
+                        >
+                          Non conforme
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Lie Detection Red Alert */}
+              {(() => {
+                const { totalPlanned, totalRealised } = calculateTotalsForChecklist();
+                const isAllConforme = checklistAlignment === 'conforme' &&
+                                      checklistDepth === 'conforme' &&
+                                      checklistTamping === 'conforme' &&
+                                      checklistTovex === 'conforme' &&
+                                      checklistSequence === 'conforme';
+                const isLieDetected = totalPlanned > 0 && totalRealised < 0.8 * totalPlanned && isAllConforme;
+                const ratio = totalPlanned > 0 ? (totalRealised / totalPlanned) * 105 : 0; // standard fallback multiplier
+
+                if (!isLieDetected) return null;
+
+                return (
+                  <div className="p-4 bg-rose-950/60 border border-rose-800/80 rounded-xl flex gap-3 text-rose-200 animate-fade-in mb-5">
+                    <AlertTriangle className="w-5 h-5 shrink-0 text-rose-500" />
+                    <div className="text-[10px] leading-relaxed font-bold">
+                      <p className="font-black uppercase text-rose-400 mb-1 text-[11px] tracking-wide">
+                        🚨 INCOHÉRENCE PHYSIQUE CRITIQUE (Alerte Anti-Fraude)
+                      </p>
+                      Le chef d'équipe certifie que tous les paramètres opérationnels sont à 100% conformes, mais le métrage d'avancement réel journalier cumulé ({totalRealised.toFixed(1)}m) est inférieur à 80% de l'avancement planifié ({totalPlanned.toFixed(1)}m, soit seulement {(totalPlanned > 0 ? (totalRealised / totalPlanned * 100) : 0).toFixed(1)}% d'avancement).
+                      <p className="mt-1">
+                        Physiquement impossible sans un dysfonctionnement dissimulé (ex: culots résiduels, déviation de forage non signalée, ou tirs ratés). Le scellement est verrouillé.
+                      </p>
+                      <p className="mt-2 font-black text-rose-300 uppercase text-[9px]">
+                        👉 Veuillez corriger le métrage réel, déclarer un critère "Non conforme" ou annuler.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Footer Buttons */}
+              <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-850">
+                {isReadOnly ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowChefChecklistModal(false)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black uppercase text-[10px] tracking-wider rounded-lg transition-all cursor-pointer shadow-md"
+                  >
+                    Fermer (Lecture seule)
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowChefChecklistModal(false)}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 font-black uppercase text-[10px] tracking-wider rounded-lg transition-all cursor-pointer"
+                    >
+                      Annuler
+                    </button>
+                    {(() => {
+                      const filledCount = [checklistAlignment, checklistDepth, checklistTamping, checklistTovex, checklistSequence].filter(v => v !== null).length;
+                      const { totalPlanned, totalRealised } = calculateTotalsForChecklist();
+                      const isAllConforme = checklistAlignment === 'conforme' &&
+                                            checklistDepth === 'conforme' &&
+                                            checklistTamping === 'conforme' &&
+                                            checklistTovex === 'conforme' &&
+                                            checklistSequence === 'conforme';
+                      const isLieDetected = totalPlanned > 0 && totalRealised < 0.8 * totalPlanned && isAllConforme;
+                      const isComplete = filledCount === 5;
+
+                      let btnStyle = "bg-slate-850 text-slate-500 cursor-not-allowed";
+                      let actionFn = undefined;
+                      let labelText = "Renseigner tous les critères";
+
+                      if (isComplete) {
+                        if (isLieDetected) {
+                          btnStyle = "bg-rose-700/80 text-rose-100 border border-rose-600 cursor-not-allowed";
+                          labelText = "Scellement bloqué (Incohérence)";
+                        } else {
+                          btnStyle = "bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 font-black hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer";
+                          actionFn = commitSealAndSave;
+                          labelText = "Confirmer et Sceller la Feuille";
+                        }
+                      }
+
+                      return (
+                        <button
+                          type="button"
+                          disabled={!isComplete || isLieDetected}
+                          onClick={actionFn}
+                          className={`px-5 py-2 uppercase text-[10px] tracking-wider rounded-lg font-black ${btnStyle}`}
+                        >
+                          {labelText}
+                        </button>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </AnimatePresence>
 
       {isMonthClosed && (
@@ -4475,6 +4780,29 @@ export const Production: React.FC = () => {
                   </span>
                 </div>
               )}
+
+              {(() => {
+                const docStatus = allProductionDocs.find(doc => doc.id === selectedDate)?.status;
+                const isSealed = docStatus === 'scelle';
+                return isSealed ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl shadow-xs">
+                      🔒 Scellé & Gravé
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowChefChecklistModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-100 bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 rounded-xl shadow-xs transition-all cursor-pointer"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 text-amber-500" /> Check-list Chef
+                    </button>
+                  </div>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 rounded-xl shadow-xs">
+                    ✏️ Brouillon
+                  </span>
+                );
+              })()}
             </div>
           </div>
 
