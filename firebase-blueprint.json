@@ -258,6 +258,27 @@
         "reads": { "type": "object" }
       },
       "required": ["title", "body", "senderEmail", "createdAt"]
+    },
+    "FailedBlast": {
+      "title": "FailedBlast",
+      "description": "Central registry of failed mine blasts for production gap tracing",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "sector": { "type": "string" },
+        "post": { "type": "string" },
+        "chantierId": { "type": "string" },
+        "plannedMeterage": { "type": "number" },
+        "realMeterage": { "type": "number" },
+        "cause": { "type": "string" },
+        "otherCauseComment": { "type": "string" },
+        "comment": { "type": "string" },
+        "reportedBy": { "type": "string" },
+        "reportedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "explained", "unjustified"] },
+        "siteId": { "type": "string" }
+      },
+      "required": ["date", "sector", "post", "chantierId", "plannedMeterage", "realMeterage", "cause", "status", "siteId"]
     }
   },
   "firestore": {
@@ -277,6 +298,7 @@
     "/production_history": { "schema": "ProductionHistory", "description": "Workbook validation and action logs" },
     "/deleted_plannings_log": { "schema": "DeletedPlanningLog", "description": "Deleted planning logs" },
     "/non_realisation_explanations": { "schema": "NonRealisationExplanation", "description": "Explanations for non-realisation gaps" },
-    "/system_messages": { "schema": "SystemMessage", "description": "System messaging, notifications, read receipts, response telemetry, and drafts tracking" }
+    "/system_messages": { "schema": "SystemMessage", "description": "System messaging, notifications, read receipts, response telemetry, and drafts tracking" },
+    "/failed_blasts": { "schema": "FailedBlast", "description": "Failed blast tracking records" }
   }
 }
