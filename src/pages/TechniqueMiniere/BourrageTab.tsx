@@ -30,9 +30,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
   // Loss in footage scaling based on tamping quality
   // If tamping is >= 76cm, loss is 0.
   // If tamping is less, loss scales linearly up to 0.8m when tamping is 0.
-  const estimatedLossM = isConforme 
-    ? 0 
-    : 0.8 * (1 - tampingLengthCm / 76);
+  const estimatedLossM = isConforme ? 0 : Math.max(0, (76 - tampingLengthCm) * 0.03);
 
   const finalAdvanceM = Math.max(0, holeDepth - estimatedLossM);
   const efficiencyPercent = holeDepth > 0 ? (finalAdvanceM / holeDepth) * 100 : 0;
@@ -495,7 +493,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
               Perte Financière Majeure
             </h4>
             <p className="text-[10px] text-slate-500 font-semibold leading-relaxed font-mono">
-              Un avancement divisé par deux représente une perte sèche de dynamite déjà injectée, de métrage d'argent SMI non valorisé, estimée à 15 000 MAD / tir raté.
+              Un avancement divisé par deux représente une perte sèche de dynamite déjà injectée, de métrage d'argent SMI non valorisé, estimée à 15 000 MAD / tir raté. Chaque centimètre de bourrage manquant sous les 76cm = perte de 0.03m de métrage.
             </p>
           </div>
 
