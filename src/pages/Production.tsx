@@ -875,6 +875,16 @@ export const Production: React.FC = () => {
         reelValue.wagonsActual = plannedItem?.wagonsActual !== undefined && plannedItem?.wagonsActual !== null ? Number(plannedItem.wagonsActual) : 0;
         reelValue.sterileBureImiterEst = plannedItem?.sterileBureImiterEst !== undefined && plannedItem?.sterileBureImiterEst !== null ? Number(plannedItem.sterileBureImiterEst) : 0;
         reelValue.installationName = plannedItem?.installationName || plannedItem?.chantierName || 'Bure';
+      } else if (typeName === 'boulonnage') {
+        reelValue.minerMatricule = plannedItem?.minerMatricule || '';
+        reelValue.minerName = plannedItem?.minerName || '';
+        reelValue.assistantMatricule = plannedItem?.assistantMatricule || '';
+        reelValue.assistantName = plannedItem?.assistantName || '';
+        reelValue.type = plannedItem?.type || 'Boulonnage';
+        reelValue.realBolts = 0;
+        reelValue.grillageQuantity = 0;
+        reelValue.hasGrillage = plannedItem?.hasGrillage || false;
+        reelValue.remarks = plannedItem?.remarks || '';
       }
       
       return {
@@ -2305,6 +2315,17 @@ export const Production: React.FC = () => {
       const foundChan = chantiers.find(c => c.id === value);
       if (foundChan && foundChan.sector) {
         updatedReel.sectorName = foundChan.sector;
+      }
+    }
+    if (field === 'type') {
+      if (value === 'Soutenement') {
+        updatedReel.hasGrillage = true;
+        if (!updatedReel.grillageQuantity || updatedReel.grillageQuantity === 0) {
+          updatedReel.grillageQuantity = rowWrapper.plan.grillageQuantity || 15;
+        }
+      } else {
+        updatedReel.hasGrillage = false;
+        updatedReel.grillageQuantity = 0;
       }
     }
     clone[index] = { ...rowWrapper, reel: updatedReel };
@@ -5378,7 +5399,7 @@ export const Production: React.FC = () => {
                                       placeholder="0"
                                       onChange={e => updateBoulonnageCell(shiftName, idx, 'grillageQuantity', Number(e.target.value))}
                                       className="w-16 text-center font-black p-1 border border-slate-200 bg-white select-all text-emerald-950"
-                                      disabled={row.type === 'Boulonnage'}
+                                      disabled={(row.type || 'Boulonnage') === 'Boulonnage'}
                                     />
                                   </td>
 

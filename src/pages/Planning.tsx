@@ -667,6 +667,21 @@ export const Planning: React.FC = () => {
     warnings: string[];
   } | null>(null);
 
+  // Soutènement / Boulonnage Inline Modal State
+  const [activeBoulonnageModal, setActiveBoulonnageModal] = useState<{
+    post: 'Poste 1' | 'Poste 2' | 'Poste 3';
+    minageRowIndex: number;
+    chantierId: string;
+    chantierName: string;
+  } | null>(null);
+
+  const [modalBoulonnageEnabled, setModalBoulonnageEnabled] = useState(false);
+  const [modalBoulonnageType, setModalBoulonnageType] = useState<'Boulonnage' | 'Soutenement'>('Boulonnage');
+  const [modalPlannedBolts, setModalPlannedBolts] = useState<number>(20);
+  const [modalHasGrillage, setModalHasGrillage] = useState<boolean>(false);
+  const [modalGrillageQty, setModalGrillageQty] = useState<number>(0);
+  const [modalBoulonnageRemarks, setModalBoulonnageRemarks] = useState<string>('');
+
   // Planning Excel grids template state
   const [minageRowsByPost, setMinageRowsByPost] = useState<Record<'Poste 1' | 'Poste 2' | 'Poste 3', ExcelMinage[]>>({
     'Poste 1': [],
@@ -1451,6 +1466,36 @@ export const Planning: React.FC = () => {
 
     // Cleanly and dynamically recalculate explosives of the targeted row based on activity
     clone[index] = recalculateExplosivesIfNeeded(clone[index], platformSettings);
+
+    // --- SMART SYNC OF BOULONNAGE DATA ---
+    // If we updated chantierId, minerMatricule, or assistantMatricule in Sheet 1,
+    // propagate it to the corresponding boulonnage row in boulonnageRowsByPost
+    if (['chantierId', 'minerMatricule', 'assistantMatricule'].includes(field)) {
+      setBoulonnageRowsByPost(prev => {
+        const postBoulonnage = [...(prev[post] || [])];
+        const oldChantierId = originalRows[index]?.chantierId || '';
+        const targetChantierId = field === 'chantierId' ? oldChantierId : clone[index].chantierId;
+
+        // Find existing boulonnage row
+        const bIdx = postBoulonnage.findIndex(r => r.chantierId === targetChantierId);
+        if (bIdx !== -1) {
+          const updatedBRow = { ...postBoulonnage[bIdx] };
+          if (field === 'chantierId') {
+            updatedBRow.chantierId = value;
+          }
+          if (field === 'minerMatricule' || field === 'chantierId') {
+            updatedBRow.minerMatricule = clone[index].minerMatricule || '';
+            updatedBRow.minerName = clone[index].minerName || '';
+          }
+          if (field === 'assistantMatricule' || field === 'chantierId') {
+            updatedBRow.assistantMatricule = clone[index].assistantMatricule || '';
+            updatedBRow.assistantName = clone[index].assistantName || '';
+          }
+          postBoulonnage[bIdx] = updatedBRow;
+        }
+        return { ...prev, [post]: postBoulonnage };
+      });
+    }
 
     setMinageRowsByPost(prev => ({ ...prev, [post]: clone }));
   };
@@ -2569,6 +2614,65 @@ export const Planning: React.FC = () => {
     }
   };
 
+  const saveModalBoulonnage = () => {
+    if (!activeBoulonnageModal) return;
+    const { post, minageRowIndex, chantierId } = activeBoulonnageModal;
+    
+    // Get miner and assistant info from the corresponding minage row
+    const minageRow = minageRowsByPost[post]?.[minageRowIndex];
+    const minerMatricule = minageRow?.minerMatricule || '';
+    const minerName = minageRow?.minerName || '';
+    const assistantMatricule = minageRow?.assistantMatricule || '';
+    const assistantName = minageRow?.assistantName || '';
+    const sectorGroup = minageRow?.sectorGroup || 'Autres / Non classés';
+
+    setBoulonnageRowsByPost(prev => {
+      const currentList = [...(prev[post] || [])];
+      const bIdx = currentList.findIndex(r => r.chantierId === chantierId);
+      
+      if (modalBoulonnageEnabled) {
+        const updatedRow: ExcelBoulonnage = {
+          chantierId,
+          minerMatricule,
+          minerName,
+          assistantMatricule,
+          assistantName,
+          type: modalBoulonnageType,
+          plannedBolts: modalPlannedBolts,
+          realBolts: 0,
+          hasGrillage: modalHasGrillage,
+          grillageQuantity: modalHasGrillage ? modalGrillageQty : 0,
+          remarks: modalBoulonnageRemarks,
+          sectorGroup
+        };
+
+        if (bIdx !== -1) {
+          currentList[bIdx] = updatedRow;
+        } else {
+          currentList.push(updatedRow);
+        }
+      } else {
+        // Disabled or cleared
+        if (bIdx !== -1) {
+          // Reset bolts to 0 to disable it
+          currentList[bIdx] = {
+            ...currentList[bIdx],
+            plannedBolts: 0,
+            realBolts: 0,
+            hasGrillage: false,
+            grillageQuantity: 0,
+            type: 'Boulonnage',
+            remarks: ''
+          };
+        }
+      }
+      return { ...prev, [post]: currentList };
+    });
+
+    // Mark unsaved local changes to trigger local draft sync
+    setActiveBoulonnageModal(null);
+  };
+
   const getPlanningValidationReport = () => {
     const warnings: string[] = [];
     const summary = {
@@ -3618,14 +3722,6 @@ export const Planning: React.FC = () => {
                   inactiveClass: 'text-gray-400 hover:text-purple-500 hover:bg-purple-50/5 border-t-2 border-transparent',
                   glowDot: 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.85)]'
                 },
-                { 
-                  id: 'boulonnage', 
-                  label: 'Sheet 5 - Boulonnage & Soutènement', 
-                  icon: ShieldCheck,
-                  activeClass: 'border-amber-500 text-amber-600 bg-gradient-to-b from-amber-50/70 via-white to-white shadow-[0_-4px_16px_rgba(245,158,11,0.18)] border-t-2', 
-                  inactiveClass: 'text-gray-400 hover:text-amber-500 hover:bg-amber-50/5 border-t-2 border-transparent',
-                  glowDot: 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.85)]'
-                },
               ].map(sheet => {
                 const isActive = activeSheetTab === sheet.id;
                 const IconComponent = sheet.icon;
@@ -3699,6 +3795,7 @@ export const Planning: React.FC = () => {
                                 <th className="p-2.5 border-r border-slate-700/50 w-16 text-center bg-gradient-to-b from-amber-950/15 to-transparent text-amber-200 font-bold">ANFO (kg)</th>
                                 <th className="p-2.5 border-r border-slate-700/50 w-16 text-center bg-slate-900/60 text-slate-300 font-bold">Tovex (kg)</th>
                                 <th className="p-2.5 text-center w-16 bg-gradient-to-b from-red-950/15 to-transparent text-rose-220 font-bold">Amorces</th>
+                                <th className="p-2.5 border-l border-slate-700/50 text-center w-36 bg-gradient-to-b from-amber-950/25 to-amber-950/10 text-amber-200 font-bold">Soutènement</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -3713,7 +3810,7 @@ export const Planning: React.FC = () => {
                                   <React.Fragment key={sec}>
                                     {/* Sector Header Badge Row */}
                                     <tr className="bg-gray-50/80 border-y border-gray-200 select-none">
-                                      <td colSpan={11} className="py-2.5 px-3">
+                                      <td colSpan={12} className="py-2.5 px-3">
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                           <div className="flex flex-wrap items-center gap-2">
                                             {(() => {
@@ -4071,6 +4168,68 @@ export const Planning: React.FC = () => {
                                               >
                                                 {row.ammorces}
                                               </div>
+                                            )}
+                                          </td>
+
+                                          {/* Soutènement / Boulonnage Configuration Cell */}
+                                          <td className="p-1 border-r border-gray-200 w-36 text-center align-middle">
+                                            {row.chantierId ? (
+                                              (() => {
+                                                const bRow = (boulonnageRowsByPost[p] || []).find(br => br.chantierId === row.chantierId);
+                                                const isPlanned = bRow && bRow.plannedBolts > 0;
+                                                return (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const existingB = bRow || {
+                                                        chantierId: row.chantierId,
+                                                        minerMatricule: row.minerMatricule || '',
+                                                        minerName: row.minerName || '',
+                                                        assistantMatricule: row.assistantMatricule || '',
+                                                        assistantName: row.assistantName || '',
+                                                        type: 'Boulonnage',
+                                                        plannedBolts: 20,
+                                                        realBolts: 0,
+                                                        hasGrillage: false,
+                                                        grillageQuantity: 0,
+                                                        remarks: '',
+                                                        sectorGroup: sec
+                                                      };
+
+                                                      setActiveBoulonnageModal({
+                                                        post: p,
+                                                        minageRowIndex: flatIdx,
+                                                        chantierId: row.chantierId,
+                                                        chantierName: chantiers.find(c => c.id === row.chantierId)?.name || row.chantierId
+                                                      });
+
+                                                      setModalBoulonnageEnabled(isPlanned);
+                                                      setModalBoulonnageType(existingB.type || 'Boulonnage');
+                                                      setModalPlannedBolts(existingB.plannedBolts > 0 ? existingB.plannedBolts : 20);
+                                                      setModalHasGrillage(existingB.hasGrillage || false);
+                                                      setModalGrillageQty(existingB.grillageQuantity || 0);
+                                                      setModalBoulonnageRemarks(existingB.remarks || '');
+                                                    }}
+                                                    className={`inline-flex items-center gap-1.5 px-2 py-1 text-[9.5px] font-black uppercase rounded-lg border transition-all cursor-pointer ${
+                                                      isPlanned
+                                                        ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border-amber-300 shadow-xs'
+                                                        : 'bg-slate-50 hover:bg-slate-100 text-slate-400 border-slate-200'
+                                                    }`}
+                                                  >
+                                                    {isPlanned ? (
+                                                      <>
+                                                        🛡️ {bRow.type === 'Soutenement' ? 'Sout.' : 'Boul.'} ({bRow.plannedBolts})
+                                                      </>
+                                                    ) : (
+                                                      <>
+                                                        ➕ Planifier
+                                                      </>
+                                                    )}
+                                                  </button>
+                                                );
+                                              })()
+                                            ) : (
+                                              <span className="text-[9.5px] text-gray-300 uppercase font-bold italic select-none">Pas de chantier</span>
                                             )}
                                           </td>
 
@@ -4788,7 +4947,7 @@ export const Planning: React.FC = () => {
             )}
 
             {/* SHEET 5: BOULONNAGE & SOUTENEMENT INTERACTIVE EXCEL GRID */}
-            {activeSheetTab === 'boulonnage' && (
+            {false && activeSheetTab === 'boulonnage' && (
               <div className="space-y-8">
                 {(() => {
                   let globalIdxCounter = 0;
@@ -5933,6 +6092,211 @@ export const Planning: React.FC = () => {
                 Confirmer
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SOUTÈNEMENT / BOULONNAGE CONFIGURATION MODAL */}
+      {activeBoulonnageModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in font-sans">
+          <div className="bg-white rounded-3xl border border-amber-300 shadow-2xl max-w-lg w-full overflow-hidden transform transition-all">
+            
+            {/* Elegant Header */}
+            <div className="bg-gradient-to-r from-amber-600 to-[#b8860b] p-5 text-white flex items-center gap-3.5 select-none">
+              <div className="bg-white/15 p-2.5 rounded-2xl border border-white/20 shrink-0">
+                <Hammer className="w-6 h-6 text-amber-200 animate-pulse" />
+              </div>
+              <div>
+                <span className="font-extrabold text-[9px] uppercase tracking-widest text-amber-200 block mb-0.5">Configuration du Soutènement</span>
+                <h3 className="font-black text-sm uppercase tracking-wider text-white">Chantier : {activeBoulonnageModal.chantierName}</h3>
+                <p className="text-[9.5px] text-amber-100 font-bold uppercase mt-1">
+                  En synchronisation avec le {activeBoulonnageModal.post}
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5">
+              {/* Enabled Toggle Switch */}
+              <div className="bg-amber-500/5 border border-amber-200/50 p-4 rounded-2xl flex items-center justify-between">
+                <div>
+                  <h4 className="text-[11px] font-black uppercase text-amber-950">Planifier un soutènement ?</h4>
+                  <p className="text-[9.5px] text-amber-700/80 font-semibold mt-0.5">Cochez pour activer le boulonnage ou soutènement sur ce chantier</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={modalBoulonnageEnabled}
+                    onChange={(e) => setModalBoulonnageEnabled(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+
+              {modalBoulonnageEnabled && (
+                <div className="space-y-4 animate-fade-in">
+                  
+                  {/* Type Selection */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Type de travail</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalBoulonnageType('Boulonnage');
+                          setModalHasGrillage(false);
+                          setModalGrillageQty(0);
+                        }}
+                        className={`py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                          modalBoulonnageType === 'Boulonnage'
+                            ? 'bg-amber-500/10 text-amber-600 border-amber-400 shadow-xs'
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        🔩 Boulonnage standard
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalBoulonnageType('Soutenement');
+                          setModalHasGrillage(true);
+                          if (modalGrillageQty === 0) {
+                            setModalGrillageQty(15);
+                          }
+                        }}
+                        className={`py-2.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                          modalBoulonnageType === 'Soutenement'
+                            ? 'bg-indigo-600 bg-opacity-10 text-indigo-700 border-indigo-400 shadow-xs'
+                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        🛡️ Soutènement lourd
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Planned Bolts input & presets */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Nombre de boulons planifiés</label>
+                      <span className="font-mono font-bold text-amber-600 text-[11px]">{modalPlannedBolts} unités</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="5"
+                        max="60"
+                        step="5"
+                        value={modalPlannedBolts}
+                        onChange={(e) => setModalPlannedBolts(Number(e.target.value))}
+                        className="flex-1 accent-amber-500"
+                      />
+                      <input
+                        type="number"
+                        value={modalPlannedBolts}
+                        onChange={(e) => setModalPlannedBolts(Math.max(0, Number(e.target.value)))}
+                        className="w-16 text-center font-mono font-bold text-xs bg-slate-50 border border-slate-200 rounded-lg py-1 text-slate-800"
+                      />
+                    </div>
+                    {/* Quick Presets */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {[15, 20, 25, 30, 40].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setModalPlannedBolts(preset)}
+                          className={`px-2.5 py-1 rounded-md text-[9.5px] font-black transition-all cursor-pointer ${
+                            modalPlannedBolts === preset
+                              ? 'bg-amber-500 text-white font-extrabold shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {preset} boulons
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Steel Mesh (Grillage) Toggle */}
+                  <div className="space-y-3 pt-1 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-[10.5px] font-bold text-slate-800">Grillage de protection requis ?</h4>
+                        <p className="text-[9px] text-slate-500">Ajouter du grillage d'acier galvanisé pour consolider la voûte</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={modalHasGrillage}
+                        onChange={(e) => {
+                          setModalHasGrillage(e.target.checked);
+                          if (e.target.checked && modalGrillageQty === 0) {
+                            setModalGrillageQty(15);
+                          }
+                        }}
+                        className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 cursor-pointer"
+                      />
+                    </div>
+
+                    {modalHasGrillage && (
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-4 animate-fade-in">
+                        <span className="text-[10px] font-semibold text-slate-600">Surface de grillage (m²)</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            value={modalGrillageQty}
+                            onChange={(e) => setModalGrillageQty(Math.max(0, Number(e.target.value)))}
+                            className="w-20 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-lg py-1 text-slate-800 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                          />
+                          <span className="text-[10px] font-black text-slate-500">m²</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Remarks input */}
+                  <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                    <label className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Instructions de sécurité / Remarques</label>
+                    <textarea
+                      value={modalBoulonnageRemarks}
+                      onChange={(e) => setModalBoulonnageRemarks(e.target.value)}
+                      placeholder="Saisir des instructions ou remarques spécifiques pour l'équipe..."
+                      rows={2}
+                      className="w-full text-xs p-3 border border-slate-200 rounded-xl focus:ring-1 focus:ring-amber-500 focus:outline-none placeholder:text-gray-400"
+                    />
+                  </div>
+
+                </div>
+              )}
+
+              {!modalBoulonnageEnabled && (
+                <div className="bg-slate-50 p-6 rounded-2xl text-center select-none border border-dashed border-slate-200">
+                  <span className="text-2xl block mb-2">🛡️</span>
+                  <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wide">Aucun soutènement planifié</p>
+                  <p className="text-[9.5px] text-slate-400 font-semibold mt-1">Le chantier sera exploité uniquement en forage et minage standard sans renforcement.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="bg-slate-50 border-t border-slate-100 px-6 py-4 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setActiveBoulonnageModal(null)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={saveModalBoulonnage}
+                className="px-5 py-2 bg-gradient-to-r from-amber-600 to-[#b8860b] text-white font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer shadow-md hover:shadow-lg active:translate-y-px"
+              >
+                Enregistrer & Planifier
+              </button>
+            </div>
+
           </div>
         </div>
       )}

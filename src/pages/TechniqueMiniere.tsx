@@ -14,6 +14,7 @@ import {
 // Subcomponents modular imports
 import { HomeCards } from './TechniqueMiniere/HomeCards';
 import { SchemaTab } from './TechniqueMiniere/SchemaTab';
+import { DrillingGuideTab } from './TechniqueMiniere/DrillingGuideTab';
 import { ExplosifsTab } from './TechniqueMiniere/ExplosifsTab';
 import { BourrageTab } from './TechniqueMiniere/BourrageTab';
 import { CalculsTab } from './TechniqueMiniere/CalculsTab';
@@ -101,6 +102,18 @@ export const TechniqueMiniere: React.FC = () => {
                 🎯 Plan de tir interactif
               </button>
 
+              {/* TAB 1.5 - DRILLING GUIDE */}
+              <button
+                onClick={() => setActiveTab('drilling')}
+                className={`pb-4 border-b-2 transition-all ${
+                  activeTab === 'drilling'
+                    ? 'border-amber-500 text-slate-950 font-black'
+                    : 'border-transparent text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                📐 Guide de forage 3D
+              </button>
+
               {/* TAB 2 */}
               <button
                 onClick={() => setActiveTab('explosifs')}
@@ -163,6 +176,18 @@ export const TechniqueMiniere: React.FC = () => {
                     transition={{ duration: 0.2 }}
                   >
                     <SchemaTab gabarit={gabarit} />
+                  </motion.div>
+                )}
+
+                {activeTab === 'drilling' && (
+                  <motion.div
+                    key="tab-drilling"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <DrillingGuideTab />
                   </motion.div>
                 )}
 

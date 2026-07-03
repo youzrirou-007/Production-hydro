@@ -9,7 +9,7 @@ export interface HoleInfo {
   delay: number;
 }
 
-export type TabType = 'schema' | 'explosifs' | 'bourrage' | 'calculs' | 'ingenierie';
+export type TabType = 'schema' | 'drilling' | 'explosifs' | 'bourrage' | 'calculs' | 'ingenierie';
 
 export interface QuizQuestion {
   id: number;

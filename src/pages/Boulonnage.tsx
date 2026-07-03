@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   collection, 
   query, 
@@ -22,7 +22,8 @@ import {
   Search,
   CheckCircle,
   Clock,
-  Briefcase
+  Briefcase,
+  X
 } from 'lucide-react';
 import { format, subDays, startOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -74,6 +75,11 @@ export const Boulonnage: React.FC = () => {
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [activeSubTab, setActiveSubTab] = useState<'chantier' | 'miner' | 'assistant' | 'history'>('chantier');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedEmployeeReport, setSelectedEmployeeReport] = useState<{
+    matricule: string;
+    name: string;
+    role: 'miner' | 'assistant';
+  } | null>(null);
 
   // Loaded data
   const [productionDays, setProductionDays] = useState<ProductionDay[]>([]);
@@ -145,6 +151,33 @@ export const Boulonnage: React.FC = () => {
     }
     return rows;
   });
+
+  // Compute performance report data for the selected employee
+  const employeeReportData = useMemo(() => {
+    if (!selectedEmployeeReport) return null;
+    const { matricule, role } = selectedEmployeeReport;
+
+    // Filter rows where the selected employee was involved in either actual (reel) or planned (plan) as fallback
+    const list = allBoulonnageRows.filter(({ row }) => {
+      const targetMat = role === 'miner' 
+        ? (row.reel.minerMatricule || row.plan.minerMatricule) 
+        : (row.reel.assistantMatricule || row.plan.assistantMatricule);
+      return targetMat && targetMat.toUpperCase() === matricule.toUpperCase();
+    });
+
+    const totalRealBolts = list.reduce((acc, { row }) => acc + (Number(row.reel.realBolts) || 0), 0);
+    const totalRealGrillage = list.reduce((acc, { row }) => acc + (Number(row.reel.grillageQuantity) || 0), 0);
+    
+    // Each bolt contributes +0.1m of equivalent minage yield/encouragement
+    const totalEncouragement = totalRealBolts * 0.1;
+
+    return {
+      list,
+      totalRealBolts,
+      totalRealGrillage,
+      totalEncouragement
+    };
+  }, [selectedEmployeeReport, allBoulonnageRows]);
 
   // Aggregations
   // 1. By Chantier
@@ -577,7 +610,12 @@ export const Boulonnage: React.FC = () => {
                           item.matricule.toLowerCase().includes(searchQuery.toLowerCase())
                         )
                         .map((m) => (
-                          <tr key={m.matricule} className="hover:bg-slate-50 transition-colors">
+                          <tr 
+                            key={m.matricule} 
+                            onClick={() => setSelectedEmployeeReport({ matricule: m.matricule, name: m.name, role: 'miner' })}
+                            className="hover:bg-amber-50/40 cursor-pointer transition-colors"
+                            title="Cliquez pour afficher le rapport de performance détaillé"
+                          >
                             <td className="p-3 font-mono font-black text-slate-500">{m.matricule}</td>
                             <td className="p-3 text-slate-900 font-extrabold flex items-center gap-2">
                               <HardHat className="w-4 h-4 text-slate-400" /> {m.name}
@@ -629,7 +667,12 @@ export const Boulonnage: React.FC = () => {
                           item.matricule.toLowerCase().includes(searchQuery.toLowerCase())
                         )
                         .map((m) => (
-                          <tr key={m.matricule} className="hover:bg-slate-50 transition-colors">
+                          <tr 
+                            key={m.matricule} 
+                            onClick={() => setSelectedEmployeeReport({ matricule: m.matricule, name: m.name, role: 'assistant' })}
+                            className="hover:bg-amber-50/40 cursor-pointer transition-colors"
+                            title="Cliquez pour afficher le rapport de performance détaillé"
+                          >
                             <td className="p-3 font-mono font-black text-slate-500">{m.matricule}</td>
                             <td className="p-3 text-slate-900 font-extrabold flex items-center gap-2">
                               <Users className="w-4 h-4 text-slate-400" /> {m.name}
@@ -735,6 +778,183 @@ export const Boulonnage: React.FC = () => {
         )}
 
       </div>
+
+      {/* DETAILED EMPLOYEE REPORT MODAL */}
+      {selectedEmployeeReport && employeeReportData && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in font-sans">
+          <div className="bg-white rounded-3xl border border-amber-300 shadow-2xl max-w-4xl w-full overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+            
+            {/* Header */}
+            <div className="bg-slate-900 p-5 text-white flex items-center justify-between border-b border-amber-500 select-none">
+              <div className="flex items-center gap-3.5">
+                <div className="bg-gradient-to-br from-amber-400 to-[#b8860b] p-2.5 rounded-2xl shrink-0">
+                  <HardHat className="w-6 h-6 text-slate-950" />
+                </div>
+                <div>
+                  <span className="font-extrabold text-[9px] uppercase tracking-widest text-amber-200 block mb-0.5">
+                    Fiche d'Évaluation Individuelle ({selectedEmployeeReport.role === 'miner' ? 'Mineur' : 'Aide-Mineur'})
+                  </span>
+                  <h3 className="font-black text-base uppercase tracking-wider text-white">
+                    {selectedEmployeeReport.name}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 font-mono">
+                    Matricule : {selectedEmployeeReport.matricule}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEmployeeReport(null)}
+                className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-xl transition-all cursor-pointer border border-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body with Scrollable Area */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              
+              {/* Quick Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Boulons Posés</span>
+                  <span className="text-xl font-mono font-black text-slate-900 block mt-1">
+                    {employeeReportData.totalRealBolts} u.
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase block mt-0.5">
+                    Sur {employeeReportData.list.length} interventions
+                  </span>
+                </div>
+                
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Grillage Installé</span>
+                  <span className="text-xl font-mono font-black text-slate-900 block mt-1">
+                    {employeeReportData.totalRealGrillage} m²
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase block mt-0.5">
+                    Renforcement voûte
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Fiches Remplies</span>
+                  <span className="text-xl font-mono font-black text-slate-900 block mt-1">
+                    {employeeReportData.list.length}
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase block mt-0.5">
+                    Postes de travail
+                  </span>
+                </div>
+
+                <div className="bg-gradient-to-br from-[#1e293b] to-slate-950 text-white p-4 rounded-2xl border border-amber-500/20">
+                  <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider block">Equivalent Rendement</span>
+                  <span className="text-xl font-mono font-black text-white block mt-1">
+                    +{employeeReportData.totalEncouragement.toFixed(1)} m
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block mt-0.5">
+                    Primes d'encouragement
+                  </span>
+                </div>
+              </div>
+
+              {/* Detail Table */}
+              <div className="space-y-3">
+                <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-500" /> Historique détaillé des chantiers
+                </h4>
+                
+                <div className="overflow-x-auto rounded-xl border border-gray-200 max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-900 text-[#ffd700] uppercase text-[9px] tracking-wider font-extrabold select-none border-b border-slate-700 sticky top-0 z-10">
+                        <th className="p-2.5 w-32">Date</th>
+                        <th className="p-2.5 w-24 text-center">Poste</th>
+                        <th className="p-2.5">Chantier</th>
+                        <th className="p-2.5">Type</th>
+                        <th className="p-2.5 text-center">Boulons SPLIT</th>
+                        <th className="p-2.5 text-center">Grillage (m²)</th>
+                        <th className="p-2.5">Co-équipier</th>
+                        <th className="p-2.5">Remarques & Incidents</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-150 text-[10.5px] font-bold text-slate-700">
+                      {employeeReportData.list.map(({ date, poste, row }, index) => {
+                        const chantierName = chantiersMap[row.reel.chantierId || row.plan.chantierId] || row.reel.chantierId || 'Non spécifié';
+                        const teammateName = selectedEmployeeReport.role === 'miner'
+                          ? row.reel.assistantName || row.plan.assistantName || 'Aucun aide'
+                          : row.reel.minerName || row.plan.minerName || 'Aucun mineur';
+                        const teammateMatricule = selectedEmployeeReport.role === 'miner'
+                          ? row.reel.assistantMatricule || row.plan.assistantMatricule
+                          : row.reel.minerMatricule || row.plan.minerMatricule;
+
+                        return (
+                          <tr key={index} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-2.5 text-slate-900 whitespace-nowrap">
+                              {formatFrenchDate(date)}
+                            </td>
+                            <td className="p-2.5 text-center">
+                              <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
+                                poste === 'Poste 1' ? 'bg-amber-50 border border-amber-200 text-amber-800' :
+                                poste === 'Poste 2' ? 'bg-sky-50 border border-sky-200 text-sky-800' :
+                                'bg-indigo-50 border border-indigo-200 text-indigo-800'
+                              }`}>
+                                {poste}
+                              </span>
+                            </td>
+                            <td className="p-2.5 text-slate-900 uppercase font-extrabold">{chantierName}</td>
+                            <td className="p-2.5">
+                              <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase ${
+                                row.reel.type === 'Soutenement' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'
+                              }`}>
+                                {row.reel.type || 'Boulonnage'}
+                              </span>
+                            </td>
+                            <td className="p-2.5 text-center font-mono text-amber-900 bg-amber-50/20">{row.reel.realBolts || 0} u.</td>
+                            <td className="p-2.5 text-center font-mono">{row.reel.grillageQuantity || 0} m²</td>
+                            <td className="p-2.5">
+                              <div className="font-extrabold text-slate-800">{teammateName}</div>
+                              {teammateMatricule && <div className="text-[9px] text-slate-400 font-mono">Matr: {teammateMatricule}</div>}
+                            </td>
+                            <td className="p-2.5 text-slate-500 max-w-xs truncate" title={row.reel.remarks || ''}>
+                              {row.reel.remarks || '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {employeeReportData.list.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="p-8 text-center text-slate-400 uppercase font-black tracking-wider text-xs">
+                            Aucune donnée enregistrée sur cette période
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                S.M.I Imiter - Service de Suivi Technique
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedEmployeeReport(null)}
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all shadow-md cursor-pointer"
+              >
+                Fermer le Rapport
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* DETAILED STATISTICS SUB-TABS */}
+      {/* (Moved original content end brackets appropriately) */}
       
     </div>
   );
