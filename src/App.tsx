@@ -15,7 +15,12 @@ import { Messages } from './pages/Messages';
 import { TechniqueMiniere } from './pages/TechniqueMiniere';
 import { EspaceDT } from './pages/EspaceDT';
 import { Boulonnage } from './pages/Boulonnage';
+import FailedBlasts from './pages/FailedBlasts';
+import Tutoriel from './pages/Tutoriel';
 import { Factory, ShieldCheck, Mail, LogIn, HardHat } from 'lucide-react';
+
+// Declarative route helper support
+export const Route: React.FC<{ path: string; element: React.ReactNode }> = () => null;
 
 const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
   <div className="flex flex-col items-center justify-center py-40 bg-white rounded-3xl border border-[#141414]/5">
@@ -103,6 +108,10 @@ const AppContent: React.FC = () => {
       case 'technique': return <TechniqueMiniere />;
       case 'espace_dt': return <EspaceDT />;
       case 'boulonnage': return <Boulonnage />;
+      case 'failed_blasts':
+      case '/volées-ratées': return <FailedBlasts />;
+      case 'tutoriel':
+      case '/tutoriel': return <Tutoriel />;
       case 'admin': return <Admin />;
       default: return <Production />;
     }

@@ -1141,3 +1141,5 @@ export const FailedBlasts: React.FC = () => {
     </div>
   );
 };
+
+export default FailedBlasts;

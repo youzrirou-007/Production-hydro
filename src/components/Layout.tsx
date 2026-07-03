@@ -30,7 +30,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Crown,
-  Hammer
+  Hammer,
+  GraduationCap
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
@@ -74,6 +75,8 @@ const NAV_ITEMS: NavItem[] = [
   // INGÉNIERIE & RÈGLEMENTS
   { id: 'technique', label: 'Technique Minière', icon: <Wrench className="w-5 h-5" />, category: 'ingenierie' },
   { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'ingenierie' },
+  { id: '/volées-ratées', label: '⚠️ Volées Ratées', icon: <AlertTriangle className="w-5 h-5" />, category: 'ingenierie' },
+  { id: '/tutoriel', label: '🎓 Tutoriel', icon: <GraduationCap className="w-5 h-5" />, category: 'ingenierie' },
   
   // ANALYSE & PERFORMANCE
   { id: 'daily_report', label: 'Rapport Consolidé', icon: <Layers className="w-5 h-5" />, category: 'analyse' },

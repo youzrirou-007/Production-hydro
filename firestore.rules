@@ -176,5 +176,16 @@ service cloud.firestore {
       ]);
       allow delete: if isSignedIn() && hasRole(['admin']);
     }
+
+    // Volées ratées (Failed blasts)
+    match /failed_blasts/{blastId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+        (hasRole(['secretary', 'responsible', 'chief', 'direction', 'admin']));
+      allow update: if request.auth != null && 
+        (hasRole(['direction', 'admin']));
+      allow delete: if request.auth != null && 
+        (hasRole(['admin']));
+    }
   }
 }
