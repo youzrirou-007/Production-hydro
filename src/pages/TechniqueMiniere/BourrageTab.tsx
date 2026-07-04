@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ShieldAlert, Info, HelpCircle, Activity, CheckCircle2, AlertTriangle, TrendingDown, ArrowRight, Zap } from 'lucide-react';
 
+import { GabaritType } from './types';
+
 interface BourrageTabProps {
-  gabarit: '12m2' | '9m2';
+  gabarit: GabaritType;
 }
 
 export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {

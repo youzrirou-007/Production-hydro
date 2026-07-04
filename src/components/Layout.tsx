@@ -31,7 +31,9 @@ import {
   CheckCircle2,
   Crown,
   Hammer,
-  GraduationCap
+  GraduationCap,
+  FileText,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
@@ -75,16 +77,16 @@ const NAV_ITEMS: NavItem[] = [
   // INGÉNIERIE & RÈGLEMENTS
   { id: 'technique', label: 'Technique Minière', icon: <Wrench className="w-5 h-5" />, category: 'ingenierie' },
   { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'ingenierie' },
-  { id: '/volées-ratées', label: '⚠️ Volées Ratées', icon: <AlertTriangle className="w-5 h-5" />, category: 'ingenierie' },
-  { id: '/tutoriel', label: '🎓 Tutoriel', icon: <GraduationCap className="w-5 h-5" />, category: 'ingenierie' },
+  { id: '/volées-ratées', label: 'Volées Ratées', icon: <AlertTriangle className="w-5 h-5" />, category: 'ingenierie' },
+  { id: '/tutoriel', label: 'Tutoriel', icon: <GraduationCap className="w-5 h-5" />, category: 'ingenierie' },
   
   // ANALYSE & PERFORMANCE
-  { id: 'daily_report', label: 'Rapport Consolidé', icon: <Layers className="w-5 h-5" />, category: 'analyse' },
-  { id: 'analytics', label: '📊 Analytique', icon: <BarChart3 className="w-5 h-5" />, category: 'analyse' },
+  { id: 'daily_report', label: 'Rapport Consolidé', icon: <FileText className="w-5 h-5" />, category: 'analyse' },
+  { id: 'analytics', label: 'Analytique', icon: <BarChart3 className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_strategie', label: 'Pilotage & Stratégie', icon: <Activity className="w-5 h-5" />, category: 'analyse' },
-  { id: 'analyse_terrain', label: 'Performance Terrain', icon: <Layers className="w-5 h-5" />, category: 'analyse' },
+  { id: 'analyse_terrain', label: 'Performance Terrain', icon: <TrendingUp className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_rh', label: 'Ressources Humaines', icon: <HardHat className="w-5 h-5" />, category: 'analyse' },
-  { id: 'analyse_logistique', label: 'Matériel & Historiques', icon: <Wrench className="w-5 h-5" />, category: 'analyse' },
+  { id: 'analyse_logistique', label: 'Matériel & Historiques', icon: <Database className="w-5 h-5" />, category: 'analyse' },
   { id: 'boulonnage', label: 'Suivi Boulonnage', icon: <Hammer className="w-5 h-5" />, category: 'analyse' },
 
   // ADMIN

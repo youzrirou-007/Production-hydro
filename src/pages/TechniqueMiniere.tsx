@@ -19,14 +19,14 @@ import { ExplosifsTab } from './TechniqueMiniere/ExplosifsTab';
 import { BourrageTab } from './TechniqueMiniere/BourrageTab';
 import { CalculsTab } from './TechniqueMiniere/CalculsTab';
 import { IngenierieTab } from './TechniqueMiniere/IngenierieTab';
-import { TabType } from './TechniqueMiniere/types';
+import { GabaritType, TabType } from './TechniqueMiniere/types';
 
 export const TechniqueMiniere: React.FC = () => {
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabType>('schema');
-  const [gabarit, setGabarit] = useState<'12m2' | '9m2'>('12m2');
+  const [gabarit, setGabarit] = useState<GabaritType>('12m2');
 
-  const handleSelectGabarit = (selected: '12m2' | '9m2') => {
+  const handleSelectGabarit = (selected: GabaritType) => {
     setGabarit(selected);
     setIsDetailOpen(true);
     setActiveTab('schema');
@@ -70,7 +70,7 @@ export const TechniqueMiniere: React.FC = () => {
                   <ChevronLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
                 </button>
                 <div>
-                  <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest block">Galerie active : {gabarit === '9m2' ? '9 m²' : '12 m²'}</span>
+                  <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest block">Galerie active : {gabarit === '9m2' ? '9 m² — Traçage' : gabarit === '12m2_intl' ? '12 m² — Standard International' : '12 m² — Gabarit SMI'}</span>
                   <h1 className="text-lg md:text-xl font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
                     <Wrench className="w-5 h-5 text-amber-500 shrink-0" />
                     DOSSIER DE TIR & INGENIERIE DE VOLÉE

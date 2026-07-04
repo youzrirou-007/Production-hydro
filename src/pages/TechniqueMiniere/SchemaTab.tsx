@@ -12,11 +12,11 @@ import {
   ShieldAlert, 
   Activity 
 } from 'lucide-react';
-import { HOLES_DATA, HOLES_DATA_9 } from './data';
-import { HoleInfo } from './types';
+import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL } from './data';
+import { HoleInfo, GabaritType } from './types';
 
 interface SchemaTabProps {
-  gabarit: '12m2' | '9m2';
+  gabarit: GabaritType;
 }
 
 export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
@@ -24,6 +24,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [rodType, setRodType] = useState<'1.8' | '2.4'>('1.8');
   const [hoveredHole, setHoveredHole] = useState<HoleInfo | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const maxStep = gabarit === '9m2' ? 5 : 6;
@@ -127,7 +128,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   };
 
   // Helper to determine the blasting step for each hole type
-  const getBlastStepForHole = (hole: HoleInfo, gab: '12m2' | '9m2') => {
+  const getBlastStepForHole = (hole: HoleInfo, gab: GabaritType) => {
     if (hole.type === 'vide') return -1;
     if (gab === '9m2') {
       if (hole.type === 'charge') return 1;
@@ -361,7 +362,10 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 
   const currentMaxDepth = rodType === '1.8' ? 1.7 : 2.3;
   const currentPercentage = Math.round((getFootage() / currentMaxDepth) * 100);
-  const holesToRender = gabarit === '9m2' ? HOLES_DATA_9 : HOLES_DATA;
+  const holesToRender =
+    gabarit === '9m2' ? HOLES_DATA_9 :
+    gabarit === '12m2_intl' ? HOLES_DATA_12_INTL :
+    HOLES_DATA;
 
   // Stable cached calculations using useMemo to fulfill the "RÈGLES DE PERFORMANCE"
   const stableExplosionData = useMemo(() => {
@@ -573,6 +577,16 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               2.4 m (Forage 2.3m)
             </button>
           </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-4 py-2 bg-slate-900 hover:bg-black text-amber-400 border border-amber-400/20 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 hover:border-amber-400 cursor-pointer"
+          >
+            <Info className="w-4 h-4 text-amber-400" />
+            Pourquoi ce gabarit ?
+          </button>
         </div>
 
         {/* INTERACTIVE SVG STAGE */}
@@ -1264,6 +1278,68 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
         </div>
 
       </div>
+
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsModalOpen(false)}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', duration: 0.5 }}
+              className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full relative z-10 overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500" />
+              <div className="p-6 md:p-8 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                    <Info className="w-5 h-5 text-amber-500" />
+                    Pourquoi ce gabarit ?
+                  </h3>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer text-sm font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="text-slate-600 font-medium text-xs leading-relaxed uppercase tracking-wide">
+                  {gabarit === '12m2' && (
+                    <p>
+                      Le gabarit 12m² SMI est la configuration de référence du terrain de SMI Imiter. Optimisé pour les roches hautement silicifiées de la mine, il utilise un bouchon en triangle à 3 trous vides (décompression) pour guider l'énergie du tir. Ce design historique permet un avancement fiable de 2.1m par volée avec un taux de réussite de 94% dans nos conditions géologiques spécifiques.
+                    </p>
+                  )}
+                  {gabarit === '12m2_intl' && (
+                    <p>
+                      Le gabarit 12m² International repose sur la méthodologie standard Langefors-Kihlström (1963). Conçu pour une distribution de contraintes parfaitement homogène, il utilise un bouchon en carré de 6 trous de décompression vides entourant 3 trous chargés. Ce standard mondial maximise le coefficient de foisonnement et minimise les hors-profils dans les terrains réguliers.
+                    </p>
+                  )}
+                  {gabarit === '9m2' && (
+                    <p>
+                      Le gabarit 9m² est optimisé pour les galeries de reconnaissance et de traçage de section réduite (3m x 3m). Avec seulement 28 trous et un bouchon à un seul trou vide d'expansion, il réduit la consommation d'explosifs et le temps de foration par cycle, tout en maintenant un profil de voûte en arc de cercle autoportant.
+                    </p>
+                  )}
+                </div>
+                <div className="pt-2 flex justify-end">
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-5 py-2.5 bg-slate-900 hover:bg-black text-[#ffd700] text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

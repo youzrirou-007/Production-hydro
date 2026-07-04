@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Activity, Info, Award, ShieldAlert, TrendingUp } from 'lucide-react';
 
+import { GabaritType } from './types';
+
 interface CalculsTabProps {
-  gabarit: '12m2' | '9m2';
+  gabarit: GabaritType;
 }
 
 export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {

@@ -2,8 +2,10 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Flame, ShieldAlert, Zap, Layers } from 'lucide-react';
 
+import { GabaritType } from './types';
+
 interface ExplosifsTabProps {
-  gabarit: '12m2' | '9m2';
+  gabarit: GabaritType;
 }
 
 export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {

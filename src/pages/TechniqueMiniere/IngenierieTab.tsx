@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Compass, Award, ShieldAlert, Check, HelpCircle, Activity, ArrowRight } from 'lucide-react';
 import { QUIZ_DATA } from './data';
 
+import { GabaritType } from './types';
+
 interface IngenierieTabProps {
-  gabarit: '12m2' | '9m2';
+  gabarit: GabaritType;
 }
 
 export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {

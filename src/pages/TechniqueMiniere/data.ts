@@ -1,4 +1,4 @@
-import { HoleInfo, QuizQuestion } from './types';
+import { HoleInfo, QuizQuestion, GabaritType } from './types';
 
 export const HOLES_DATA: HoleInfo[] = [
   // BOUCHON BRÛLÉ (9 trous)
@@ -699,8 +699,107 @@ export const HOLES_DATA_9: HoleInfo[] = [
   }
 ];
 
-export const getHolesData = (gabarit: '12m2' | '9m2'): HoleInfo[] => {
-  return gabarit === '12m2' ? HOLES_DATA : HOLES_DATA_9;
+export const HOLES_DATA_12_INTL: HoleInfo[] = [
+  {
+    id: 'vi1',
+    name: 'Bouchon Intl - Vide Gauche Supérieur',
+    x: 470,
+    y: 400,
+    type: 'vide',
+    label: 'V',
+    desc: "Trou de décompression gauche. Volume disponible pour l'expansion initiale — Standard Langefors-Kihlström 1963.",
+    delay: 0
+  },
+  {
+    id: 'vi2',
+    name: 'Bouchon Intl - Vide Gauche Médian',
+    x: 470,
+    y: 430,
+    type: 'vide',
+    label: 'V',
+    desc: 'Relief hole médian gauche. Forme le prisme creux de décompression selon la méthode suédoise.',
+    delay: 0
+  },
+  {
+    id: 'vi3',
+    name: 'Bouchon Intl - Vide Gauche Inférieur',
+    x: 470,
+    y: 460,
+    type: 'vide',
+    label: 'V',
+    desc: "Relief hole inférieur gauche. Assure l'évacuation gravitaire des débris fragmentés.",
+    delay: 0
+  },
+  {
+    id: 'vi4',
+    name: 'Bouchon Intl - Vide Droit Supérieur',
+    x: 530,
+    y: 400,
+    type: 'vide',
+    label: 'V',
+    desc: 'Trou de décompression droit. Symétrie garantissant une expansion isotrope du massif.',
+    delay: 0
+  },
+  {
+    id: 'vi5',
+    name: 'Bouchon Intl - Vide Droit Médian',
+    x: 530,
+    y: 430,
+    type: 'vide',
+    label: 'V',
+    desc: "Relief hole médian droit. Complète le prisme d'expansion selon la méthode Grönlund.",
+    delay: 0
+  },
+  {
+    id: 'vi6',
+    name: 'Bouchon Intl - Vide Droit Inférieur',
+    x: 530,
+    y: 460,
+    type: 'vide',
+    label: 'V',
+    desc: 'Relief hole inférieur droit. Ratio 2:1 vides/chargés — volume détente supérieur.',
+    delay: 0
+  },
+  {
+    id: 'ci1',
+    name: 'Bouchon Intl - Chargé Central Supérieur',
+    x: 500,
+    y: 400,
+    type: 'charge',
+    label: '0',
+    desc: 'Trou chargé au TOVEX (0ms). Concentre l\'énergie vers les 6 vides environnants.',
+    delay: 0
+  },
+  {
+    id: 'ci2',
+    name: 'Bouchon Intl - Chargé Central Médian',
+    x: 500,
+    y: 430,
+    type: 'charge',
+    label: '0',
+    desc: 'Charge centrale principale. La faible charge relative (3 chargés vs 6 vides) garantit une expansion sans contre-pression.',
+    delay: 0
+  },
+  {
+    id: 'ci3',
+    name: 'Bouchon Intl - Chargé Central Inférieur',
+    x: 500,
+    y: 460,
+    type: 'charge',
+    label: '0',
+    desc: 'Amorçage 0ms instantané. Libère le prisme initial pour les groupes suivants.',
+    delay: 0
+  },
+  ...HOLES_DATA.slice(9).map(hole => ({
+    ...hole,
+    id: 'intl_' + hole.id
+  }))
+];
+
+export const getHolesData = (gabarit: GabaritType): HoleInfo[] => {
+  return gabarit === '9m2' ? HOLES_DATA_9 :
+         gabarit === '12m2_intl' ? HOLES_DATA_12_INTL :
+         HOLES_DATA;
 };
 
 export const QUIZ_DATA: QuizQuestion[] = [
