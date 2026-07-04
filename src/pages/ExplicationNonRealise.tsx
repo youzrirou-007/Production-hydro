@@ -51,6 +51,30 @@ interface SavedExplanation {
   status: 'pending' | 'explained' | 'unjustified';
 }
 
+interface DetectedGap {
+  id: string;
+  date: string;
+  poste: string;
+  posteLabel: string;
+  chantierId: string;
+  chantierName: string;
+  activity: string;
+  activityLabel: string;
+  plannedValue: number;
+  realValue: number;
+  plannedStr: string;
+  realStr: string;
+  gapPercent: number;
+  achievementPercent: number;
+  status: 'pending' | 'explained' | 'unjustified';
+  cause: string;
+  causeLabel: string;
+  otherDetails: string | null;
+  reportedBy: string;
+  reportedAt: string;
+  voleeRatee?: boolean;
+}
+
 // Activity Causes options
 const MINAGE_CAUSES = [
   { id: 'barre_conique_cassee', label: 'Barre conique cassée' },
@@ -127,6 +151,7 @@ export const ExplicationNonRealise: React.FC = () => {
     return format(new Date(), 'yyyy-MM');
   });
   const [filterPost, setFilterPost] = useState<'all' | 'poste1' | 'poste2' | 'poste3'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'sous_realisation' | 'volee_ratee'>('all');
 
   // Firestore & Data State
   const [chantiers, setChantiers] = useState<Chantier[]>([]);
@@ -192,7 +217,7 @@ export const ExplicationNonRealise: React.FC = () => {
 
   // Gap Detection and Merging
   const detectedGaps = React.useMemo(() => {
-    const list: any[] = [];
+    const list: DetectedGap[] = [];
 
     productionDocs.forEach((docData) => {
       const date = docData.date || docData.id;
@@ -254,13 +279,15 @@ export const ExplicationNonRealise: React.FC = () => {
             let realStr = '';
             let gapPercent = 0;
             let achievementRate = 1;
+            let isVoleeRatee = false;
 
             if (activity === 'minage') {
               const plannedMeterage = plan.meterage || ((plan.plannedRounds || 0) * 1.7);
               const realMeterage = reel.realMeterage || 0;
               achievementRate = plannedMeterage > 0 ? realMeterage / plannedMeterage : 1;
+              isVoleeRatee = reel.volee_ratee === true;
               
-              if (plannedMeterage > 0 && achievementRate < 0.824) {
+              if (isVoleeRatee || (plannedMeterage > 0 && achievementRate < 0.824)) {
                 hasEcart = true;
                 plannedValue = plannedMeterage;
                 realValue = realMeterage;
@@ -331,7 +358,8 @@ export const ExplicationNonRealise: React.FC = () => {
                 causeLabel: saved ? saved.causeLabel : '',
                 otherDetails: saved ? saved.otherDetails : null,
                 reportedBy: saved ? saved.reportedBy : '',
-                reportedAt: saved ? saved.reportedAt : ''
+                reportedAt: saved ? saved.reportedAt : '',
+                voleeRatee: isVoleeRatee
               });
             }
           });
@@ -345,6 +373,16 @@ export const ExplicationNonRealise: React.FC = () => {
       return a.poste.localeCompare(b.poste);
     });
   }, [productionDocs, filterMonth, filterPost, chantiers, explanations]);
+
+  // Filtered Gaps for rendering
+  const filteredGaps = React.useMemo(() => {
+    return detectedGaps.filter((gap) => {
+      if (filterType === 'all') return true;
+      if (filterType === 'volee_ratee') return gap.voleeRatee === true;
+      if (filterType === 'sous_realisation') return gap.voleeRatee !== true;
+      return true;
+    });
+  }, [detectedGaps, filterType]);
 
   // Statistics calculation
   const stats = React.useMemo(() => {
@@ -512,7 +550,7 @@ export const ExplicationNonRealise: React.FC = () => {
       </div>
 
       {/* Stats Summary Panel */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Pending Badge Card */}
         <div 
           className="bg-white p-5 border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-xs relative overflow-hidden group"
@@ -555,37 +593,76 @@ export const ExplicationNonRealise: React.FC = () => {
             <Ban className="w-5 h-5" />
           </div>
         </div>
+
+        {/* Volées Ratées Card */}
+        <div className="bg-rose-50 p-5 border border-rose-300 rounded-2xl flex items-center justify-between shadow-xs">
+          <div className="space-y-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-rose-700">🔴 Volées Ratées</span>
+            <p className="text-2xl font-black text-rose-700">
+              {detectedGaps.filter(g => g.voleeRatee === true).length}
+            </p>
+          </div>
+          <div className="p-3 bg-rose-150 text-rose-700 rounded-full">
+            <AlertTriangle className="w-5 h-5 animate-pulse text-rose-700" />
+          </div>
+        </div>
       </div>
 
       {/* Main Filter & Table Area */}
       <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
         {/* Sub-Filters */}
-        <div className="p-4 bg-slate-50/50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Filtrer par poste :</span>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
-              {(['all', 'poste1', 'poste2', 'poste3'] as const).map((postOpt) => (
-                <button
-                  key={postOpt}
-                  onClick={() => {
-                    setFilterPost(postOpt);
-                    handleCancelEdit();
-                  }}
-                  className={`px-3 py-1 text-[10px] font-black uppercase tracking-tight rounded-md transition-all ${
-                    filterPost === postOpt
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {postOpt === 'all' ? 'Tous' : postOpt === 'poste1' ? 'P1 (Matin)' : postOpt === 'poste2' ? 'P2 (Après-midi)' : 'P3 (Nuit)'}
-                </button>
-              ))}
+        <div className="p-4 bg-slate-50/50 border-b border-slate-200 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Poste Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Poste :</span>
+              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+                {(['all', 'poste1', 'poste2', 'poste3'] as const).map((postOpt) => (
+                  <button
+                    key={postOpt}
+                    onClick={() => {
+                      setFilterPost(postOpt);
+                      handleCancelEdit();
+                    }}
+                    className={`px-3 py-1 text-[10px] font-black uppercase tracking-tight rounded-md transition-all ${
+                      filterPost === postOpt
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {postOpt === 'all' ? 'Tous' : postOpt === 'poste1' ? 'P1 (Matin)' : postOpt === 'poste2' ? 'P2 (Après-midi)' : 'P3 (Nuit)'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Type Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Type :</span>
+              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+                {(['all', 'sous_realisation', 'volee_ratee'] as const).map((typeOpt) => (
+                  <button
+                    key={typeOpt}
+                    onClick={() => {
+                      setFilterType(typeOpt);
+                      handleCancelEdit();
+                    }}
+                    className={`px-3 py-1 text-[10px] font-black uppercase tracking-tight rounded-md transition-all ${
+                      filterType === typeOpt
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {typeOpt === 'all' ? 'Tous' : typeOpt === 'sous_realisation' ? 'Sous-réalisation' : 'Volée Ratée'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1.5 uppercase tracking-wide">
+          <div className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1.5 uppercase tracking-wide shrink-0">
             <Info className="w-4 h-4 text-[#b8860b]" />
-            {detectedGaps.length} écarts détectés pour {format(parseISO(`${filterMonth}-02`), 'MMMM yyyy')}
+            {filteredGaps.length} écarts affichés sur {detectedGaps.length} détectés pour {format(parseISO(`${filterMonth}-02`), 'MMMM yyyy')}
           </div>
         </div>
 
@@ -602,6 +679,14 @@ export const ExplicationNonRealise: React.FC = () => {
               <div className="space-y-1">
                 <p className="text-sm font-bold text-slate-700 uppercase tracking-tight">Aucun écart de production détecté</p>
                 <p className="text-[10.5px] font-medium text-slate-400">Toutes les performances de ce mois respectent ou dépassent les seuils prescrits.</p>
+              </div>
+            </div>
+          ) : filteredGaps.length === 0 ? (
+            <div className="p-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+              <CheckCircle className="w-12 h-12 text-emerald-400" />
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-slate-700 uppercase tracking-tight">Aucun écart correspondant</p>
+                <p className="text-[10.5px] font-medium text-slate-400">Aucun écart ne correspond aux critères de filtrage actuels.</p>
               </div>
             </div>
           ) : (
@@ -621,7 +706,7 @@ export const ExplicationNonRealise: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {detectedGaps.map((gap) => {
+                {filteredGaps.map((gap) => {
                   const isEditing = editingId === gap.id;
                   
                   // Color rate calculation
@@ -650,7 +735,7 @@ export const ExplicationNonRealise: React.FC = () => {
                       {/* Poste */}
                       <td className="p-3 text-center">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-black bg-slate-100 text-slate-700 uppercase">
-                          {gap.posteLabel.split(' ')[0]}
+                           {gap.posteLabel.split(' ')[0]}
                         </span>
                       </td>
 
@@ -673,15 +758,25 @@ export const ExplicationNonRealise: React.FC = () => {
 
                       {/* Réalisé */}
                       <td className="p-3 text-center font-mono font-bold text-slate-800">
-                        {gap.realStr}
+                        {gap.voleeRatee ? (
+                          <span className="text-rose-600 font-black">0 m — Tir non exécuté</span>
+                        ) : (
+                          gap.realStr
+                        )}
                       </td>
 
                       {/* % Réel */}
                       <td className="p-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-mono font-black text-[10px] ${rateColor}`}>
-                          <TrendingDown className="w-3 h-3 mr-0.5 shrink-0" />
-                          {gap.achievementPercent}%
-                        </span>
+                        {gap.voleeRatee ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-600 text-white text-[9px] font-black uppercase tracking-wider rounded-lg">
+                            🔴 VOLÉE RATÉE
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-mono font-black text-[10px] ${rateColor}`}>
+                            <TrendingDown className="w-3 h-3 mr-0.5 shrink-0" />
+                            {gap.achievementPercent}%
+                          </span>
+                        )}
                       </td>
 
                       {/* Cause Dropdown or Value */}

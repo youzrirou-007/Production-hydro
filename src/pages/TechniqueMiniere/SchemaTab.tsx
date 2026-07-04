@@ -25,6 +25,71 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   const [rodType, setRodType] = useState<'1.8' | '2.4'>('1.8');
   const [hoveredHole, setHoveredHole] = useState<HoleInfo | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [ficheData, setFicheData] = useState({
+    numeroTir: '',
+    date: new Date().toISOString().split('T')[0],
+    chantier: '',
+    boutefeuNom: '',
+    boutefeuMatricule: '',
+    chefPostNom: '',
+    barreType: '1.8' as '1.8' | '2.4',
+    nbTrousForés: gabarit === '9m2' ? 28 : 38,
+    observations: '',
+  });
+  const [showFicheForm, setShowFicheForm] = useState(false);
+  const [realtimeMode, setRealtimeMode] = useState<boolean>(false);
+  const [realtimeMs, setRealtimeMs] = useState<number>(0);
+  const [realtimePlaying, setRealtimePlaying] = useState<boolean>(false);
+  const realtimeRef = useRef<NodeJS.Timeout | null>(null);
+  const [showDangerZones, setShowDangerZones] = useState<boolean>(false);
+  const [activeDangerLayer, setActiveDangerLayer] = useState<'all' | 'projection' | 'vibrations' | 'gaz'>('all');
+
+  const REAL_DELAYS_MS = gabarit === '9m2'
+    ? [0, 25, 50, 75, 100, 125]
+    : [0, 25, 50, 75, 100, 125, 150];
+
+  const TOTAL_DURATION_MS = gabarit === '9m2' ? 125 : 150;
+
+  const startRealtimePlayback = () => {
+    setRealtimeMs(0);
+    setRealtimePlaying(true);
+    setActiveStep(0);
+
+    const startTime = Date.now();
+    const scale = 100;
+
+    const tick = () => {
+      const elapsed = (Date.now() - startTime) / scale;
+      setRealtimeMs(parseFloat(elapsed.toFixed(1)));
+
+      const currentStep = REAL_DELAYS_MS.reduce((step, delay, idx) => {
+        return elapsed >= delay ? idx : step;
+      }, 0);
+      setActiveStep(currentStep);
+
+      if (elapsed < TOTAL_DURATION_MS) {
+        realtimeRef.current = setTimeout(tick, 16);
+      } else {
+        setRealtimeMs(TOTAL_DURATION_MS);
+        setActiveStep(REAL_DELAYS_MS.length - 1);
+        setRealtimePlaying(false);
+      }
+    };
+
+    realtimeRef.current = setTimeout(tick, 16);
+  };
+
+  const stopRealtimePlayback = () => {
+    if (realtimeRef.current) clearTimeout(realtimeRef.current);
+    setRealtimePlaying(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (realtimeRef.current) clearTimeout(realtimeRef.current);
+    };
+  }, []);
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const maxStep = gabarit === '9m2' ? 5 : 6;
@@ -34,6 +99,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     if (activeStep > maxStep) {
       setActiveStep(maxStep);
     }
+    setFicheData(p => ({ ...p, nbTrousForés: gabarit === '9m2' ? 28 : 38 }));
   }, [gabarit, maxStep, activeStep]);
 
   // Auto playback controls
@@ -154,6 +220,272 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     if (activeStep === blastStepForHole) return 'blasting';
     if (activeStep > blastStepForHole) return 'exploded';
     return 'normal';
+  };
+
+  const generateFicheTir = () => {
+    const drilledLength = ficheData.barreType === '1.8' ? 1.7 : 2.3;
+    const isIntl = gabarit === '12m2_intl';
+    const is9m2 = gabarit === '9m2';
+
+    const bouchonConfig = is9m2
+      ? '5 trous (1 vide + 4 chargés TOVEX) — Bouchon cylindrique'
+      : isIntl
+      ? '9 trous (6 vides + 3 chargés TOVEX) — Standard Langefors-Kihlström'
+      : '9 trous (3 vides + 6 chargés TOVEX) — Configuration SMI Imiter';
+
+    const totalTrous = is9m2 ? 28 : 38;
+    const nbChargés = is9m2 ? 27 : 37;
+    const anfoKg = is9m2 ? 22.8 : 29.0;
+    const tovexCartouches = is9m2 ? 4 : 3;
+    const nbAmorces = totalTrous;
+
+    const sequenceLignes = is9m2 ? [
+      { det: '0 ms', desc: 'Bouchon cylindrique — TOVEX', trous: 4 },
+      { det: '25 ms', desc: 'Groupe 1 — ANFO', trous: 4 },
+      { det: '50 ms', desc: 'Groupe 2 — ANFO', trous: 4 },
+      { det: '75 ms', desc: 'Groupe 3 — ANFO', trous: 4 },
+      { det: '100 ms', desc: 'Radier + Parements — ANFO', trous: 8 },
+      { det: '125 ms', desc: 'Voûte — ANFO', trous: 3 },
+    ] : [
+      { det: '0 ms', desc: 'Bouchon brûlé — TOVEX', trous: isIntl ? 3 : 6 },
+      { det: '25 ms', desc: 'Groupe 1 — ANFO', trous: 4 },
+      { det: '50 ms', desc: 'Groupe 2 — ANFO', trous: 4 },
+      { det: '75 ms', desc: 'Groupe 3 — ANFO', trous: 4 },
+      { det: '100 ms', desc: 'Groupe 4 — ANFO', trous: 4 },
+      { det: '125 ms', desc: 'Radier + Parements — ANFO', trous: 10 },
+      { det: '150 ms', desc: 'Voûte — ANFO', trous: 3 },
+    ];
+
+    const dateFormatted = new Date(ficheData.date + 'T12:00:00')
+      .toLocaleDateString('fr-MA', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const observationsHTML = ficheData.observations ? `
+  <div class="section-title">Observations</div>
+  <div class="info-box" style="margin-bottom:10px;">
+    <div class="info-value" style="font-weight:600; font-size:9.5px;">
+      ${ficheData.observations}
+    </div>
+  </div>` : '';
+
+    const signatureMatriculeHTML = ficheData.boutefeuMatricule ? `<div style="font-size:8px;color:#64748b;">Mat: ${ficheData.boutefeuMatricule}</div>` : '';
+
+    const sequenceLignesRows = sequenceLignes.map(l => '<tr><td><strong>' + l.det + '</strong></td><td>' + l.desc + '</td><td style="text-align:center;">' + l.trous + '</td><td>' + (l.desc.includes('TOVEX') ? 'TOVEX 100g' : 'ANFO') + '</td></tr>').join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Fiche de Tir ${ficheData.numeroTir} — SMI Imiter</title>
+  <style>
+    @page { margin: 15mm; size: A4; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 10px;
+      color: #1e293b; background: white; }
+
+    .header-band {
+      background: #0f172a; color: white;
+      padding: 14px 18px; display: flex;
+      justify-content: space-between; align-items: center;
+      margin-bottom: 14px;
+    }
+    .header-title { font-size: 15px; font-weight: 900;
+      text-transform: uppercase; letter-spacing: 2px; color: #ffd700; }
+    .header-sub { font-size: 9px; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .header-badge { background: rgba(255,215,0,0.15);
+      border: 1px solid rgba(255,215,0,0.4); border-radius: 8px;
+      padding: 6px 12px; color: #ffd700; font-size: 10px;
+      font-weight: 900; text-align: center; text-transform: uppercase; }
+    .header-badge .num { font-size: 14px; display: block; }
+
+    .section-title { font-size: 9px; font-weight: 900;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      color: #0f172a; border-left: 3px solid #ffd700;
+      padding-left: 8px; margin: 12px 0 8px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+
+    .info-box { border: 1px solid #e2e8f0; border-radius: 6px;
+      padding: 7px 10px; background: #f8fafc; }
+    .info-label { font-size: 7.5px; text-transform: uppercase;
+      color: #64748b; font-weight: 700; letter-spacing: 0.8px; margin-bottom: 2px; }
+    .info-value { font-size: 11px; font-weight: 900; color: #0f172a; }
+
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    th { background: #0f172a; color: white; padding: 6px 8px;
+      font-size: 8.5px; text-transform: uppercase;
+      letter-spacing: 0.5px; text-align: left; }
+    td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9;
+      font-size: 9.5px; }
+    tr:nth-child(even) td { background: #f8fafc; }
+
+    .explosifs-card { background: #1a1a2e; border-radius: 8px;
+      padding: 12px 14px; margin-bottom: 10px; }
+    .explosifs-title { color: #ffd700; font-size: 9px;
+      font-weight: 900; text-transform: uppercase;
+      letter-spacing: 1.5px; margin-bottom: 8px; }
+    .explosifs-grid { display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px; }
+    .explosif-item { text-align: center; }
+    .explosif-qty { color: #ffffff; font-size: 16px;
+      font-weight: 900; display: block; }
+    .explosif-label { color: #94a3b8; font-size: 7.5px;
+      text-transform: uppercase; }
+
+    .signatures { display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px; margin-top: 14px; }
+    .sig-box { border-top: 1.5px solid #1e293b; padding-top: 5px; }
+    .sig-label { font-size: 8px; text-transform: uppercase;
+      color: #64748b; font-weight: 700; letter-spacing: 0.8px; }
+    .sig-name { font-size: 9px; font-weight: 900;
+      color: #0f172a; margin-top: 14px; }
+    .sig-space { height: 30px; }
+
+    .alert-box { background: #fff8e6; border: 1.5px solid #fcd34d;
+      border-radius: 6px; padding: 8px 10px; margin: 10px 0; }
+    .alert-text { font-size: 9px; font-weight: 700; color: #92400e; }
+
+    .footer-band { background: #0f172a; padding: 8px 18px;
+      display: flex; justify-content: space-between;
+      margin-top: 14px; }
+    .footer-text { color: rgba(255,255,255,0.5);
+      font-size: 8px; }
+    .footer-conf { color: #ffd700; font-size: 8px;
+      font-weight: 700; text-transform: uppercase; }
+
+    @media print { .no-print { display: none; } }
+  </style>
+</head>
+<body>
+
+  <div class="header-band">
+    <div>
+      <div class="header-title">⛏️ HYDROMINES — SMI IMITER</div>
+      <div class="header-sub">Fiche Officielle de Tir Souterrain — Document Réglementaire ONHYM</div>
+    </div>
+    <div class="header-badge">
+      <span class="num">${ficheData.numeroTir || 'N/A'}</span>
+      Numéro de Tir
+    </div>
+  </div>
+
+  <div class="section-title">Identification du Tir</div>
+  <div class="grid-3" style="margin-bottom:10px;">
+    <div class="info-box">
+      <div class="info-label">Date</div>
+      <div class="info-value">${dateFormatted}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">Chantier / Galerie</div>
+      <div class="info-value">${ficheData.chantier || '—'}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">Section de galerie</div>
+      <div class="info-value">${is9m2 ? 'Traçage 9 m²' : isIntl ? 'Galerie 12 m² — Std. Intl' : 'Galerie 12 m² — SMI'}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">Tige utilisée</div>
+      <div class="info-value">${ficheData.barreType} m (forage ${drilledLength} m)</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">Nombre total de trous</div>
+      <div class="info-value">${totalTrous} trous</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">Trous chargés</div>
+      <div class="info-value">${nbChargés} trous</div>
+    </div>
+  </div>
+
+  <div class="section-title">Configuration du Bouchon</div>
+  <div class="info-box" style="margin-bottom:10px;">
+    <div class="info-label">Type de bouchon</div>
+    <div class="info-value">${bouchonConfig}</div>
+  </div>
+
+  <div class="explosifs-card">
+    <div class="explosifs-title">Inventaire Explosifs Prévisionnel</div>
+    <div class="explosifs-grid">
+      <div class="explosif-item">
+        <span class="explosif-qty">${anfoKg.toFixed(1)} kg</span>
+        <span class="explosif-label">ANFO</span>
+      </div>
+      <div class="explosif-item">
+        <span class="explosif-qty">${tovexCartouches}</span>
+        <span class="explosif-label">Cartouches TOVEX 100g</span>
+      </div>
+      <div class="explosif-item">
+        <span class="explosif-qty">${nbAmorces}</span>
+        <span class="explosif-label">Amorces électriques</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Séquence de Tir</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Délai</th>
+        <th>Description</th>
+        <th>Nb Trous</th>
+        <th>Explosif</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${sequenceLignesRows}
+    </tbody>
+  </table>
+
+  <div class="alert-box">
+    <div class="alert-text">
+      ⚠️ CONSIGNES SÉCURITÉ OBLIGATOIRES : Évacuation complète avant
+      connexion des amorces. Distance minimale 50m depuis le front de taille.
+      Délai post-tir minimum 30 minutes avant accès. Vérification CO et
+      ventilation obligatoire avant retour en galerie.
+    </div>
+  </div>
+
+  ${observationsHTML}
+
+  <div class="section-title">Signatures</div>
+  <div class="signatures">
+    <div class="sig-box">
+      <div class="sig-label">Boutefeu Responsable</div>
+      <div class="sig-space"></div>
+      <div class="sig-name">${ficheData.boutefeuNom || '____________________'}</div>
+      ${signatureMatriculeHTML}
+    </div>
+    <div class="sig-box">
+      <div class="sig-label">Chef de Poste</div>
+      <div class="sig-space"></div>
+      <div class="sig-name">${ficheData.chefPostNom || '____________________'}</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-label">Directeur Technique</div>
+      <div class="sig-space"></div>
+      <div class="sig-name">____________________</div>
+    </div>
+  </div>
+
+  <div class="footer-band">
+    <div class="footer-text">
+      HydroMines SMI Imiter · Fiche N° ${ficheData.numeroTir || '—'} · ${dateFormatted}
+    </div>
+    <div class="footer-conf">⛏ Document Confidentiel — Usage Interne</div>
+  </div>
+
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => { win.print(); }, 500);
+    }
+    setShowFicheForm(false);
   };
 
   // Hex color lookup for holes
@@ -579,7 +911,16 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3 flex-wrap">
+          <button
+            onClick={() => setShowFicheForm(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-900
+              hover:bg-black text-[#ffd700] text-[10px] font-black uppercase
+              tracking-wider rounded-xl border border-[#ffd700]/40 shadow-md
+              transition-colors"
+          >
+            📄 Fiche de Tir Officielle
+          </button>
           <button
             onClick={() => setIsModalOpen(true)}
             className="px-4 py-2 bg-slate-900 hover:bg-black text-amber-400 border border-amber-400/20 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 hover:border-amber-400 cursor-pointer"
@@ -852,6 +1193,95 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                 </>
               )}
 
+              {showDangerZones && (
+                <g className="danger-zones">
+                  {(activeDangerLayer === 'all' || activeDangerLayer === 'projection') && (
+                    <g>
+                      <rect x="100" y="50" width="800" height="600"
+                        fill="rgba(239,68,68,0.15)"
+                        stroke="rgba(239,68,68,0.6)"
+                        strokeWidth="3"
+                        strokeDasharray="8,4"
+                        rx="4"
+                      />
+                      <text x="500" y="100" fill="rgba(239,68,68,0.85)"
+                        fontSize="22" fontWeight="900" textAnchor="middle"
+                        fontFamily="Arial" textDecoration="none"
+                      >
+                        ⚠️ ZONE DE PROJECTION — Min. 50m
+                      </text>
+                      <text x="500" y="125" fill="rgba(239,68,68,0.65)"
+                        fontSize="14" fontWeight="700" textAnchor="middle"
+                        fontFamily="Arial"
+                      >
+                        Évacuation totale obligatoire
+                      </text>
+
+                      <path d="M 500 620 L 500 680"
+                        stroke="rgba(239,68,68,0.7)"
+                        strokeWidth="3" markerEnd="url(#arrowRed)" />
+                      <text x="500" y="700" fill="rgba(239,68,68,0.7)"
+                        fontSize="13" fontWeight="700" textAnchor="middle"
+                        fontFamily="Arial">ÉVACUER ICI</text>
+
+                      <defs>
+                        <marker id="arrowRed" markerWidth="10" markerHeight="7"
+                          refX="10" refY="3.5" orient="auto">
+                          <polygon points="0 0, 10 3.5, 0 7"
+                            fill="rgba(239,68,68,0.7)" />
+                        </marker>
+                      </defs>
+                    </g>
+                  )}
+
+                  {(activeDangerLayer === 'all' || activeDangerLayer === 'vibrations') && (
+                    <g>
+                      <ellipse cx="500" cy="430" rx="200" ry="150"
+                        fill="rgba(249,115,22,0.10)"
+                        stroke="rgba(249,115,22,0.5)"
+                        strokeWidth="2.5"
+                        strokeDasharray="6,3"
+                      />
+                      <text x="500" y="260" fill="rgba(249,115,22,0.80)"
+                        fontSize="17" fontWeight="900" textAnchor="middle"
+                        fontFamily="Arial"
+                      >
+                        🟠 ZONE VIBRATIONS — Contrôle soutènement
+                      </text>
+                      <text x="500" y="280" fill="rgba(249,115,22,0.60)"
+                        fontSize="13" fontWeight="600" textAnchor="middle"
+                        fontFamily="Arial"
+                      >
+                        Inspecter boulons + grillage après tir
+                      </text>
+                    </g>
+                  )}
+
+                  {(activeDangerLayer === 'all' || activeDangerLayer === 'gaz') && (
+                    <g>
+                      <ellipse cx="500" cy="200" rx="350" ry="120"
+                        fill="rgba(234,179,8,0.12)"
+                        stroke="rgba(234,179,8,0.5)"
+                        strokeWidth="2"
+                        strokeDasharray="5,3"
+                      />
+                      <text x="500" y="155" fill="rgba(180,130,0,0.85)"
+                        fontSize="17" fontWeight="900" textAnchor="middle"
+                        fontFamily="Arial"
+                      >
+                        🟡 GAZ TOXIQUES — CO · NO₂ · NH₃
+                      </text>
+                      <text x="500" y="175" fill="rgba(180,130,0,0.65)"
+                        fontSize="13" fontWeight="600" textAnchor="middle"
+                        fontFamily="Arial"
+                      >
+                        Ventilation min. 30 min — Mesure CO obligatoire
+                      </text>
+                    </g>
+                  )}
+                </g>
+              )}
+
               {/* DRAW ALL HOLES */}
               {holesToRender.map((hole) => {
                 const status = getHoleStatus(hole);
@@ -1064,6 +1494,53 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
           </svg>
         </div>
 
+        {showDangerZones && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            {(activeDangerLayer === 'all' || activeDangerLayer === 'projection') && (
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-3 h-3 rounded-full bg-rose-500 block" />
+                  <span className="text-[10px] font-black uppercase text-rose-700 tracking-wider">Zone de Projection</span>
+                </div>
+                <p className="text-[9px] text-rose-600 font-semibold leading-relaxed">
+                  Distance minimale : 50 m depuis le front de taille.
+                  Toute présence humaine interdite. Accès condamné
+                  par le boutefeu avant connexion des amorces.
+                </p>
+              </div>
+            )}
+
+            {(activeDangerLayer === 'all' || activeDangerLayer === 'vibrations') && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-3 h-3 rounded-full bg-orange-500 block" />
+                  <span className="text-[10px] font-black uppercase text-orange-700 tracking-wider">Zone Vibrations</span>
+                </div>
+                <p className="text-[9px] text-orange-600 font-semibold leading-relaxed">
+                  Zone de contrainte vibratoire (10–50 m).
+                  Inspecter le soutènement (boulons, grillage, béton projeté)
+                  avant retour du personnel en galerie.
+                </p>
+              </div>
+            )}
+
+            {(activeDangerLayer === 'all' || activeDangerLayer === 'gaz') && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-3 h-3 rounded-full bg-yellow-500 block" />
+                  <span className="text-[10px] font-black uppercase text-yellow-700 tracking-wider">Gaz Toxiques</span>
+                </div>
+                <p className="text-[9px] text-yellow-700 font-semibold leading-relaxed">
+                  CO, NO₂, NH₃ produits après détonation.
+                  Ventilation forcée minimum 30 minutes.
+                  Mesure CO obligatoire (&lt;25 ppm) avant accès.
+                  Détecteur multi-gaz recommandé.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ACTIVE HOVER DETAIL BOARD */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-xs font-semibold text-white shadow-xl">
           {hoveredHole ? (
@@ -1221,48 +1698,180 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               ))}
             </div>
 
-            {/* BUTTONS ROW */}
-            <div className="grid grid-cols-5 gap-2 pt-1">
-              <button
-                onClick={handleReset}
-                title="Départ"
-                className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg flex items-center justify-center transition-colors text-xs font-bold"
-              >
-                <RotateCcw className="w-4 h-4 shrink-0" />
-              </button>
-              <button
-                onClick={handlePrev}
-                disabled={activeStep === 0}
-                className="py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 rounded-lg flex items-center justify-center transition-colors text-xs font-bold"
-              >
-                <ChevronLeft className="w-4 h-4 shrink-0" />
-              </button>
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className={`py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors text-xs font-black uppercase tracking-wider ${
-                  isPlaying
-                    ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                    : 'bg-amber-400 hover:bg-amber-500 text-slate-950 font-black'
-                }`}
-              >
-                {isPlaying ? <Pause className="w-3.5 h-3.5 shrink-0" /> : <Play className="w-3.5 h-3.5 shrink-0" />}
-                {isPlaying ? "PAUSE" : "AUTO"}
-              </button>
-              <button
-                onClick={handleNext}
-                disabled={activeStep === maxStep}
-                className="py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 rounded-lg flex items-center justify-center transition-colors text-xs font-bold"
-              >
-                <ChevronRight className="w-4 h-4 shrink-0" />
-              </button>
-              <button
-                onClick={handleGoToEnd}
-                title="Fin"
-                className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg flex items-center justify-center transition-colors text-xs font-bold"
-              >
-                <SkipForward className="w-4 h-4 shrink-0" />
-              </button>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                Contrôle du Tir
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDangerZones(prev => !prev)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px]
+                    font-black uppercase tracking-wider rounded-lg border transition-colors
+                    ${showDangerZones
+                      ? 'bg-rose-600 text-white border-rose-700'
+                      : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-rose-50 hover:text-rose-600'
+                    }`}
+                >
+                  ⚠️ Zones de Danger
+                </button>
+                <button
+                  onClick={() => {
+                    setRealtimeMode(prev => !prev);
+                    setRealtimePlaying(false);
+                    setRealtimeMs(0);
+                    setIsPlaying(false);
+                    if (realtimeRef.current) clearTimeout(realtimeRef.current);
+                  }}
+                  className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider
+                    rounded-lg border transition-colors ${realtimeMode
+                      ? 'bg-amber-500 text-white border-amber-600'
+                      : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+                    }`}
+                >
+                  ⚡ Temps Réel ×100
+                </button>
+              </div>
             </div>
+
+            {showDangerZones && (
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Afficher :</span>
+                {[
+                  { id: 'all', label: 'Toutes les zones', color: 'bg-slate-700' },
+                  { id: 'projection', label: '🔴 Projection', color: 'bg-rose-600' },
+                  { id: 'vibrations', label: '🟠 Vibrations', color: 'bg-orange-500' },
+                  { id: 'gaz', label: '🟡 Gaz toxiques', color: 'bg-yellow-500' },
+                ].map(layer => (
+                  <button
+                    key={layer.id}
+                    onClick={() => setActiveDangerLayer(layer.id as any)}
+                    className={`px-3 py-1.5 text-[9px] font-black uppercase
+                      tracking-wider rounded-lg transition-colors ${
+                      activeDangerLayer === layer.id
+                        ? `${layer.color} text-white`
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                  >
+                    {layer.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {realtimeMode ? (
+              <div className="flex justify-center pt-1">
+                {!realtimePlaying ? (
+                  <button
+                    onClick={startRealtimePlayback}
+                    className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors w-full justify-center"
+                  >
+                    💥 Déclencher le Tir
+                  </button>
+                ) : (
+                  <button
+                    onClick={stopRealtimePlayback}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors w-full justify-center"
+                  >
+                    ⏹ Arrêter
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-5 gap-2 pt-1">
+                <button
+                  onClick={handleReset}
+                  title="Départ"
+                  className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg flex items-center justify-center transition-colors text-xs font-bold"
+                >
+                  <RotateCcw className="w-4 h-4 shrink-0" />
+                </button>
+                <button
+                  onClick={handlePrev}
+                  disabled={activeStep === 0}
+                  className="py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 rounded-lg flex items-center justify-center transition-colors text-xs font-bold"
+                >
+                  <ChevronLeft className="w-4 h-4 shrink-0" />
+                </button>
+                <button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className={`py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors text-xs font-black uppercase tracking-wider ${
+                    isPlaying
+                      ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                      : 'bg-amber-400 hover:bg-amber-500 text-slate-950 font-black'
+                  }`}
+                >
+                  {isPlaying ? <Pause className="w-3.5 h-3.5 shrink-0" /> : <Play className="w-3.5 h-3.5 shrink-0" />}
+                  {isPlaying ? "PAUSE" : "AUTO"}
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={activeStep === maxStep}
+                  className="py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-800 rounded-lg flex items-center justify-center transition-colors text-xs font-bold"
+                >
+                  <ChevronRight className="w-4 h-4 shrink-0" />
+                </button>
+                <button
+                  onClick={handleGoToEnd}
+                  title="Fin"
+                  className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg flex items-center justify-center transition-colors text-xs font-bold"
+                >
+                  <SkipForward className="w-4 h-4 shrink-0" />
+                </button>
+              </div>
+            )}
+
+            {realtimeMode && (realtimePlaying || realtimeMs > 0) && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-center gap-4 py-3 bg-slate-950 rounded-xl border border-slate-800">
+                  <div className="text-center">
+                    <span className="text-[#ffd700] font-black text-3xl font-mono">
+                      {realtimeMs.toFixed(1)}
+                    </span>
+                    <span className="text-slate-400 text-xs ml-1">ms</span>
+                    <div className="text-slate-500 text-[8px] uppercase tracking-wider mt-0.5">
+                      Temps écoulé (×100 accéléré)
+                    </div>
+                  </div>
+
+                  <div className="w-px h-10 bg-slate-700" />
+
+                  <div className="text-center">
+                    <span className="text-white font-black text-xl">
+                      {TOTAL_DURATION_MS} ms
+                    </span>
+                    <div className="text-slate-500 text-[8px] uppercase tracking-wider mt-0.5">
+                      Durée totale réelle
+                    </div>
+                  </div>
+
+                  <div className="w-px h-10 bg-slate-700" />
+
+                  <div className="text-center">
+                    <span className="text-emerald-400 font-black text-xl">
+                      {REAL_DELAYS_MS[activeStep]} ms
+                    </span>
+                    <div className="text-slate-500 text-[8px] uppercase tracking-wider mt-0.5">
+                      Détonateur actif
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 transition-all"
+                      style={{ width: `${(realtimeMs / TOTAL_DURATION_MS) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[8px] text-slate-500 mt-1">
+                    <span>0 ms</span>
+                    {REAL_DELAYS_MS.slice(1).map(d => (
+                      <span key={d}>{d} ms</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1318,7 +1927,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                   )}
                   {gabarit === '12m2_intl' && (
                     <p>
-                      Le gabarit 12m² International repose sur la méthodologie standard Langefors-Kihlström (1963). Conçu pour une distribution de contraintes parfaitement homogène, il utilise un bouchon en carré de 6 trous de décompression vides entourant 3 trous chargés. Ce standard mondial maximise le coefficient de foisonnement et minimise les hors-profils dans les terrains réguliers.
+                      Le gabarit 12m² International repose sur la méthodologie standard Langefors-Kihlström (1963). Conçu pour une distribution de contraintes perfectly homogène, il utilise un bouchon en carré de 6 trous de décompression vides entourant 3 trous chargés. Ce standard mondial maximise le coefficient de foisonnement et minimise les hors-profils dans les terrains réguliers.
                     </p>
                   )}
                   {gabarit === '9m2' && (
@@ -1335,6 +1944,178 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                     Fermer
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showFicheForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFicheForm(false)}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', duration: 0.5 }}
+              className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-lg w-full relative z-10 overflow-hidden"
+            >
+              <div className="bg-slate-900 p-5 text-white relative">
+                <button
+                  onClick={() => setShowFicheForm(false)}
+                  className="absolute top-5 right-5 text-slate-400 hover:text-white text-sm font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+                <h3 className="text-sm font-black tracking-widest text-[#ffd700] flex items-center gap-2">
+                  📄 FICHE DE TIR — SMI IMITER
+                </h3>
+                <p className="text-[10px] text-slate-300 uppercase font-bold tracking-wider mt-1">
+                  {gabarit === '9m2' ? 'Traçage 9m²' : 'Galerie 12m²'}
+                </p>
+              </div>
+
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                      Numéro de tir*
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: T-2026-001"
+                      value={ficheData.numeroTir}
+                      onChange={(e) => setFicheData(p => ({ ...p, numeroTir: e.target.value }))}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-amber-400 w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                      Date*
+                    </label>
+                    <input
+                      type="date"
+                      value={ficheData.date}
+                      onChange={(e) => setFicheData(p => ({ ...p, date: e.target.value }))}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-amber-400 w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                      Chantier / Galerie*
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: G-14 — Niveau 680"
+                      value={ficheData.chantier}
+                      onChange={(e) => setFicheData(p => ({ ...p, chantier: e.target.value }))}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-amber-400 w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                      Type de tige
+                    </label>
+                    <div className="flex gap-2 h-[32px]">
+                      <button
+                        type="button"
+                        onClick={() => setFicheData(p => ({ ...p, barreType: '1.8' }))}
+                        className={`flex-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${
+                          ficheData.barreType === '1.8'
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        1.8 m
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFicheData(p => ({ ...p, barreType: '2.4' }))}
+                        className={`flex-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${
+                          ficheData.barreType === '2.4'
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        2.4 m
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                      Nom du Boutefeu*
+                    </label>
+                    <input
+                      type="text"
+                      value={ficheData.boutefeuNom}
+                      onChange={(e) => setFicheData(p => ({ ...p, boutefeuNom: e.target.value }))}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-amber-400 w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                      Matricule Boutefeu
+                    </label>
+                    <input
+                      type="text"
+                      value={ficheData.boutefeuMatricule}
+                      onChange={(e) => setFicheData(p => ({ ...p, boutefeuMatricule: e.target.value }))}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-amber-400 w-full"
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                      Chef de Poste
+                    </label>
+                    <input
+                      type="text"
+                      value={ficheData.chefPostNom}
+                      onChange={(e) => setFicheData(p => ({ ...p, chefPostNom: e.target.value }))}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-amber-400 w-full"
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                      Observations
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={ficheData.observations}
+                      onChange={(e) => setFicheData(p => ({ ...p, observations: e.target.value }))}
+                      placeholder="Conditions particulières, incidents, remarques..."
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-amber-400 w-full resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 flex justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowFicheForm(false)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={generateFicheTir}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-black text-[#ffd700] text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md"
+                >
+                  📄 Générer la Fiche PDF
+                </button>
               </div>
             </motion.div>
           </div>

@@ -19,6 +19,9 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
   const defaultDepth = rodType === '1.8' ? 1.7 : 2.3;
   const [drillDepth, setDrillDepth] = useState<number>(defaultDepth);
 
+  const [divergenceAngle, setDivergenceAngle] = useState<number>(0);
+  const [rodLength, setRodLength] = useState<'1.8' | '2.4'>('1.8');
+
   // When gabarit changes, we should also handle state sync or update
   React.useEffect(() => {
     setNumHoles(is9m2 ? 28 : 38);
@@ -76,6 +79,57 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
   };
 
   const chart = getChartData();
+
+  const drilledLength = rodLength === '1.8' ? 1.7 : 2.3;
+  const lossPerHole = parseFloat(
+    (drilledLength * Math.tan((divergenceAngle * Math.PI) / 180)).toFixed(3)
+  );
+  const effectiveMeterage = parseFloat(
+    Math.max(0, drilledLength - lossPerHole).toFixed(3)
+  );
+  const efficiencyPct = parseFloat(
+    ((effectiveMeterage / drilledLength) * 100).toFixed(1)
+  );
+
+  const totalHoles = gabarit === '9m2' ? 27 : 35;
+  const totalLoss = parseFloat((lossPerHole * totalHoles).toFixed(2));
+
+  const severityLevel =
+    divergenceAngle === 0 ? 'perfect' :
+    divergenceAngle <= 1 ? 'excellent' :
+    divergenceAngle <= 2 ? 'acceptable' :
+    divergenceAngle <= 3 ? 'warning' : 'critical';
+
+  const severityConfig = {
+    perfect:    { label: 'FORAGE PARFAIT',    color: 'text-emerald-600', bg: 'bg-emerald-50',  border: 'border-emerald-300' },
+    excellent:  { label: 'EXCELLENT',         color: 'text-emerald-500', bg: 'bg-emerald-50',  border: 'border-emerald-200' },
+    acceptable: { label: 'ACCEPTABLE',        color: 'text-amber-600',   bg: 'bg-amber-50',    border: 'border-amber-300'   },
+    warning:    { label: 'ATTENTION',         color: 'text-orange-600',  bg: 'bg-orange-50',   border: 'border-orange-400'  },
+    critical:   { label: 'CRITIQUE — REFORER',color: 'text-rose-700',    bg: 'bg-rose-50',     border: 'border-rose-500',   },
+  };
+  const severity = severityConfig[severityLevel];
+
+  const referenceRows = [
+    { angle: 0, p18: '0.000 m', p24: '0.000 m', loss18: '0.00 m', verdict: '✅ Parfait' },
+    { angle: 0.5, p18: '0.015 m', p24: '0.020 m', loss18: '0.52 m', verdict: '✅ Excellent' },
+    { angle: 1, p18: '0.030 m', p24: '0.040 m', loss18: '1.04 m', verdict: '✅ Bon' },
+    { angle: 1.5, p18: '0.044 m', p24: '0.060 m', loss18: '1.55 m', verdict: '⚠️ Acceptable' },
+    { angle: 2, p18: '0.059 m', p24: '0.080 m', loss18: '2.07 m', verdict: '⚠️ Attention' },
+    { angle: 2.5, p18: '0.074 m', p24: '0.100 m', loss18: '2.59 m', verdict: '🟠 Risqué' },
+    { angle: 3, p18: '0.089 m', p24: '0.121 m', loss18: '3.11 m', verdict: '🔴 Critique' },
+    { angle: 5, p18: '0.149 m', p24: '0.201 m', loss18: '5.20 m', verdict: '🔴 Reforer' },
+    { angle: 8, p18: '0.239 m', p24: '0.323 m', loss18: '8.36 m', verdict: '⛔ Inacceptable' },
+  ];
+
+  let closestIndex = 0;
+  let minDiff = Infinity;
+  referenceRows.forEach((rowItem, idx) => {
+    const diff = Math.abs(divergenceAngle - rowItem.angle);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIndex = idx;
+    }
+  });
 
   return (
     <div className="space-y-8 bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
@@ -402,6 +456,162 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
           * Les statistiques minières de la SMI prouvent que 90% des pertes de métrage (les culots de trous de plus de 40 cm) résultent d'un manque de parallélisme lors du forage. Un trou dévié s'éloigne de son voisin, augmentant la ligne de moindre résistance au-delà de la puissance d'abattage des gaz.
         </p>
 
+      </div>
+
+      <div className="space-y-6 pt-6 border-t border-slate-100">
+        <div className="bg-slate-900 text-white rounded-2xl p-6">
+          <h3 className="text-sm font-black uppercase tracking-wider text-white">
+            📐 Simulateur de Divergence de Forage
+          </h3>
+          <p className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider mt-0.5">
+            Impact de l'angle de déviation sur le métrage arraché
+          </p>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">
+          <div className="space-y-2">
+            <span className="text-[10px] font-black uppercase text-slate-400 block">Tige utilisée</span>
+            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setRodLength('1.8')}
+                className={`py-2 rounded-lg text-xs font-black uppercase transition-all ${
+                  rodLength === '1.8'
+                    ? 'bg-slate-900 text-white shadow'
+                    : 'text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                1.8 m (forage 1.7 m)
+              </button>
+              <button
+                type="button"
+                onClick={() => setRodLength('2.4')}
+                className={`py-2 rounded-lg text-xs font-black uppercase transition-all ${
+                  rodLength === '2.4'
+                    ? 'bg-slate-900 text-white shadow'
+                    : 'text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                2.4 m (forage 2.3 m)
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-slate-700 uppercase">
+                Angle de divergence : {divergenceAngle}°
+              </span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase">
+                (0° = parallèle parfait — objectif terrain)
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={8}
+              step={0.5}
+              value={divergenceAngle}
+              onChange={(e) => setDivergenceAngle(parseFloat(e.target.value))}
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500"
+            />
+            <div className="flex justify-between text-[9px] text-slate-400 font-bold px-1">
+              <span>0°</span>
+              <span>1°</span>
+              <span>2°</span>
+              <span>3°</span>
+              <span>4°</span>
+              <span>5°</span>
+              <span>6°</span>
+              <span>7°</span>
+              <span>8°</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs">
+            <div className="space-y-1">
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Métrage arraché effectif</span>
+              <p className={`text-3xl font-black ${severity.color}`}>
+                {effectiveMeterage.toFixed(2)} m
+              </p>
+            </div>
+            <p className="text-[10px] font-bold text-slate-500 uppercase mt-2">
+              Foré : {drilledLength} m
+            </p>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs">
+            <div className="space-y-1">
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Perte par trou (culot)</span>
+              <p className={`text-2xl font-black ${lossPerHole > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                {lossPerHole.toFixed(3)} m
+              </p>
+            </div>
+            <p className="text-[10px] font-bold text-slate-500 uppercase mt-2">
+              Sur {totalHoles} trous chargés
+            </p>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-xs">
+            <div className="space-y-1">
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Perte totale volée</span>
+              <p className={`text-2xl font-black ${totalLoss > 0 ? 'text-rose-700' : 'text-emerald-600'}`}>
+                {totalLoss} m
+              </p>
+            </div>
+            <p className="text-[10px] font-bold text-slate-500 uppercase mt-2">
+              Soit {(100 - efficiencyPct).toFixed(1)}% du forage perdu
+            </p>
+          </div>
+        </div>
+
+        <div className={`${severity.bg} ${severity.border} border-2 rounded-2xl p-4 text-center`}>
+          <span className={`text-lg font-black uppercase tracking-wider ${severity.color}`}>
+            {severity.label}
+          </span>
+          <p className="text-xs text-slate-600 mt-1 font-semibold">
+            {divergenceAngle === 0 && "Trous parfaitement parallèles — 100% du métrage arraché."}
+            {divergenceAngle > 0 && divergenceAngle <= 1 && "Écart minimal — acceptable en conditions terrain normales."}
+            {divergenceAngle > 1 && divergenceAngle <= 2 && "Vérifier l'alignement du guide de forage avant de continuer."}
+            {divergenceAngle > 2 && divergenceAngle <= 3 && "Risque de culots importants. Contrôle gabarit obligatoire."}
+            {divergenceAngle > 3 && "Arrêter le forage. Reforer les trous déviant de plus de 3°. Perte de métrage inacceptable."}
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">
+            Tableau de référence — Impact angle × tige
+          </h4>
+          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-900 text-white font-black uppercase text-[10px] tracking-wider">
+                <tr>
+                  <th className="p-3">Angle</th>
+                  <th className="p-3">Perte/trou (1.8m)</th>
+                  <th className="p-3">Perte/trou (2.4m)</th>
+                  <th className="p-3">Perte volée (1.8m)</th>
+                  <th className="p-3">Verdict</th>
+                </tr>
+              </thead>
+              <tbody className="font-semibold text-slate-700 divide-y divide-slate-100">
+                {referenceRows.map((rowItem, idx) => {
+                  const isClosest = idx === closestIndex;
+                  return (
+                    <tr key={idx} className={`${isClosest ? 'bg-amber-100' : 'odd:bg-white even:bg-slate-50/50'}`}>
+                      <td className="p-3 font-bold">{rowItem.angle}°</td>
+                      <td className="p-3 font-mono">{rowItem.p18}</td>
+                      <td className="p-3 font-mono">{rowItem.p24}</td>
+                      <td className="p-3 font-mono">{rowItem.loss18}</td>
+                      <td className="p-3 font-bold">{rowItem.verdict}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

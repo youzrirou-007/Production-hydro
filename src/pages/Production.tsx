@@ -105,6 +105,7 @@ interface ExcelMinage {
   anfo: number; // ANFO kg
   tovex: number; // tovex kg
   ammorces: number;
+  volee_ratee?: boolean;
 }
 
 interface ExcelDeblayage {
@@ -2207,6 +2208,33 @@ export const Production: React.FC = () => {
     setMinageRows(clone);
   };
 
+  const handleToggleVoleeRatee = (postName: string, rowIndex: number) => {
+    const { minageRows, setMinageRows } = getPostState(postName);
+    const clone = [...minageRows];
+    const rowWrapper = clone[rowIndex];
+    if (!rowWrapper) return;
+
+    const updatedReel = { ...rowWrapper.reel };
+    const isCurrentlyRatee = updatedReel.volee_ratee === true;
+
+    if (!isCurrentlyRatee) {
+      updatedReel.volee_ratee = true;
+      updatedReel.realMeterage = 0;
+      updatedReel.realRounds = 0;
+      updatedReel.realHoles = 0;
+      updatedReel.chargedHoles = 0;
+      updatedReel.emptyHoles = 0;
+      updatedReel.anfo = 0;
+      updatedReel.tovex = 0;
+      updatedReel.ammorces = 0;
+    } else {
+      updatedReel.volee_ratee = false;
+    }
+
+    clone[rowIndex] = { ...rowWrapper, reel: updatedReel };
+    setMinageRows(clone);
+  };
+
   const addDeblayageRow = (postName: string) => {
     const { setDeblayageRows, deblayageRows } = getPostState(postName);
     let start = '07:00';
@@ -2473,7 +2501,8 @@ export const Production: React.FC = () => {
               reel: {
                 ...row.reel,
                 chiefMatricule: finalChiefMatricule,
-                chiefName: finalChiefName
+                chiefName: finalChiefName,
+                volee_ratee: row.reel?.volee_ratee ?? false
               }
             };
           });
@@ -3233,6 +3262,8 @@ export const Production: React.FC = () => {
                     const currentMeterage = chantierObj?.currentMeterage || 0;
                     const progressPct = plannedTotalMeterage > 0 ? Math.min(100, (currentMeterage / plannedTotalMeterage) * 100) : 0;
 
+                    const isVoleeRatee = row.volee_ratee === true;
+
                     // Compute Performance Color based directly on the cell's real meterage
                     const colorMeterage = realMeterageVal;
 
@@ -3254,7 +3285,7 @@ export const Production: React.FC = () => {
                     return (
                       <React.Fragment key={idx}>
                         {/* FIRST ROW: Plan Values + spanned columns */}
-                        <tr className="bg-slate-50/55 text-slate-500 font-bold border-t border-slate-200">
+                        <tr className={`bg-slate-50/55 text-slate-500 font-bold border-t border-slate-200 transition-opacity duration-200 ${isVoleeRatee ? 'opacity-50 bg-rose-50/30' : ''}`}>
                           {/* # (Spanned over 2 rows: Plan + Real) */}
                           <td rowSpan={2} className="p-2 border-r border-slate-200 text-center font-black uppercase select-none align-middle bg-slate-50 text-slate-707">
                             #{idx + 1}
@@ -3316,6 +3347,30 @@ export const Production: React.FC = () => {
                                   <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
                                     <div className="bg-[#00BFFF] h-full transition-all duration-305" style={{ width: `${progressPct}%` }}></div>
                                   </div>
+                                </div>
+                              )}
+
+                              {row.chantierId && plan.meterage > 0 && (
+                                <div className="pt-1.5">
+                                  {row.volee_ratee !== true ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleVoleeRatee(postName, idx)}
+                                      className="w-full flex items-center justify-center gap-1 px-1.5 py-1 text-[9px] font-black uppercase text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded tracking-wider cursor-pointer transition-all select-none shadow-sm"
+                                      title="Marquer cette volée planifiée comme ratée/non-réalisée"
+                                    >
+                                      <AlertTriangle className="w-3 h-3 text-rose-600 animate-pulse" /> Volée Ratée
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleVoleeRatee(postName, idx)}
+                                      className="w-full flex items-center justify-center gap-1 px-1.5 py-1 text-[9px] font-black uppercase text-white bg-rose-700 hover:bg-rose-800 border border-rose-800 rounded tracking-wider cursor-pointer transition-all select-none shadow-sm"
+                                      title="Annuler le marquage de volée ratée et restaurer les valeurs"
+                                    >
+                                      <Check className="w-3 h-3 text-white" /> Volée Réalisée ?
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -3399,7 +3454,7 @@ export const Production: React.FC = () => {
                         </tr>
 
                         {/* SECOND ROW: Editable Real Values */}
-                        <tr className="bg-white border-b border-slate-205">
+                        <tr className={`bg-white border-b border-slate-205 transition-opacity duration-200 ${isVoleeRatee ? 'opacity-50 bg-rose-50/30' : ''}`}>
                           {/* Type (Réel) */}
                           <td className="p-1 px-1.5 border-r border-slate-205 text-[8px] font-black uppercase text-center bg-slate-50 flex items-center justify-center gap-0.5 select-none min-h-[36px]">
                             <Pencil className="w-2.5 h-2.5 text-red-700" /> Réel
@@ -3660,12 +3715,13 @@ export const Production: React.FC = () => {
               const plannedTotalMeterage = chantierObj?.plannedTotalMeterage || 100;
               const currentMeterage = chantierObj?.currentMeterage || 0;
               const progressPct = plannedTotalMeterage > 0 ? Math.min(100, (currentMeterage / plannedTotalMeterage) * 100) : 0;
+              const isVoleeRatee = row.volee_ratee === true;
 
               return (
                 <div 
                   key={idx} 
                   data-card-container="true"
-                  className="bg-white border border-slate-300 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow relative space-y-3 flex flex-col justify-between"
+                  className={`bg-white border border-slate-300 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-200 relative space-y-3 flex flex-col justify-between ${isVoleeRatee ? 'opacity-50 bg-rose-50/30' : ''}`}
                 >
                   <div>
                     {/* Header: Nom Chantier, Badge Secteur, Gallery size badge, Progress Bar */}
@@ -3710,7 +3766,7 @@ export const Production: React.FC = () => {
                       </div>
 
                       {/* Header Actions */}
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                         <button
                           type="button"
                           onClick={() => copyMinagePlanToReel(postName, idx)}
@@ -3719,6 +3775,27 @@ export const Production: React.FC = () => {
                         >
                           <Copy className="w-2.5 h-2.5 text-amber-600" /> Copier
                         </button>
+                        {row.chantierId && plan.meterage > 0 && (
+                          row.volee_ratee !== true ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleVoleeRatee(postName, idx)}
+                              className="flex items-center gap-1 px-2 py-1 text-[9px] font-black uppercase text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded tracking-wider cursor-pointer transition-all select-none shadow-sm"
+                              title="Marquer cette volée planifiée comme ratée/non-réalisée"
+                            >
+                              <AlertTriangle className="w-3 h-3 text-rose-600 animate-pulse" /> Volée Ratée
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleVoleeRatee(postName, idx)}
+                              className="flex items-center gap-1 px-2 py-1 text-[9px] font-black uppercase text-white bg-rose-700 hover:bg-rose-800 border border-rose-800 rounded tracking-wider cursor-pointer transition-all select-none shadow-sm"
+                              title="Annuler le marquage de volée ratée et restaurer les valeurs"
+                            >
+                              <Check className="w-3 h-3 text-white" /> Volée Réalisée ?
+                            </button>
+                          )
+                        )}
                         {structureEditMode && (
                           <button
                             type="button"
