@@ -3,8 +3,6 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, onSnapshot, getDoc, doc, writeBatch, setDoc } from 'firebase/firestore';
 import { getNextPost, getUpcomingMonday, ROTATION_FUNCTIONS } from '../lib/rotation';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 
 // Helper function to convert OKLCH color strings to standard RGB(A)
 // html2canvas doesn't support parsing modern CSS color formulas like oklch or oklab.
@@ -251,6 +249,8 @@ export const RotationPoste: React.FC = () => {
     const originalGetComputedStyle = window.getComputedStyle;
     
     try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
       const element = document.getElementById('pdf-content');
       if (!element) {
         console.error("Élément 'pdf-content' introuvable.");

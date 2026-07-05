@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Calendar, 
@@ -48,16 +48,16 @@ import {
 } from 'recharts';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
-import { SectorsCompare } from '../components/SectorsCompare';
-import { GlobalRankings } from '../components/GlobalRankings';
-import { HistoryTrends } from '../components/HistoryTrends';
-import { ExpressDirectionScorecard } from '../components/ExpressDirectionScorecard';
-import { ChantierAnalysisPremium } from '../components/ChantierAnalysisPremium';
-import { BureImiterEstPremium } from '../components/BureImiterEstPremium';
-import { SmartAlertsCenter } from '../components/SmartAlertsCenter';
-import { PredictiveIntelligencePremium } from '../components/PredictiveIntelligencePremium';
-import { RHDossiersPremium } from '../components/RHDossiersPremium';
-import { HydroMinesIA } from '../components/HydroMinesIA';
+const SectorsCompare = lazy(() => import('../components/SectorsCompare').then(m => ({ default: m.SectorsCompare })));
+const GlobalRankings = lazy(() => import('../components/GlobalRankings').then(m => ({ default: m.GlobalRankings })));
+const HistoryTrends = lazy(() => import('../components/HistoryTrends').then(m => ({ default: m.HistoryTrends })));
+const ExpressDirectionScorecard = lazy(() => import('../components/ExpressDirectionScorecard').then(m => ({ default: m.ExpressDirectionScorecard })));
+const ChantierAnalysisPremium = lazy(() => import('../components/ChantierAnalysisPremium').then(m => ({ default: m.ChantierAnalysisPremium })));
+const BureImiterEstPremium = lazy(() => import('../components/BureImiterEstPremium').then(m => ({ default: m.BureImiterEstPremium })));
+const SmartAlertsCenter = lazy(() => import('../components/SmartAlertsCenter').then(m => ({ default: m.SmartAlertsCenter })));
+const PredictiveIntelligencePremium = lazy(() => import('../components/PredictiveIntelligencePremium').then(m => ({ default: m.PredictiveIntelligencePremium })));
+const RHDossiersPremium = lazy(() => import('../components/RHDossiersPremium').then(m => ({ default: m.RHDossiersPremium })));
+const HydroMinesIA = lazy(() => import('../components/HydroMinesIA').then(m => ({ default: m.HydroMinesIA })));
 import { 
   calculateMinerStats, 
   calculateDriverStats, 
@@ -1655,7 +1655,12 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
               </p>
             </div>
           ) : (
-            <>
+            <Suspense fallback={
+              <div className="flex flex-col items-center justify-center py-20 bg-white">
+                <Workflow className="w-12 h-12 text-[#b8860b] animate-spin mb-4" />
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Chargement de l'onglet...</p>
+              </div>
+            }>
               {/* TAB: ALERTS CENTER */}
               {activeTab === 'alerts' && (
                 <div className="bg-white border border-[#d4af37]/35 rounded-3xl p-6 relative overflow-hidden shadow-xs text-slate-800">
@@ -2909,7 +2914,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                   </div>
                 </div>
               )}
-            </>
+            </Suspense>
           )}
         </motion.div>
       </AnimatePresence>

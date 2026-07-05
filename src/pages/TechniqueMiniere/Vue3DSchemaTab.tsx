@@ -42,14 +42,14 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
   // Reality toggles
   const [showRockbolts, setShowRockbolts] = useState<boolean>(true);
   const [showArches, setShowArches] = useState<boolean>(true);
-  const [showDrillMachine, setShowDrillMachine] = useState<boolean>(true);
+  const [showDrillMachine, setShowDrillMachine] = useState<boolean>(false);
   const [showLasers, setShowLasers] = useState<boolean>(true);
   const [showSeismograph, setShowSeismograph] = useState<boolean>(true);
   const [showFores, setShowFores] = useState<boolean>(true);
   const [showExplosives, setShowExplosives] = useState<boolean>(true);
   const [showWalls, setShowWalls] = useState<boolean>(true);
   const [autoRotate, setAutoRotate] = useState<boolean>(false);
-  const [dustDensity, setDustDensity] = useState<'none' | 'low' | 'high'>('low');
+  const [dustDensity, setDustDensity] = useState<'none' | 'low' | 'high'>('none');
 
   // Real-time playback variables (for simulation)
   const [realtimeMode, setRealtimeMode] = useState<boolean>(false);
@@ -63,7 +63,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
 
   // Cinematic Orchestrator Mode (Trent Reznor & Atticus Ross Soundtrack)
   const [soundtrackActive, setSoundtrackActive] = useState<boolean>(false);
-  const [cinematicCamera, setCinematicCamera] = useState<boolean>(true);
+  const [cinematicCamera, setCinematicCamera] = useState<boolean>(false);
   const [audioVolume, setAudioVolume] = useState<number>(0.65);
 
   const prevStepRef = useRef<number>(0);
@@ -80,7 +80,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
   // Sync refs to avoid ThreeJS canvas rebuilds
   const isPlayingRef = useRef<boolean>(false);
   const realtimePlayingRef = useRef<boolean>(false);
-  const cinematicCameraRef = useRef<boolean>(true);
+  const cinematicCameraRef = useRef<boolean>(false);
   const autoRotateRef = useRef<boolean>(false);
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
@@ -549,31 +549,13 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
   const dustParticlesRef = useRef<{ mesh: THREE.Mesh; velocity: THREE.Vector3; range: number }[]>([]);
 
   // Dimension helpers
-  const gW = gabarit === '9m2' ? 260 : 400;
-  const gH = gabarit === '9m2' ? 160 : 220;
   const gCX = 500;
   const gCY = gabarit === '9m2' ? 350 : 430;
   const DEPTH = gabarit === '9m2' ? 240 : 300;
 
-  const sectionPoints = useMemo(() => {
-    return gabarit === '9m2' ? [
-      [gCX - gW/2, gCY + gH/2],
-      [gCX + gW/2, gCY + gH/2],
-      [gCX + gW/2, gCY],
-      [gCX + gW*0.45, gCY - gH*0.5],
-      [gCX, gCY - gH*0.8],
-      [gCX - gW*0.45, gCY - gH*0.5],
-      [gCX - gW/2, gCY],
-    ] : [
-      [gCX - gW/2, gCY + gH/2],
-      [gCX + gW/2, gCY + gH/2],
-      [gCX + gW/2, gCY],
-      [gCX + gW*0.45, gCY - gH*0.55],
-      [gCX, gCY - gH*0.95],
-      [gCX - gW*0.45, gCY - gH*0.55],
-      [gCX - gW/2, gCY],
-    ];
-  }, [gabarit, gW, gH, gCX, gCY]);
+  // Real world dimensions (meters)
+  const SCALE = gabarit === '9m2' ? 0.007 : 0.005;
+  const DEPTH_METERS = gabarit === '9m2' ? 12.0 : 15.0;
 
   // Coordinate mapper (Hole relative x,y,z in SVG space to 3D Space meters)
   const getHole3DVector = (hole: HoleInfo, zValue: number): THREE.Vector3 => {
@@ -581,32 +563,37 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
     const angleX = isBouchon ? 0 : (hole.x - gCX) * 0.03;
     const angleY = isBouchon ? 0 : (hole.y - gCY) * 0.03;
 
+    const z_m = (zValue / DEPTH) * DEPTH_METERS;
+
     return new THREE.Vector3(
-      (hole.x - gCX) * 0.05 + (zValue * 0.05) * Math.sin(angleX * Math.PI / 180),
-      -(hole.y - gCY) * 0.05 - (zValue * 0.05) * Math.sin(angleY * Math.PI / 180),
-      zValue * 0.05
+      (hole.x - gCX) * SCALE + z_m * Math.sin(angleX * Math.PI / 180) * 0.05,
+      -(hole.y - gCY) * SCALE - z_m * Math.sin(angleY * Math.PI / 180) * 0.05,
+      z_m
     );
   };
 
   // Interactive camera preset interpolator
-  const targetCamPos = useRef<THREE.Vector3>(new THREE.Vector3(10, 8, -12));
-  const targetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, (DEPTH * 0.05) / 2));
+  const targetCamPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0.7, gabarit === '9m2' ? -3.8 : -4.5));
+  const targetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 0.7, 3.0));
   const isInterpolating = useRef<boolean>(true);
 
   const applyPreset = (preset: 'face' | 'iso' | 'side' | 'top') => {
     setAutoRotate(false);
     isInterpolating.current = true;
-    const centerZ = (DEPTH * 0.05) / 2;
-    targetLookAt.current.set(0, 0, centerZ);
+    const centerZ = DEPTH_METERS / 2;
 
     if (preset === 'face') {
-      targetCamPos.current.set(0, 0, -14);
+      targetLookAt.current.set(0, 0.7, 3.0);
+      targetCamPos.current.set(0, 0.7, gabarit === '9m2' ? -3.8 : -4.5);
     } else if (preset === 'iso') {
-      targetCamPos.current.set(10, 8, -12);
+      targetLookAt.current.set(0, 0.5, centerZ);
+      targetCamPos.current.set(3.5, 2.5, -3.0);
     } else if (preset === 'side') {
-      targetCamPos.current.set(14, 1, centerZ);
+      targetLookAt.current.set(0, 0.5, centerZ);
+      targetCamPos.current.set(5.0, 0.5, centerZ);
     } else if (preset === 'top') {
-      targetCamPos.current.set(0, 16, centerZ);
+      targetLookAt.current.set(0, 0.5, centerZ);
+      targetCamPos.current.set(0, 6.0, centerZ);
     }
   };
 
@@ -704,12 +691,14 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
     if (!containerRef.current) return;
 
     const width = containerRef.current.clientWidth || 1000;
-    const height = 550;
+    const height = 780;
 
     // 1. Create Scene & Atmospheric volumetric Mine Fog
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020617); // Rich dark underground blue-black
-    scene.fog = new THREE.FogExp2(0x020617, dustDensity === 'high' ? 0.07 : dustDensity === 'low' ? 0.03 : 0.005);
+    scene.fog = dustDensity === 'none' 
+      ? null 
+      : new THREE.FogExp2(0x020617, dustDensity === 'high' ? 0.07 : 0.03);
     sceneRef.current = scene;
 
     // 2. Camera
@@ -760,23 +749,67 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
 
     // 6. Geological Workbench helper floor
     const gridHelper = new THREE.GridHelper(40, 40, 0x334155, 0x0f172a);
-    gridHelper.position.y = -(gCY + gH/2 - gCY) * 0.05 - 0.02;
-    gridHelper.position.z = (DEPTH * 0.05) / 2;
+    const floorY = gabarit === '9m2' ? -(520 - gCY) * SCALE : -(650 - gCY) * SCALE;
+    gridHelper.position.y = floorY - 0.01;
+    gridHelper.position.z = DEPTH_METERS / 2;
     scene.add(gridHelper);
 
     // 7. Tunnel Gallery Geometry
     const shape = new THREE.Shape();
-    sectionPoints.forEach(([px, py], idx) => {
-      const x = (px - gCX) * 0.05;
-      const y = -(py - gCY) * 0.05;
-      if (idx === 0) shape.moveTo(x, y);
-      else shape.lineTo(x, y);
-    });
+    if (gabarit !== '9m2') {
+      // 12m2 tunnel profile (width = 800px, height = 750px)
+      // Bottom-left corner is at (100, 650) relative to (gCX, gCY) = (500, 430)
+      const x1 = (100 - gCX) * SCALE;
+      const y1 = -(650 - gCY) * SCALE;
+      shape.moveTo(x1, y1);
+
+      const x2 = (100 - gCX) * SCALE;
+      const y2 = -(300 - gCY) * SCALE;
+      shape.lineTo(x2, y2);
+
+      const arcCenterX = (500 - gCX) * SCALE;
+      const arcCenterY = -(300 - gCY) * SCALE;
+      const arcRadius = 400 * SCALE;
+      for (let i = 1; i <= 20; i++) {
+        const angle = Math.PI - (i / 20) * Math.PI;
+        const ax = arcCenterX + arcRadius * Math.cos(angle);
+        const ay = arcCenterY + arcRadius * Math.sin(angle);
+        shape.lineTo(ax, ay);
+      }
+
+      const x3 = (900 - gCX) * SCALE;
+      const y3 = -(650 - gCY) * SCALE;
+      shape.lineTo(x3, y3);
+    } else {
+      // 9m2 tunnel profile (width = 440px, height = 370px)
+      // SVG path: M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z
+      const x1 = (280 - gCX) * SCALE;
+      const y1 = -(520 - gCY) * SCALE;
+      shape.moveTo(x1, y1);
+
+      const x2 = (280 - gCX) * SCALE;
+      const y2 = -(280 - gCY) * SCALE;
+      shape.lineTo(x2, y2);
+
+      const arcCenterX = (500 - gCX) * SCALE;
+      const arcCenterY = -(280 - gCY) * SCALE;
+      const arcRadius = 220 * SCALE;
+      for (let i = 1; i <= 20; i++) {
+        const angle = Math.PI - (i / 20) * Math.PI;
+        const ax = arcCenterX + arcRadius * Math.cos(angle);
+        const ay = arcCenterY + arcRadius * Math.sin(angle);
+        shape.lineTo(ax, ay);
+      }
+
+      const x3 = (720 - gCX) * SCALE;
+      const y3 = -(520 - gCY) * SCALE;
+      shape.lineTo(x3, y3);
+    }
     shape.closePath();
 
     // Extrude Tunnel Geometry
     const extrudeSettings = {
-      depth: DEPTH * 0.05,
+      depth: DEPTH_METERS,
       bevelEnabled: false,
       steps: 40
     };
@@ -809,10 +842,10 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
 
     // Solid Back Rock Mass at the mouth end (Z = 0)
     const massShape = new THREE.Shape();
-    massShape.moveTo(-35, -25);
-    massShape.lineTo(35, -25);
-    massShape.lineTo(35, 25);
-    massShape.lineTo(-35, 25);
+    massShape.moveTo(-10, -8);
+    massShape.lineTo(10, -8);
+    massShape.lineTo(10, 8);
+    massShape.lineTo(-10, 8);
     massShape.closePath();
     massShape.holes.push(shape); // subtract tunnel hole for hollow entrance
 
@@ -838,7 +871,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
     borderLine.position.z = 0.02; // Floating offset to avoid z-fighting
     scene.add(borderLine);
 
-    // Closed geological backplate at the tunnel end face (Z = DEPTH * 0.05)
+    // Closed geological backplate at the tunnel end face (Z = DEPTH_METERS)
     const backFaceGeo = new THREE.ShapeGeometry(shape);
     const backFaceMat = new THREE.MeshStandardMaterial({
       map: rockTexture,
@@ -849,7 +882,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       opacity: showWalls ? 0.8 : 0.05
     });
     const backFaceMesh = new THREE.Mesh(backFaceGeo, backFaceMat);
-    backFaceMesh.position.z = DEPTH * 0.05;
+    backFaceMesh.position.z = DEPTH_METERS;
     backFaceMesh.receiveShadow = true;
     scene.add(backFaceMesh);
 
@@ -861,7 +894,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
     // Rock Bolts splits & metallic frame ribs at 3-meter intervals
     if (showArches || showRockbolts) {
       const spacingMeters = 3.0;
-      const totalLenMeters = DEPTH * 0.05;
+      const totalLenMeters = DEPTH_METERS;
       const steelMat = new THREE.MeshStandardMaterial({
         color: 0x64748b, // Industrial Slate Grey Steel
         roughness: 0.45,
@@ -871,21 +904,16 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       for (let zOffset = spacingMeters; zOffset < totalLenMeters - 1.5; zOffset += spacingMeters) {
         // Steel arches frames
         if (showArches) {
-          // Semi-octagonal frame outlining the tunnel profile
-          const archShape = new THREE.Shape();
-          sectionPoints.forEach(([px, py], idx) => {
-            const x = (px - gCX) * 0.05 * 0.98; // slightly smaller to frame wall snugly
-            const y = -(py - gCY) * 0.05 * 0.98;
-            if (idx === 0) archShape.moveTo(x, y);
-            else archShape.lineTo(x, y);
+          const archPoints = shape.getPoints().map(p => new THREE.Vector3(p.x, p.y, zOffset));
+          // Slightly offset inwards to avoid z-fighting with the tunnel wall mesh
+          archPoints.forEach(p => {
+            const dir = new THREE.Vector3(p.x, p.y, 0).normalize();
+            p.addScaledVector(dir, -0.02);
           });
-          archShape.closePath();
-
-          const archLineGeo = new THREE.BufferGeometry().setFromPoints(archShape.getPoints());
           const archFrameGeo = new THREE.TubeGeometry(
-            new THREE.CatmullRomCurve3(archShape.getPoints().map(p => new THREE.Vector3(p.x, p.y, zOffset))),
+            new THREE.CatmullRomCurve3(archPoints),
             32,
-            0.05, // 5cm thick steel ribs
+            0.025, // 5cm thick steel ribs
             6,
             true
           );
@@ -895,20 +923,21 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
 
         // Rockbolts split set anchor rods radiating outwards
         if (showRockbolts) {
-          const boltLength = 1.6; // 1.6m anchor bolts
-          const boltRadialCount = 7;
+          const boltLength = 1.2; // 1.2m anchor bolts
           const points = shape.getPoints();
           
-          for (let b = 1; b < points.length - 1; b++) {
-            // Anchor from wall coordinates extending outwards
+          const boltIndices = [2, 5, 8, 11, 14, 17, 20];
+          boltIndices.forEach(b => {
+            if (b >= points.length) return;
             const wallPt = points[b];
             const startVec = new THREE.Vector3(wallPt.x, wallPt.y, zOffset);
             
-            // direction vector pointing away from gallery center
-            const dirVec = new THREE.Vector3(wallPt.x, wallPt.y, 0).normalize();
+            // direction vector pointing away from gallery arch center
+            const arcCenterY = gabarit === '9m2' ? -(280 - gCY) * SCALE : -(300 - gCY) * SCALE;
+            const dirVec = new THREE.Vector3(wallPt.x, wallPt.y - arcCenterY, 0).normalize();
             const endVec = startVec.clone().addScaledVector(dirVec, boltLength);
 
-            const boltGeo = new THREE.CylinderGeometry(0.015, 0.015, boltLength, 6);
+            const boltGeo = new THREE.CylinderGeometry(0.012, 0.012, boltLength, 6);
             boltGeo.translate(0, boltLength / 2, 0);
             boltGeo.rotateX(Math.PI / 2);
 
@@ -919,12 +948,12 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
             supportGroup.add(boltMesh);
 
             // Add metallic split-set head plates
-            const plateGeo = new THREE.BoxGeometry(0.12, 0.12, 0.02);
+            const plateGeo = new THREE.BoxGeometry(0.08, 0.08, 0.015);
             const plateMesh = new THREE.Mesh(plateGeo, steelMat);
             plateMesh.position.copy(startVec);
             plateMesh.lookAt(endVec);
             supportGroup.add(plateMesh);
-          }
+          });
         }
       }
     }
@@ -939,8 +968,8 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       const laserMat = new THREE.LineBasicMaterial({ color: laserColor });
       
       // Horizontal and vertical guide laser lines intersecting at the face center
-      const pointsH = [new THREE.Vector3(-6, 0, 0.1), new THREE.Vector3(6, 0, 0.1)];
-      const pointsV = [new THREE.Vector3(0, -5, 0.1), new THREE.Vector3(0, 5, 0.1)];
+      const pointsH = [new THREE.Vector3(-2.2, 0.5, DEPTH_METERS - 0.02), new THREE.Vector3(2.2, 0.5, DEPTH_METERS - 0.02)];
+      const pointsV = [new THREE.Vector3(0, floorY, DEPTH_METERS - 0.02), new THREE.Vector3(0, 2.5, DEPTH_METERS - 0.02)];
 
       const geoH = new THREE.BufferGeometry().setFromPoints(pointsH);
       const geoV = new THREE.BufferGeometry().setFromPoints(pointsV);
@@ -950,7 +979,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       lasersGroup.add(laserH, laserV);
     }
 
-    // 10. Stylized 3D Jumbo Drilling Rig Machine Group (positioned at Z = -1.5m to represent active drilling)
+    // 10. Stylized 3D Jumbo Drilling Rig Machine Group (positioned at Z = DEPTH_METERS - 1.2m to represent active drilling at the face)
     const drillRigGroup = new THREE.Group();
     scene.add(drillRigGroup);
     drillRigGroupRef.current = drillRigGroup;
@@ -959,42 +988,44 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       const metalMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.5, metalness: 0.6 }); // Yellow chassis
       const darkSteelMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.7 });
 
+      const zFace = DEPTH_METERS;
+
       // Chassis body
-      const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 3.2), metalMat);
-      body.position.set(0, -1.0, -1.2);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 1.2), metalMat);
+      body.position.set(0, floorY + 0.3, zFace - 1.2);
       drillRigGroup.add(body);
 
       // Tractor treads (Tracks)
-      const treadL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 3.4), darkSteelMat);
-      treadL.position.set(-0.9, -1.3, -1.2);
-      const treadR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 3.4), darkSteelMat);
-      treadR.position.set(0.9, -1.3, -1.2);
+      const treadL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 1.3), darkSteelMat);
+      treadL.position.set(-0.3, floorY + 0.1, zFace - 1.2);
+      const treadR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 1.3), darkSteelMat);
+      treadR.position.set(0.3, floorY + 0.1, zFace - 1.2);
       drillRigGroup.add(treadL, treadR);
 
       // Hydraulic Arm base
-      const boomArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.5, 8), darkSteelMat);
-      boomArm.position.set(0, -0.4, 0.6);
+      const boomArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 8), darkSteelMat);
+      boomArm.position.set(0, floorY + 0.4, zFace - 0.5);
       boomArm.rotation.x = Math.PI / 2.3; // extend forward towards face
       drillRigGroup.add(boomArm);
 
       // Rig feeding beam (Guiderail)
-      const guiderail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 3.8), darkSteelMat);
-      guiderail.position.set(0, 0.5, 1.5);
+      const guiderail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.2), darkSteelMat);
+      guiderail.position.set(0, floorY + 0.7, zFace - 0.3);
       drillRigGroup.add(guiderail);
 
       // Drilling feed rod pointing straight at the face
-      const rodGeo = new THREE.CylinderGeometry(0.02, 0.02, 3.2, 6);
+      const rodGeo = new THREE.CylinderGeometry(0.008, 0.008, 1.0, 6);
       rodGeo.rotateX(Math.PI / 2);
       const rod = new THREE.Mesh(rodGeo, new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.3, metalness: 0.9 }));
-      rod.position.set(0, 0.6, 2.6); // close to face
+      rod.position.set(0, floorY + 0.75, zFace - 0.1); // close to face
       drillRigGroup.add(rod);
 
       // Add a small neon green target laser emitter dot
-      const beamGeo = new THREE.CylinderGeometry(0.005, 0.005, 12, 4);
+      const beamGeo = new THREE.CylinderGeometry(0.0015, 0.0015, 4, 4);
       beamGeo.rotateX(Math.PI / 2);
       const beamMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.3 });
       const laserBeam = new THREE.Mesh(beamGeo, beamMat);
-      laserBeam.position.set(0, 0.6, 4.2);
+      laserBeam.position.set(0, floorY + 0.75, zFace - 0.05);
       drillRigGroup.add(laserBeam);
     }
 
@@ -1017,14 +1048,14 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
         const mesh = new THREE.Mesh(dustGeo, dustMat);
         const rx = (Math.random() - 0.5) * 12;
         const ry = (Math.random() - 0.5) * 8;
-        const rz = Math.random() * DEPTH * 0.05;
+        const rz = Math.random() * DEPTH_METERS;
         mesh.position.set(rx, ry, rz);
         scene.add(mesh);
         
         dustParticlesRef.current.push({
           mesh,
           velocity: new THREE.Vector3((Math.random() - 0.5) * 0.1, (Math.random() - 0.5) * 0.05, (Math.random() - 0.5) * 0.05),
-          range: DEPTH * 0.05
+          range: DEPTH_METERS
         });
       }
     }
@@ -1045,7 +1076,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
     const resizeObserver = new ResizeObserver(() => {
       if (!containerRef.current) return;
       const w = containerRef.current.clientWidth;
-      const h = 550;
+      const h = 780;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -1082,13 +1113,13 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       } else if (cinematicCameraRef.current && (isPlayingRef.current || realtimePlayingRef.current)) {
         // Gorgeous, slow-motion sweeping drone shot
         const time = now * 0.00015; // ultra smooth speed
-        const centerZ = (DEPTH * 0.05) / 2;
-        const targetX = Math.sin(time) * 12.0;
-        const targetY = 5.0 + Math.cos(time * 0.6) * 2.5;
-        const targetZ = centerZ + Math.sin(time * 1.1) * 3.0 - 5.0;
+        const centerZ = DEPTH_METERS / 2;
+        const targetX = Math.sin(time) * 1.8;
+        const targetY = 0.5 + Math.cos(time * 0.6) * 0.4;
+        const targetZ = centerZ + Math.sin(time * 1.1) * 1.5 - 2.0;
         
         camera.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.015);
-        controls.target.lerp(new THREE.Vector3(0, -0.5, centerZ), 0.015);
+        controls.target.lerp(new THREE.Vector3(0, 0.5, centerZ), 0.015);
       }
 
       // Apply dynamic camera shake
@@ -1113,9 +1144,9 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       // Drift particulate dust
       dustParticlesRef.current.forEach(dust => {
         dust.mesh.position.addScaledVector(dust.velocity, deltaTime);
-        // keep within bounds
-        if (Math.abs(dust.mesh.position.x) > 6) dust.velocity.x *= -1;
-        if (Math.abs(dust.mesh.position.y) > 4) dust.velocity.y *= -1;
+        // keep within bounds of the 4m x 3.5m tunnel
+        if (Math.abs(dust.mesh.position.x) > 1.8) dust.velocity.x *= -1;
+        if (dust.mesh.position.y < floorY || dust.mesh.position.y > 2.5) dust.velocity.y *= -1;
         if (dust.mesh.position.z < 0 || dust.mesh.position.z > dust.range) {
           dust.mesh.position.z = Math.random() * dust.range;
         }
@@ -1127,7 +1158,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
         blastingHoles.forEach(hole => {
           // Dynamic shockwave disc expanding occasionally
           if (Math.random() < 0.18) {
-            const ringGeo = new THREE.RingGeometry(0.05, 0.08, 16);
+            const ringGeo = new THREE.RingGeometry(0.01, 0.02, 16);
             const ringMat = new THREE.MeshBasicMaterial({
               color: 0xff8c00,
               side: THREE.DoubleSide,
@@ -1136,13 +1167,13 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
             });
             const ring = new THREE.Mesh(ringGeo, ringMat);
             const mouthPos = getHole3DVector(hole, 0);
-            mouthPos.z -= 0.08; // slightly in front
+            mouthPos.z -= 0.01; // slightly in front
             ring.position.copy(mouthPos);
             scene.add(ring);
 
             shockwavesRef.current.push({
               mesh: ring,
-              scaleSpeed: 10.0,
+              scaleSpeed: 2.5,
               opacitySpeed: 2.3,
               life: 0.4
             });
@@ -1298,6 +1329,20 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
     const holesGroup = holesGroupRef.current;
     if (!scene || !holesGroup) return;
 
+    // Smooth focal sweep or top view on step transitions
+    if (activeStep < maxStep) {
+      // Perfectly face-to-face perspective to inspect the hole locations with clear front alignment
+      targetLookAt.current.set(0, 0.7, 3.0);
+      targetCamPos.current.set(0, 0.7, gabarit === '9m2' ? -3.8 : -4.5);
+      isInterpolating.current = true;
+    } else if (activeStep === maxStep) {
+      // Final view: High-angle bird's eye view from the top of the gallery to perfectly show 3D hole alignment, explosive columns, and stemming
+      const centerZ = DEPTH_METERS / 2;
+      targetLookAt.current.set(0, 0.3, centerZ);
+      targetCamPos.current.set(0, 5.0, centerZ - 0.5);
+      isInterpolating.current = true;
+    }
+
     // Clear old hole meshes
     while (holesGroup.children.length > 0) {
       const child = holesGroup.children[0] as THREE.Mesh;
@@ -1330,14 +1375,13 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       const blastStep = getBlastStepForHole(hole, gabarit);
       const isExploded = activeStep > blastStep;
       const isBlasting = activeStep === blastStep;
-
-      if (isExploded) return;
+      const isGhosted = isExploded;
 
       const pA = getHole3DVector(hole, 0);
-      pA.z -= 0.05; // floating offset
+      pA.z -= 0.01; // floating offset in meters
 
       const pMid = getHole3DVector(hole, DEPTH * 0.35);
-      pMid.z -= 0.03;
+      pMid.z -= 0.01;
 
       const pB = getHole3DVector(hole, DEPTH);
 
@@ -1368,11 +1412,11 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
           roughness: 0.5,
           metalness: 0.2,
           transparent: true,
-          opacity: 0.5,
+          opacity: isGhosted ? 0.12 : 0.5,
           side: THREE.DoubleSide,
           depthWrite: false
         });
-        const mesh = buildCylinder(pA, pB, 0.08, videMat);
+        const mesh = buildCylinder(pA, pB, 0.045, videMat);
         holesGroup.add(mesh);
       } else {
         // Stemming Bourrage (Slate Grey)
@@ -1380,9 +1424,11 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
           const stemmingMat = new THREE.MeshStandardMaterial({
             color: 0x94a3b8,
             roughness: 0.95,
-            metalness: 0.0
+            metalness: 0.0,
+            transparent: isGhosted,
+            opacity: isGhosted ? 0.08 : 1.0
           });
-          const stemmingMesh = buildCylinder(pA, pMid, 0.06, stemmingMat);
+          const stemmingMesh = buildCylinder(pA, pMid, 0.035, stemmingMat);
           holesGroup.add(stemmingMesh);
         }
 
@@ -1392,8 +1438,10 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
             color: colorHex,
             roughness: 0.3,
             metalness: 0.3,
+            transparent: isGhosted,
+            opacity: isGhosted ? 0.18 : 1.0,
             emissive: colorHex,
-            emissiveIntensity: isBlasting ? 2.5 : 0.5
+            emissiveIntensity: isBlasting ? 2.5 : (isGhosted ? 0.08 : 0.5)
           });
 
           if (isBlasting) {
@@ -1401,7 +1449,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
             expMat.emissive.setHex(0xffffff);
           }
 
-          const explosiveMesh = buildCylinder(pMid, pB, 0.06, expMat);
+          const explosiveMesh = buildCylinder(pMid, pB, 0.035, expMat);
           holesGroup.add(explosiveMesh);
         }
       }
@@ -1410,10 +1458,12 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       const mouthMat = new THREE.MeshStandardMaterial({
         color: isBlasting ? 0xffffff : colorHex,
         roughness: 0.2,
+        transparent: isGhosted,
+        opacity: isGhosted ? 0.22 : 1.0,
         emissive: isBlasting ? 0xffffff : colorHex,
-        emissiveIntensity: isBlasting ? 2.5 : 0.6
+        emissiveIntensity: isBlasting ? 2.5 : (isGhosted ? 0.1 : 0.6)
       });
-      const mouthGeo = new THREE.SphereGeometry(isBlasting ? 0.12 : 0.08, 8, 8);
+      const mouthGeo = new THREE.SphereGeometry(isBlasting ? 0.055 : 0.042, 8, 8);
       const mouthMesh = new THREE.Mesh(mouthGeo, mouthMat);
       mouthMesh.position.copy(pA);
       mouthMesh.userData = { hole };
@@ -1550,7 +1600,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
             ref={containerRef}
             onMouseMove={handleMouseMoveCanvas}
             onMouseLeave={handleMouseLeaveCanvas}
-            className="w-full h-[550px] relative overflow-hidden"
+            className="w-full h-[780px] relative overflow-hidden"
             style={{ cursor: 'grab' }}
           >
             {/* Projected HTML label markers */}
@@ -1807,68 +1857,52 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
               ÉLÉMENTS GÉOTECHNIQUES 3D
             </h3>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {/* Rockbolts */}
               <button
                 onClick={() => setShowRockbolts(prev => !prev)}
-                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
                   showRockbolts
                     ? 'bg-amber-500/5 border-amber-500/20 text-slate-900'
                     : 'bg-slate-50/50 border-slate-200 text-slate-400'
                 }`}
               >
-                <HardHat className={`w-4 h-4 ${showRockbolts ? 'text-amber-500' : 'text-slate-400'}`} />
+                <HardHat className={`w-3.5 h-3.5 ${showRockbolts ? 'text-amber-500' : 'text-slate-400'}`} />
                 <div className="mt-1">
-                  <span className="text-[9px] font-black uppercase tracking-wider block leading-none">Boulonnage</span>
-                  <span className="text-[8px] font-medium text-slate-500 block leading-tight mt-0.5">Split Sets 1.6m</span>
+                  <span className="text-[8.5px] font-black uppercase tracking-wider block leading-none">Boulonnage</span>
+                  <span className="text-[7.5px] font-medium text-slate-500 block leading-tight mt-0.5">Split Sets</span>
                 </div>
               </button>
 
               {/* Arches */}
               <button
                 onClick={() => setShowArches(prev => !prev)}
-                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
                   showArches
                     ? 'bg-amber-500/5 border-amber-500/20 text-slate-900'
                     : 'bg-slate-50/50 border-slate-200 text-slate-400'
                 }`}
               >
-                <Grid className={`w-4 h-4 ${showArches ? 'text-amber-500' : 'text-slate-400'}`} />
+                <Grid className={`w-3.5 h-3.5 ${showArches ? 'text-amber-500' : 'text-slate-400'}`} />
                 <div className="mt-1">
-                  <span className="text-[9px] font-black uppercase tracking-wider block leading-none">Soutènement</span>
-                  <span className="text-[8px] font-medium text-slate-500 block leading-tight mt-0.5">Arceaux Métalliques</span>
-                </div>
-              </button>
-
-              {/* Drilling Jumbo */}
-              <button
-                onClick={() => setShowDrillMachine(prev => !prev)}
-                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
-                  showDrillMachine
-                    ? 'bg-amber-500/5 border-amber-500/20 text-slate-900'
-                    : 'bg-slate-50/50 border-slate-200 text-slate-400'
-                }`}
-              >
-                <Eye className={`w-4 h-4 ${showDrillMachine ? 'text-amber-500' : 'text-slate-400'}`} />
-                <div className="mt-1">
-                  <span className="text-[9px] font-black uppercase tracking-wider block leading-none">Drill Jumbo</span>
-                  <span className="text-[8px] font-medium text-slate-500 block leading-tight mt-0.5">Sondeuse Foration</span>
+                  <span className="text-[8.5px] font-black uppercase tracking-wider block leading-none">Soutènement</span>
+                  <span className="text-[7.5px] font-medium text-slate-500 block leading-tight mt-0.5">Arceaux</span>
                 </div>
               </button>
 
               {/* Guidelasers */}
               <button
                 onClick={() => setShowLasers(prev => !prev)}
-                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
                   showLasers
                     ? 'bg-amber-500/5 border-amber-500/20 text-slate-900'
                     : 'bg-slate-50/50 border-slate-200 text-slate-400'
                 }`}
               >
-                <Zap className={`w-4 h-4 ${showLasers ? 'text-amber-500' : 'text-slate-400'}`} />
+                <Zap className={`w-3.5 h-3.5 ${showLasers ? 'text-amber-500' : 'text-slate-400'}`} />
                 <div className="mt-1">
-                  <span className="text-[9px] font-black uppercase tracking-wider block leading-none">Lasers Guidage</span>
-                  <span className="text-[8px] font-medium text-slate-500 block leading-tight mt-0.5">Ciblage Alignment</span>
+                  <span className="text-[8.5px] font-black uppercase tracking-wider block leading-none">Lasers</span>
+                  <span className="text-[7.5px] font-medium text-slate-500 block leading-tight mt-0.5">Ciblage</span>
                 </div>
               </button>
             </div>

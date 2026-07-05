@@ -1,5 +1,4 @@
 import React from 'react';
-import ExcelJS from 'exceljs';
 import { FileSpreadsheet } from 'lucide-react';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
@@ -112,7 +111,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
   };
 
   const createCorpHeader = (
-    sheet: ExcelJS.Worksheet, 
+    sheet: any, 
     title: string, 
     themeColor: string, 
     maxColLetter: string, 
@@ -214,6 +213,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
         return;
       }
 
+      const ExcelJS = (await import('exceljs')).default;
       const workbook = new ExcelJS.Workbook();
 
       let imageId: number | null = null;

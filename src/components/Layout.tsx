@@ -92,6 +92,66 @@ const NAV_ITEMS: NavItem[] = [
   // ADMIN
   { id: 'admin', label: 'Administration', icon: <Users className="w-5 h-5" />, roles: ['admin'], category: 'admin' },
 ];
+
+const prefetchPage = (id: string) => {
+  switch (id) {
+    case 'production':
+      import('../pages/Production');
+      break;
+    case 'planning':
+      import('../pages/Planning');
+      break;
+    case 'daily_report':
+      import('../pages/DailyReport');
+      break;
+    case 'admin':
+      import('../pages/Admin');
+      break;
+    case 'chantiers':
+      import('../pages/Chantiers');
+      break;
+    case 'rotation':
+      import('../pages/RotationPoste');
+      break;
+    case 'analyse_strategie':
+    case 'analyse_terrain':
+    case 'analyse_rh':
+    case 'analyse_logistique':
+    case 'analyse_dashboard':
+      import('../pages/AnalyseDashboard');
+      break;
+    case 'analytics':
+      import('../pages/Analytics');
+      break;
+    case 'messages':
+      import('../pages/Messages');
+      break;
+    case 'explication_non_realise':
+    case 'explications':
+      import('../pages/ExplicationNonRealise');
+      break;
+    case 'technique':
+      import('../pages/TechniqueMiniere');
+      break;
+    case 'espace_dt':
+      import('../pages/EspaceDT');
+      break;
+    case 'boulonnage':
+      import('../pages/Boulonnage');
+      break;
+    case 'failed_blasts':
+    case '/volées-ratées':
+      import('../pages/FailedBlasts');
+      break;
+    case 'tutoriel':
+    case '/tutoriel':
+      import('../pages/Tutoriel');
+      break;
+    default:
+      break;
+  }
+};
+
 export const Layout: React.FC<{ 
   activeTab: string; 
   setActiveTab: (tab: string) => void;
@@ -425,6 +485,7 @@ export const Layout: React.FC<{
                       onClick={() => {
                         setActiveTab(item.id);
                       }}
+                      onMouseEnter={() => prefetchPage(item.id)}
                       className={cn(
                         "w-full flex items-center rounded-none transition-all duration-300 group relative overflow-hidden",
                         isOpen ? "gap-3 px-3 py-2.5" : "justify-center p-3",

@@ -2693,6 +2693,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
   const holesGroupRef = useRef<THREE.Group | null>(null);
   const sparksRef = useRef<{ mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number }[]>([]);
   const shockwavesRef = useRef<{ mesh: THREE.Mesh; scaleSpeed: number; opacitySpeed: number; life: number }[]>([]);
+  const cameraShakeRef = useRef<number>(0);
   const particlesGroupRef = useRef<THREE.Group | null>(null);
   const tunnelMeshRef = useRef<THREE.Mesh | null>(null);
   const tunnelWireframeRef = useRef<THREE.LineSegments | null>(null);
@@ -2896,102 +2897,49 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
         }
       }
 
-      // 1. Spawning dynamic sparks and shockwaves
-      const blastingHoles = holesToRender.filter(h => getBlastStepForHole(h, gabarit) === activeStep);
-      if (activeStep > 0 && blastingHoles.length > 0) {
-        blastingHoles.forEach(hole => {
-          // Dynamic shockwave ring occasionally
-          if (Math.random() < 0.20) {
-            const ringGeo = new THREE.RingGeometry(0.04, 0.07, 16);
-            const ringMat = new THREE.MeshBasicMaterial({
-              color: 0xffa726,
-              side: THREE.DoubleSide,
-              transparent: true,
-              opacity: 0.8
-            });
-            const ring = new THREE.Mesh(ringGeo, ringMat);
-            const mouthPos = getHole3DVector(hole, 0);
-            mouthPos.z -= 0.06; // slightly in front
-            ring.position.copy(mouthPos);
-            particlesGroup.add(ring);
+      shockwavesRef.current = shockwavesRef.current.filter(sw => {
+        sw.life -= 0.025;
+        sw.mesh.scale.setScalar(1 + (1 - sw.life) * sw.scaleSpeed);
+        (sw.mesh.material as THREE.MeshStandardMaterial).opacity = sw.life * 0.85;
+        if (sw.life <= 0) {
+          scene.remove(sw.mesh);
+          sw.mesh.geometry.dispose();
+          (sw.mesh.material as THREE.MeshStandardMaterial).dispose();
+          return false;
+        }
+        return true;
+      });
 
-            shockwavesRef.current.push({
-              mesh: ring,
-              scaleSpeed: 12.0,
-              opacitySpeed: 2.2,
-              life: 0.35
-            });
-          }
-
-          // Spawn 3 active particles per frame per hole
-          for (let i = 0; i < 3; i++) {
-            const sparkGeo = new THREE.BoxGeometry(0.04, 0.04, 0.04);
-            const sparkMat = new THREE.MeshBasicMaterial({
-              color: new THREE.Color().setHSL(0.04 + Math.random() * 0.08, 1.0, 0.65),
-              transparent: true,
-              opacity: 0.95
-            });
-            const sparkMesh = new THREE.Mesh(sparkGeo, sparkMat);
-            const mouthPos = getHole3DVector(hole, 0);
-            mouthPos.z -= 0.04;
-            sparkMesh.position.copy(mouthPos);
-
-            const velocity = new THREE.Vector3(
-              (Math.random() - 0.5) * 2.0,
-              (Math.random() - 0.5) * 2.0 + 0.6,
-              -3 - Math.random() * 5
-            );
-
-            const life = 0.3 + Math.random() * 0.55;
-            particlesGroup.add(sparkMesh);
-            sparksRef.current.push({
-              mesh: sparkMesh,
-              velocity,
-              life,
-              maxLife: life
-            });
-          }
-        });
-      }
-
-      // 2. Update existing sparks particles
-      for (let idx = sparksRef.current.length - 1; idx >= 0; idx--) {
-        const spark = sparksRef.current[idx];
-        spark.mesh.position.addScaledVector(spark.velocity, deltaTime);
-        spark.velocity.y -= 4.0 * deltaTime; // Gravity
+      // Update active sparks/particles in ThreeJS
+      sparksRef.current = sparksRef.current.filter(spark => {
         spark.life -= deltaTime;
+        
+        // Physics update: add scaled velocity, gravity pull, and drag multiplier
+        spark.mesh.position.addScaledVector(spark.velocity, deltaTime);
+        spark.velocity.y -= 1.2 * deltaTime; // gravity pull
+        spark.velocity.multiplyScalar(0.96); // drag/friction
+        
         const ratio = Math.max(0, spark.life / spark.maxLife);
-        spark.mesh.material.opacity = ratio;
-        spark.mesh.scale.set(ratio, ratio, ratio);
-
+        spark.mesh.scale.setScalar(ratio);
+        
+        if (spark.mesh.material && 'opacity' in spark.mesh.material) {
+          (spark.mesh.material as any).opacity = ratio * 0.95;
+        }
+        
         if (spark.life <= 0) {
-          particlesGroup.remove(spark.mesh);
+          if (particlesGroupRef.current) {
+            particlesGroupRef.current.remove(spark.mesh);
+          }
           spark.mesh.geometry.dispose();
           if (Array.isArray(spark.mesh.material)) {
             spark.mesh.material.forEach(m => m.dispose());
           } else {
             spark.mesh.material.dispose();
           }
-          sparksRef.current.splice(idx, 1);
+          return false;
         }
-      }
-
-      // 3. Update existing shockwaves
-      for (let idx = shockwavesRef.current.length - 1; idx >= 0; idx--) {
-        const wave = shockwavesRef.current[idx];
-        const s = wave.mesh.scale.x + wave.scaleSpeed * deltaTime;
-        wave.mesh.scale.set(s, s, 1);
-        wave.life -= deltaTime;
-        const ratio = Math.max(0, wave.life / 0.35);
-        wave.mesh.material.opacity = ratio * 0.8;
-
-        if (wave.life <= 0) {
-          particlesGroup.remove(wave.mesh);
-          wave.mesh.geometry.dispose();
-          wave.mesh.material.dispose();
-          shockwavesRef.current.splice(idx, 1);
-        }
-      }
+        return true;
+      });
 
       // 4. Project 3D positions to 2D labels overlays
       const widthCurrent = containerRef.current?.clientWidth || width;
@@ -3036,7 +2984,22 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
         el.style.color = color;
       });
 
+      // Camera shake rumble computation
+      const originalCamPos = camera.position.clone();
+      if (cameraShakeRef.current > 0) {
+        const shake = cameraShakeRef.current;
+        camera.position.x += (Math.random() - 0.5) * shake * 0.15;
+        camera.position.y += (Math.random() - 0.5) * shake * 0.15;
+        camera.position.z += (Math.random() - 0.5) * shake * 0.15;
+        cameraShakeRef.current -= deltaTime * 2.2; // decay shake
+      }
+
       renderer.render(scene, camera);
+
+      // Restore position immediately after rendering so OrbitControls doesn't jitter
+      if (cameraShakeRef.current > 0) {
+        camera.position.copy(originalCamPos);
+      }
       frameId = requestAnimationFrame(tick);
     };
 
@@ -3071,14 +3034,131 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
     };
   }, [engineMode, gabarit, sectionPoints, gCX, gCY, gW, gH, DEPTH]);
 
-  // Handle activeStep and dynamic mesh updates inside WebGL Group
   useEffect(() => {
     if (engineMode !== 'webgl') return;
     const scene = sceneRef.current;
     const holesGroup = holesGroupRef.current;
     if (!scene || !holesGroup) return;
 
-    // Clear old hole meshes
+    const blastingHoles = holesToRender.filter(h => getBlastStepForHole(h, gabarit) === activeStep);
+
+    if (activeStep > 0 && blastingHoles.length > 0) {
+      const center = new THREE.Vector3();
+      blastingHoles.forEach(h => {
+        const v = getHole3DVector(h, DEPTH * 0.5);
+        center.add(v);
+      });
+      center.divideScalar(blastingHoles.length);
+
+      const shockGeo = new THREE.SphereGeometry(0.1, 16, 16);
+      const shockMat = new THREE.MeshStandardMaterial({
+        color: 0xffd700,
+        emissive: 0xffd700,
+        emissiveIntensity: 2.5,
+        transparent: true,
+        opacity: 0.85,
+        wireframe: true,
+      });
+      const shockMesh = new THREE.Mesh(shockGeo, shockMat);
+      shockMesh.position.copy(center);
+      scene.add(shockMesh);
+
+      const blastLight = new THREE.PointLight(0xffd700, 8, 6);
+      blastLight.position.copy(center);
+      scene.add(blastLight);
+
+      setTimeout(() => {
+        scene.remove(blastLight);
+      }, 800);
+
+      shockwavesRef.current.push({
+        mesh: shockMesh,
+        scaleSpeed: 3.5,
+        opacitySpeed: 1.8,
+        life: 1.0,
+      });
+
+      // Activate modern immersive camera shake rumble
+      cameraShakeRef.current = 0.28;
+
+      // Spawn real-time dynamic, glowing sparks shooting out of active blast mouths
+      const particlesGroup = particlesGroupRef.current;
+      if (particlesGroup) {
+        blastingHoles.forEach(h => {
+          const mouthPos = getHole3DVector(h, 0);
+          for (let i = 0; i < 18; i++) {
+            const size = 0.015 + Math.random() * 0.025;
+            const sparkGeo = new THREE.SphereGeometry(size, 4, 4);
+            const sparkMat = new THREE.MeshBasicMaterial({
+              color: Math.random() > 0.35 ? 0xffaa00 : 0xffdd33, // fire orange/yellow
+              transparent: true,
+              opacity: 0.95,
+            });
+            const sparkMesh = new THREE.Mesh(sparkGeo, sparkMat);
+            sparkMesh.position.copy(mouthPos);
+            particlesGroup.add(sparkMesh);
+
+            // Velocity vectors pointing outwards and downwards under gravity
+            const velocity = new THREE.Vector3(
+              (Math.random() - 0.5) * 4.5,
+              (Math.random() - 0.25) * 4.5 + 1.5, // slight upward ejection arc
+              -(2 + Math.random() * 5.5) // shooting out towards camera
+            );
+
+            const maxLife = 0.6 + Math.random() * 0.8;
+            sparksRef.current.push({
+              mesh: sparkMesh,
+              velocity,
+              life: maxLife,
+              maxLife,
+            });
+          }
+        });
+      }
+
+      const ambientLight = scene.children.find(
+        c => c instanceof THREE.AmbientLight
+      ) as THREE.AmbientLight | undefined;
+
+      if (ambientLight) {
+        const baseIntensity = 1.4;
+        const blastBoost = Math.min(activeStep * 0.3, 1.5);
+        ambientLight.intensity = baseIntensity + blastBoost;
+        const warmth = Math.min(activeStep * 0.1, 0.6);
+        ambientLight.color.setRGB(1, 1 - warmth * 0.2, 1 - warmth * 0.4);
+      }
+    }
+
+    if (activeStep === 0) {
+      targetCamPos.current.set(8, 7, -10);
+      targetLookAt.current.set(0, 0, (DEPTH * 0.05) / 2);
+      isInterpolating.current = true;
+
+      const ambientLight = scene?.children.find(
+        c => c instanceof THREE.AmbientLight
+      ) as THREE.AmbientLight | undefined;
+      if (ambientLight) {
+        ambientLight.intensity = 1.4;
+        ambientLight.color.setRGB(1, 1, 1);
+      }
+
+      // Clear any leftover sparks/particles on playback reset
+      const particlesGroup = particlesGroupRef.current;
+      if (particlesGroup) {
+        while (particlesGroup.children.length > 0) {
+          const child = particlesGroup.children[0] as THREE.Mesh;
+          particlesGroup.remove(child);
+          child.geometry.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      }
+      sparksRef.current = [];
+    }
+
     while (holesGroup.children.length > 0) {
       const child = holesGroup.children[0] as THREE.Mesh;
       holesGroup.remove(child);
@@ -3092,15 +3172,16 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
 
     const getColorForType = (type: string) => {
       switch (type) {
-        case 'vide': return 0x38bdf8;
-        case 'charge': return 0xeab308;
-        case 'g1': return 0x3b82f6;
-        case 'g2': return 0xef4444;
-        case 'g3': return 0x22d3ee;
-        case 'g4': return 0xf97316;
-        case 'radier': return 0x8b5cf6;
-        case 'parement': return 0x14b8a6;
-        default: return 0xf43f5e;
+        case 'charge':   return 0xfbbf24;
+        case 'vide':     return 0x38bdf8;
+        case 'g1':       return 0xfb923c;
+        case 'g2':       return 0xf87171;
+        case 'g3':       return 0xa78bfa;
+        case 'g4':       return 0x60a5fa;
+        case 'radier':   return 0x4ade80;
+        case 'parement': return 0x34d399;
+        case 'voute':    return 0xf472b6;
+        default:         return 0x94a3b8;
       }
     };
 
@@ -3108,12 +3189,10 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
       const blastStep = getBlastStepForHole(hole, gabarit);
       const isExploded = activeStep > blastStep;
       const isBlasting = activeStep === blastStep;
+      const isGhosted = isExploded; // Render finished steps as beautiful, glass-like semi-transparent holes
 
-      if (isExploded) return;
-
-      // Coordinate vectors with a anti-Z-fighting offset
       const pA = getHole3DVector(hole, 0);
-      pA.z -= 0.05; // Offset mouth slightly forward out of the solid rock wall
+      pA.z -= 0.05;
 
       const pMid = getHole3DVector(hole, DEPTH * 0.35);
       pMid.z -= 0.03;
@@ -3128,16 +3207,11 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
         const length = direction.length();
         const cylinderGeo = new THREE.CylinderGeometry(radius, radius, length, 8);
         const cylinder = new THREE.Mesh(cylinderGeo, material);
-        
-        // Midpoint position
         const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
         cylinder.position.copy(midpoint);
-        
-        // Align Y-axis of cylinder geometry with direction vector
         const up = new THREE.Vector3(0, 1, 0);
         const dirNorm = direction.clone().normalize();
         cylinder.quaternion.setFromUnitVectors(up, dirNorm);
-        
         cylinder.userData = { hole };
         return cylinder;
       };
@@ -3148,32 +3222,34 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
           roughness: 0.5,
           metalness: 0.2,
           transparent: true,
-          opacity: 0.5,
+          opacity: isGhosted ? 0.12 : 0.5,
           side: THREE.DoubleSide,
           depthWrite: false
         });
         const mesh = buildCylinder(pA, pB, 0.08, videMat);
         holesGroup.add(mesh);
       } else {
-        // Stemming Bourrage (Slate Grey)
         if (showFores) {
           const stemmingMat = new THREE.MeshStandardMaterial({
             color: 0x94a3b8,
             roughness: 0.95,
-            metalness: 0.0
+            metalness: 0.0,
+            transparent: isGhosted,
+            opacity: isGhosted ? 0.08 : 1.0,
           });
           const stemmingMesh = buildCylinder(pA, pMid, 0.05, stemmingMat);
           holesGroup.add(stemmingMesh);
         }
 
-        // Active explosive charge (Emissive glows)
         if (showExplosives) {
           const expMat = new THREE.MeshStandardMaterial({
             color: colorHex,
             roughness: 0.3,
             metalness: 0.3,
+            transparent: isGhosted,
+            opacity: isGhosted ? 0.18 : 1.0,
             emissive: colorHex,
-            emissiveIntensity: isBlasting ? 2.5 : 0.5
+            emissiveIntensity: isBlasting ? 2.5 : (isGhosted ? 0.08 : 0.5)
           });
 
           if (isBlasting) {
@@ -3187,12 +3263,13 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
         }
       }
 
-      // Sphere Mouth indicator
       const mouthMat = new THREE.MeshStandardMaterial({
         color: isBlasting ? 0xffffff : colorHex,
         roughness: 0.2,
+        transparent: isGhosted,
+        opacity: isGhosted ? 0.22 : 1.0,
         emissive: isBlasting ? 0xffffff : colorHex,
-        emissiveIntensity: isBlasting ? 2.5 : 0.6
+        emissiveIntensity: isBlasting ? 2.5 : (isGhosted ? 0.1 : 0.6)
       });
       const mouthGeo = new THREE.SphereGeometry(isBlasting ? 0.12 : 0.08, 8, 8);
       const mouthMesh = new THREE.Mesh(mouthGeo, mouthMat);
@@ -3201,6 +3278,21 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
       holesGroup.add(mouthMesh);
     });
   }, [engineMode, holesToRender, activeStep, showFores, showExplosives, gabarit, DEPTH]);
+
+  useEffect(() => {
+    if (engineMode !== 'webgl') return;
+    const camera = cameraRef.current;
+    if (!camera) return;
+
+    const totalSteps = gabarit === '9m2' ? 5 : 6;
+    const progress = activeStep / totalSteps;
+
+    const targetZ = -10 + progress * 7;
+    const targetY = 7 - progress * 2;
+
+    targetCamPos.current.set(8 - progress * 3, targetY, targetZ);
+    isInterpolating.current = true;
+  }, [activeStep, engineMode, gabarit]);
 
   // Synchronize walls inside WebGL
   useEffect(() => {

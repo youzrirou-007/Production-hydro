@@ -26,7 +26,6 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
 import { format } from 'date-fns';
-import { jsPDF } from 'jspdf';
 
 interface Chantier {
   id: string;
@@ -401,8 +400,9 @@ export const FailedBlasts: React.FC = () => {
     }
   };
 
-  // Programmatic PDF Generation matching exactly the specified visual guidelines
-  const handleDownloadPDF = () => {
+// Programmatic PDF Generation matching exactly the specified visual guidelines
+  const handleDownloadPDF = async () => {
+    const { jsPDF } = await import('jspdf');
     const docPdf = new jsPDF('p', 'mm', 'a4');
     const margin = 15;
     let y = 20;

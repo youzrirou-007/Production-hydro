@@ -1,23 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SiteProvider } from './contexts/SiteContext';
 import { Layout } from './components/Layout';
-import { Production } from './pages/Production';
-import { Admin } from './pages/Admin';
-import { DailyReport } from './pages/DailyReport';
-import { Chantiers } from './pages/Chantiers';
-import { Planning } from './pages/Planning';
-import { RotationPoste } from './pages/RotationPoste';
-import { AnalyseDashboard } from './pages/AnalyseDashboard';
-import { ExplicationNonRealise } from './pages/ExplicationNonRealise';
-import { Analytics } from './pages/Analytics';
-import { Messages } from './pages/Messages';
-import { TechniqueMiniere } from './pages/TechniqueMiniere';
-import { EspaceDT } from './pages/EspaceDT';
-import { Boulonnage } from './pages/Boulonnage';
-import FailedBlasts from './pages/FailedBlasts';
-import Tutoriel from './pages/Tutoriel';
 import { Factory, ShieldCheck, Mail, LogIn, HardHat } from 'lucide-react';
+import logoImg from './assets/images/hydromines_logo_1781337889277.jpg';
+
+const Production = lazy(() =>
+  import('./pages/Production').then(m => ({ default: m.Production })));
+
+const Planning = lazy(() =>
+  import('./pages/Planning').then(m => ({ default: m.Planning })));
+
+const DailyReport = lazy(() =>
+  import('./pages/DailyReport').then(m => ({ default: m.DailyReport })));
+
+const Admin = lazy(() =>
+  import('./pages/Admin').then(m => ({ default: m.Admin })));
+
+const Chantiers = lazy(() =>
+  import('./pages/Chantiers').then(m => ({ default: m.Chantiers })));
+
+const RotationPoste = lazy(() =>
+  import('./pages/RotationPoste').then(m => ({ default: m.RotationPoste })));
+
+const AnalyseDashboard = lazy(() =>
+  import('./pages/AnalyseDashboard').then(m => ({ default: m.AnalyseDashboard })));
+
+const ExplicationNonRealise = lazy(() =>
+  import('./pages/ExplicationNonRealise').then(m => ({ default: m.ExplicationNonRealise })));
+
+const Analytics = lazy(() =>
+  import('./pages/Analytics').then(m => ({ default: m.Analytics })));
+
+const Messages = lazy(() =>
+  import('./pages/Messages').then(m => ({ default: m.Messages })));
+
+const TechniqueMiniere = lazy(() =>
+  import('./pages/TechniqueMiniere').then(m => ({ default: m.TechniqueMiniere })));
+
+const EspaceDT = lazy(() =>
+  import('./pages/EspaceDT').then(m => ({ default: m.EspaceDT })));
+
+const Boulonnage = lazy(() =>
+  import('./pages/Boulonnage').then(m => ({ default: m.Boulonnage })));
+
+const FailedBlasts = lazy(() => import('./pages/FailedBlasts'));
+
+const Tutoriel = lazy(() => import('./pages/Tutoriel'));
 
 // Declarative route helper support
 export const Route: React.FC<{ path: string; element: React.ReactNode }> = () => null;
@@ -51,10 +80,32 @@ const AppContent: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F5F0] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Factory className="w-12 h-12 text-[#00BFFF] animate-bounce" />
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#141414]/40">Initialisation HydroMines...</p>
+      <div className="min-h-screen bg-[#fafaf9] flex flex-col items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-6 max-w-xs text-center">
+          {/* Logo container with delicate shadow and shape */}
+          <div className="relative w-20 h-20 flex items-center justify-center bg-white rounded-2xl shadow-md border border-stone-200/40 p-2 overflow-hidden mb-2">
+            <img 
+              src={logoImg} 
+              alt="HydroMines Logo" 
+              className="w-full h-full object-contain" 
+              referrerPolicy="no-referrer"
+            />
+          </div>
+          
+          {/* Elegant Circular Progress Indicator */}
+          <div className="relative flex items-center justify-center">
+            {/* Outer golden/amber delicate spinning ring */}
+            <div className="w-10 h-10 rounded-full border-2 border-stone-200/60 border-t-amber-500 animate-spin" />
+          </div>
+
+          <div className="space-y-1">
+            <h2 className="text-sm font-bold tracking-[0.25em] text-[#141414] uppercase">
+              HydroMines
+            </h2>
+            <p className="text-[9px] font-medium tracking-[0.15em] text-stone-400 uppercase">
+              Initialisation du système...
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -119,7 +170,18 @@ const AppContent: React.FC = () => {
 
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {renderContent()}
+      <Suspense fallback={
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin w-10 h-10 border-4 border-[#1a5276] border-t-[#ffd700] rounded-full" />
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+              Chargement du module...
+            </span>
+          </div>
+        </div>
+      }>
+        {renderContent()}
+      </Suspense>
     </Layout>
   );
 };
