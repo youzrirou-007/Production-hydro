@@ -14,6 +14,7 @@ import {
 // Subcomponents modular imports
 import { HomeCards } from './TechniqueMiniere/HomeCards';
 import { SchemaTab } from './TechniqueMiniere/SchemaTab';
+import { Vue3DSchemaTab } from './TechniqueMiniere/Vue3DSchemaTab';
 import { DrillingGuideTab } from './TechniqueMiniere/DrillingGuideTab';
 import { ExplosifsTab } from './TechniqueMiniere/ExplosifsTab';
 import { BourrageTab } from './TechniqueMiniere/BourrageTab';
@@ -102,6 +103,18 @@ export const TechniqueMiniere: React.FC = () => {
                 🎯 Plan de tir interactif
               </button>
 
+              {/* TAB 1.25 - VUE 3D SCHEMA */}
+              <button
+                onClick={() => setActiveTab('vue3d')}
+                className={`pb-4 border-b-2 transition-all ${
+                  activeTab === 'vue3d'
+                    ? 'border-amber-500 text-slate-950 font-black'
+                    : 'border-transparent text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                🏔️ VUE 3D schéma
+              </button>
+
               {/* TAB 1.5 - DRILLING GUIDE */}
               <button
                 onClick={() => setActiveTab('drilling')}
@@ -176,6 +189,18 @@ export const TechniqueMiniere: React.FC = () => {
                     transition={{ duration: 0.2 }}
                   >
                     <SchemaTab gabarit={gabarit} />
+                  </motion.div>
+                )}
+
+                {activeTab === 'vue3d' && (
+                  <motion.div
+                    key="tab-vue3d"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Vue3DSchemaTab gabarit={gabarit} />
                   </motion.div>
                 )}
 

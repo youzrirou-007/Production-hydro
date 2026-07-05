@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL } from './data';
 import { HoleInfo, GabaritType } from './types';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 interface SchemaTabProps {
   gabarit: GabaritType;
@@ -43,6 +45,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   const realtimeRef = useRef<NodeJS.Timeout | null>(null);
   const [showDangerZones, setShowDangerZones] = useState<boolean>(false);
   const [activeDangerLayer, setActiveDangerLayer] = useState<'all' | 'projection' | 'vibrations' | 'gaz'>('all');
+  const [view3D, setView3D] = useState<boolean>(false);
 
   const REAL_DELAYS_MS = gabarit === '9m2'
     ? [0, 25, 50, 75, 100, 125]
@@ -931,24 +934,26 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
         </div>
 
         {/* INTERACTIVE SVG STAGE */}
-        <div className="bg-slate-950 rounded-3xl border border-slate-850 p-6 relative shadow-2xl flex items-center justify-center overflow-hidden">
+        <div className="bg-slate-950 rounded-3xl border border-slate-850 p-6 relative shadow-2xl flex items-center justify-center overflow-hidden w-full">
           
-          {/* Legend absolute inside top right */}
-          <div className="absolute top-4 left-4 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-[9px] font-bold text-slate-400 uppercase tracking-wider space-y-1 z-10">
-            <p className="text-[10px] font-black text-[#ffd700] border-b border-slate-800 pb-1 mb-1">Délai Séquence</p>
-            <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-900 border border-white" /> Bouchon : 0ms</p>
-            <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /> Groupe 1 : 25ms</p>
-            <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /> Groupe 2 : 50ms</p>
-            <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-cyan-400" /> Groupe 3 : 75ms</p>
-            {gabarit === '12m2' && (
-              <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" /> Groupe 4 : 100ms</p>
-            )}
-            <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-violet-500" /> Radier : {gabarit === '9m2' ? '100ms' : '125ms'}</p>
-            <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500" /> Parement : {gabarit === '9m2' ? '100ms' : '125ms'}</p>
-            <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> Voûte : 125ms</p>
-          </div>
+          {!view3D && (
+            <>
+              {/* Legend absolute inside top right */}
+              <div className="absolute top-4 left-4 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-[9px] font-bold text-slate-400 uppercase tracking-wider space-y-1 z-10">
+                <p className="text-[10px] font-black text-[#ffd700] border-b border-slate-800 pb-1 mb-1">Délai Séquence</p>
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-900 border border-white" /> Bouchon : 0ms</p>
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /> Groupe 1 : 25ms</p>
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /> Groupe 2 : 50ms</p>
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-cyan-400" /> Groupe 3 : 75ms</p>
+                {gabarit === '12m2' && (
+                  <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" /> Groupe 4 : 100ms</p>
+                )}
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-violet-500" /> Radier : {gabarit === '9m2' ? '100ms' : '125ms'}</p>
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500" /> Parement : {gabarit === '9m2' ? '100ms' : '125ms'}</p>
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> Voûte : 125ms</p>
+              </div>
 
-          <svg viewBox={dynamicViewBox} className="w-full h-auto select-none">
+              <svg viewBox={dynamicViewBox} className="w-full h-auto select-none">
             <defs>
               {/* Rocky Dark Granite Pattern */}
               <pattern id="granite-rock" width="120" height="120" patternUnits="userSpaceOnUse">
@@ -1492,6 +1497,19 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               })}
             </motion.g>
           </svg>
+            </>
+          )}
+
+          {view3D && (
+            <Iso3DView
+              gabarit={gabarit}
+              activeStep={activeStep}
+              holesToRender={holesToRender}
+              getBlastStepForHole={getBlastStepForHole}
+              setHoveredHole={setHoveredHole}
+              hoveredHole={hoveredHole}
+            />
+          )}
         </div>
 
         {showDangerZones && (
@@ -1702,7 +1720,18 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
                 Contrôle du Tir
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setView3D(prev => !prev)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-[10px]
+                    font-black uppercase tracking-wider rounded-xl border
+                    shadow-md transition-all ${view3D
+                      ? 'bg-indigo-600 text-white border-indigo-700 shadow-indigo-500/30'
+                      : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300'
+                    }`}
+                >
+                  🏔️ Vue 3D
+                </button>
                 <button
                   onClick={() => setShowDangerZones(prev => !prev)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-[9px]
@@ -1732,6 +1761,19 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                 </button>
               </div>
             </div>
+
+            {view3D && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-indigo-950/50
+                border border-indigo-900/50 rounded-xl text-[9px] text-indigo-300
+                font-semibold">
+                <span>🏔️</span>
+                <span>
+                  Vue isométrique active — Les contrôles de séquence animent
+                  la vue 3D. Cliquez à nouveau sur "Vue 3D" pour revenir à la
+                  vue de face interactive.
+                </span>
+              </div>
+            )}
 
             {showDangerZones && (
               <div className="flex items-center gap-2 flex-wrap pt-1">
@@ -2121,6 +2163,1412 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
           </div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+interface Iso3DViewProps {
+  gabarit: GabaritType;
+  activeStep: number;
+  holesToRender: HoleInfo[];
+  getBlastStepForHole: (hole: HoleInfo, gab: GabaritType) => number;
+  setHoveredHole: (hole: HoleInfo | null) => void;
+  hoveredHole: HoleInfo | null;
+}
+
+const Iso3DView: React.FC<Iso3DViewProps> = ({
+  gabarit, activeStep, holesToRender, getBlastStepForHole, setHoveredHole, hoveredHole
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Engine selection state
+  const [engineMode, setEngineMode] = useState<'webgl' | 'svg'>('webgl');
+  const [webglSupported, setWebglSupported] = useState<boolean>(true);
+
+  // Toggles as standard React state
+  const [showFores, setShowFores] = useState<boolean>(true);
+  const [showExplosives, setShowExplosives] = useState<boolean>(true);
+  const [showWalls, setShowWalls] = useState<boolean>(true);
+  const [autoRotate, setAutoRotate] = useState<boolean>(false);
+
+  // Vector 3D Engine coordinates state (SVG fall-back / concurrent mode)
+  const [yaw, setYaw] = useState<number>(35);
+  const [pitch, setPitch] = useState<number>(-20);
+  const [zoom, setZoom] = useState<number>(gabarit === '9m2' ? 1.05 : 0.85);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+
+  // Dimensioning
+  const gW = gabarit === '9m2' ? 260 : 400;
+  const gH = gabarit === '9m2' ? 160 : 220;
+  const gCX = 500;
+  const gCY = gabarit === '9m2' ? 350 : 430;
+  const DEPTH = gabarit === '9m2' ? 240 : 300;
+
+  const sectionPoints = useMemo(() => {
+    return gabarit === '9m2' ? [
+      [gCX - gW/2, gCY + gH/2],
+      [gCX + gW/2, gCY + gH/2],
+      [gCX + gW/2, gCY],
+      [gCX + gW*0.45, gCY - gH*0.5],
+      [gCX, gCY - gH*0.8],
+      [gCX - gW*0.45, gCY - gH*0.5],
+      [gCX - gW/2, gCY],
+    ] : [
+      [gCX - gW/2, gCY + gH/2],
+      [gCX + gW/2, gCY + gH/2],
+      [gCX + gW/2, gCY],
+      [gCX + gW*0.45, gCY - gH*0.55],
+      [gCX, gCY - gH*0.95],
+      [gCX - gW*0.45, gCY - gH*0.55],
+      [gCX - gW/2, gCY],
+    ];
+  }, [gabarit, gW, gH, gCX, gCY]);
+
+  // WebGL detector
+  useEffect(() => {
+    try {
+      const canvas = document.createElement('canvas');
+      const support = !!(
+        window.WebGLRenderingContext &&
+        (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+      );
+      setWebglSupported(support);
+      if (!support) {
+        setEngineMode('svg');
+      }
+    } catch (e) {
+      setWebglSupported(false);
+      setEngineMode('svg');
+    }
+  }, []);
+
+  // Transform coordinates
+  const getHole3DCoords = (hole: HoleInfo, z: number): { x: number; y: number; z: number } => {
+    const isBouchon = hole.type === 'charge' || hole.type === 'vide';
+    if (isBouchon && hole.type !== 'vide') {
+      const convergenceFactor = 0.22 * (z / DEPTH);
+      const x = hole.x + (gCX - hole.x) * convergenceFactor;
+      const y = hole.y + (gCY - hole.y) * convergenceFactor;
+      return { x, y, z };
+    }
+    return { x: hole.x, y: hole.y, z };
+  };
+
+  const getHole3DVector = (hole: HoleInfo, z: number): THREE.Vector3 => {
+    const coords = getHole3DCoords(hole, z);
+    return new THREE.Vector3(
+      (coords.x - gCX) * 0.05,
+      -(coords.y - gCY) * 0.05,
+      (coords.z) * 0.05
+    );
+  };
+
+  // SVG Projection function (Painter's Algorithm)
+  const rotatePoint = (x: number, y: number, z: number): { sx: number; sy: number; depth: number } => {
+    const xc = x - gCX;
+    const yc = y - gCY;
+    const zc = z - DEPTH / 2;
+
+    const radYaw = (yaw * Math.PI) / 180;
+    const radPitch = (pitch * Math.PI) / 180;
+
+    // Y-axis rotation (Yaw)
+    const x1 = xc * Math.cos(radYaw) - zc * Math.sin(radYaw);
+    const z1 = xc * Math.sin(radYaw) + zc * Math.cos(radYaw);
+    const y1 = yc;
+
+    // X-axis rotation (Pitch)
+    const x2 = x1;
+    const y2 = y1 * Math.cos(radPitch) - z1 * Math.sin(radPitch);
+    const z2 = y1 * Math.sin(radPitch) + z1 * Math.cos(radPitch);
+
+    // Final 2D projection
+    const sx = 500 + x2 * zoom;
+    const sy = 280 + y2 * zoom;
+
+    return { sx, sy, depth: z2 };
+  };
+
+  // Auto-rotate tick for SVG mode
+  useEffect(() => {
+    let animId: number;
+    if (autoRotate && engineMode === 'svg') {
+      const tick = () => {
+        setYaw(y => (y + 0.4) % 360);
+        animId = requestAnimationFrame(tick);
+      };
+      animId = requestAnimationFrame(tick);
+    }
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [autoRotate, engineMode]);
+
+  // Event handlers for interactive dragging of the 3D SVG model
+  const handleMouseDownSvg = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    setAutoRotate(false);
+  };
+
+  const handleMouseMoveSvg = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setYaw(prev => (prev + dx * 0.5 + 360) % 360);
+    setPitch(prev => Math.max(-85, Math.min(85, prev - dy * 0.5)));
+    dragStart.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseUpSvg = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStartSvg = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      setAutoRotate(false);
+    }
+  };
+
+  const handleTouchMoveSvg = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - dragStart.current.x;
+    const dy = e.touches[0].clientY - dragStart.current.y;
+    setYaw(prev => (prev + dx * 0.5 + 360) % 360);
+    setPitch(prev => Math.max(-85, Math.min(85, prev - dy * 0.5)));
+    dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const handleWheelSvg = (e: React.WheelEvent) => {
+    if (e.deltaY < 0) {
+      setZoom(z => Math.min(2.0, z + 0.05));
+    } else {
+      setZoom(z => Math.max(0.4, z - 0.05));
+    }
+  };
+
+  // Helper functions for SVG Compass
+  const compassCenter = { x: 910, y: 480 };
+  const compassScale = 35;
+  const radYaw = (yaw * Math.PI) / 180;
+  const radPitch = (pitch * Math.PI) / 180;
+
+  const rotateVector = (vx: number, vy: number, vz: number) => {
+    const x1 = vx * Math.cos(radYaw) - vz * Math.sin(radYaw);
+    const z1 = vx * Math.sin(radYaw) + vz * Math.cos(radYaw);
+    const y1 = vy;
+    const x2 = x1;
+    const y2 = y1 * Math.cos(radPitch) - z1 * Math.sin(radPitch);
+    return {
+      ex: compassCenter.x + x2 * compassScale,
+      ey: compassCenter.y + y2 * compassScale
+    };
+  };
+
+  const axisX = rotateVector(1, 0, 0);
+  const axisY = rotateVector(0, -1, 0);
+  const axisZ = rotateVector(0, 0, 1);
+
+  // Dynamic drawing queue for Painter's Algorithm in SVG mode
+  const drawItems = useMemo(() => {
+    const items: { depth: number; render: () => React.JSX.Element }[] = [];
+
+    // 1. Back Face Plate
+    const backProjPoints = sectionPoints.map(([px, py]) => rotatePoint(px, py, DEPTH));
+    const backDepth = backProjPoints.reduce((acc, p) => acc + p.depth, 0) / backProjPoints.length;
+    items.push({
+      depth: backDepth,
+      render: () => (
+        <polygon
+          key="back-plate-svg"
+          points={backProjPoints.map(p => `${p.sx},${p.sy}`).join(' ')}
+          fill="#060913"
+          stroke="#1e293b"
+          strokeWidth="1.5"
+          opacity="0.95"
+        />
+      )
+    });
+
+    // 2. Tunnel Walls
+    const SLICES = 6;
+    if (showWalls) {
+      for (let s = 0; s < SLICES; s++) {
+        const za = s * (DEPTH / SLICES);
+        const zb = (s + 1) * (DEPTH / SLICES);
+
+        for (let i = 0; i < sectionPoints.length; i++) {
+          const nextIdx = (i + 1) % sectionPoints.length;
+          const p1 = sectionPoints[i];
+          const p2 = sectionPoints[nextIdx];
+
+          const v0 = rotatePoint(p1[0], p1[1], za);
+          const v1 = rotatePoint(p2[0], p2[1], za);
+          const v2 = rotatePoint(p2[0], p2[1], zb);
+          const v3 = rotatePoint(p1[0], p1[1], zb);
+
+          const wallDepth = (v0.depth + v1.depth + v2.depth + v3.depth) / 4;
+
+          const dx = p2[0] - p1[0];
+          const dy = p2[1] - p1[1];
+          const len = Math.sqrt(dx * dx + dy * dy);
+          const nx = dy / len;
+          const ny = -dx / len;
+
+          const lx = -0.3;
+          const ly = -0.8;
+          const dot = nx * lx + ny * ly;
+          const brightnessFactor = 0.5 + 0.45 * Math.abs(dot);
+
+          const r = Math.floor(18 + brightnessFactor * 30);
+          const g = Math.floor(24 + brightnessFactor * 32);
+          const b = Math.floor(38 + brightnessFactor * 42);
+          const wallColor = `rgb(${r}, ${g}, ${b})`;
+
+          items.push({
+            depth: wallDepth,
+            render: () => (
+              <polygon
+                key={`wall-${s}-${i}`}
+                points={`${v0.sx},${v0.sy} ${v1.sx},${v1.sy} ${v2.sx},${v2.sy} ${v3.sx},${v3.sy}`}
+                fill={wallColor}
+                stroke="#0f172a"
+                strokeWidth="0.5"
+                opacity="0.82"
+              />
+            )
+          });
+        }
+      }
+    }
+
+    // 3. Holes Initiation Delay network cords
+    const activeHoles = holesToRender.filter(h => !activeStep || getBlastStepForHole(h, gabarit) >= activeStep);
+    const sortedActive = [...activeHoles].sort((a, b) => getBlastStepForHole(a, gabarit) - getBlastStepForHole(b, gabarit));
+    for (let i = 0; i < sortedActive.length - 1; i++) {
+      const hA = sortedActive[i];
+      const hB = sortedActive[i + 1];
+      const stepA = getBlastStepForHole(hA, gabarit);
+      const stepB = getBlastStepForHole(hB, gabarit);
+      if (stepA === stepB || stepB === stepA + 1) {
+        const ptA = getHole3DCoords(hA, 0);
+        const ptB = getHole3DCoords(hB, 0);
+        const projA = rotatePoint(ptA.x, ptA.y, 0);
+        const projB = rotatePoint(ptB.x, ptB.y, 0);
+        const cordDepth = (projA.depth + projB.depth) / 2 + 0.5;
+        items.push({
+          depth: cordDepth,
+          render: () => (
+            <line
+              key={`cord-${hA.id}-${hB.id}`}
+              x1={projA.sx} y1={projA.sy}
+              x2={projB.sx} y2={projB.sy}
+              stroke="rgba(244,63,94,0.3)"
+              strokeWidth="1.2"
+              strokeDasharray="3,3"
+              pointerEvents="none"
+            />
+          )
+        });
+      }
+    }
+
+    // 4. Hole cylinders and spheres
+    holesToRender.forEach((hole) => {
+      const blastStep = getBlastStepForHole(hole, gabarit);
+      const isExploded = activeStep > blastStep;
+      const isBlasting = activeStep === blastStep;
+
+      if (isExploded) return;
+
+      const ptFront = getHole3DCoords(hole, 0);
+      const ptMid = getHole3DCoords(hole, DEPTH * 0.35);
+      const ptBack = getHole3DCoords(hole, DEPTH);
+
+      const projFront = rotatePoint(ptFront.x, ptFront.y, ptFront.z);
+      const projMid = rotatePoint(ptMid.x, ptMid.y, ptMid.z);
+      const projBack = rotatePoint(ptBack.x, ptBack.y, ptBack.z);
+
+      const color =
+        hole.type === 'vide'     ? '#38bdf8' :
+        hole.type === 'charge'   ? '#eab308' :
+        hole.type === 'g1'       ? '#3b82f6' :
+        hole.type === 'g2'       ? '#ef4444' :
+        hole.type === 'g3'       ? '#22d3ee' :
+        hole.type === 'g4'       ? '#f97316' :
+        hole.type === 'radier'   ? '#8b5cf6' :
+        hole.type === 'parement' ? '#14b8a6' :
+                                   '#f43f5e';
+
+      const diameter = hole.type === 'vide' ? 5 : 3.5;
+      const strokeW = diameter * zoom;
+
+      // Stemming line segment
+      if (showFores) {
+        const seg1Depth = (projFront.depth + projMid.depth) / 2;
+        items.push({
+          depth: seg1Depth,
+          render: () => (
+            <line
+              key={`stem-${hole.id}`}
+              x1={projFront.sx} y1={projFront.sy}
+              x2={projMid.sx} y2={projMid.sy}
+              stroke={hole.type === 'vide' ? 'rgba(56,189,248,0.7)' : '#94a3b8'}
+              strokeWidth={strokeW}
+              strokeDasharray={hole.type === 'vide' ? 'none' : '2,2'}
+            />
+          )
+        });
+      }
+
+      // Explosive line segment
+      if (showExplosives && hole.type !== 'vide') {
+        const seg2Depth = (projMid.depth + projBack.depth) / 2;
+        items.push({
+          depth: seg2Depth,
+          render: () => (
+            <line
+              key={`exp-${hole.id}`}
+              x1={projMid.sx} y1={projMid.sy}
+              x2={projBack.sx} y2={projBack.sy}
+              stroke={isBlasting ? '#ffffff' : color}
+              strokeWidth={strokeW + (isBlasting ? 2.5 : 0)}
+              opacity={isBlasting ? 1.0 : 0.9}
+            />
+          )
+        });
+      }
+
+      // Mouth Ellipse sphere
+      items.push({
+        depth: projFront.depth + 1.2,
+        render: () => (
+          <ellipse
+            key={`mouth-${hole.id}`}
+            cx={projFront.sx}
+            cy={projFront.sy}
+            rx={diameter * 1.5 * zoom}
+            ry={diameter * 0.75 * zoom}
+            fill={isBlasting ? '#ffffff' : hole.type === 'vide' ? '#090d16' : color}
+            stroke={isBlasting ? '#fbbf24' : '#090d16'}
+            strokeWidth={isBlasting ? 2.5 : 1}
+            onMouseEnter={() => setHoveredHole(hole)}
+            onMouseLeave={() => setHoveredHole(null)}
+            style={{ cursor: 'pointer' }}
+          />
+        )
+      });
+
+      // Explosion Fire Ejection Simulation
+      if (isBlasting) {
+        const pCount = 10;
+        for (let k = 0; k < pCount; k++) {
+          const angle = (k * (360 / pCount)) * Math.PI / 180;
+          const zEjected = -100;
+          const pLocalX = ptFront.x + Math.cos(angle) * 35;
+          const pLocalY = ptFront.y + Math.sin(angle) * 35;
+
+          const projEject = rotatePoint(pLocalX, pLocalY, zEjected);
+          const particleDepth = (projFront.depth + projEject.depth) / 2 + 15;
+
+          items.push({
+            depth: particleDepth,
+            render: () => (
+              <g key={`blast-${hole.id}-${k}`}>
+                <line
+                  x1={projFront.sx} y1={projFront.sy}
+                  x2={projEject.sx} y2={projEject.sy}
+                  stroke={k % 2 === 0 ? '#fb923c' : '#facc15'}
+                  strokeWidth={2 * zoom}
+                  strokeDasharray="3,1"
+                  opacity="0.85"
+                />
+                <circle
+                  cx={projFront.sx + (projEject.sx - projFront.sx) * 0.45}
+                  cy={projFront.sy + (projEject.sy - projFront.sy) * 0.45}
+                  r={3 + (k % 3)}
+                  fill={k % 2 === 0 ? '#ef4444' : '#fff'}
+                  opacity="0.75"
+                />
+              </g>
+            )
+          });
+        }
+      }
+    });
+
+    // 5. Front geological Rock Mass with gallery mask
+    const frontProjPoints = sectionPoints.map(([px, py]) => rotatePoint(px, py, 0));
+    const frontDepth = frontProjPoints.reduce((acc, p) => acc + p.depth, 0) / frontProjPoints.length;
+
+    items.push({
+      depth: frontDepth - 4,
+      render: () => (
+        <g key="rock-mass-front">
+          <mask id="front-mask-svg">
+            <rect x="-1000" y="-1000" width="3000" height="3000" fill="#ffffff" />
+            <polygon points={frontProjPoints.map(p => `${p.sx},${p.sy}`).join(' ')} fill="#000000" />
+          </mask>
+
+          <rect
+            x="-50" y="-50"
+            width="1100" height="700"
+            fill="url(#rock-texture-pattern)"
+            opacity="0.9"
+            mask="url(#front-mask-svg)"
+          />
+
+          <polygon
+            points={frontProjPoints.map(p => `${p.sx},${p.sy}`).join(' ')}
+            fill="none"
+            stroke="#eab308"
+            strokeWidth="3.5"
+            opacity="0.95"
+          />
+          <polygon
+            points={frontProjPoints.map(p => `${p.sx},${p.sy}`).join(' ')}
+            fill="none"
+            stroke="rgba(234,179,8,0.25)"
+            strokeWidth="9"
+            opacity="0.4"
+          />
+        </g>
+      )
+    });
+
+    return items;
+  }, [gabarit, activeStep, holesToRender, showFores, showExplosives, showWalls, sectionPoints, zoom, yaw, pitch, DEPTH]);
+
+  const sortedDrawItems = useMemo(() => {
+    return [...drawItems].sort((a, b) => b.depth - a.depth);
+  }, [drawItems]);
+
+
+  // Refs for smooth camera preset interpolations in WebGL
+  const targetCamPos = useRef<THREE.Vector3>(new THREE.Vector3(8, 7, -10));
+  const targetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, (DEPTH * 0.05) / 2));
+  const isInterpolating = useRef<boolean>(true);
+
+  const applyPreset = (preset: 'face' | 'iso' | 'side' | 'top') => {
+    setAutoRotate(false);
+    
+    // WebGL variables setup
+    isInterpolating.current = true;
+    const centerZ = (DEPTH * 0.05) / 2;
+    targetLookAt.current.set(0, 0, centerZ);
+    if (preset === 'face') {
+      targetCamPos.current.set(0, 0, -15);
+    } else if (preset === 'iso') {
+      targetCamPos.current.set(8, 7, -10);
+    } else if (preset === 'side') {
+      targetCamPos.current.set(14, 0, centerZ);
+    } else if (preset === 'top') {
+      targetCamPos.current.set(0, 14, centerZ);
+    }
+
+    // SVG variables setup (perfect alignment sync)
+    if (preset === 'face') {
+      setYaw(0);
+      setPitch(0);
+    } else if (preset === 'iso') {
+      setYaw(35);
+      setPitch(-20);
+    } else if (preset === 'side') {
+      setYaw(90);
+      setPitch(0);
+    } else if (preset === 'top') {
+      setYaw(0);
+      setPitch(-90);
+    }
+  };
+
+  // Three.js instances refs
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const holesGroupRef = useRef<THREE.Group | null>(null);
+  const sparksRef = useRef<{ mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number }[]>([]);
+  const shockwavesRef = useRef<{ mesh: THREE.Mesh; scaleSpeed: number; opacitySpeed: number; life: number }[]>([]);
+  const particlesGroupRef = useRef<THREE.Group | null>(null);
+  const tunnelMeshRef = useRef<THREE.Mesh | null>(null);
+  const tunnelWireframeRef = useRef<THREE.LineSegments | null>(null);
+  const massMeshRef = useRef<THREE.Mesh | null>(null);
+  const backMeshRef = useRef<THREE.Mesh | null>(null);
+
+  // Initialize and run Three.js WebGL canvas (Only if engineMode is webgl)
+  useEffect(() => {
+    if (engineMode !== 'webgl' || !containerRef.current) return;
+
+    const width = containerRef.current.clientWidth || 1000;
+    const height = 580;
+
+    // Create Scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x030712); // Elegant slate-black
+    
+    // Atmospheric mine linear fog
+    scene.fog = new THREE.Fog(0x030712, 12, 32);
+    sceneRef.current = scene;
+
+    // Create Camera
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.copy(targetCamPos.current);
+    cameraRef.current = camera;
+
+    // Create Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    // Clear old canvases
+    containerRef.current.innerHTML = '';
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // Setup OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 + 0.35;
+    controls.target.copy(targetLookAt.current);
+    controlsRef.current = controls;
+
+    controls.addEventListener('start', () => {
+      isInterpolating.current = false;
+      setAutoRotate(false);
+    });
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x1e293b, 1.4);
+    scene.add(ambientLight);
+
+    const headlamp = new THREE.PointLight(0xfff7ed, 2.2, 35, 0.4);
+    camera.add(headlamp);
+    scene.add(camera);
+
+    // Grid Floor CAD workbench
+    const gridHelper = new THREE.GridHelper(30, 30, 0x475569, 0x111827);
+    gridHelper.position.y = -(gCY + gH/2 - gCY) * 0.05;
+    gridHelper.position.z = (DEPTH * 0.05) / 2;
+    scene.add(gridHelper);
+
+    // Gallery profile shape
+    const shape = new THREE.Shape();
+    sectionPoints.forEach(([px, py], idx) => {
+      const x = (px - gCX) * 0.05;
+      const y = -(py - gCY) * 0.05;
+      if (idx === 0) shape.moveTo(x, y);
+      else shape.lineTo(x, y);
+    });
+    shape.closePath();
+
+    // Extrude gallery tunnel
+    const extrudeSettings = {
+      depth: DEPTH * 0.05,
+      bevelEnabled: false,
+      steps: 40
+    };
+    const tunnelGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    const tunnelMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.9,
+      metalness: 0.1,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: showWalls ? 0.45 : 0.05,
+      depthWrite: false
+    });
+    const tunnelMesh = new THREE.Mesh(tunnelGeo, tunnelMat);
+    scene.add(tunnelMesh);
+    tunnelMeshRef.current = tunnelMesh;
+
+    // Contours / Wireframe
+    const wireframeGeo = new THREE.WireframeGeometry(tunnelGeo);
+    const wireframeMat = new THREE.LineBasicMaterial({
+      color: 0x475569,
+      transparent: true,
+      opacity: showWalls ? 0.3 : 0.05
+    });
+    const tunnelWireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
+    scene.add(tunnelWireframe);
+    tunnelWireframeRef.current = tunnelWireframe;
+
+    // Front geological face plate at Z = 0 with opening
+    const massShape = new THREE.Shape();
+    massShape.moveTo(-30, -20);
+    massShape.lineTo(30, -20);
+    massShape.lineTo(30, 20);
+    massShape.lineTo(-30, 20);
+    massShape.closePath();
+    massShape.holes.push(shape);
+
+    const massGeo = new THREE.ShapeGeometry(massShape);
+    const massMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.95,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: showWalls ? 0.35 : 0.05,
+      depthWrite: false
+    });
+    const massMesh = new THREE.Mesh(massGeo, massMat);
+    scene.add(massMesh);
+    massMeshRef.current = massMesh;
+
+    // Yellow neon outline for gallery entrance
+    const borderGeo = new THREE.BufferGeometry().setFromPoints(shape.getPoints());
+    const borderMat = new THREE.LineBasicMaterial({ color: 0xeab308 });
+    const borderLine = new THREE.Line(borderGeo, borderMat);
+    borderLine.position.z = 0.02; // floating slightly in front to prevent Z-fighting
+    scene.add(borderLine);
+
+    // Closed Back Face Plate at tunnel end
+    const backGeo = new THREE.ShapeGeometry(shape);
+    const backMat = new THREE.MeshStandardMaterial({
+      color: 0x060913,
+      roughness: 0.9,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: showWalls ? 0.35 : 0.05,
+      depthWrite: false
+    });
+    const backMesh = new THREE.Mesh(backGeo, backMat);
+    backMesh.position.z = DEPTH * 0.05;
+    scene.add(backMesh);
+    backMeshRef.current = backMesh;
+
+    // Groups
+    const holesGroup = new THREE.Group();
+    scene.add(holesGroup);
+    holesGroupRef.current = holesGroup;
+
+    const particlesGroup = new THREE.Group();
+    scene.add(particlesGroup);
+    particlesGroupRef.current = particlesGroup;
+
+    // Live HUD Angle update callback
+    controls.addEventListener('change', () => {
+      const spherical = new THREE.Spherical().setFromVector3(
+        camera.position.clone().sub(controls.target)
+      );
+      const yawDeg = (spherical.theta * 180) / Math.PI;
+      const pitchDeg = 90 - (spherical.phi * 180) / Math.PI;
+
+      const el = document.getElementById('hud-camera-angles');
+      if (el) {
+        el.textContent = `Caméra : Yaw ${Math.round(yawDeg)}° | Pitch ${Math.round(pitchDeg)}°`;
+      }
+    });
+
+    const resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        const w = entry.contentRect.width;
+        if (renderer && camera) {
+          renderer.setSize(w, height);
+          camera.aspect = w / height;
+          camera.updateProjectionMatrix();
+        }
+      }
+    });
+    resizeObserver.observe(containerRef.current);
+
+    let lastTime = performance.now();
+    let frameId: number;
+
+    const tick = () => {
+      const now = performance.now();
+      const deltaTime = (now - lastTime) / 1000;
+      lastTime = now;
+
+      controls.update();
+
+      // Camera preset interpolation
+      if (isInterpolating.current) {
+        camera.position.lerp(targetCamPos.current, 0.07);
+        controls.target.lerp(targetLookAt.current, 0.07);
+        if (camera.position.distanceTo(targetCamPos.current) < 0.02 && controls.target.distanceTo(targetLookAt.current) < 0.02) {
+          isInterpolating.current = false;
+        }
+      }
+
+      // 1. Spawning dynamic sparks and shockwaves
+      const blastingHoles = holesToRender.filter(h => getBlastStepForHole(h, gabarit) === activeStep);
+      if (activeStep > 0 && blastingHoles.length > 0) {
+        blastingHoles.forEach(hole => {
+          // Dynamic shockwave ring occasionally
+          if (Math.random() < 0.20) {
+            const ringGeo = new THREE.RingGeometry(0.04, 0.07, 16);
+            const ringMat = new THREE.MeshBasicMaterial({
+              color: 0xffa726,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.8
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            const mouthPos = getHole3DVector(hole, 0);
+            mouthPos.z -= 0.06; // slightly in front
+            ring.position.copy(mouthPos);
+            particlesGroup.add(ring);
+
+            shockwavesRef.current.push({
+              mesh: ring,
+              scaleSpeed: 12.0,
+              opacitySpeed: 2.2,
+              life: 0.35
+            });
+          }
+
+          // Spawn 3 active particles per frame per hole
+          for (let i = 0; i < 3; i++) {
+            const sparkGeo = new THREE.BoxGeometry(0.04, 0.04, 0.04);
+            const sparkMat = new THREE.MeshBasicMaterial({
+              color: new THREE.Color().setHSL(0.04 + Math.random() * 0.08, 1.0, 0.65),
+              transparent: true,
+              opacity: 0.95
+            });
+            const sparkMesh = new THREE.Mesh(sparkGeo, sparkMat);
+            const mouthPos = getHole3DVector(hole, 0);
+            mouthPos.z -= 0.04;
+            sparkMesh.position.copy(mouthPos);
+
+            const velocity = new THREE.Vector3(
+              (Math.random() - 0.5) * 2.0,
+              (Math.random() - 0.5) * 2.0 + 0.6,
+              -3 - Math.random() * 5
+            );
+
+            const life = 0.3 + Math.random() * 0.55;
+            particlesGroup.add(sparkMesh);
+            sparksRef.current.push({
+              mesh: sparkMesh,
+              velocity,
+              life,
+              maxLife: life
+            });
+          }
+        });
+      }
+
+      // 2. Update existing sparks particles
+      for (let idx = sparksRef.current.length - 1; idx >= 0; idx--) {
+        const spark = sparksRef.current[idx];
+        spark.mesh.position.addScaledVector(spark.velocity, deltaTime);
+        spark.velocity.y -= 4.0 * deltaTime; // Gravity
+        spark.life -= deltaTime;
+        const ratio = Math.max(0, spark.life / spark.maxLife);
+        spark.mesh.material.opacity = ratio;
+        spark.mesh.scale.set(ratio, ratio, ratio);
+
+        if (spark.life <= 0) {
+          particlesGroup.remove(spark.mesh);
+          spark.mesh.geometry.dispose();
+          if (Array.isArray(spark.mesh.material)) {
+            spark.mesh.material.forEach(m => m.dispose());
+          } else {
+            spark.mesh.material.dispose();
+          }
+          sparksRef.current.splice(idx, 1);
+        }
+      }
+
+      // 3. Update existing shockwaves
+      for (let idx = shockwavesRef.current.length - 1; idx >= 0; idx--) {
+        const wave = shockwavesRef.current[idx];
+        const s = wave.mesh.scale.x + wave.scaleSpeed * deltaTime;
+        wave.mesh.scale.set(s, s, 1);
+        wave.life -= deltaTime;
+        const ratio = Math.max(0, wave.life / 0.35);
+        wave.mesh.material.opacity = ratio * 0.8;
+
+        if (wave.life <= 0) {
+          particlesGroup.remove(wave.mesh);
+          wave.mesh.geometry.dispose();
+          wave.mesh.material.dispose();
+          shockwavesRef.current.splice(idx, 1);
+        }
+      }
+
+      // 4. Project 3D positions to 2D labels overlays
+      const widthCurrent = containerRef.current?.clientWidth || width;
+      holesToRender.forEach(hole => {
+        const el = document.getElementById(`hole-label-${hole.id}`);
+        if (!el) return;
+
+        const blastStep = getBlastStepForHole(hole, gabarit);
+        const isExploded = activeStep > blastStep;
+        if (isExploded) {
+          el.style.opacity = '0';
+          return;
+        }
+
+        const pos = getHole3DVector(hole, 0);
+        pos.z -= 0.05; // Slightly forward
+        pos.project(camera);
+
+        if (pos.z > 1) {
+          el.style.opacity = '0';
+          return;
+        }
+
+        const px = (pos.x * 0.5 + 0.5) * widthCurrent;
+        const py = (-(pos.y * 0.5) + 0.5) * height;
+
+        el.style.left = `${px}px`;
+        el.style.top = `${py}px`;
+        el.style.opacity = '0.95';
+
+        const color =
+          hole.type === 'vide'     ? '#38bdf8' :
+          hole.type === 'charge'   ? '#eab308' :
+          hole.type === 'g1'       ? '#3b82f6' :
+          hole.type === 'g2'       ? '#ef4444' :
+          hole.type === 'g3'       ? '#22d3ee' :
+          hole.type === 'g4'       ? '#f97316' :
+          hole.type === 'radier'   ? '#8b5cf6' :
+          hole.type === 'parement' ? '#14b8a6' :
+                                     '#f43f5e';
+        el.style.borderColor = color;
+        el.style.color = color;
+      });
+
+      renderer.render(scene, camera);
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      
+      // Dispose meshes and geometry
+      tunnelGeo.dispose();
+      tunnelMat.dispose();
+      wireframeGeo.dispose();
+      wireframeMat.dispose();
+      massGeo.dispose();
+      massMat.dispose();
+      borderGeo.dispose();
+      borderMat.dispose();
+      backGeo.dispose();
+      backMat.dispose();
+      
+      // Dispose render loop references
+      if (controls) controls.dispose();
+      if (renderer) {
+        if (containerRef.current && renderer.domElement.parentNode) {
+          try {
+            containerRef.current.removeChild(renderer.domElement);
+          } catch(e) {}
+        }
+        renderer.dispose();
+      }
+    };
+  }, [engineMode, gabarit, sectionPoints, gCX, gCY, gW, gH, DEPTH]);
+
+  // Handle activeStep and dynamic mesh updates inside WebGL Group
+  useEffect(() => {
+    if (engineMode !== 'webgl') return;
+    const scene = sceneRef.current;
+    const holesGroup = holesGroupRef.current;
+    if (!scene || !holesGroup) return;
+
+    // Clear old hole meshes
+    while (holesGroup.children.length > 0) {
+      const child = holesGroup.children[0] as THREE.Mesh;
+      holesGroup.remove(child);
+      child.geometry.dispose();
+      if (Array.isArray(child.material)) {
+        child.material.forEach(m => m.dispose());
+      } else {
+        child.material.dispose();
+      }
+    }
+
+    const getColorForType = (type: string) => {
+      switch (type) {
+        case 'vide': return 0x38bdf8;
+        case 'charge': return 0xeab308;
+        case 'g1': return 0x3b82f6;
+        case 'g2': return 0xef4444;
+        case 'g3': return 0x22d3ee;
+        case 'g4': return 0xf97316;
+        case 'radier': return 0x8b5cf6;
+        case 'parement': return 0x14b8a6;
+        default: return 0xf43f5e;
+      }
+    };
+
+    holesToRender.forEach(hole => {
+      const blastStep = getBlastStepForHole(hole, gabarit);
+      const isExploded = activeStep > blastStep;
+      const isBlasting = activeStep === blastStep;
+
+      if (isExploded) return;
+
+      // Coordinate vectors with a anti-Z-fighting offset
+      const pA = getHole3DVector(hole, 0);
+      pA.z -= 0.05; // Offset mouth slightly forward out of the solid rock wall
+
+      const pMid = getHole3DVector(hole, DEPTH * 0.35);
+      pMid.z -= 0.03;
+
+      const pB = getHole3DVector(hole, DEPTH);
+
+      const isVide = hole.type === 'vide';
+      const colorHex = getColorForType(hole.type);
+
+      const buildCylinder = (start: THREE.Vector3, end: THREE.Vector3, radius: number, material: THREE.Material) => {
+        const direction = new THREE.Vector3().subVectors(end, start);
+        const length = direction.length();
+        const cylinderGeo = new THREE.CylinderGeometry(radius, radius, length, 8);
+        const cylinder = new THREE.Mesh(cylinderGeo, material);
+        
+        // Midpoint position
+        const midpoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+        cylinder.position.copy(midpoint);
+        
+        // Align Y-axis of cylinder geometry with direction vector
+        const up = new THREE.Vector3(0, 1, 0);
+        const dirNorm = direction.clone().normalize();
+        cylinder.quaternion.setFromUnitVectors(up, dirNorm);
+        
+        cylinder.userData = { hole };
+        return cylinder;
+      };
+
+      if (isVide) {
+        const videMat = new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          roughness: 0.5,
+          metalness: 0.2,
+          transparent: true,
+          opacity: 0.5,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        });
+        const mesh = buildCylinder(pA, pB, 0.08, videMat);
+        holesGroup.add(mesh);
+      } else {
+        // Stemming Bourrage (Slate Grey)
+        if (showFores) {
+          const stemmingMat = new THREE.MeshStandardMaterial({
+            color: 0x94a3b8,
+            roughness: 0.95,
+            metalness: 0.0
+          });
+          const stemmingMesh = buildCylinder(pA, pMid, 0.05, stemmingMat);
+          holesGroup.add(stemmingMesh);
+        }
+
+        // Active explosive charge (Emissive glows)
+        if (showExplosives) {
+          const expMat = new THREE.MeshStandardMaterial({
+            color: colorHex,
+            roughness: 0.3,
+            metalness: 0.3,
+            emissive: colorHex,
+            emissiveIntensity: isBlasting ? 2.5 : 0.5
+          });
+
+          if (isBlasting) {
+            expMat.color.setHex(0xffffff);
+            expMat.emissive.setHex(0xffffff);
+          }
+
+          const radius = isBlasting ? 0.08 : 0.05;
+          const expMesh = buildCylinder(pMid, pB, radius, expMat);
+          holesGroup.add(expMesh);
+        }
+      }
+
+      // Sphere Mouth indicator
+      const mouthMat = new THREE.MeshStandardMaterial({
+        color: isBlasting ? 0xffffff : colorHex,
+        roughness: 0.2,
+        emissive: isBlasting ? 0xffffff : colorHex,
+        emissiveIntensity: isBlasting ? 2.5 : 0.6
+      });
+      const mouthGeo = new THREE.SphereGeometry(isBlasting ? 0.12 : 0.08, 8, 8);
+      const mouthMesh = new THREE.Mesh(mouthGeo, mouthMat);
+      mouthMesh.position.copy(pA);
+      mouthMesh.userData = { hole };
+      holesGroup.add(mouthMesh);
+    });
+  }, [engineMode, holesToRender, activeStep, showFores, showExplosives, gabarit, DEPTH]);
+
+  // Synchronize walls inside WebGL
+  useEffect(() => {
+    if (engineMode !== 'webgl') return;
+    if (tunnelMeshRef.current) {
+      (tunnelMeshRef.current.material as THREE.MeshStandardMaterial).opacity = showWalls ? 0.45 : 0.05;
+    }
+    if (tunnelWireframeRef.current) {
+      (tunnelWireframeRef.current.material as THREE.LineBasicMaterial).opacity = showWalls ? 0.3 : 0.05;
+    }
+    if (massMeshRef.current) {
+      (massMeshRef.current.material as THREE.MeshStandardMaterial).opacity = showWalls ? 0.35 : 0.05;
+    }
+    if (backMeshRef.current) {
+      (backMeshRef.current.material as THREE.MeshStandardMaterial).opacity = showWalls ? 0.35 : 0.05;
+    }
+  }, [showWalls, engineMode]);
+
+  // Synchronize auto rotation in WebGL mode
+  useEffect(() => {
+    if (engineMode !== 'webgl') return;
+    if (controlsRef.current) {
+      controlsRef.current.autoRotate = autoRotate;
+      controlsRef.current.autoRotateSpeed = 2.0;
+    }
+  }, [autoRotate, engineMode]);
+
+  // WebGL Raycasting for interactive hover
+  const handleMouseMoveCanvas = (e: React.MouseEvent) => {
+    if (engineMode !== 'webgl') return;
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    const holesGroup = holesGroupRef.current;
+    if (!renderer || !camera || !holesGroup) return;
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+
+    const intersects = raycaster.intersectObjects(holesGroup.children);
+    if (intersects.length > 0) {
+      const match = intersects.find(intersect => intersect.object.userData && intersect.object.userData.hole);
+      if (match) {
+        setHoveredHole(match.object.userData.hole);
+        return;
+      }
+    }
+    setHoveredHole(null);
+  };
+
+  const handleMouseLeaveCanvas = () => {
+    setHoveredHole(null);
+  };
+
+  return (
+    <div className="w-full flex flex-col rounded-3xl overflow-hidden bg-slate-950 border border-slate-850 shadow-2xl relative">
+      
+      {/* Header bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 bg-slate-900 border-b border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            🏔️
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="text-white font-black text-xs uppercase tracking-wider">
+                Simulation Immersive 3D de la Mine
+              </h4>
+              <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                engineMode === 'webgl' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' : 'bg-amber-500/10 text-amber-400 border border-amber-500/25'
+              }`}>
+                {engineMode === 'webgl' ? 'Moteur WebGL 3D' : 'Moteur Vectoriel 3D'}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+              Excavation Tridimensionnelle interactive · {gabarit === '9m2' ? 'Traçage 9m²' : 'Galerie 12m²'}
+            </p>
+          </div>
+        </div>
+
+        {/* Engine switcher bar */}
+        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 p-1 rounded-xl">
+          <button
+            onClick={() => {
+              if (webglSupported) {
+                setEngineMode('webgl');
+              }
+            }}
+            disabled={!webglSupported}
+            className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+              engineMode === 'webgl'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white disabled:opacity-30'
+            }`}
+            title={!webglSupported ? 'WebGL non pris en charge par votre carte graphique/navigateur' : ''}
+          >
+            🔌 WebGL {webglSupported ? '' : '(Bloqué)'}
+          </button>
+          <button
+            onClick={() => setEngineMode('svg')}
+            className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+              engineMode === 'svg'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            ⚡ Vectoriel (Haute Compatibilité)
+          </button>
+        </div>
+
+        {/* Legend */}
+        <div className="flex gap-4 text-[9px] font-black uppercase tracking-wider text-slate-400 flex-wrap">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#94a3b8] border border-slate-700" />
+            Bourrage
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-amber-500" />
+            Explosif
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-sky-400" />
+            Trous Vides
+          </span>
+          <span className="flex items-center gap-1.5 text-[#ffd700] animate-pulse">
+            💥 Étape active
+          </span>
+        </div>
+      </div>
+
+      {/* Interactive stage */}
+      {engineMode === 'webgl' ? (
+        // WebGL / Three.js Container
+        <div 
+          ref={containerRef}
+          className="w-full relative overflow-hidden h-[580px]"
+          onMouseMove={handleMouseMoveCanvas}
+          onMouseLeave={handleMouseLeaveCanvas}
+          style={{ cursor: 'grab' }}
+        >
+          {/* Dynamic HTML labels overlay (Z-Projected) */}
+          {holesToRender.map(hole => (
+            <div
+              key={`label-${hole.id}`}
+              id={`hole-label-${hole.id}`}
+              className="absolute pointer-events-none select-none px-1.5 py-0.5 rounded text-[8px] font-black font-mono transition-all duration-100 shadow-md border text-center"
+              style={{
+                transform: 'translate(-50%, -50%)',
+                opacity: 0,
+                left: 0,
+                top: 0,
+                zIndex: 20
+              }}
+            >
+              {hole.label}
+            </div>
+          ))}
+
+          {/* HUD WebGL live Telemetry */}
+          <div className="absolute bottom-4 left-4 bg-slate-950/90 border border-slate-800 rounded-2xl p-4 min-w-[260px] space-y-1.5 shadow-2xl backdrop-blur-md pointer-events-none z-10">
+            <p className="text-[10px] font-black text-[#ffd700] border-b border-slate-800/80 pb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              📊 TÉLÉMÉTRIE SÉQUENCE WEBGL
+            </p>
+            <div className="text-[9px] font-bold text-slate-400 space-y-1 uppercase tracking-wider">
+              <p>Profil : <span className="text-white font-extrabold">{gabarit === '9m2' ? 'Traçage 9m² (1.7m)' : 'Galerie 12m² (2.3m)'}</span></p>
+              <p>Éléments Actifs : <span className="text-white font-extrabold">{holesToRender.length} Trous de forage</span></p>
+              <p id="hud-camera-angles">Caméra : Yaw 35° | Pitch -20°</p>
+              <p>Moteur : <span className="text-emerald-400 font-black">GPU matériel • 60 FPS</span></p>
+            </div>
+          </div>
+
+          {/* Quick Help overlay */}
+          <div className="absolute top-4 right-4 bg-slate-900/95 border border-slate-800 rounded-2xl p-4 max-w-xs space-y-2.5 shadow-xl backdrop-blur-sm z-10">
+            <p className="text-[10px] font-black text-[#ffd700] border-b border-slate-800 pb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              🎮 NAVIGATION 3D
+            </p>
+            <ul className="text-[9px] font-bold text-slate-400 space-y-1 uppercase tracking-wider">
+              <li className="flex items-center gap-1.5">🖱️ <span className="text-white">Clic Gauche :</span> Rotation orbite</li>
+              <li className="flex items-center gap-1.5">🖐️ <span className="text-white">Clic Droit :</span> Translation</li>
+              <li className="flex items-center gap-1.5">🎡 <span className="text-white">Molette :</span> Zoom avant / arrière</li>
+              <li className="flex items-center gap-1.5">🎯 <span className="text-white">Survol :</span> Inspecter trou</li>
+            </ul>
+          </div>
+        </div>
+      ) : (
+        // High-Contrast SVG 3D Engine Fallback
+        <div
+          className="w-full relative overflow-hidden h-[580px] bg-[#030712] select-none"
+          onMouseDown={handleMouseDownSvg}
+          onMouseMove={handleMouseMoveSvg}
+          onMouseUp={handleMouseUpSvg}
+          onMouseLeave={handleMouseUpSvg}
+          onTouchStart={handleTouchStartSvg}
+          onTouchMove={handleTouchMoveSvg}
+          onTouchEnd={handleMouseUpSvg}
+          onWheel={handleWheelSvg}
+          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+        >
+          <svg className="w-full h-full" viewBox="0 0 1000 580" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              {/* Procedural geological rock face texture */}
+              <pattern id="rock-texture-pattern" width="80" height="80" patternUnits="userSpaceOnUse" patternTransform="rotate(15)">
+                <rect width="80" height="80" fill="#090e18" />
+                <path d="M 0 15 L 40 22 L 80 15 M 20 40 L 60 45 M 0 65 L 80 65" stroke="#121b2d" strokeWidth="1.2" />
+                <path d="M 15 0 L 22 40 L 15 80 M 55 0 L 48 80" stroke="#0f1626" strokeWidth="1.2" />
+                <path d="M 0 0 C 20 8, 30 20, 40 40 C 45 60, 60 70, 80 80" stroke="#1c2b4c" strokeWidth="0.6" strokeDasharray="3,3" />
+              </pattern>
+            </defs>
+
+            {/* Grid Floor */}
+            <g opacity="0.15">
+              {Array.from({ length: 21 }).map((_, i) => {
+                const zVal = (i / 20) * DEPTH;
+                const pL = rotatePoint(gCX - 250, gCY + gH/2, zVal);
+                const pR = rotatePoint(gCX + 250, gCY + gH/2, zVal);
+                return (
+                  <line
+                    key={`grid-z-${i}`}
+                    x1={pL.sx} y1={pL.sy}
+                    x2={pR.sx} y2={pR.sy}
+                    stroke="#475569"
+                    strokeWidth="1"
+                  />
+                );
+              })}
+            </g>
+
+            {/* Depth-sorted rendered 3D primitives (Painter's Algorithm) */}
+            {sortedDrawItems.map(item => item.render())}
+
+            {/* Interactive Vector compass HUD */}
+            <g transform="translate(0, 0)">
+              {/* Compass Background plate */}
+              <circle cx={compassCenter.x} cy={compassCenter.y} r={compassScale + 12} fill="#020617" stroke="#1e293b" strokeWidth="1.5" opacity="0.9" />
+              
+              {/* X Axis (Red) */}
+              <line x1={compassCenter.x} y1={compassCenter.y} x2={axisX.ex} y2={axisX.ey} stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
+              <text x={axisX.ex + (axisX.ex > compassCenter.x ? 6 : -10)} y={axisX.ey + 3} fill="#ef4444" className="text-[9px] font-black">X</text>
+              
+              {/* Y Axis (Green) */}
+              <line x1={compassCenter.x} y1={compassCenter.y} x2={axisY.ex} y2={axisY.ey} stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" />
+              <text x={axisY.ex - 3} y={axisY.ey - 6} fill="#22c55e" className="text-[9px] font-black">Y</text>
+              
+              {/* Z Axis (Blue) */}
+              <line x1={compassCenter.x} y1={compassCenter.y} x2={axisZ.ex} y2={axisZ.ey} stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
+              <text x={axisZ.ex + (axisZ.ex > compassCenter.x ? 6 : -10)} y={axisZ.ey + 4} fill="#3b82f6" className="text-[9px] font-black">Z</text>
+            </g>
+          </svg>
+
+          {/* Fallback SVG Live Telemetry HUD overlay */}
+          <div className="absolute bottom-4 left-4 bg-slate-950/90 border border-slate-800 rounded-2xl p-4 min-w-[260px] space-y-1.5 shadow-2xl backdrop-blur-md pointer-events-none z-10">
+            <p className="text-[10px] font-black text-[#f59e0b] border-b border-slate-800/80 pb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              📊 TÉLÉMÉTRIE VECTORIELLE 3D
+            </p>
+            <div className="text-[9px] font-bold text-slate-400 space-y-1 uppercase tracking-wider">
+              <p>Profil : <span className="text-white font-extrabold">{gabarit === '9m2' ? 'Traçage 9m² (1.7m)' : 'Galerie 12m² (2.3m)'}</span></p>
+              <p>Éléments Actifs : <span className="text-white font-extrabold">{holesToRender.length} Trous de forage</span></p>
+              <p>Rotation : <span className="text-amber-400 font-extrabold">Yaw {Math.round(yaw)}° | Pitch {Math.round(pitch)}°</span></p>
+              <p>Rendu : <span className="text-amber-400 font-black">Vectoriel SVG 3D • 100% Fluide</span></p>
+            </div>
+          </div>
+
+          {/* Quick Help overlay */}
+          <div className="absolute top-4 right-4 bg-slate-900/95 border border-slate-800 rounded-2xl p-4 max-w-xs space-y-2.5 shadow-xl backdrop-blur-sm z-10">
+            <p className="text-[10px] font-black text-[#f59e0b] border-b border-slate-800 pb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              🎮 DRAG & DROP 3D
+            </p>
+            <ul className="text-[9px] font-bold text-slate-400 space-y-1 uppercase tracking-wider">
+              <li className="flex items-center gap-1.5">🖱️ <span className="text-white">Glisser gauche/droite :</span> Rotation Yaw</li>
+              <li className="flex items-center gap-1.5">↕️ <span className="text-white">Glisser haut/bas :</span> Inclinaison Pitch</li>
+              <li className="flex items-center gap-1.5">🎡 <span className="text-white">Molette :</span> Zoom avant / arrière</li>
+              <li className="flex items-center gap-1.5">🎯 <span className="text-white">Survol :</span> Inspecter trou</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Control Panel Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 bg-slate-900 border-t border-slate-800">
+        
+        {/* Toggle displays */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowWalls(prev => !prev)}
+            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border ${
+              showWalls
+                ? 'bg-slate-800 text-white border-slate-700'
+                : 'bg-slate-950 text-slate-500 border-slate-900 hover:text-white'
+            }`}
+          >
+            🧱 Parois Rocheuses {showWalls ? 'ON' : 'OFF'}
+          </button>
+          <button
+            onClick={() => setShowFores(prev => !prev)}
+            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border ${
+              showFores
+                ? 'bg-slate-800 text-white border-slate-700'
+                : 'bg-slate-950 text-slate-500 border-slate-900 hover:text-white'
+            }`}
+          >
+            🥖 Bourrage {showFores ? 'ON' : 'OFF'}
+          </button>
+          <button
+            onClick={() => setShowExplosives(prev => !prev)}
+            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border ${
+              showExplosives
+                ? 'bg-slate-800 text-white border-slate-700'
+                : 'bg-slate-950 text-slate-500 border-slate-900 hover:text-white'
+            }`}
+          >
+            🧨 Charges Explosives {showExplosives ? 'ON' : 'OFF'}
+          </button>
+        </div>
+
+        {/* Camera Preset Angles */}
+        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-1">
+          <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 px-2">VUES CAO</span>
+          <button
+            onClick={() => applyPreset('iso')}
+            className="px-2.5 py-1 rounded-lg text-[9px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition-all uppercase"
+          >
+            Isometric 3D
+          </button>
+          <button
+            onClick={() => applyPreset('face')}
+            className="px-2.5 py-1 rounded-lg text-[9px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition-all uppercase"
+          >
+            Face
+          </button>
+          <button
+            onClick={() => applyPreset('side')}
+            className="px-2.5 py-1 rounded-lg text-[9px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition-all uppercase"
+          >
+            Profil (Flanc)
+          </button>
+          <button
+            onClick={() => applyPreset('top')}
+            className="px-2.5 py-1 rounded-lg text-[9px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition-all uppercase"
+          >
+            Dessus
+          </button>
+        </div>
+
+        {/* Auto Rotation and Reset */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAutoRotate(prev => !prev)}
+            className={`flex items-center gap-1.5 px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl border transition-all ${
+              autoRotate
+                ? 'bg-amber-600 text-white border-amber-500 animate-pulse shadow-md'
+                : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800'
+            }`}
+          >
+            🔄 ROTATION ORBITALE {autoRotate ? 'ON' : 'OFF'}
+          </button>
+          <button
+            onClick={() => applyPreset('iso')}
+            className="px-3 py-2 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-xl border border-slate-800 transition-all"
+          >
+            Reset Caméra
+          </button>
+        </div>
+
+      </div>
+
     </div>
   );
 };

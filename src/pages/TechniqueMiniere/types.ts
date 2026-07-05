@@ -9,7 +9,7 @@ export interface HoleInfo {
   delay: number;
 }
 
-export type TabType = 'schema' | 'drilling' | 'explosifs' | 'bourrage' | 'calculs' | 'ingenierie';
+export type TabType = 'schema' | 'vue3d' | 'drilling' | 'explosifs' | 'bourrage' | 'calculs' | 'ingenierie';
 
 export type GabaritType = '12m2' | '12m2_intl' | '9m2';
 
