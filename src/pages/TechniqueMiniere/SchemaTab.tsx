@@ -2692,6 +2692,8 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
   const controlsRef = useRef<OrbitControls | null>(null);
   const holesGroupRef = useRef<THREE.Group | null>(null);
   const sparksRef = useRef<{ mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number }[]>([]);
+  const smokeRef = useRef<{ mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number; rotSpeed: number }[]>([]);
+  const cracksRef = useRef<{ line: THREE.Line; life: number; maxLife: number }[]>([]);
   const shockwavesRef = useRef<{ mesh: THREE.Mesh; scaleSpeed: number; opacitySpeed: number; life: number }[]>([]);
   const cameraShakeRef = useRef<number>(0);
   const particlesGroupRef = useRef<THREE.Group | null>(null);
@@ -2699,6 +2701,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
   const tunnelWireframeRef = useRef<THREE.LineSegments | null>(null);
   const massMeshRef = useRef<THREE.Mesh | null>(null);
   const backMeshRef = useRef<THREE.Mesh | null>(null);
+  const backBorderLineRef = useRef<THREE.Line | null>(null);
 
   // Initialize and run Three.js WebGL canvas (Only if engineMode is webgl)
   useEffect(() => {
@@ -2843,6 +2846,13 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
     scene.add(backMesh);
     backMeshRef.current = backMesh;
 
+    // Dynamic glowing neon outline on the back face (Z = DEPTH * 0.05)
+    const backBorderMat = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 3, transparent: true, opacity: 0.15 });
+    const backBorderLine = new THREE.Line(borderGeo, backBorderMat);
+    backBorderLine.position.z = DEPTH * 0.05 - 0.01;
+    scene.add(backBorderLine);
+    backBorderLineRef.current = backBorderLine;
+
     // Groups
     const holesGroup = new THREE.Group();
     scene.add(holesGroup);
@@ -2897,6 +2907,21 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
         }
       }
 
+      // Animate glowing back face border line representing perfect gabarit finish
+      if (backBorderLineRef.current) {
+        const mat = backBorderLineRef.current.material as THREE.LineBasicMaterial;
+        const maxStep = gabarit === '9m2' ? 5 : 6;
+        if (activeStep === maxStep) {
+          const pulse = 0.5 + 0.5 * Math.sin(now * 0.008);
+          mat.opacity = 0.4 + 0.6 * pulse;
+          const hue = (now * 0.05) % 360;
+          mat.color.setHSL(hue / 360, 0.9, 0.5);
+        } else {
+          mat.opacity = 0.15;
+          mat.color.setHex(0x475569); // Subtle slate-grey
+        }
+      }
+
       shockwavesRef.current = shockwavesRef.current.filter(sw => {
         sw.life -= 0.025;
         sw.mesh.scale.setScalar(1 + (1 - sw.life) * sw.scaleSpeed);
@@ -2936,6 +2961,36 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
           } else {
             spark.mesh.material.dispose();
           }
+          return false;
+        }
+        return true;
+      });
+
+      smokeRef.current = smokeRef.current.filter(smoke => {
+        smoke.life -= deltaTime * 0.18;
+        smoke.mesh.position.addScaledVector(smoke.velocity, deltaTime);
+        smoke.mesh.rotation.z += smoke.rotSpeed * deltaTime;
+        const ratio = Math.max(0, smoke.life / smoke.maxLife);
+        const mat = smoke.mesh.material as THREE.MeshStandardMaterial;
+        mat.opacity = ratio * 0.22;
+        smoke.mesh.scale.setScalar(1 + (1 - ratio) * 3.5);
+        if (smoke.life <= 0) {
+          scene.remove(smoke.mesh);
+          smoke.mesh.geometry.dispose();
+          mat.dispose();
+          return false;
+        }
+        return true;
+      });
+
+      cracksRef.current = cracksRef.current.filter(crack => {
+        crack.life -= deltaTime * 0.3;
+        const mat = crack.line.material as THREE.LineBasicMaterial;
+        mat.opacity = Math.max(0, crack.life / crack.maxLife) * 0.85;
+        if (crack.life <= 0) {
+          scene.remove(crack.line);
+          crack.line.geometry.dispose();
+          mat.dispose();
           return false;
         }
         return true;
@@ -3018,6 +3073,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
       massMat.dispose();
       borderGeo.dispose();
       borderMat.dispose();
+      backBorderMat.dispose();
       backGeo.dispose();
       backMat.dispose();
       
@@ -3101,8 +3157,8 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
             // Velocity vectors pointing outwards and downwards under gravity
             const velocity = new THREE.Vector3(
               (Math.random() - 0.5) * 4.5,
-              (Math.random() - 0.25) * 4.5 + 1.5, // slight upward ejection arc
-              -(2 + Math.random() * 5.5) // shooting out towards camera
+              (Math.random() - 0.5) * 2.5 + 0.8,
+              (1.5 + Math.random() * 4.0)
             );
 
             const maxLife = 0.6 + Math.random() * 0.8;
@@ -3115,6 +3171,69 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
           }
         });
       }
+
+      const smokeCount = blastingHoles.length * 3;
+      for (let i = 0; i < smokeCount; i++) {
+        const size = 0.25 + Math.random() * 0.45;
+        const smokeGeo = new THREE.SphereGeometry(size, 6, 6);
+        const smokeMat = new THREE.MeshStandardMaterial({
+          color: 0x94a3b8,
+          transparent: true,
+          opacity: 0.18,
+          roughness: 1,
+          metalness: 0,
+          depthWrite: false,
+        });
+        const smokeMesh = new THREE.Mesh(smokeGeo, smokeMat);
+        const blastCenter = new THREE.Vector3();
+        blastingHoles.forEach(h => blastCenter.add(getHole3DVector(h, DEPTH * 0.3)));
+        blastCenter.divideScalar(blastingHoles.length);
+        smokeMesh.position.copy(blastCenter);
+        smokeMesh.position.x += (Math.random() - 0.5) * 1.5;
+        smokeMesh.position.z += (Math.random() - 0.5) * 0.8;
+        scene.add(smokeMesh);
+        const maxLife = 2.5 + Math.random() * 2.0;
+        smokeRef.current.push({
+          mesh: smokeMesh,
+          velocity: new THREE.Vector3(
+            (Math.random() - 0.5) * 0.3,
+            0.4 + Math.random() * 0.6,
+            (Math.random() - 0.5) * 0.2
+          ),
+          life: maxLife,
+          maxLife,
+          rotSpeed: (Math.random() - 0.5) * 0.8,
+        });
+      }
+
+      blastingHoles.forEach(h => {
+        const holePos = getHole3DVector(h, 0);
+        const numCracks = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < numCracks; i++) {
+          const angle = (Math.PI * 2 * i) / numCracks + (Math.random() - 0.5) * 0.8;
+          const length = 0.3 + Math.random() * 0.7;
+          const endX = holePos.x + Math.cos(angle) * length;
+          const endY = holePos.y + Math.sin(angle) * length;
+          const points = [
+            new THREE.Vector3(holePos.x, holePos.y, holePos.z + 0.01),
+            new THREE.Vector3(endX, endY, holePos.z + 0.01),
+          ];
+          const crackGeo = new THREE.BufferGeometry().setFromPoints(points);
+          const crackMat = new THREE.LineBasicMaterial({
+            color: 0xffd700,
+            transparent: true,
+            opacity: 0.85,
+            linewidth: 1,
+          });
+          const crackLine = new THREE.Line(crackGeo, crackMat);
+          scene.add(crackLine);
+          cracksRef.current.push({
+            line: crackLine,
+            life: 1.8 + Math.random() * 1.2,
+            maxLife: 1.8 + Math.random() * 1.2,
+          });
+        }
+      });
 
       const ambientLight = scene.children.find(
         c => c instanceof THREE.AmbientLight
@@ -3157,6 +3276,20 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
         }
       }
       sparksRef.current = [];
+
+      smokeRef.current.forEach(s => {
+        scene.remove(s.mesh);
+        s.mesh.geometry.dispose();
+        (s.mesh.material as THREE.MeshStandardMaterial).dispose();
+      });
+      smokeRef.current = [];
+
+      cracksRef.current.forEach(c => {
+        scene.remove(c.line);
+        c.line.geometry.dispose();
+        (c.line.material as THREE.LineBasicMaterial).dispose();
+      });
+      cracksRef.current = [];
     }
 
     while (holesGroup.children.length > 0) {

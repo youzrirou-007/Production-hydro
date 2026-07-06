@@ -8,15 +8,35 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRIT
 export const auth = getAuth(app);
 
 // Enable Firestore offline persistence for subterranean operations (SMI Imiter isolated network)
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn('Firestore offline persistence failed: Multiple tabs open.');
-  } else if (err.code === 'unimplemented') {
-    console.warn('Firestore offline persistence is not supported by this browser.');
-  } else {
-    console.warn('Firestore offline persistence error:', err);
+const isPersistenceSafe = () => {
+  try {
+    // If in an iframe (like AI Studio preview), disable offline persistence to prevent 30-second hangs
+    if (typeof window !== 'undefined' && window.self !== window.top) {
+      console.info('Firestore: running inside iframe. Disabling offline persistence for performance.');
+      return false;
+    }
+    if (typeof window === 'undefined' || !('indexedDB' in window)) {
+      return false;
+    }
+    return true;
+  } catch (e) {
+    return false;
   }
-});
+};
+
+if (isPersistenceSafe()) {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Firestore offline persistence failed: Multiple tabs open.');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Firestore offline persistence is not supported by this browser.');
+    } else {
+      console.warn('Firestore offline persistence error:', err);
+    }
+  });
+} else {
+  console.info('Firestore offline persistence disabled (iframe or unsupported environment).');
+}
 
 // Connectivity check
 async function testConnection() {

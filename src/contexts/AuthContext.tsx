@@ -25,55 +25,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Safety fallback timeout to prevent infinite loading screen
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 6000);
+
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (!u) {
         setProfile(null);
         setLoading(false);
+        clearTimeout(timer);
       }
     });
 
-    return () => unsubAuth();
+    return () => {
+      unsubAuth();
+      clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
     if (user) {
-      const unsubProfile = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data() as UserProfile;
-          const userEmailLower = user.email?.toLowerCase();
-          if (userEmailLower === 'youzrirou@gmail.com' && data.role !== 'admin') {
-            try {
-              await setDoc(doc(db, 'users', user.uid), {
-                ...data,
-                role: 'admin'
-              }, { merge: true });
-            } catch (err) {
-              console.error("Auto-promoting profile to admin failed", err);
+      // Safety fallback timeout for profile loading
+      const profileTimer = setTimeout(() => {
+        console.warn("Profile loading timed out, using fallback.");
+        setLoading(false);
+      }, 5000);
+
+      const unsubProfile = onSnapshot(
+        doc(db, 'users', user.uid),
+        async (docSnap) => {
+          clearTimeout(profileTimer);
+          if (docSnap.exists()) {
+            const data = docSnap.data() as UserProfile;
+            const userEmailLower = user.email?.toLowerCase();
+            if (userEmailLower === 'youzrirou@gmail.com' && data.role !== 'admin') {
+              try {
+                await setDoc(doc(db, 'users', user.uid), {
+                  ...data,
+                  role: 'admin'
+                }, { merge: true });
+              } catch (err) {
+                console.error("Auto-promoting profile to admin failed", err);
+                setProfile(data);
+                setLoading(false);
+              }
+            } else {
               setProfile(data);
               setLoading(false);
             }
           } else {
-            setProfile(data);
-            setLoading(false);
+            // Auto bootstrap default profile as admin
+            try {
+              await setDoc(doc(db, 'users', user.uid), {
+                role: 'admin',
+                siteIds: ['SMI'],
+                name: user.displayName || user.email?.split('@')[0] || 'Utilisateur'
+              });
+              setLoading(false);
+            } catch (err) {
+              console.error("Bootstrapping profile failed", err);
+              setProfile(null);
+              setLoading(false);
+            }
           }
-        } else {
-          // Auto bootstrap default profile as admin
-          try {
-            await setDoc(doc(db, 'users', user.uid), {
-              role: 'admin',
-              siteIds: ['SMI'],
-              name: user.displayName || user.email?.split('@')[0] || 'Utilisateur'
-            });
-            setLoading(false);
-          } catch (err) {
-            console.error("Bootstrapping profile failed", err);
-            setProfile(null);
-            setLoading(false);
-          }
+        },
+        (error) => {
+          clearTimeout(profileTimer);
+          console.error("Error fetching user profile snapshot:", error);
+          setProfile(null);
+          setLoading(false);
         }
-      });
-      return () => unsubProfile();
+      );
+      return () => {
+        unsubProfile();
+        clearTimeout(profileTimer);
+      };
     }
   }, [user]);
 

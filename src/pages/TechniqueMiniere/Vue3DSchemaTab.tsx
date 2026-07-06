@@ -542,6 +542,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
   const supportGroupRef = useRef<THREE.Group | null>(null);
   const drillRigGroupRef = useRef<THREE.Group | null>(null);
   const lasersGroupRef = useRef<THREE.Group | null>(null);
+  const backBorderLineRef = useRef<THREE.Line | null>(null);
 
   // Sparks & shockwaves
   const sparksRef = useRef<{ mesh: THREE.Mesh; velocity: THREE.Vector3; life: number; maxLife: number }[]>([]);
@@ -886,6 +887,13 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
     backFaceMesh.receiveShadow = true;
     scene.add(backFaceMesh);
 
+    // Dynamic glowing neon outline on the back face (Z = DEPTH_METERS) for high-precision finish visual
+    const backBorderMat = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 3, transparent: true, opacity: 0.15 });
+    const backBorderLine = new THREE.Line(borderGeo, backBorderMat);
+    backBorderLine.position.z = DEPTH_METERS - 0.01;
+    scene.add(backBorderLine);
+    backBorderLineRef.current = backBorderLine;
+
     // 8. Reinforcement Structures & Anchor Bolts Group (Support)
     const supportGroup = new THREE.Group();
     scene.add(supportGroup);
@@ -1192,11 +1200,11 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
             mouthPos.z -= 0.04;
             sparkMesh.position.copy(mouthPos);
 
-            // Flying rocks vector ejection
+            // Flying rocks vector ejection (direction +Z towards the back of the gallery)
             const velocity = new THREE.Vector3(
               (Math.random() - 0.5) * 2.2,
               (Math.random() - 0.5) * 2.2 + 0.6, // slight upward bounce
-              -4 - Math.random() * 6 // high-speed forward ejection outwards
+              (1.5 + Math.random() * 4.0) // high-speed inward ejection
             );
 
             const life = 0.35 + Math.random() * 0.6;
@@ -1243,6 +1251,20 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
           wave.mesh.geometry.dispose();
           wave.mesh.material.dispose();
           shockwavesRef.current.splice(idx, 1);
+        }
+      }
+
+      // Animate glowing back face border line representing perfect gabarit finish
+      if (backBorderLineRef.current) {
+        const mat = backBorderLineRef.current.material as THREE.LineBasicMaterial;
+        if (activeStep === maxStep) {
+          const pulse = 0.5 + 0.5 * Math.sin(now * 0.008);
+          mat.opacity = 0.4 + 0.6 * pulse;
+          const hue = (now * 0.05) % 360;
+          mat.color.setHSL(hue / 360, 0.9, 0.5);
+        } else {
+          mat.opacity = 0.15;
+          mat.color.setHex(0x475569); // Subtle slate-grey
         }
       }
 
@@ -1308,6 +1330,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       massMat.dispose();
       borderGeo.dispose();
       borderMat.dispose();
+      backBorderMat.dispose();
       backFaceGeo.dispose();
       backFaceMat.dispose();
 
@@ -1336,10 +1359,10 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       targetCamPos.current.set(0, 0.7, gabarit === '9m2' ? -3.8 : -4.5);
       isInterpolating.current = true;
     } else if (activeStep === maxStep) {
-      // Final view: High-angle bird's eye view from the top of the gallery to perfectly show 3D hole alignment, explosive columns, and stemming
-      const centerZ = DEPTH_METERS / 2;
-      targetLookAt.current.set(0, 0.3, centerZ);
-      targetCamPos.current.set(0, 5.0, centerZ - 0.5);
+      // Final view: Immersive and dramatic low-angle side perspective from inside the gallery, looking towards the finished face.
+      // This highlights the perfect symmetry and alignment of the floor (radier), arch (voûte), and wall (parement) contour holes.
+      targetLookAt.current.set(0, 0.6, DEPTH_METERS - 1.5);
+      targetCamPos.current.set(2.4, 0.5, DEPTH_METERS - 8.5);
       isInterpolating.current = true;
     }
 
@@ -1434,6 +1457,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
 
         // Active explosive charge (Emissive glows)
         if (showExplosives) {
+          const isContourHole = ['radier', 'parement', 'voute'].includes(hole.type);
           const expMat = new THREE.MeshStandardMaterial({
             color: colorHex,
             roughness: 0.3,
@@ -1441,29 +1465,31 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
             transparent: isGhosted,
             opacity: isGhosted ? 0.18 : 1.0,
             emissive: colorHex,
-            emissiveIntensity: isBlasting ? 2.5 : (isGhosted ? 0.08 : 0.5)
+            emissiveIntensity: isBlasting ? (isContourHole ? 4.5 : 3.0) : (isGhosted ? 0.08 : 0.5)
           });
 
-          if (isBlasting) {
+          if (isBlasting && !isContourHole) {
             expMat.color.setHex(0xffffff);
             expMat.emissive.setHex(0xffffff);
           }
 
-          const explosiveMesh = buildCylinder(pMid, pB, 0.035, expMat);
+          const radius = isBlasting ? (isContourHole ? 0.055 : 0.045) : 0.035;
+          const explosiveMesh = buildCylinder(pMid, pB, radius, expMat);
           holesGroup.add(explosiveMesh);
         }
       }
 
       // Sphere Mouth indicator
+      const isContourHole = ['radier', 'parement', 'voute'].includes(hole.type);
       const mouthMat = new THREE.MeshStandardMaterial({
-        color: isBlasting ? 0xffffff : colorHex,
+        color: (isBlasting && !isContourHole) ? 0xffffff : colorHex,
         roughness: 0.2,
         transparent: isGhosted,
         opacity: isGhosted ? 0.22 : 1.0,
-        emissive: isBlasting ? 0xffffff : colorHex,
-        emissiveIntensity: isBlasting ? 2.5 : (isGhosted ? 0.1 : 0.6)
+        emissive: (isBlasting && !isContourHole) ? 0xffffff : colorHex,
+        emissiveIntensity: isBlasting ? (isContourHole ? 4.5 : 3.0) : (isGhosted ? 0.1 : 0.6)
       });
-      const mouthGeo = new THREE.SphereGeometry(isBlasting ? 0.055 : 0.042, 8, 8);
+      const mouthGeo = new THREE.SphereGeometry(isBlasting ? (isContourHole ? 0.08 : 0.055) : 0.042, 8, 8);
       const mouthMesh = new THREE.Mesh(mouthGeo, mouthMat);
       mouthMesh.position.copy(pA);
       mouthMesh.userData = { hole };
