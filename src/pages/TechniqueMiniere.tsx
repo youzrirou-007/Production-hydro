@@ -212,7 +212,7 @@ export const TechniqueMiniere: React.FC = () => {
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <DrillingGuideTab />
+                    <DrillingGuideTab gabarit={gabarit} />
                   </motion.div>
                 )}
 
