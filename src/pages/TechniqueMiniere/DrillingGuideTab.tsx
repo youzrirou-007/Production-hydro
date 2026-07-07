@@ -21,7 +21,8 @@ import {
   Eye,
   Activity,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Move
 } from 'lucide-react';
 import { HOLES_DATA, getHolesData } from './data';
 import { HoleInfo, GabaritType } from './types';
@@ -161,6 +162,9 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
   const [zoom, setZoom] = useState<number>(0.85); // Safer zoom to ensure empty borders (vides dans les bords)
   const [angleX, setAngleX] = useState<number>(0); // 0 by default for straight-on face-to-face view
   const [angleY, setAngleY] = useState<number>(0); // 0 by default for straight-on face-to-face view
+  const [panX, setPanX] = useState<number>(0);
+  const [panY, setPanY] = useState<number>(0);
+  const [dragMode, setDragMode] = useState<'rotate' | 'pan'>('rotate');
   const [isRotating, setIsRotating] = useState<boolean>(false); // disabled by default for clear static initial presentation
   const [showParallelLines, setShowParallelLines] = useState<boolean>(true);
   const [showAngles, setShowAngles] = useState<boolean>(true);
@@ -188,6 +192,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
   // Drag states for rotating the 3D SVG
   const isDragging = useRef<boolean>(false);
   const previousMousePosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragStartButton = useRef<number>(0);
 
   // Web Audio Synth for realistic drilling sound effects (rubbing and vibration)
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -349,13 +354,64 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
           badge: 'Étape 5 : Découpe Gabarit'
         }
       ];
-    } else {
-      // 12m² and 12m² international
+    } else if (gabarit === '12m2_intl') {
       return [
         {
           id: 'bouchon',
-          title: '1. Le Bouchon Brûlé (Core)',
-          desc: 'Forage du cœur de la volée : 3 trous vides centraux de dilatation (non chargés) de 38mm et 6 trous de mine chargés tirés à 0ms.',
+          title: '1. Le Bouchon Standard International (Langefors)',
+          desc: 'Bouchon cylindrique selon la méthode Langefors-Kihlström (1963) : 6 trous vides de décharge (non chargés) pour expansion maximale, et 3 trous chargés au TOVEX tirés à 0ms.',
+          types: ['vide', 'charge'],
+          color: 'from-amber-500 to-yellow-400',
+          badge: 'Étape 1 : Bouchon Intl.'
+        },
+        {
+          id: 'g1',
+          title: '2. Élargissement - Groupe 1',
+          desc: 'Premier anneau concentrique de 4 trous autour du bouchon. Casse la roche vers la large cavité centrale créée par les 6 trous de décharge.',
+          types: ['g1'],
+          color: 'from-blue-500 to-cyan-400',
+          badge: 'Étape 2 : Élargisseur 1'
+        },
+        {
+          id: 'g2',
+          title: '3. Élargissement - Groupe 2',
+          desc: 'Deuxième couronne d\'abattage de 4 trous (50ms) pour accroître le volume d\'ouverture. Ratio vide/chargé favorable.',
+          types: ['g2'],
+          color: 'from-rose-500 to-pink-400',
+          badge: 'Étape 3 : Élargisseur 2'
+        },
+        {
+          id: 'g3',
+          title: '4. Élargissement - Groupe 3',
+          desc: 'Troisième couronne de 4 trous (75ms). Progression concentrique symétrique vers le contour de la galerie.',
+          types: ['g3'],
+          color: 'from-teal-500 to-emerald-400',
+          badge: 'Étape 4 : Élargisseur 3'
+        },
+        {
+          id: 'g4',
+          title: '5. Élargissement - Groupe 4',
+          desc: 'Quatrième couronne de 4 trous (100ms), dernière étape avant les trous de finition périphérique.',
+          types: ['g4'],
+          color: 'from-orange-500 to-amber-400',
+          badge: 'Étape 5 : Élargisseur 4'
+        },
+        {
+          id: 'contour',
+          title: '6. Trous de Contour & Finition',
+          desc: 'Forage périphérique final : Radier (sol), Parements (murs), Voûte (arche). Découpe le profil officiel 12m² de la galerie.',
+          types: ['radier', 'parement', 'voute'],
+          color: 'from-purple-500 to-violet-400',
+          badge: 'Étape 6 : Découpe Gabarit'
+        }
+      ];
+    } else {
+      // 12m² SMI
+      return [
+        {
+          id: 'bouchon',
+          title: '1. Le Bouchon Brûlé SMI (Core)',
+          desc: 'Configuration terrain SMI Imiter : 3 trous vides de décharge (Ø38mm, non chargés) et 6 trous de mine chargés au TOVEX tirés à 0ms simultanément.',
           types: ['vide', 'charge'],
           color: 'from-amber-500 to-yellow-400',
           badge: 'Étape 1 : Le Bouchon'
@@ -659,16 +715,13 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
       { x: geom.xMin, y: geom.yMax, z: 0 },
       { x: geom.xMax, y: geom.yMax, z: 0 },
       { x: 500, y: geom.yApex, z: 0 },
-      { x: 500, y: geom.yCtrl, z: 0 }, // Front Bezier control point for perfect bounding box inclusion
       { x: geom.xMin, y: geom.yWall, z: 0 },
       { x: geom.xMax, y: geom.yWall, z: 0 },
       { x: geom.xMin, y: geom.yMax, z: targetDepth },
       { x: geom.xMax, y: geom.yMax, z: targetDepth },
       { x: 500, y: geom.yApex, z: targetDepth },
-      { x: 500, y: geom.yCtrl, z: targetDepth }, // Back Bezier control point for perfect bounding box inclusion
       { x: geom.xMin, y: geom.yWall, z: targetDepth },
-      { x: geom.xMax, y: geom.yWall, z: targetDepth },
-      { x: 500, y: geom.yMax, z: -1.5 } // Rig base at z = -1.5
+      { x: geom.xMax, y: geom.yWall, z: targetDepth }
     ];
 
     let minX1 = Infinity;
@@ -676,9 +729,10 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
     let minY2 = Infinity;
     let maxY2 = -Infinity;
 
-    // Zoom and scaling factor mathematically optimized to ensure a perfect centered visual with elegant margins and no clipping
-    const scaleFactor = 0.50 * zoom; 
-    const scaleFactorZ = 100 * zoom;
+    // Bounding box calculation performed in unzoomed space to prevent zoom-canceling math
+    const BASE_SCALE = 0.44;
+    const scaleFactor = BASE_SCALE; 
+    const scaleFactorZ = 100;
 
     const radX = (angleX * Math.PI) / 180;
     const radY = (angleY * Math.PI) / 180;
@@ -703,22 +757,32 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
 
     const projCenterX = (minX1 + maxX1) / 2;
     const projCenterY = (minY2 + maxY2) / 2;
+    const width = maxX1 - minX1;
+    const height = maxY2 - minY2;
+
+    const MAX_WIDTH = 800;
+    const MAX_HEIGHT = 580;
+    const autoFitScaleX = width > 0 ? MAX_WIDTH / width : 1.0;
+    const autoFitScaleY = height > 0 ? MAX_HEIGHT / height : 1.0;
+    const autoFitScale = Math.min(autoFitScaleX, autoFitScaleY);
 
     return {
       offsetX: projCenterX,
       offsetY: projCenterY,
-      width: maxX1 - minX1,
-      height: maxY2 - minY2
+      width: width,
+      height: height,
+      autoFitScale: autoFitScale
     };
-  }, [angleX, angleY, zoom, targetDepth, galleryGeometry]);
+  }, [angleX, angleY, targetDepth, galleryGeometry]);
 
   // 3D Isometric SVG projection helper
   const projectPoint = (x: number, y: number, z: number, angleXDeg: number, angleYDeg: number): { x: number; y: number } => {
-    // Zoom and scaling factor mathematically optimized to ensure a perfect centered visual with elegant margins and no clipping
-    const scaleFactor = 0.50 * zoom;
-    const scaleFactorZ = 100 * zoom;
+    // Math optimized to separate base projection geometry from responsive zoom
+    const BASE_SCALE = 0.44;
+    const scaleFactor = BASE_SCALE;
+    const scaleFactorZ = 100;
 
-    // The mathematical center of the physical gallery coordinates (Y from 50 to 670) is 360
+    // Center coordinates projected cleanly
     const cx = (x - 500) * scaleFactor;
     const cy = (y - 360) * scaleFactor; 
     const cz = (z - targetDepth / 2) * scaleFactorZ; 
@@ -732,19 +796,25 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
 
     // X-axis rotation (pitch)
     const y2 = cy * Math.cos(radX) - z1 * Math.sin(radX);
-    const z2 = cy * Math.sin(radX) + z1 * Math.cos(radX);
 
-    // Centered dynamically based on projection bounds
+    // Perfect centering scale combining auto-fit geometry with reactive zoom factor
+    const afs = projectionTranslation.autoFitScale * zoom;
+    // Align the top of the 3D bounding box perfectly with the "Légende Volée (3D)" title (at y = 45) under any zoom level
+    const centerY = 45 + 290 * zoom;
     return {
-      x: 500 + (x1 - projectionTranslation.offsetX),
-      y: 375 + (y2 - projectionTranslation.offsetY)
+      x: 500 + (x1 - projectionTranslation.offsetX) * afs + panX,
+      y: centerY + (y2 - projectionTranslation.offsetY) * afs + panY
     };
   };
 
-  // Drag-to-rotate events
+  // Drag-to-rotate & drag-to-pan events
   const handleMouseDown = (e: React.MouseEvent) => {
     isDragging.current = true;
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
+    dragStartButton.current = e.button;
+    if (e.button === 2) {
+      e.preventDefault();
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -752,8 +822,15 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
     const deltaX = e.clientX - previousMousePosition.current.x;
     const deltaY = e.clientY - previousMousePosition.current.y;
 
-    setAngleY((prev) => (prev + deltaX * 0.5) % 360);
-    setAngleX((prev) => Math.max(-50, Math.min(50, prev - deltaY * 0.5)));
+    const shouldPan = dragMode === 'pan' || e.shiftKey || dragStartButton.current === 2;
+
+    if (shouldPan) {
+      setPanX((prev) => prev + deltaX);
+      setPanY((prev) => prev + deltaY);
+    } else {
+      setAngleY((prev) => (prev + deltaX * 0.5) % 360);
+      setAngleX((prev) => Math.max(-50, Math.min(50, prev - deltaY * 0.5)));
+    }
 
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
   };
@@ -769,8 +846,9 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
 
   // Good vs Bad Drilling mathematics
   const getLostMeterage = (deviationAngle: number): { culot: number; yieldPct: number } => {
-    const culot = Math.round(deviationAngle * deviationAngle * 0.7 + deviationAngle * 2.5);
     const targetCm = targetDepth * 100;
+    const radians = (deviationAngle * Math.PI) / 180;
+    const culot = Math.round(targetCm * Math.tan(radians));
     const realAdvanceCm = Math.max(0, targetCm - culot);
     const yieldPct = Math.min(100, Math.max(0, Math.round((realAdvanceCm / targetCm) * 100)));
     return { culot, yieldPct };
@@ -887,7 +965,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
               
               <div className={isFullscreen 
                 ? "fixed inset-0 z-50 bg-slate-950 flex flex-col w-screen h-screen p-6 overflow-hidden animate-in fade-in duration-200" 
-                : "bg-slate-950 border border-slate-900 rounded-3xl relative shadow-2xl overflow-hidden flex flex-col h-[660px]"
+                : "bg-slate-950 border border-slate-900 rounded-3xl relative shadow-2xl overflow-hidden flex flex-col h-[820px]"
               }>
                 
                 {/* Visual Header of Canvas */}
@@ -941,16 +1019,17 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
 
                 {/* The Interactive SVG Canvas */}
                 <div 
-                  className="flex-1 relative cursor-grab active:cursor-grabbing select-none"
+                  className="flex-1 min-h-0 relative cursor-grab active:cursor-grabbing select-none"
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
                   onMouseLeave={handleMouseUp}
+                  onContextMenu={(e) => e.preventDefault()}
                   id="svg-viewport-area"
                 >
                   <svg 
-                    className="w-full h-full"
-                    viewBox="0 0 1000 750"
+                    className="absolute inset-0 w-full h-full"
+                    viewBox="0 0 1000 880"
                     preserveAspectRatio="xMidYMid meet"
                   >
                     <defs>
@@ -1139,7 +1218,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                             stroke={strokeColor}
                             strokeWidth={isDrilledOrDrilling ? "0.6" : "1.0"}
                             strokeDasharray={isDrilledOrDrilling ? undefined : "1.5 1"}
-                            opacity={isHovered ? 1.0 : isDrilledOrDrilling ? 0.95 : 0.45}
+                            opacity={isHovered ? 1.0 : isDrilledOrDrilling ? 0.95 : 0.65}
                           />
 
                           {/* Tiny target center dot for planned holes */}
@@ -1147,9 +1226,9 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                             <circle 
                               cx={pStart.x}
                               cy={pStart.y}
-                              r="0.5"
+                              r="1.2"
                               fill={strokeColor}
-                              opacity="0.6"
+                              opacity="0.75"
                             />
                           )}
 
@@ -1234,7 +1313,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
 
                       // Get cavity name based on active type
                       const getCavityLabel = (type: string) => {
-                        if (type === 'charge') return "VIDE CENTRAL DE DILATATION (Ø 75mm)";
+                        if (type === 'charge') return "VIDE CENTRAL DE DILATATION (Ø 38mm — Taillant Bouton SMI)";
                         if (type === 'g1') return "VIDE LIBÉRÉ DU BOUCHON EN SÉQUENCE (1er TIR)";
                         if (type === 'g2') return "CAVITÉ CUMULÉE DISPONIBLE (BOUCHON + G1)";
                         if (type === 'g3') return "CAVITÉ CUMULÉE DISPONIBLE (BOUCHON + G1 + G2)";
@@ -1441,12 +1520,13 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                   </svg>
 
                   {/* Drag-to-rotate guide label */}
-                  <div className="absolute bottom-4 left-4 text-[9px] font-mono text-slate-500 uppercase tracking-widest bg-slate-950/85 px-3 py-1.5 rounded-lg border border-slate-900/40 pointer-events-none">
-                    🖱️ Glisser pour orienter l'arche (3D)
+                  <div className="absolute bottom-4 left-4 text-[9px] font-mono text-slate-400 uppercase tracking-widest bg-slate-950/85 px-3 py-1.5 rounded-lg border border-slate-900/40 pointer-events-none flex flex-col gap-0.5">
+                    <span>🖱️ {dragMode === 'rotate' ? "Glisser pour pivoter l'arche (3D)" : "Glisser pour déplacer le schéma"}</span>
+                    <span className="text-[7px] text-slate-500 lowercase font-normal">clic droit ou Shift+glisser pour déplacer à tout moment</span>
                   </div>
 
                   {/* Visual legends panel */}
-                  <div className="absolute top-4 right-4 bg-slate-950/95 border border-slate-900/80 rounded-xl p-3 space-y-2.5 z-10 text-[9px] pointer-events-none shadow-2xl backdrop-blur-sm min-w-[170px]">
+                  <div className="absolute top-4 right-4 bg-slate-950/90 border border-slate-900/60 rounded-xl p-2.5 space-y-1.5 z-10 text-[8px] pointer-events-none shadow-xl backdrop-blur-sm w-[150px]">
                     <span className="font-black uppercase tracking-wider text-slate-400 block pb-1.5 border-b border-slate-900">Légende Volée (3D)</span>
                     
                     {/* Primary empty central void */}
@@ -1506,8 +1586,8 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                 {/* Canvas Zoom & Rotation actions bar */}
                 <div className="p-3 bg-slate-950 border-t border-slate-900 flex flex-wrap items-center justify-between gap-4 z-10">
                   
-                  {/* Left: Zoom & Auto-Rotation */}
-                  <div className="flex items-center gap-1.5">
+                  {/* Left: Zoom & Auto-Rotation & Interaction Tools */}
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       onClick={() => setZoom((prev) => Math.min(1.8, prev + 0.1))}
                       className="p-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-300 cursor-pointer"
@@ -1533,6 +1613,47 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                     >
                       {isRotating ? '🔄 ROTATION ON' : '🔄 ROTATION OFF'}
                     </button>
+
+                    {/* Drag Mode Selector */}
+                    <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                      <button
+                        onClick={() => setDragMode('rotate')}
+                        className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1 ${
+                          dragMode === 'rotate' 
+                            ? 'bg-amber-500 text-slate-950 font-black' 
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                        title="Faire glisser pour pivoter en 3D"
+                      >
+                        <Compass className="w-3 h-3" />
+                        Pivoter
+                      </button>
+                      <button
+                        onClick={() => setDragMode('pan')}
+                        className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1 ${
+                          dragMode === 'pan' 
+                            ? 'bg-amber-500 text-slate-950 font-black' 
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                        title="Faire glisser pour déplacer (Pan / Translation)"
+                      >
+                        <Move className="w-3 h-3" />
+                        Déplacer
+                      </button>
+                    </div>
+
+                    {(panX !== 0 || panY !== 0) && (
+                      <button
+                        onClick={() => {
+                          setPanX(0);
+                          setPanY(0);
+                        }}
+                        className="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-rose-400 border border-slate-800 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer transition-colors"
+                        title="Réinitialiser la position au centre"
+                      >
+                        Recentrer
+                      </button>
+                    )}
                   </div>
 
                   {/* Center: SEQUENCER PLAYBACK ACTION BUTTONS (PAUSE, LECTURE, ÉTAPE) */}
@@ -1573,6 +1694,8 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                         setAngleX(0);
                         setAngleY(0);
                         setZoom(0.85);
+                        setPanX(0);
+                        setPanY(0);
                         setIsRotating(false);
                       }}
                       className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer border transition-all ${
@@ -1589,6 +1712,8 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                         setAngleX(18);
                         setAngleY(-25);
                         setZoom(0.85);
+                        setPanX(0);
+                        setPanY(0);
                         setIsRotating(false);
                       }}
                       className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer border transition-all ${
