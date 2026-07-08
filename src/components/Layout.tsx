@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Menu,
   X,
+  ChevronsLeft,
+  ChevronsRight,
   Factory,
   Database,
   ShieldCheck,
@@ -76,6 +78,12 @@ const NAV_ITEMS: NavItem[] = [
   
   // INGÉNIERIE & RÈGLEMENTS
   { id: 'technique', label: 'Technique Minière', icon: <Wrench className="w-5 h-5" />, category: 'ingenierie' },
+  {
+    id: 'mineur_parfait',
+    label: 'Le Mineur Parfait',
+    icon: <HardHat className="w-5 h-5" />,
+    category: 'production'
+  },
   { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'ingenierie' },
   { id: '/volées-ratées', label: 'Volées Ratées', icon: <AlertTriangle className="w-5 h-5" />, category: 'ingenierie' },
   { id: '/tutoriel', label: 'Tutoriel', icon: <GraduationCap className="w-5 h-5" />, category: 'ingenierie' },
@@ -133,6 +141,9 @@ const prefetchPage = (id: string) => {
     case 'technique':
       import('../pages/TechniqueMiniere');
       break;
+    case 'mineur_parfait':
+      import('../pages/MineurParfait');
+      break;
     case 'espace_dt':
       import('../pages/EspaceDT');
       break;
@@ -176,7 +187,7 @@ export const Layout: React.FC<{
     localStorage.setItem(STORAGE_KEY, activeSiteId);
   }, [activeSiteId]);
 
-  const [isOpen, setIsOpen] = React.useState(true);
+  const [isOpen, setIsOpen] = React.useState(false);
   const [rotationPending, setRotationPending] = React.useState(false);
   const [hasPendingRequests, setHasPendingRequests] = React.useState(false);
   const [unexplainedCount, setUnexplainedCount] = React.useState(0);
@@ -444,8 +455,8 @@ export const Layout: React.FC<{
             {isOpen && (
               <div className="flex flex-col">
                 <h1 className="text-sm font-black tracking-tighter leading-none uppercase animate-fade-in">
-                  <span className="text-[#b8860b]">Hydro</span>
-                  <span className="text-[#141414]">Mines</span>
+                  <span className="text-[#00BFFF]">Hydro</span>
+                  <span className="text-[#8B0000]">Mines</span>
                 </h1>
               </div>
             )}
@@ -453,10 +464,10 @@ export const Layout: React.FC<{
           {isOpen && (
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1 hover:bg-[#141414]/5 text-[#141414]/60 hover:text-[#8B0000] rounded transition-colors"
+              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-[#8B0000] rounded-lg transition-all duration-300 hover:scale-110 active:scale-95 flex items-center justify-center border border-slate-200/50 hover:border-[#8B0000]/20 shadow-sm"
               title="Réduire le menu"
             >
-              <X className="w-5 h-5" />
+              <ChevronsLeft className="w-4.5 h-4.5 stroke-[2.5]" />
             </button>
           )}
         </div>
@@ -594,12 +605,16 @@ export const Layout: React.FC<{
           <button 
             onClick={() => setIsOpen(!isOpen)}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 text-[#141414]/60 hover:text-[#141414] transition-colors",
+              "w-full flex items-center gap-3 px-3 py-2 text-[#141414]/60 hover:text-[#141414] hover:bg-slate-100 rounded-lg transition-all",
               !isOpen && "justify-center"
             )}
             title={!isOpen ? "Agrandir" : "Réduire"}
           >
-            {isOpen ? <X className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+            {isOpen ? (
+              <ChevronsLeft className="w-5 h-5 text-slate-500 hover:text-[#8B0000] transition-colors" />
+            ) : (
+              <ChevronsRight className="w-5 h-5 text-[#00BFFF] hover:scale-110 transition-transform" />
+            )}
             {isOpen && <span className="text-xs font-bold uppercase tracking-widest">Réduire</span>}
           </button>
           
@@ -623,11 +638,11 @@ export const Layout: React.FC<{
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 hover:bg-[#141414]/5 text-[#141414] transition-colors flex items-center justify-center rounded-lg mr-1 border border-[#141414]/10"
+              className="p-2 hover:bg-slate-50 text-[#141414] hover:text-[#00BFFF] transition-all duration-300 flex items-center justify-center rounded-lg mr-1 border border-slate-200 hover:border-[#00BFFF]/20 shadow-sm active:scale-95"
               title="Menu principal"
               id="sidebar_toggle_button"
             >
-              <Menu className="w-5 h-5 text-[#b8860b]" />
+              <Menu className="w-5 h-5 text-[#00BFFF]" />
             </button>
             <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-[#141414]/40">
               {NAV_ITEMS.find(n => n.id === activeTab)?.label}

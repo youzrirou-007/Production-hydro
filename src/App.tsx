@@ -38,6 +38,9 @@ const EspaceDT = lazy(() =>
 const Boulonnage = lazy(() =>
   import('./pages/Boulonnage').then(m => ({ default: m.Boulonnage })));
 
+const MineurParfait = lazy(() =>
+  import('./pages/MineurParfait').then(m => ({ default: m.MineurParfait })));
+
 const FailedBlasts = lazy(() => import('./pages/FailedBlasts'));
 
 const Tutoriel = lazy(() => import('./pages/Tutoriel'));
@@ -153,6 +156,7 @@ const AppContent: React.FC = () => {
       case 'technique': return <TechniqueMiniere />;
       case 'espace_dt': return <EspaceDT />;
       case 'boulonnage': return <Boulonnage />;
+      case 'mineur_parfait': return <MineurParfait />;
       case 'failed_blasts':
       case '/volées-ratées': return <FailedBlasts />;
       case 'tutoriel':

@@ -18,7 +18,11 @@ import {
   Tractor,
   Train,
   Hammer,
-  Wrench
+  Wrench,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { collection, query, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
@@ -32,10 +36,18 @@ export const DailyReport: React.FC = () => {
   const [reportType, setReportType] = useState<'day' | 'month'>('day');
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterMonth, setFilterMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [activeCalendarMonth, setActiveCalendarMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance'>('minage');
   const [dayProduction, setDayProduction] = useState<any | null>(null);
   const [unexplainedGapsForDate, setUnexplainedGapsForDate] = useState(0);
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (filterDate) {
+      setActiveCalendarMonth(filterDate.substring(0, 7));
+    }
+  }, [filterDate]);
 
   useEffect(() => {
     if (reportType !== 'month' || !filterMonth) return;
@@ -642,6 +654,40 @@ export const DailyReport: React.FC = () => {
     .filter((item): item is { planDate: string; expectedProdDate: string; exists: boolean } => item !== null && !item.exists)
     .sort((a, b) => b.expectedProdDate.localeCompare(a.expectedProdDate));
 
+  // --- CALCULATIONS FOR MONTHLY COMPLETENESS CALENDAR ---
+  const calendarYear = parseInt(activeCalendarMonth.split('-')[0] || format(new Date(), 'yyyy'), 10);
+  const calendarMonthNum = parseInt(activeCalendarMonth.split('-')[1] || format(new Date(), 'MM'), 10);
+  
+  const daysInMonth = new Date(calendarYear, calendarMonthNum, 0).getDate();
+  const firstDayIndex = new Date(calendarYear, calendarMonthNum - 1, 1).getDay(); // 0 (Sun) to 6 (Sat)
+  const paddingDays = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // Mon-first padding
+
+  const getCalendarDayString = (day: number) => {
+    const dayStr = String(day).padStart(2, '0');
+    const monthStr = String(calendarMonthNum).padStart(2, '0');
+    return `${calendarYear}-${monthStr}-${dayStr}`;
+  };
+
+  const getCalendarDayStatus = (dateStr: string) => {
+    const prodDoc = allProductionDocs.find(d => d.id === dateStr);
+    const planDoc = allPlanningSheets.find(p => p.id === dateStr);
+    
+    if (prodDoc) {
+      if (prodDoc.status === 'scelle') return 'scelle';
+      if (prodDoc.status === 'brouillon') return 'brouillon';
+      if (prodDoc.status === 'planifie') return planDoc ? 'planned-missing' : 'empty';
+    }
+    
+    if (planDoc) return 'planned-missing';
+    return 'empty';
+  };
+
+  const MONTH_NAMES_FR = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+  ];
+  const displayCalendarMonthName = `${(MONTH_NAMES_FR[calendarMonthNum - 1] || 'Mois').toUpperCase()} ${calendarYear}`;
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans">
       
@@ -817,6 +863,159 @@ export const DailyReport: React.FC = () => {
           >
             Aller aux explications →
           </button>
+        </div>
+      )}
+
+      {reportType === 'day' && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden transition-all duration-300 mb-6 font-sans">
+          <button
+            type="button"
+            onClick={() => setIsCalendarExpanded(!isCalendarExpanded)}
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-50 rounded-xl border border-amber-100">
+                <Calendar className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  Calendrier de Complétude Mensuel
+                  <span className="bg-[#00BFFF]/10 text-[#00BFFF] text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-widest animate-pulse">
+                    Nouveau
+                  </span>
+                </h3>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  Suivi visuel des saisies de postes et accès rapide par clic direct
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-extrabold uppercase text-slate-400 bg-slate-100 px-2.5 py-1 rounded-md">
+                {isCalendarExpanded ? 'Masquer' : 'Afficher'}
+              </span>
+              {isCalendarExpanded ? (
+                <ChevronUp className="w-4 h-4 text-slate-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-500" />
+              )}
+            </div>
+          </button>
+
+          {isCalendarExpanded && (
+            <div className="px-6 pb-6 border-t border-slate-100 pt-4 bg-slate-50/30 animate-fade-in">
+              {/* Calendar Month Navigation Header */}
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const prevMonth = new Date(calendarYear, calendarMonthNum - 2, 1);
+                    setActiveCalendarMonth(format(prevMonth, 'yyyy-MM'));
+                  }}
+                  className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg border border-slate-200 shadow-3xs transition-all cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                
+                <span className="text-xs font-black uppercase tracking-widest text-slate-700 bg-slate-100 px-4 py-1.5 rounded-xl border border-slate-200/50 shadow-3xs">
+                  {displayCalendarMonthName}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextMonth = new Date(calendarYear, calendarMonthNum, 1);
+                    setActiveCalendarMonth(format(nextMonth, 'yyyy-MM'));
+                  }}
+                  className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg border border-slate-200 shadow-3xs transition-all cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Weekday Labels */}
+              <div className="grid grid-cols-7 gap-1.5 mb-2 text-center font-sans">
+                {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(dayName => (
+                  <span key={dayName} className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                    {dayName}
+                  </span>
+                ))}
+              </div>
+
+              {/* Days Grid */}
+              <div className="grid grid-cols-7 gap-1.5">
+                {/* Padding cells */}
+                {Array.from({ length: paddingDays }).map((_, idx) => (
+                  <div key={`pad-${idx}`} className="aspect-square bg-slate-50/30 border border-slate-100/50 rounded-lg opacity-30" />
+                ))}
+
+                {/* Actual Day cells */}
+                {Array.from({ length: daysInMonth }).map((_, idx) => {
+                  const dayNum = idx + 1;
+                  const dayStr = getCalendarDayString(dayNum);
+                  const status = getCalendarDayStatus(dayStr);
+                  const isSelected = filterDate === dayStr;
+
+                  let bgStyle = "bg-white border-slate-200 text-slate-700 hover:bg-slate-50";
+                  let dotColor = "bg-slate-300";
+                  let statusText = "Pas de données";
+
+                  if (status === 'scelle') {
+                    bgStyle = "bg-emerald-50 border-emerald-200/60 text-emerald-950 hover:bg-emerald-100/70";
+                    dotColor = "bg-emerald-500";
+                    statusText = "Scellé & Complet";
+                  } else if (status === 'brouillon') {
+                    bgStyle = "bg-amber-50 border-amber-200/60 text-amber-950 hover:bg-amber-100/70";
+                    dotColor = "bg-amber-500";
+                    statusText = "Brouillon en cours";
+                  } else if (status === 'planned-missing') {
+                    bgStyle = "bg-rose-50 border-dashed border-rose-300 text-rose-950 hover:bg-rose-100/70";
+                    dotColor = "bg-rose-500 animate-pulse";
+                    statusText = "Manquant (Planifié)";
+                  }
+
+                  return (
+                    <button
+                      key={dayStr}
+                      type="button"
+                      onClick={() => setFilterDate(dayStr)}
+                      className={`aspect-square flex flex-col items-center justify-between p-1.5 rounded-xl border text-center transition-all cursor-pointer relative ${bgStyle} ${
+                        isSelected ? "ring-2 ring-amber-600 border-transparent shadow-xs scale-105 z-10 font-extrabold" : ""
+                      }`}
+                      title={`${format(new Date(dayStr + "T12:00:00"), 'dd/MM/yyyy')} - ${statusText}`}
+                    >
+                      {/* Day Number */}
+                      <span className="text-[11px] font-bold leading-none mt-1">
+                        {dayNum}
+                      </span>
+
+                      {/* Status Dot */}
+                      <span className={`w-1.5 h-1.5 rounded-full mb-0.5 ${dotColor}`} />
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="mt-5 pt-4 border-t border-slate-200 flex flex-wrap gap-x-5 gap-y-2 justify-center text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-slate-500">Scellé ({allProductionDocs.filter(d => d.status === 'scelle' && d.id.startsWith(activeCalendarMonth)).length})</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-slate-500">Brouillon ({allProductionDocs.filter(d => d.status === 'brouillon' && d.id.startsWith(activeCalendarMonth)).length})</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span className="text-slate-500">Manquant Planifié</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-slate-300" />
+                  <span className="text-slate-500">Sans Activité</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

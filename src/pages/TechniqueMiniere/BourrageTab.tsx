@@ -475,7 +475,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
               Dégâts Matériels
             </h4>
             <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
-              La projection violente de pierres (effet canon) endommage directement les flexibles hydrauliques des jumbos de forage et les cabines des chargeuses LHD.
+              La projection violente de pierres (effet canon) endommage directement les flexibles d'air/eau des perforateurs de forage et les cabines des chargeuses LHD.
             </p>
           </div>
 

@@ -881,7 +881,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
               MODULE HYDROMINES
             </span>
             <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border border-emerald-400/20">
-              JUMBO SIMULATEUR T23
+              SIMULATEUR MONTABERT T23
             </span>
           </div>
           <h2 className="text-xl md:text-2xl font-black uppercase tracking-wide text-slate-100 font-sans">
@@ -1101,6 +1101,10 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                       <linearGradient id="vide-grad-blue" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.6" />
                         <stop offset="100%" stopColor="#0c4a6e" stopOpacity="0.1" />
+                      </linearGradient>
+                      <linearGradient id="headlamp-beam" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#fef08a" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#fef08a" stopOpacity="0.0" />
                       </linearGradient>
                     </defs>
 
@@ -1447,52 +1451,124 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                       );
                     })()}
 
-                    {/* JUMBO HYDRAULIC DRILLING RIG ARM (Real-time tracking of selected hole) */}
+                    {/* MONTABERT T23 PNEUMATIC DRILL & JACKLEG (Real-time tracking of selected hole) */}
                     {selectedHole && (() => {
                       const pStart = projectPoint(selectedHole.x, selectedHole.y, 0, angleX, angleY);
-                      // Drill machine body is statically positioned below at Z = -1.5m
-                      const pRigBase = projectPoint(500, galleryGeometry.yMax, -1.5, angleX, angleY);
+                      // Leg base stands on the floor at Z = -1.25m, slightly offset
+                      const pLegBase = projectPoint(500 - 45, galleryGeometry.yMax, -1.25, angleX, angleY);
+                      // Operator stands behind at Z = -1.15m
+                      const pOperator = projectPoint(500 - 65, galleryGeometry.yMax - 25, -1.15, angleX, angleY);
 
                       const isDrilling = getHoleDrillingStatus(selectedHole) === 'drilling';
                       const drillPercentage = isDrilling ? drillProgress : 100;
 
                       return (
-                        <g id="jumbo-hydraulic-arm">
-                          {/* Main Chassis representation */}
-                          <path 
-                            d={`M ${pRigBase.x - 20} ${pRigBase.y + 10} L ${pRigBase.x + 20} ${pRigBase.y + 10} L ${pRigBase.x + 10} ${pRigBase.y + 35} L ${pRigBase.x - 10} ${pRigBase.y + 35} Z`}
-                            fill="#334155"
-                            stroke="#1e293b"
-                            strokeWidth="1.5"
-                          />
-                          {/* Yellow metal arm box */}
-                          <line 
-                            x1={pRigBase.x} y1={pRigBase.y}
+                        <g id="montabert-t23-drill">
+                          {/* 1. OPERATOR SILHOUETTE (Miner Foreur holding the handles) */}
+                          <g opacity="0.95">
+                            {/* Torso */}
+                            <path
+                              d={`M ${pOperator.x - 12} ${pOperator.y + 15} L ${pOperator.x + 12} ${pOperator.y + 15} L ${pOperator.x + 8} ${pOperator.y + 50} L ${pOperator.x - 8} ${pOperator.y + 50} Z`}
+                              fill="#1e293b"
+                              stroke="#0f172a"
+                              strokeWidth="1.5"
+                            />
+                            {/* Head */}
+                            <circle cx={pOperator.x} cy={pOperator.y} r="8.5" fill="#1e293b" />
+                            {/* High-visibility safety helmet (orange/yellow) */}
+                            <path
+                              d={`M ${pOperator.x - 10} ${pOperator.y - 1} A 10 10 0 0 1 ${pOperator.x + 10} ${pOperator.y - 1} Z`}
+                              fill="#f97316"
+                              stroke="#c2410c"
+                              strokeWidth="1"
+                            />
+                            {/* Helmet cap brim */}
+                            <path
+                              d={`M ${pOperator.x - 11} ${pOperator.y - 1} L ${pOperator.x + 12} ${pOperator.y - 1}`}
+                              stroke="#c2410c"
+                              strokeWidth="1.5"
+                            />
+                            {/* Helmet lamp light cone pointing to the target */}
+                            <polygon
+                              points={`${pOperator.x} ${pOperator.y - 3} ${pStart.x - 10} ${pStart.y - 10} ${pStart.x + 10} ${pStart.y + 10}`}
+                              fill="url(#headlamp-beam)"
+                              opacity="0.22"
+                            />
+                            {/* Arms extending to the drill handles */}
+                            <path
+                              d={`M ${pOperator.x - 10} ${pOperator.y + 20} Q ${(pOperator.x + pStart.x) / 2 - 15} ${(pOperator.y + pStart.y) / 2 + 10} ${pStart.x - 12} ${pStart.y + 5}`}
+                              fill="none"
+                              stroke="#1e293b"
+                              strokeWidth="4"
+                              strokeLinecap="round"
+                            />
+                          </g>
+
+                          {/* 2. PNEUMATIC JACKLEG SUPPORT (Poussoir télescopique) */}
+                          <g>
+                            {/* Outer tube (dark steel) */}
+                            <line
+                              x1={pLegBase.x} y1={pLegBase.y}
+                              x2={(pLegBase.x + pStart.x) / 2} y2={(pLegBase.y + pStart.y) / 2}
+                              stroke="#334155"
+                              strokeWidth="4.5"
+                              strokeLinecap="round"
+                            />
+                            {/* Inner silver rod extension */}
+                            <line
+                              x1={(pLegBase.x + pStart.x) / 2} y1={(pLegBase.y + pStart.y) / 2}
+                              x2={pStart.x - 10} y2={pStart.y + 6}
+                              stroke="#94a3b8"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                            />
+                            {/* Swivel bracket connector */}
+                            <circle cx={pStart.x - 10} cy={pStart.y + 6} r="3" fill="#1e293b" />
+                          </g>
+
+                          {/* 3. PERFORATEUR MONTABERT T23 BODY (pneumatic block) */}
+                          <g>
+                            {/* Main heavy block positioned just behind the start of the hole */}
+                            <rect
+                              x={pStart.x - 16}
+                              y={pStart.y - 5}
+                              width="12"
+                              height="10"
+                              rx="1.5"
+                              fill="#475569"
+                              stroke="#334155"
+                              strokeWidth="1.2"
+                              transform={`rotate(${Math.atan2(pStart.y - pOperator.y, pStart.x - pOperator.x) * (180 / Math.PI)}, ${pStart.x - 10}, ${pStart.y})`}
+                            />
+                            {/* Pneumatic rear valves & air line hose connection */}
+                            <path
+                              d={`M ${pStart.x - 16} ${pStart.y + 2} Q ${pStart.x - 25} ${pStart.y + 12} ${pOperator.x - 5} ${pOperator.y + 40}`}
+                              fill="none"
+                              stroke="#0284c7"
+                              strokeWidth="2"
+                              strokeDasharray="1.5 1.5"
+                              opacity="0.8"
+                            />
+                            {/* Water line hose connection */}
+                            <path
+                              d={`M ${pStart.x - 16} ${pStart.y - 2} Q ${pStart.x - 22} ${pStart.y - 12} ${pOperator.x - 15} ${pOperator.y + 40}`}
+                              fill="none"
+                              stroke="#10b981"
+                              strokeWidth="1.5"
+                              opacity="0.8"
+                            />
+                          </g>
+
+                          {/* 4. DRILL STEEL / TIGE DE FORAGE (Fleuret) entering the hole */}
+                          <line
+                            x1={pStart.x - 8} y1={pStart.y}
                             x2={pStart.x} y2={pStart.y}
-                            stroke="#eab308"
-                            strokeWidth="5"
-                            strokeLinecap="round"
-                            strokeOpacity="0.85"
-                          />
-                          {/* Hydraulic silver cylinder */}
-                          <line 
-                            x1={pRigBase.x} y1={pRigBase.y}
-                            x2={(pRigBase.x + pStart.x) / 2} y2={(pRigBase.y + pStart.y) / 2}
-                            stroke="#94a3b8"
+                            stroke="#cbd5e1"
                             strokeWidth="2.5"
                             strokeLinecap="round"
                           />
-                          {/* Green targeting laser pointer */}
-                          <line 
-                            x1={pRigBase.x} y1={pRigBase.y}
-                            x2={pStart.x} y2={pStart.y}
-                            stroke="#22c55e"
-                            strokeWidth="1"
-                            strokeDasharray="2 3"
-                            strokeOpacity="0.75"
-                          />
 
-                          {/* Sparks eruption at contact point when drilling */}
+                          {/* Sparks contact point */}
                           {isDrilling && drillPercentage > 0 && drillPercentage < 100 && (
                             <g>
                               <circle cx={pStart.x} cy={pStart.y} r="6" fill="#f97316" className="animate-ping" opacity="0.8" />
@@ -1503,12 +1579,12 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                                 const sx = pStart.x + Math.cos(angle) * 8;
                                 const sy = pStart.y + Math.sin(angle) * 8;
                                 return (
-                                  <line 
-                                    key={i} 
-                                    x1={pStart.x} y1={pStart.y} 
-                                    x2={sx} y2={sy} 
-                                    stroke="#f97316" 
-                                    strokeWidth="1" 
+                                  <line
+                                    key={i}
+                                    x1={pStart.x} y1={pStart.y}
+                                    x2={sx} y2={sy}
+                                    stroke="#f97316"
+                                    strokeWidth="1"
                                   />
                                 );
                               })}
@@ -1765,17 +1841,17 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
 
             </div>
 
-            {/* BOTTOM PANEL: OPERATOR JUMBO CONSOLE & TECHNICAL DIRECTIONS */}
+            {/* BOTTOM PANEL: POSTE DE FORAGE ET DIRECTIVES TECHNIQUES */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch w-full">
               
-              {/* OPERATOR JUMBO MACHINE INTERFACE (7 cols) */}
+              {/* PUPITRE DU MINEUR FOREUR (7 cols) */}
               <div className="lg:col-span-7 flex flex-col">
                 <div className="bg-[#141414] border border-slate-800 rounded-3xl p-5 space-y-4 text-white shadow-xl h-full flex flex-col justify-between">
                 
                 <div className="border-b border-slate-800 pb-3 flex justify-between items-center">
                   <div>
                     <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest block">
-                      JUMBO HYDRAULIQUE D'IMITER
+                      PERFORATEUR PNEUMATIQUE MONTABERT T23
                     </span>
                     <h3 className="text-sm font-black uppercase tracking-wide text-slate-100 font-mono">
                       Pupitre de Commande Perforation

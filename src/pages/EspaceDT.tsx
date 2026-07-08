@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 
-type DTTab = 'journal' | 'attachements' | 'explosifs' | 'rapport' | 'ia';
+type DTTab = 'journal' | 'attachements' | 'explosifs' | 'rapport' | 'ia' | 'comparaison';
 
 interface AttachementChantier {
   chantierId: string;
@@ -98,12 +98,20 @@ export const EspaceDT: React.FC = () => {
   }[]>([]);
   const [activeReportTab, setActiveReportTab] = useState<'synthese' | 'anomalies' | 'recommandations' | 'logique'>('synthese');
 
+  // Comparison & Simulation Tab States
+  const [comparisonMetric, setComparisonMetric] = useState<'meters' | 'explosives' | 'efficiency' | 'extraction'>('meters');
+  const [simVolees, setSimVolees] = useState<number>(150);
+  const [simLongueur, setSimLongueur] = useState<number>(3.2);
+  const [simSucces, setSimSucces] = useState<number>(88);
+  const [simChargeTarget, setSimChargeTarget] = useState<number>(24);
+
   const tabs: { id: DTTab; label: string; icon: string }[] = [
     { id: 'journal', label: 'Journal de la Mine', icon: '📋' },
     { id: 'attachements', label: 'Attachements & Fiabilité', icon: '📐' },
     { id: 'explosifs', label: 'Suivi Explosifs', icon: '💥' },
     { id: 'rapport', label: 'Rapport Mensuel', icon: '📄' },
     { id: 'ia', label: 'Assistant DT', icon: '🤖' },
+    { id: 'comparaison', label: 'Comparaison Inter-Mois', icon: '📊' },
   ];
 
   useEffect(() => {
@@ -351,6 +359,112 @@ export const EspaceDT: React.FC = () => {
     };
   };
 
+  const getMonthlyConsolidatedStats = () => {
+    const statsMap: Record<string, {
+      month: string;
+      totalReel: number;
+      totalAnfo: number;
+      totalWagonsReel: number;
+      daysCount: number;
+    }> = {};
+
+    allProductionDocs.forEach(doc => {
+      const dateStr = doc.id; // e.g., "2026-07-08"
+      if (!dateStr || dateStr.length < 7) return;
+      const month = dateStr.substring(0, 7); // "2026-07"
+
+      if (!statsMap[month]) {
+        statsMap[month] = {
+          month,
+          totalReel: 0,
+          totalAnfo: 0,
+          totalWagonsReel: 0,
+          daysCount: 0
+        };
+      }
+
+      const current = statsMap[month];
+      current.daysCount += 1;
+
+      // Sum over postes
+      ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+        const pData = doc.postes?.[pKey];
+        
+        const minage = pData?.minage || [];
+        minage.forEach((r: any) => {
+          const row = r.reel || r;
+          if (row) {
+            current.totalReel += Number(row.realMeterage || row.meterage || 0);
+            current.totalAnfo += Number(row.anfo || 0);
+          }
+        });
+
+        current.totalWagonsReel += Number(
+          pData?.deblayageSummary?.totalWagons || 
+          pData?.deblayage?.reduce((s: number, r: any) => s + Number(r.reel?.tripCount || r.tripCount || 0), 0) || 
+          0
+        );
+      });
+    });
+
+    return Object.values(statsMap).sort((a, b) => a.month.localeCompare(b.month));
+  };
+
+  const getComparisonData = () => {
+    // Merge attachements history with our aggregated production data
+    const list = historiqueAttachements.map(att => {
+      const month = att.mois; // e.g., "2026-06"
+      const stats = getMonthlyConsolidatedStats().find(s => s.month === month);
+      
+      const declaredMeters = stats ? stats.totalReel : 0;
+      const geometreMeters = att.totalMetrageGeometre || 0;
+      const gap = declaredMeters - geometreMeters;
+      const gapPct = geometreMeters > 0 ? (gap / geometreMeters) * 100 : 0;
+      const anfo = stats ? stats.totalAnfo : 0;
+      const wagons = stats ? stats.totalWagonsReel : 0;
+      const specificCharge = geometreMeters > 0 ? (anfo / geometreMeters) : (declaredMeters > 0 ? (anfo / declaredMeters) : 0);
+
+      return {
+        month, // YYYY-MM
+        declaredMeters,
+        geometreMeters,
+        gap,
+        gapPct,
+        anfo,
+        wagons,
+        specificCharge
+      };
+    });
+
+    // Make sure we include current month as well if not already in attachments
+    const currentMonthStr = journalDate.substring(0, 7);
+    if (!list.some(item => item.month === currentMonthStr)) {
+      const stats = getMonthlyConsolidatedStats().find(s => s.month === currentMonthStr);
+      if (stats) {
+        const declaredMeters = stats.totalReel;
+        const geometreMeters = currentAttachement?.totalMetrageGeometre || 0;
+        const gap = declaredMeters - geometreMeters;
+        const gapPct = geometreMeters > 0 ? (gap / geometreMeters) * 100 : 0;
+        const anfo = stats.totalAnfo;
+        const wagons = stats.totalWagonsReel;
+        const specificCharge = geometreMeters > 0 ? (anfo / geometreMeters) : (declaredMeters > 0 ? (anfo / declaredMeters) : 0);
+
+        list.push({
+          month: currentMonthStr,
+          declaredMeters,
+          geometreMeters,
+          gap,
+          gapPct,
+          anfo,
+          wagons,
+          specificCharge
+        });
+      }
+    }
+
+    return list.sort((a, b) => a.month.localeCompare(b.month));
+  };
+
   const getExplosifsStats = () => {
     let monthlyAnfo = 0;
     let monthlyTovex = 0;
@@ -581,10 +695,60 @@ export const EspaceDT: React.FC = () => {
     <head>
       <meta charset="UTF-8">
       <title>Rapport Production — SMI Imiter — ${monthLabel}</title>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+      <script>
+        function downloadPDF() {
+          const btn = document.getElementById('download-btn');
+          const originalText = btn ? btn.innerHTML : '';
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span> Téléchargement...';
+          }
+          
+          const element = document.querySelector('.report-container');
+          const opt = {
+            margin:       [12, 12, 12, 12],
+            filename:     'Rapport_Mensuel_Production_SMI_Imiter_${rapportMonth}.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { 
+              scale: 2, 
+              useCORS: true, 
+              logging: false,
+              letterRendering: true
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          
+          html2pdf().from(element).set(opt).save().then(() => {
+            if (btn) {
+              btn.disabled = false;
+              btn.innerHTML = originalText;
+            }
+          }).catch(err => {
+            console.error('Error generating PDF:', err);
+            if (btn) {
+              btn.disabled = false;
+              btn.innerHTML = originalText;
+            }
+          });
+        }
+
+        window.onload = function() {
+          setTimeout(downloadPDF, 1200);
+        };
+      </script>
       <style>
         @page { margin: 20mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; background: white; }
+        body { font-family: Arial, sans-serif; font-size: 11px; color: #1e293b; background: #f1f5f9; margin: 0; padding: 0; }
+        .report-container {
+          max-width: 210mm;
+          margin: 20px auto;
+          background: white;
+          padding: 20mm;
+          box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+          border-radius: 12px;
+        }
         .header { background: #0f172a; padding: 20px 28px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .header-left h1 { color: #ffd700; font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
         .header-left p { color: #94a3b8; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
@@ -609,26 +773,52 @@ export const EspaceDT: React.FC = () => {
         .no-attachement { background: #fef9c3; border: 1.5px solid #fde047; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 9px; color: #854d0e; text-transform: uppercase; font-weight: 700; }
         .footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; color: #94a3b8; font-size: 8px; }
         .signature-box { border-top: 1px solid #1e293b; width: 180px; padding-top: 4px; font-size: 8px; color: #64748b; text-transform: uppercase; }
+        
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white; }
+          .report-container {
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            box-shadow: none;
+            border-radius: 0;
+          }
+        }
       </style>
     </head>
     <body>
-      <div class="header">
-        <div class="header-left">
-          <h1>⛏️ HYDROMINES — SMI IMITER</h1>
-          <p>Rapport Mensuel de Production — Confidentiel</p>
-          <p style="color:#475569; margin-top:4px;">
-            Généré le ${new Date().toLocaleDateString('fr-MA', {
-              day: 'numeric', month: 'long', year: 'numeric'
-            })} par ${profile?.name || 'Directeur Technique'}
-          </p>
+      <div class="no-print" style="background:#1e293b; padding:12px 24px; display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #b8860b; font-family: system-ui, -apple-system, sans-serif; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">📄</span>
+          <div>
+            <div style="color:#ffffff; font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:0.5px;">Aperçu du Rapport Mensuel</div>
+            <div style="color:#94a3b8; font-size:10px; font-weight:500;">SMI Imiter — Hydromines</div>
+          </div>
         </div>
-        <div class="header-right">
-          <div class="mois">${monthLabel}</div>
-          <div class="site">Mine Souterraine d'Argent</div>
-        </div>
+        <button id="download-btn" onclick="downloadPDF()" style="background:linear-gradient(135deg, #b8860b, #ffd700); color:#0f172a; border:none; padding:8px 18px; border-radius:8px; font-weight:900; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 2px 4px rgba(0,0,0,0.15); transition:all 0.2s; text-transform:uppercase; letter-spacing:0.5px;">
+          <span>⬇️</span> Télécharger le PDF
+        </button>
       </div>
 
-      <div class="section-title">Indicateurs Clés de Performance</div>
+      <div class="report-container">
+        <div class="header">
+          <div class="header-left">
+            <h1>⛏️ HYDROMINES — SMI IMITER</h1>
+            <p>Rapport Mensuel de Production — Confidentiel</p>
+            <p style="color:#475569; margin-top:4px;">
+              Généré le ${new Date().toLocaleDateString('fr-MA', {
+                day: 'numeric', month: 'long', year: 'numeric'
+              })} par El yaakouby Hamid
+            </p>
+          </div>
+          <div class="header-right">
+            <div class="mois">${monthLabel}</div>
+            <div class="site">Mine Souterraine d'Argent</div>
+          </div>
+        </div>
+
+        <div class="section-title">Indicateurs Clés de Performance</div>
       <div class="kpi-grid">
         <div class="kpi">
           <div class="kpi-value">${totalMeteragePlatf.toFixed(0)} m</div>
@@ -727,8 +917,9 @@ export const EspaceDT: React.FC = () => {
         <div>HYDROMINES | SMI Imiter | Document Confidentiel</div>
         <div class="signature-box">
           Directeur Technique<br/>
-          ${profile?.name || ''}
+          <strong>El yaakouby Hamid</strong>
         </div>
+      </div>
       </div>
     </body></html>`;
 
@@ -737,7 +928,7 @@ export const EspaceDT: React.FC = () => {
       win.document.write(html);
       win.document.close();
       win.focus();
-      setTimeout(() => { win.print(); setGeneratingPDF(false); }, 600);
+      setTimeout(() => { setGeneratingPDF(false); }, 600);
     } else {
       setGeneratingPDF(false);
     }
@@ -844,7 +1035,7 @@ export const EspaceDT: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           expertName: 'M. ELYAAKOUBY HAMID',
-          profile: `Directeur Technique de la SMI avec une expertise chevronnée dans les mines souterraines d'argent au Maroc. Expert en optimisation de production, gestion des explosifs, rendement des équipes de foreurs et analyse des performances de chantier. Il répond toujours de manière directe, avec des chiffres précis et des décisions concrètes. Il identifie le problème et donne la solution.`,
+          profile: `Directeur technique hydromines avec une expertise chevronnée dans les mines souterraines d'argent au Maroc. Expert en optimisation de production, gestion des explosifs, rendement des équipes de foreurs et analyse des performances de chantier. Il répond toujours de manière directe, avec des chiffres précis et des décisions concrètes. Il identifie le problème et donne la solution.`,
           dataContext: dtProductionData,
           customQuestion: questionToUse,
         }),
@@ -902,47 +1093,65 @@ export const EspaceDT: React.FC = () => {
   }, [loadingDT]);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1a3a5c] to-[#0f172a] border-b border-[#ffd700]/20 px-6 py-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="text-[#ffd700] text-2xl">👑</span>
-              <div>
-                <h1 className="text-[#ffd700] font-black text-xl uppercase tracking-[3px]">
-                  ESPACE DIRECTEUR TECHNIQUE (Mr.EL YAAKOUBY HAMID)
-                </h1>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">
-                  SMI Imiter — Tableau de Commandement Technique
-                </p>
-              </div>
-            </div>
+    <div className="min-h-screen bg-white p-4 sm:p-6">
+      {/* Premium Hydromines Gold Banner */}
+      <div 
+        className="bg-white p-6 sm:p-8 rounded-3xl border border-[#b8860b]/15 shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6"
+        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+      >
+        {/* Background Subtle Shimmer */}
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-amber-500/5 animate-pulse pointer-events-none" />
+        
+        <div className="flex items-center gap-5 z-10 text-center md:text-left flex-col md:flex-row">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-[#b8860b] flex items-center justify-center shadow-md shrink-0">
+            <span className="text-3xl">👑</span>
           </div>
-          <div className="text-right">
-            <div className="text-[#ffd700] text-[9px] font-black uppercase tracking-widest">
-              Bienvenue
-            </div>
-            <div className="text-white text-[11px] font-black uppercase">
-              El yaakouby Hamid
-            </div>
+          <div>
+            <div className="subtle-glow-line w-24 mb-1.5 mx-auto md:mx-0 opacity-80" />
+            <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase">
+              ESPACE DIRECTEUR TECHNIQUE
+            </h1>
+            <div className="subtle-glow-line w-full mt-2 mb-2.5 opacity-80" />
+            <p className="text-[10px] sm:text-xs font-black uppercase text-slate-500 tracking-widest">
+              SMI IMITER — MR. EL YAAKOUBY HAMID • DIRECTION TECHNIQUE & COMMANDEMENT D'EXPLOITATION
+            </p>
           </div>
         </div>
 
-        <div className="flex gap-1 mt-5 overflow-x-auto">
-          {tabs.map(tab => (
+        {/* Welcome Card & Bilan summary on the right side - representing the 25% Hydromines Touch */}
+        <div className="bg-slate-50 border border-amber-500/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center z-10 w-full md:w-56 shrink-0 shadow-xs">
+          <div className="text-[#b8860b] text-[8px] font-black uppercase tracking-wider">
+            Session Haute Direction
+          </div>
+          <div className="text-slate-800 text-[12px] font-black uppercase flex items-center gap-1.5 mt-1">
+            Mr. HAMID EL YAAKOUBY
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          </div>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+            Directeur Technique
+          </p>
+        </div>
+      </div>
+
+      {/* Tab Selector Buttons using Premium Gold & Amber accents */}
+      <div className="flex justify-start sm:justify-center gap-2 mb-6 overflow-x-auto pb-1 scrollbar-thin">
+        {tabs.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${activeTab === tab.id
-                ? 'bg-[#ffd700] text-[#0f172a] shadow-md'
-                : 'bg-slate-800/60 text-slate-300 hover:bg-slate-700/60 hover:text-white'
+              className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
+                isActive
+                  ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 border-transparent shadow-xs font-black scale-102 transform'
+                  : 'bg-white text-slate-600 hover:text-slate-900 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
-              <span>{tab.icon}</span>
+              <span className="text-xs shrink-0">{tab.icon}</span>
               {tab.label}
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       <div className="p-6">
@@ -1240,6 +1449,247 @@ export const EspaceDT: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Rendement Comparatif des Postes (Performance Forage) */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm mt-6">
+                  <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2">
+                    <div>
+                      <h3 className="text-slate-800 text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-[#00BFFF]" />
+                        Rendement Comparatif des Postes (Forage Réalisé)
+                      </h3>
+                      <p className="text-slate-400 text-[8px] font-bold uppercase tracking-wider mt-0.5">
+                        Performance par équipe de poste pour la journée du {journalDate}
+                      </p>
+                    </div>
+                    <span className="text-slate-400 text-[8.5px] font-black uppercase tracking-widest bg-slate-100 px-2.5 py-0.5 rounded-full">
+                      Données de quart
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[1, 2, 3].map(n => {
+                      const shiftKey = `poste${n}`;
+                      const posteData = journalProduction?.postes?.[shiftKey];
+                      const planData = journalPlanning?.postes?.[shiftKey];
+                      
+                      const totalReel = posteData?.minage?.reduce((s: number, r: any) => {
+                        const rowData = r.reel || r;
+                        return s + (Number(rowData.realMeterage || rowData.meterage || 0));
+                      }, 0) || 0;
+                      
+                      const totalPlan = planData?.minage?.reduce((s: number, r: any) => s + (Number(r.meterage || r.plannedMeterage || 0)), 0) || 0;
+                      const rate = totalPlan > 0 ? (totalReel / totalPlan) * 100 : 0;
+                      
+                      const wagons = posteData?.minage?.reduce((s: number, r: any) => {
+                        const rowData = r.reel || r;
+                        return s + (Number(rowData.wagons || 0));
+                      }, 0) || 0;
+
+                      return (
+                        <div key={n} className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-[10px] font-black text-slate-700 uppercase">POSTE {n}</span>
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-black ${
+                                totalPlan > 0 
+                                  ? rate >= 90 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                    rate >= 70 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                    'bg-rose-50 text-rose-700 border border-rose-200'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}>
+                                {totalPlan > 0 ? `${rate.toFixed(0)}% du plan` : 'Pas de plan'}
+                              </span>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div>
+                                <div className="flex justify-between text-[9px] font-bold text-slate-500 mb-1">
+                                  <span>Mètres Forés :</span>
+                                  <span className="text-slate-800 font-extrabold">{totalReel.toFixed(1)} / {totalPlan.toFixed(1)} m</span>
+                                </div>
+                                <div className="w-full bg-slate-200/80 h-1.5 rounded-full overflow-hidden">
+                                  <div 
+                                    className={`h-full rounded-full transition-all duration-500 ${
+                                      rate >= 90 ? 'bg-emerald-500' : rate >= 70 ? 'bg-amber-500' : 'bg-rose-500'
+                                    }`}
+                                    style={{ width: `${totalPlan > 0 ? Math.min(100, rate) : 0}%` }}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 pt-1">
+                                <span>Wagons d'argent :</span>
+                                <span className="text-slate-800 font-extrabold">{wagons} u</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 
+                  ========================================================================
+                  ANALYSES MENSUELLES & COCKPIT DE CONTRÔLE (Intégration Directe au Journal)
+                  ========================================================================
+                */}
+                <div className="mt-8 border-t border-slate-200/80 pt-8">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-1.5 h-7 bg-gradient-to-b from-[#b8860b] to-[#ffd700] rounded-full shrink-0" />
+                      <div>
+                        <h2 className="text-[#b8860b] font-black text-sm tracking-wider uppercase">
+                          Analyses & Cockpit Mensuel — {journalDate.substring(0, 7)}
+                        </h2>
+                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                          Suivi cumulatif et analyse de performance globale pour la Direction Technique
+                        </p>
+                      </div>
+                    </div>
+                    <span className="bg-amber-500/10 text-amber-700 text-[9px] font-black px-3 py-1 rounded-full border border-amber-500/20 uppercase tracking-wider self-start sm:self-center">
+                      Données Consolidées
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    {/* Month Cumulative Meters */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                      <div>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Cumul Avancement</span>
+                          <span className="text-xl">📏</span>
+                        </div>
+                        <p className="text-2xl font-black text-slate-800">
+                          {(() => {
+                            const month = journalDate.substring(0, 7);
+                            const stats = getMonthlyConsolidatedStats().find(s => s.month === month);
+                            return stats ? stats.totalReel.toFixed(1) : '0.0';
+                          })()} m
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-medium mt-1">
+                          Somme des avancements mesurés sur les chantiers SMI ce mois-ci.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Month Cumulative Explosives */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                      <div>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Explosifs Consommés</span>
+                          <span className="text-xl">💥</span>
+                        </div>
+                        <p className="text-2xl font-black text-slate-800">
+                          {(() => {
+                            const month = journalDate.substring(0, 7);
+                            const stats = getMonthlyConsolidatedStats().find(s => s.month === month);
+                            return stats ? stats.totalAnfo.toLocaleString('fr-FR') : '0';
+                          })()} kg
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-medium mt-1">
+                          ANFO total consommé pour l'abattage de roche.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Month Specific Charge Fact */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                      <div>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Facteur de Charge</span>
+                          <span className="text-xl">⚡</span>
+                        </div>
+                        <p className="text-2xl font-black text-slate-800">
+                          {(() => {
+                            const month = journalDate.substring(0, 7);
+                            const stats = getMonthlyConsolidatedStats().find(s => s.month === month);
+                            if (stats && stats.totalReel > 0) {
+                              return (stats.totalAnfo / stats.totalReel).toFixed(1);
+                            }
+                            return '0.0';
+                          })()} kg/m
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-medium mt-1">
+                          Ratio d'explosif par mètre d'avancement foré.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Month Extraction Volume */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                      <div>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Wagons Extraits</span>
+                          <span className="text-xl">🚛</span>
+                        </div>
+                        <p className="text-2xl font-black text-slate-800">
+                          {(() => {
+                            const month = journalDate.substring(0, 7);
+                            const stats = getMonthlyConsolidatedStats().find(s => s.month === month);
+                            return stats ? stats.totalWagonsReel.toLocaleString('fr-FR') : '0';
+                          })()} u
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-medium mt-1">
+                          Nombre total de wagons acheminés au jour d'aujourd'hui.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Analyse qualitative et Décision pour le DT */}
+                  <div className="bg-[#f8fafc] border border-slate-200 rounded-2xl p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">🎯</span>
+                      <h4 className="text-slate-800 font-black text-[11px] uppercase tracking-wider">
+                        Diagnostic de Performance Mensuelle — Direction Technique
+                      </h4>
+                    </div>
+                    <div className="text-slate-600 text-xs leading-relaxed space-y-2">
+                      <p>
+                        Pour le mois de <strong>{journalDate.substring(0, 7)}</strong>, la mine d'argent d'Imiter affiche un cumul d'avancement de{' '}
+                        <strong>
+                          {(() => {
+                            const month = journalDate.substring(0, 7);
+                            const stats = getMonthlyConsolidatedStats().find(s => s.month === month);
+                            return stats ? stats.totalReel.toFixed(1) : '0.0';
+                          })()}{' '}
+                          mètres
+                        </strong>{' '}
+                        sur l'ensemble des galeries actives de sections 9m² et 12m². 
+                      </p>
+                      <p>
+                        Le facteur de charge moyen d'explosif se situe à{' '}
+                        <span className="font-bold text-slate-800">
+                          {(() => {
+                            const month = journalDate.substring(0, 7);
+                            const stats = getMonthlyConsolidatedStats().find(s => s.month === month);
+                            if (stats && stats.totalReel > 0) {
+                              const ratio = stats.totalAnfo / stats.totalReel;
+                              return `${ratio.toFixed(1)} kg/m`;
+                            }
+                            return '0.0 kg/m';
+                          })()}
+                        </span>
+                        .{' '}
+                        {(() => {
+                          const month = journalDate.substring(0, 7);
+                          const stats = getMonthlyConsolidatedStats().find(s => s.month === month);
+                          if (!stats || stats.totalReel === 0) return '';
+                          const ratio = stats.totalAnfo / stats.totalReel;
+                          if (ratio > 26) {
+                            return "⚠️ Attention : Le ratio d'explosif est supérieur au standard cible (24 kg/m). Une inspection des plans de tir et du rendement des volées est fortement recommandée pour optimiser la consommation d'ANFO.";
+                          } else if (ratio < 22) {
+                            return "✅ Efficience optimale : Le facteur d'explosif est très bien maîtrisé ce mois-ci, témoignant d'une excellente exécution des forages et d'un bon calage des plans de tir.";
+                          } else {
+                            return "ℹ️ Stabilité opérationnelle : La consommation d'explosifs est parfaitement en ligne avec le standard de foration de la SMI.";
+                          }
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1422,6 +1872,132 @@ export const EspaceDT: React.FC = () => {
                       <span>{globalFiab.icon}</span>
                       {globalFiab.label}
                     </div>
+                  </div>
+                </div>
+
+                {/* Section Signature et Validation de l'Audit Mensuel */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl mt-0.5">✍️</span>
+                    <div>
+                      <h3 className="text-slate-800 text-xs font-black uppercase tracking-widest">
+                        Validation de l'Audit de Rapprochement Mensuel
+                      </h3>
+                      <p className="text-slate-500 text-[10px] uppercase font-bold mt-1 tracking-wider leading-relaxed">
+                        En tant que Directeur Technique, validez la conformité des métrages déclarés par rapport aux géomètres.
+                      </p>
+                      {currentAttachement.valide ? (
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest">
+                            ✅ AUDIT SIGNÉ & VALIDÉ
+                          </span>
+                          <span className="text-slate-400 text-[9px] font-semibold">
+                            Par Hamid EL YAAKOUBY le {currentAttachement.dateValidation ? new Date(currentAttachement.dateValidation).toLocaleDateString('fr-FR') : ''}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="mt-2.5">
+                          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest">
+                            ⏳ EN ATTENTE DE SIGNATURE
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    {currentAttachement.valide ? (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const docId = `SMI_${selectedMois}`;
+                            await setDoc(doc(db, 'attachements', docId), {
+                              ...currentAttachement,
+                              valide: false,
+                              validePar: null,
+                              dateValidation: null,
+                            });
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        }}
+                        className="px-4 py-2.5 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all"
+                      >
+                        Annuler la signature
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const docId = `SMI_${selectedMois}`;
+                            await setDoc(doc(db, 'attachements', docId), {
+                              ...currentAttachement,
+                              valide: true,
+                              validePar: 'Hamid EL YAAKOUBY',
+                              dateValidation: new Date().toISOString(),
+                            });
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        }}
+                        className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-650 hover:from-emerald-600 hover:to-teal-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                      >
+                        ✍️ Signer & Valider l'Audit
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Distribution visuelle des écarts par chantier */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm mb-6">
+                  <h3 className="text-slate-800 text-xs font-black uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">
+                    Analyse Visuelle de la Fidélité des Déclarations par Chantier
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {currentAttachement.chantiers.map((c: any, idx: number) => {
+                      const platef = productionByChantier[c.chantierId] || 0;
+                      const ecartPct = computeEcartPctActual(c.metrageGeometre, platef);
+                      const isSuspect = isSuspectFraude(ecartPct) || (c.metrageGeometre === 0 && platef > 0);
+                      
+                      return (
+                        <div key={idx} className={`p-4 rounded-xl border ${
+                          isSuspect 
+                            ? 'bg-rose-50/40 border-rose-200' 
+                            : 'bg-slate-50/60 border-slate-200/80'
+                        }`}>
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <span className="text-slate-800 text-[11px] font-black uppercase block">{c.chantierName}</span>
+                              <span className="text-slate-400 text-[8.5px] uppercase font-bold">{c.secteur} — {c.galleryType}m²</span>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-black ${
+                              isSuspect 
+                                ? 'bg-rose-100 text-rose-700' 
+                                : Math.abs(ecartPct) <= 10 
+                                ? 'bg-emerald-100 text-emerald-850' 
+                                : 'bg-amber-100 text-amber-850'
+                            }`}>
+                              {ecartPct > 0 ? `+${ecartPct.toFixed(0)}%` : `${ecartPct.toFixed(0)}%`}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-1.5 mt-2">
+                            <div className="flex justify-between text-[9px] text-slate-500 font-semibold">
+                              <span>Géomètre vs Déclaré:</span>
+                              <span className="text-slate-700 font-extrabold">{c.metrageGeometre.toFixed(1)}m / {platef.toFixed(1)}m</span>
+                            </div>
+                            <div className="w-full bg-slate-200/60 h-1.5 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full ${
+                                  isSuspect ? 'bg-rose-500' : 'bg-emerald-500'
+                                }`}
+                                style={{ width: `${platef > 0 ? Math.min(100, Math.max(0, (c.metrageGeometre / platef) * 100)) : 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1622,6 +2198,65 @@ export const EspaceDT: React.FC = () => {
               </div>
             </div>
 
+            {/* Indicateurs Avancés Plan de Tir & Charge Spécifique (Drill & Blast) */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm mb-6">
+              <h3 className="text-slate-800 text-xs font-black uppercase tracking-widest mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-[#8B0000]" />
+                Analyse de Performance Foration & Minage (Drill & Blast)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                  <span className="text-slate-400 text-[8.5px] uppercase font-black tracking-wider block">Taux de Réussite des Volées (Blast Success)</span>
+                  <div className="text-emerald-600 text-lg font-black mt-1">
+                    {(() => {
+                      const totalShots = expStats.monthlyRounds;
+                      const abortedShots = rapportHistory.filter(d => (d.totalNonRealises || 0) > 0).length;
+                      const successRate = totalShots > 0 ? ((totalShots - abortedShots) / totalShots) * 100 : 100;
+                      return `${successRate.toFixed(1)}%`;
+                    })()}
+                  </div>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                    Pourcentage de tirs réalisés conformément aux objectifs de la quinzaine
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                  <span className="text-slate-400 text-[8.5px] uppercase font-black tracking-wider block">Facteur d'Énergie Estimé (Specific Charge)</span>
+                  <div className="text-[#8B0000] text-lg font-black mt-1">
+                    {expStats.avgAnfoPerMeter > 0 ? `${(expStats.avgAnfoPerMeter * 1.15).toFixed(2)} kg/m³` : 'N/A'}
+                  </div>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                    Estimation de la charge d'énergie par volume rocheux (m³)
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                  <span className="text-slate-400 text-[8.5px] uppercase font-black tracking-wider block">Diagnostic de Chargement Front</span>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {expStats.avgAnfoPerMeter > 45 ? (
+                      <>
+                        <span className="h-2.5 w-2.5 rounded-full bg-rose-500 animate-pulse" />
+                        <span className="text-rose-700 text-xs font-black uppercase">⚠️ Surconsommation détectée</span>
+                      </>
+                    ) : expStats.avgAnfoPerMeter > 30 ? (
+                      <>
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-emerald-700 text-xs font-black uppercase">✅ Chargement optimal</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
+                        <span className="text-amber-700 text-xs font-black uppercase">⚠️ Sous-chargement possible</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                    Sécurité dynamique du front et fragmentation des blocs
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-slate-800 text-xs font-black uppercase tracking-widest">
@@ -1683,6 +2318,7 @@ export const EspaceDT: React.FC = () => {
                     <Legend wrapperStyle={{ fontSize: '10px' }} />
                     <Line type="monotone" dataKey="anfo" name="ANFO (kg)" stroke="#f43f5e" strokeWidth={2} dot={{ r: 2 }} />
                     <Line type="monotone" dataKey="tovexTimes10" name="TOVEX × 10 (kg)" stroke="#f97316" strokeWidth={2} dot={{ r: 2 }} />
+                    <Line type="monotone" dataKey="amorces" name="Amorces (u)" stroke="#06b6d4" strokeWidth={2} dot={{ r: 2 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -1808,6 +2444,99 @@ export const EspaceDT: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Interactive Preview Panel of the Monthly Report */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md max-w-4xl mx-auto mt-6">
+              <h3 className="text-slate-800 text-xs font-black uppercase tracking-widest mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-[#00BFFF]" />
+                Aperçu Interactif des Indicateurs ({rapportMonth})
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-slate-50 border border-slate-200/85 p-4 rounded-xl text-center">
+                  <span className="text-slate-400 text-[8.5px] uppercase font-black tracking-wider block">Avancement Réalisé</span>
+                  <div className="text-[#00BFFF] text-xl font-black mt-1">
+                    {(() => {
+                      const totalMeters = rapportHistory.reduce((s, d) => s + (d.totalMeterageRealised || 0), 0);
+                      return `${totalMeters.toFixed(1)} m`;
+                    })()}
+                  </div>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                    Cumul sur {rapportHistory.length} jours enregistrés
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/85 p-4 rounded-xl text-center">
+                  <span className="text-slate-400 text-[8.5px] uppercase font-black tracking-wider block">Objectif Planifié</span>
+                  <div className="text-slate-700 text-xl font-black mt-1">
+                    {(() => {
+                      const totalMetersPlan = rapportHistory.reduce((s, d) => s + (d.totalMeteragePlanned || 0), 0);
+                      return `${totalMetersPlan.toFixed(1)} m`;
+                    })()}
+                  </div>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                    Métrage total d'avancement cible
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/85 p-4 rounded-xl text-center">
+                  <span className="text-slate-400 text-[8.5px] uppercase font-black tracking-wider block">Taux de Réalisation</span>
+                  <div className="text-emerald-600 text-xl font-black mt-1">
+                    {(() => {
+                      const totalMeters = rapportHistory.reduce((s, d) => s + (d.totalMeterageRealised || 0), 0);
+                      const totalMetersPlan = rapportHistory.reduce((s, d) => s + (d.totalMeteragePlanned || 0), 0);
+                      const rate = totalMetersPlan > 0 ? (totalMeters / totalMetersPlan) * 100 : 0;
+                      return `${rate.toFixed(1)}%`;
+                    })()}
+                  </div>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                    Performance moyenne plateforme
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/85 p-4 rounded-xl text-center">
+                  <span className="text-slate-400 text-[8.5px] uppercase font-black tracking-wider block">Wagons d'Argent Extraits</span>
+                  <div className="text-amber-600 text-xl font-black mt-1">
+                    {(() => {
+                      const totalWagons = rapportHistory.reduce((s, d) => s + (d.totalWagonsRealised || 0), 0);
+                      return `${totalWagons} u`;
+                    })()}
+                  </div>
+                  <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                    Matière extraite expédiée au traitement
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress visualizer */}
+              <div className="space-y-2 bg-slate-50 border border-slate-200/80 p-4 rounded-xl">
+                <div className="flex justify-between text-[10px] font-black text-slate-700 uppercase">
+                  <span>Progression de l'Objectif Mensuel</span>
+                  <span>
+                    {(() => {
+                      const totalMeters = rapportHistory.reduce((s, d) => s + (d.totalMeterageRealised || 0), 0);
+                      const totalMetersPlan = rapportHistory.reduce((s, d) => s + (d.totalMeteragePlanned || 0), 0);
+                      return `${totalMeters.toFixed(0)}m sur ${totalMetersPlan.toFixed(0)}m`;
+                    })()}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-[#00BFFF] to-[#8B0000] rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        (() => {
+                          const totalMeters = rapportHistory.reduce((s, d) => s + (d.totalMeterageRealised || 0), 0);
+                          const totalMetersPlan = rapportHistory.reduce((s, d) => s + (d.totalMeteragePlanned || 0), 0);
+                          return totalMetersPlan > 0 ? (totalMeters / totalMetersPlan) * 100 : 0;
+                        })()
+                      )}%`
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1833,7 +2562,7 @@ export const EspaceDT: React.FC = () => {
                         M. ELYAAKOUBY HAMID
                       </h3>
                       <span className="bg-amber-400/10 text-amber-300 border border-amber-400/20 px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest">
-                        Directeur Technique de la SMI
+                        Directeur technique hydromines
                       </span>
                     </div>
                     <p className="text-slate-300 text-[11px] font-medium mt-1 leading-relaxed">
@@ -2482,6 +3211,374 @@ export const EspaceDT: React.FC = () => {
               </div>
             )}
 
+          </div>
+        )}
+
+        {activeTab === 'comparaison' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Titre & Description du Cockpit de Comparaison */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-[#b8860b] font-black text-base uppercase tracking-wider flex items-center gap-2">
+                  <span>📊</span> Comparaison Inter-Mois & Cockpit Prédictif
+                </h2>
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                  Analyse d'évolution, détection de dérive et simulateur de rendement technique
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-sans">Métrique active :</span>
+                <select
+                  value={comparisonMetric}
+                  onChange={(e) => setComparisonMetric(e.target.value as any)}
+                  className="bg-white border border-slate-200 text-[#b8860b] text-[11px] font-black rounded-xl px-4 py-2 outline-none shadow-sm font-sans"
+                >
+                  <option value="meters">📏 Métrages (Géomètre vs Déclaré)</option>
+                  <option value="explosives">💥 Consommation d'Explosifs (ANFO kg)</option>
+                  <option value="efficiency">⚡ Facteur de Charge (ANFO kg/m)</option>
+                  <option value="extraction">🚛 Volume d'Extraction (Wagons)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Section 1 : Graphique Recharts interactif d'évolution */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-slate-800 font-black text-[12px] uppercase tracking-wider">
+                    {comparisonMetric === 'meters' && "Écart Métrage Déclaré vs Mesure Géomètre Officielle"}
+                    {comparisonMetric === 'explosives' && "Volume de Consommation Explosive ANFO Cumulé"}
+                    {comparisonMetric === 'efficiency' && "Évolution du Facteur de Charge Spécifique Moyen"}
+                    {comparisonMetric === 'extraction' && "Volume Cumulé d'Extraction Souterraine"}
+                  </h3>
+                  <p className="text-slate-400 text-[9px] font-semibold uppercase tracking-wider mt-0.5">
+                    Tendance historique des 6 derniers mois d'exploitation de la SMI
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-slate-200 text-[9px] font-black text-slate-500 bg-slate-50 uppercase tracking-wider">
+                    <span className="w-2 h-2 rounded-full bg-[#b8860b]"></span>
+                    Tendance
+                  </span>
+                </div>
+              </div>
+
+              <div className="h-80 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={getComparisonData()}
+                    margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="month" 
+                      stroke="#94a3b8" 
+                      fontSize={10} 
+                      fontWeight="bold"
+                      tickFormatter={(v) => {
+                        const parts = v.split('-');
+                        if (parts.length === 2) {
+                          const mNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+                          const idx = parseInt(parts[1], 10) - 1;
+                          return `${mNames[idx]} ${parts[0]}`;
+                        }
+                        return v;
+                      }}
+                    />
+                    <YAxis stroke="#94a3b8" fontSize={10} fontWeight="bold" />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontFamily: 'monospace' }}
+                      labelClassName="text-amber-400 font-bold"
+                    />
+                    <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                    
+                    {comparisonMetric === 'meters' && (
+                      <>
+                        <Line name="Métrage Déclaré (m)" type="monotone" dataKey="declaredMeters" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} />
+                        <Line name="Métrage Validé Géomètre (m)" type="monotone" dataKey="geometreMeters" stroke="#b8860b" strokeWidth={3} dot={{ r: 4 }} />
+                      </>
+                    )}
+
+                    {comparisonMetric === 'explosives' && (
+                      <Line name="ANFO Consommé (kg)" type="monotone" dataKey="anfo" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
+                    )}
+
+                    {comparisonMetric === 'efficiency' && (
+                      <Line name="Charge Spécifique (kg/m)" type="monotone" dataKey="specificCharge" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+                    )}
+
+                    {comparisonMetric === 'extraction' && (
+                      <Line name="Wagons Extraits (u)" type="monotone" dataKey="wagons" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Section 2 : Tableau Comparatif Analytique complet */}
+            <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+              <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex justify-between items-center">
+                <h3 className="text-slate-800 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span>📋</span> Tableau de Bord Synthétique Comparatif
+                </h3>
+                <span className="text-[9px] font-bold uppercase text-slate-400 font-mono">Confidentialité SMI</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/50 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                      <th className="px-6 py-3">Mois d'exploitation</th>
+                      <th className="px-6 py-3 text-right">Métrage Déclaré</th>
+                      <th className="px-6 py-3 text-right">Métrage Validé</th>
+                      <th className="px-6 py-3 text-right">Écart Déclaration</th>
+                      <th className="px-6 py-3 text-right">ANFO Consommé</th>
+                      <th className="px-6 py-3 text-right">Charge Spécifique</th>
+                      <th className="px-6 py-3 text-right">Wagons</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-[10.5px] font-semibold text-slate-700">
+                    {getComparisonData().map((item, idx, arr) => {
+                      const prevItem = idx > 0 ? arr[idx - 1] : null;
+                      
+                      // Calculate trend for declared meters
+                      let trendIcon = "➡️";
+                      let trendColor = "text-slate-400";
+                      if (prevItem) {
+                        const diff = item.declaredMeters - prevItem.declaredMeters;
+                        if (diff > 5) {
+                          trendIcon = "↗️";
+                          trendColor = "text-emerald-500";
+                        } else if (diff < -5) {
+                          trendIcon = "↘️";
+                          trendColor = "text-rose-500";
+                        }
+                      }
+
+                      return (
+                        <tr key={item.month} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-3.5 font-bold uppercase">
+                            <span className="font-mono text-slate-400 text-[9px] mr-1.5">{item.month}</span>
+                            {(() => {
+                              const parts = item.month.split('-');
+                              if (parts.length === 2) {
+                                const mNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+                                return mNames[parseInt(parts[1], 10) - 1];
+                              }
+                              return item.month;
+                            })()}
+                          </td>
+                          <td className="px-6 py-3.5 text-right font-bold">
+                            <span className={`inline-block mr-1 ${trendColor}`}>{trendIcon}</span>
+                            {item.declaredMeters.toFixed(1)} m
+                          </td>
+                          <td className="px-6 py-3.5 text-right font-extrabold text-[#b8860b]">
+                            {item.geometreMeters > 0 ? `${item.geometreMeters.toFixed(1)} m` : 'Non saisi'}
+                          </td>
+                          <td className="px-6 py-3.5 text-right">
+                            {item.geometreMeters > 0 ? (
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-black border ${
+                                Math.abs(item.gapPct) <= 5
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                  : Math.abs(item.gapPct) <= 10
+                                  ? 'bg-amber-50 text-amber-700 border-amber-100'
+                                  : 'bg-rose-50 text-rose-700 border-rose-100'
+                              }`}>
+                                {item.gap > 0 ? '+' : ''}{item.gap.toFixed(1)} m ({item.gapPct.toFixed(1)}%)
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-normal">En attente</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-3.5 text-right font-mono text-slate-600">
+                            {item.anfo.toLocaleString('fr-FR')} kg
+                          </td>
+                          <td className="px-6 py-3.5 text-right font-mono font-bold">
+                            {item.specificCharge.toFixed(2)} kg/m
+                          </td>
+                          <td className="px-6 py-3.5 text-right font-mono font-extrabold text-slate-800">
+                            {item.wagons.toLocaleString('fr-FR')}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Section 3 : Le Cockpit Décisionnel / Diagnostic de Dérive */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Alerte Dérive & Plan d'Action */}
+              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-lg">🎯</span>
+                    <h3 className="text-slate-800 font-black text-xs uppercase tracking-wider font-sans">
+                      Analyse de Dérive de Déclaration (Audit de Cohérence)
+                    </h3>
+                  </div>
+                  <div className="text-slate-600 text-xs leading-relaxed space-y-3 font-medium">
+                    <p>
+                      En tant que Directeur Technique, l'une de vos tâches principales consiste à maintenir l'écart entre le métrage déclaré par les chantiers (SMI) et le métrage validé par l'équipe de géomètres en dessous d'un seuil critique de <strong>5%</strong>.
+                    </p>
+                    {(() => {
+                      const comparison = getComparisonData().filter(item => item.geometreMeters > 0);
+                      if (comparison.length === 0) {
+                        return (
+                          <p className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-500 font-semibold font-mono">
+                            ℹ️ Données d'attachements géomètres insuffisantes sur la période pour calculer le diagnostic de dérive automatique.
+                          </p>
+                        );
+                      }
+                      
+                      const lastMonth = comparison[comparison.length - 1];
+                      const hasHighGap = Math.abs(lastMonth.gapPct) > 5;
+
+                      return (
+                        <div className="space-y-3">
+                          <div className={`p-4 rounded-2xl border ${
+                            hasHighGap 
+                              ? 'bg-rose-50/50 border-rose-200 text-rose-950' 
+                              : 'bg-emerald-50/50 border-emerald-200 text-emerald-950'
+                          }`}>
+                            <div className="font-black uppercase text-[10px] tracking-wider mb-1 flex items-center gap-1.5">
+                              {hasHighGap ? '⚠️ ALERTE DE DÉRIVE DÉTECTÉE' : '✅ COHÉRENCE CONFORME'}
+                            </div>
+                            <p className="text-[11px] leading-relaxed">
+                              Le mois de <strong>{lastMonth.month}</strong> affiche un écart de <strong>{lastMonth.gapPct.toFixed(1)}%</strong> ({lastMonth.gap.toFixed(1)} m en surcharge déclarée). 
+                              {hasHighGap 
+                                ? " L'écart dépasse le seuil critique toléré de 5%. Une dérive de déclaration ou un problème de sur-mesure au chantier est à suspecter." 
+                                : " L'écart est parfaitement sous contrôle. Les déclarations chantiers concordent de manière fiable avec le relevé officiel."}
+                            </p>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <h4 className="text-[10px] font-black uppercase text-slate-700 tracking-wider">Plan d'action recommandé par le DT :</h4>
+                            <ul className="list-disc pl-5 space-y-1 text-slate-500 text-[11px]">
+                              {hasHighGap ? (
+                                <>
+                                  <li>Déclencher un audit de métrage inopiné sur les chantiers les plus volumineux ce mois-ci.</li>
+                                  <li>Vérifier l'étalonnage des dispositifs de mesure manuels utilisés par les chefs de poste.</li>
+                                  <li>Organiser une séance de recallage des tolérances de sur-profil et hors-profil avec les foreurs.</li>
+                                </>
+                              ) : (
+                                <>
+                                  <li>Poursuivre le contrôle quotidien via les fiches de poste scellées numériquement.</li>
+                                  <li>Féliciter les chefs de poste pour la précision rigoureuse de leurs saisies de métrage.</li>
+                                  <li>Maintenir la cadence d'avancement sans altérer la qualité des tirs.</li>
+                                </>
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Simulateur Technique de Rendement Mensuel */}
+              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-lg">⚙️</span>
+                    <h3 className="text-slate-800 font-black text-xs uppercase tracking-wider font-sans">
+                      Simulateur Technique de Rendement Mensuel
+                    </h3>
+                  </div>
+                  
+                  <p className="text-slate-500 text-[10.5px] font-medium leading-relaxed mb-4">
+                    Ajustez les leviers techniques clés pour simuler instantanément la performance cumulative mensuelle théorique de la SMI.
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Slider 1: Volées cibles */}
+                    <div>
+                      <div className="flex justify-between text-[10.5px] font-bold text-slate-700 mb-1.5">
+                        <span>Nombre de volées mensuelles (Tirs)</span>
+                        <span className="text-[#b8860b] font-black">{simVolees} tirs</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="50" 
+                        max="250" 
+                        value={simVolees} 
+                        onChange={(e) => setSimVolees(Number(e.target.value))}
+                        className="w-full accent-[#b8860b] h-1.5 bg-slate-100 rounded-lg cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Slider 2: Longueur de volée */}
+                    <div>
+                      <div className="flex justify-between text-[10.5px] font-bold text-slate-700 mb-1.5">
+                        <span>Longueur moyenne de maille (Longueur forée)</span>
+                        <span className="text-[#b8860b] font-black">{simLongueur.toFixed(1)} m</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="2.0" 
+                        max="4.0" 
+                        step="0.1"
+                        value={simLongueur} 
+                        onChange={(e) => setSimLongueur(Number(e.target.value))}
+                        className="w-full accent-[#b8860b] h-1.5 bg-slate-100 rounded-lg cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Slider 3: Taux de réussite de volée */}
+                    <div>
+                      <div className="flex justify-between text-[10.5px] font-bold text-slate-700 mb-1.5">
+                        <span>Taux de réussite de volée (Efficacité d'avancement)</span>
+                        <span className="text-[#b8860b] font-black">{simSucces}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="60" 
+                        max="100" 
+                        value={simSucces} 
+                        onChange={(e) => setSimSucces(Number(e.target.value))}
+                        className="w-full accent-[#b8860b] h-1.5 bg-slate-100 rounded-lg cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Slider 4: Charge explosive */}
+                    <div>
+                      <div className="flex justify-between text-[10.5px] font-bold text-slate-700 mb-1.5">
+                        <span>Facteur de Charge Explosive Standard Target</span>
+                        <span className="text-[#b8860b] font-black">{simChargeTarget} kg/m</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="15" 
+                        max="35" 
+                        value={simChargeTarget} 
+                        onChange={(e) => setSimChargeTarget(Number(e.target.value))}
+                        className="w-full accent-[#b8860b] h-1.5 bg-slate-100 rounded-lg cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Résultat des calculs prédictifs */}
+                  <div className="mt-6 pt-5 border-t border-slate-100 grid grid-cols-2 gap-4 font-sans">
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-center">
+                      <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Avancement Prédictif</p>
+                      <p className="text-xl font-black text-[#b8860b] mt-1">
+                        {((simVolees * simLongueur) * (simSucces / 100)).toFixed(1)} m
+                      </p>
+                      <p className="text-[8px] text-slate-500 mt-0.5 font-medium">Mètres cumulés théoriques</p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-center">
+                      <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Volume Explosifs Requis</p>
+                      <p className="text-xl font-black text-rose-600 mt-1">
+                        {(((simVolees * simLongueur) * (simSucces / 100)) * simChargeTarget).toFixed(0)} kg
+                      </p>
+                      <p className="text-[8px] text-slate-500 mt-0.5 font-medium">Consommation ANFO requise</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

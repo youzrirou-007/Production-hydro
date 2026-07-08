@@ -21,7 +21,8 @@ import {
   Radio,
   Sparkles,
   Music,
-  Volume2
+  Volume2,
+  User
 } from 'lucide-react';
 import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL } from './data';
 import { HoleInfo, GabaritType } from './types';
@@ -42,7 +43,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
   // Reality toggles
   const [showRockbolts, setShowRockbolts] = useState<boolean>(true);
   const [showArches, setShowArches] = useState<boolean>(true);
-  const [showDrillMachine, setShowDrillMachine] = useState<boolean>(false);
+  const [showDrillMachine, setShowDrillMachine] = useState<boolean>(true);
   const [showLasers, setShowLasers] = useState<boolean>(true);
   const [showSeismograph, setShowSeismograph] = useState<boolean>(true);
   const [showFores, setShowFores] = useState<boolean>(true);
@@ -987,54 +988,114 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       lasersGroup.add(laserH, laserV);
     }
 
-    // 10. Stylized 3D Jumbo Drilling Rig Machine Group (positioned at Z = DEPTH_METERS - 1.2m to represent active drilling at the face)
+    // 10. Stylized 3D Montabert T23 Pneumatic Drill & Miner Silhouette Group (positioned near the active face)
     const drillRigGroup = new THREE.Group();
     scene.add(drillRigGroup);
     drillRigGroupRef.current = drillRigGroup;
 
     if (showDrillMachine) {
-      const metalMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.5, metalness: 0.6 }); // Yellow chassis
-      const darkSteelMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.7 });
+      const steelMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.3, metalness: 0.8 }); // Silver metal
+      const darkSteelMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6, metalness: 0.7 }); // Dark steel
+      const highVizMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.4, metalness: 0.1 }); // Yellow helmet
+      const operatorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8, metalness: 0.1 }); // Dark miner clothing
 
       const zFace = DEPTH_METERS;
+      const drillY = floorY + 1.15; // standard drilling height in 3D (meters)
+      const drillX = 0;             // centered on the face for default visual symmetry
 
-      // Chassis body
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 1.2), metalMat);
-      body.position.set(0, floorY + 0.3, zFace - 1.2);
-      drillRigGroup.add(body);
+      // A. Perforateur Montabert T23 Body (horizontal steel cylinder)
+      const t23Body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8), darkSteelMat);
+      t23Body.rotation.x = Math.PI / 2;
+      t23Body.position.set(drillX, drillY, zFace - 0.7);
+      drillRigGroup.add(t23Body);
 
-      // Tractor treads (Tracks)
-      const treadL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 1.3), darkSteelMat);
-      treadL.position.set(-0.3, floorY + 0.1, zFace - 1.2);
-      const treadR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 1.3), darkSteelMat);
-      treadR.position.set(0.3, floorY + 0.1, zFace - 1.2);
-      drillRigGroup.add(treadL, treadR);
+      // Front chuck & handle grip
+      const chuck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.1, 8), steelMat);
+      chuck.rotation.x = Math.PI / 2;
+      chuck.position.set(drillX, drillY, zFace - 0.5);
+      drillRigGroup.add(chuck);
 
-      // Hydraulic Arm base
-      const boomArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 8), darkSteelMat);
-      boomArm.position.set(0, floorY + 0.4, zFace - 0.5);
-      boomArm.rotation.x = Math.PI / 2.3; // extend forward towards face
-      drillRigGroup.add(boomArm);
+      const handle = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.015, 6, 12, Math.PI), darkSteelMat);
+      handle.position.set(drillX, drillY, zFace - 0.88);
+      handle.rotation.z = Math.PI / 2;
+      drillRigGroup.add(handle);
 
-      // Rig feeding beam (Guiderail)
-      const guiderail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.2), darkSteelMat);
-      guiderail.position.set(0, floorY + 0.7, zFace - 0.3);
-      drillRigGroup.add(guiderail);
+      // B. Drill Steel (Fleuret / Tige de forage) extending to the face
+      const fleuretGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.52, 6);
+      fleuretGeo.rotateX(Math.PI / 2);
+      const fleuret = new THREE.Mesh(fleuretGeo, steelMat);
+      fleuret.position.set(drillX, drillY, zFace - 0.25);
+      drillRigGroup.add(fleuret);
 
-      // Drilling feed rod pointing straight at the face
-      const rodGeo = new THREE.CylinderGeometry(0.008, 0.008, 1.0, 6);
-      rodGeo.rotateX(Math.PI / 2);
-      const rod = new THREE.Mesh(rodGeo, new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.3, metalness: 0.9 }));
-      rod.position.set(0, floorY + 0.75, zFace - 0.1); // close to face
-      drillRigGroup.add(rod);
+      // C. Telescopic leg (Poussoir / Jackleg)
+      // Leg base stands on floor, angled up to T23 swivel joint at Z = zFace - 0.75
+      const legBasePos = new THREE.Vector3(drillX - 0.1, floorY, zFace - 1.25);
+      const legSwivelPos = new THREE.Vector3(drillX, drillY - 0.04, zFace - 0.72);
 
-      // Add a small neon green target laser emitter dot
-      const beamGeo = new THREE.CylinderGeometry(0.0015, 0.0015, 4, 4);
-      beamGeo.rotateX(Math.PI / 2);
-      const beamMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.3 });
-      const laserBeam = new THREE.Mesh(beamGeo, beamMat);
-      laserBeam.position.set(0, floorY + 0.75, zFace - 0.05);
-      drillRigGroup.add(laserBeam);
+      // Jackleg outer tube
+      const legVec = legSwivelPos.clone().sub(legBasePos);
+      const legLen = legVec.length();
+      const legOuterGeo = new THREE.CylinderGeometry(0.022, 0.022, legLen * 0.55, 8);
+      legOuterGeo.translate(0, legLen * 0.275, 0); // align bottom pivot
+      const legOuter = new THREE.Mesh(legOuterGeo, darkSteelMat);
+      legOuter.position.copy(legBasePos);
+      legOuter.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), legVec.clone().normalize());
+      drillRigGroup.add(legOuter);
+
+      // Jackleg inner silver extension rod
+      const legInnerGeo = new THREE.CylinderGeometry(0.013, 0.013, legLen * 0.5, 8);
+      legInnerGeo.translate(0, legLen * 0.25, 0);
+      const legInner = new THREE.Mesh(legInnerGeo, steelMat);
+      legInner.position.copy(legBasePos.clone().add(legVec.clone().multiplyScalar(0.5)));
+      legInner.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), legVec.clone().normalize());
+      drillRigGroup.add(legInner);
+
+      // D. Operator Silhouette (The Miner)
+      const pOpHead = new THREE.Vector3(drillX - 0.35, drillY + 0.15, zFace - 1.15);
+      
+      // Miner Torso
+      const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.65, 8), operatorMat);
+      torso.position.set(pOpHead.x, floorY + 0.65, pOpHead.z);
+      drillRigGroup.add(torso);
+
+      // Miner Head (Sphere)
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 12), operatorMat);
+      head.position.copy(pOpHead);
+      drillRigGroup.add(head);
+
+      // High-Visibility Safety Helmet (Half sphere or cap)
+      const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.082, 12, 12, 0, Math.PI * 2, 0, Math.PI / 1.8), highVizMat);
+      helmet.position.copy(pOpHead);
+      helmet.position.y += 0.015;
+      drillRigGroup.add(helmet);
+
+      // Miner Arms holding the T23
+      const armGeo = new THREE.CylinderGeometry(0.02, 0.018, 0.35, 6);
+      armGeo.rotateZ(Math.PI / 2.6);
+      const arm = new THREE.Mesh(armGeo, operatorMat);
+      arm.position.set((pOpHead.x + drillX) / 2, drillY - 0.05, (pOpHead.z + (zFace - 0.75)) / 2);
+      drillRigGroup.add(arm);
+
+      // E. Helmet LED Headlamp Light Cone Beam
+      const targetPoint = new THREE.Vector3(drillX, drillY, zFace);
+      const beamDir = targetPoint.clone().sub(pOpHead);
+      const beamLen = beamDir.length();
+      
+      // Cone pointing towards face representing the LED headlamp beam
+      const lightConeGeo = new THREE.ConeGeometry(0.3, beamLen, 16, 1, true);
+      lightConeGeo.rotateX(Math.PI / 2);
+      lightConeGeo.translate(0, 0, beamLen / 2); // extend from apex
+      const lightConeMat = new THREE.MeshBasicMaterial({
+        color: 0xfef08a,
+        transparent: true,
+        opacity: 0.18,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide
+      });
+      const lightCone = new THREE.Mesh(lightConeGeo, lightConeMat);
+      lightCone.position.copy(pOpHead);
+      lightCone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), beamDir.clone().normalize());
+      drillRigGroup.add(lightCone);
     }
 
     // 11. Sparks particles group
@@ -1883,11 +1944,11 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
               ÉLÉMENTS GÉOTECHNIQUES 3D
             </h3>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               {/* Rockbolts */}
               <button
                 onClick={() => setShowRockbolts(prev => !prev)}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
                   showRockbolts
                     ? 'bg-amber-500/5 border-amber-500/20 text-slate-900'
                     : 'bg-slate-50/50 border-slate-200 text-slate-400'
@@ -1895,15 +1956,15 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
               >
                 <HardHat className={`w-3.5 h-3.5 ${showRockbolts ? 'text-amber-500' : 'text-slate-400'}`} />
                 <div className="mt-1">
-                  <span className="text-[8.5px] font-black uppercase tracking-wider block leading-none">Boulonnage</span>
-                  <span className="text-[7.5px] font-medium text-slate-500 block leading-tight mt-0.5">Split Sets</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider block leading-none">Boulon</span>
+                  <span className="text-[7px] font-medium text-slate-500 block leading-tight mt-0.5">Split Sets</span>
                 </div>
               </button>
 
               {/* Arches */}
               <button
                 onClick={() => setShowArches(prev => !prev)}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
                   showArches
                     ? 'bg-amber-500/5 border-amber-500/20 text-slate-900'
                     : 'bg-slate-50/50 border-slate-200 text-slate-400'
@@ -1911,15 +1972,15 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
               >
                 <Grid className={`w-3.5 h-3.5 ${showArches ? 'text-amber-500' : 'text-slate-400'}`} />
                 <div className="mt-1">
-                  <span className="text-[8.5px] font-black uppercase tracking-wider block leading-none">Soutènement</span>
-                  <span className="text-[7.5px] font-medium text-slate-500 block leading-tight mt-0.5">Arceaux</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider block leading-none">Soutien</span>
+                  <span className="text-[7px] font-medium text-slate-500 block leading-tight mt-0.5">Arceaux</span>
                 </div>
               </button>
 
               {/* Guidelasers */}
               <button
                 onClick={() => setShowLasers(prev => !prev)}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
                   showLasers
                     ? 'bg-amber-500/5 border-amber-500/20 text-slate-900'
                     : 'bg-slate-50/50 border-slate-200 text-slate-400'
@@ -1927,8 +1988,24 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
               >
                 <Zap className={`w-3.5 h-3.5 ${showLasers ? 'text-amber-500' : 'text-slate-400'}`} />
                 <div className="mt-1">
-                  <span className="text-[8.5px] font-black uppercase tracking-wider block leading-none">Lasers</span>
-                  <span className="text-[7.5px] font-medium text-slate-500 block leading-tight mt-0.5">Ciblage</span>
+                  <span className="text-[8px] font-black uppercase tracking-wider block leading-none">Lasers</span>
+                  <span className="text-[7px] font-medium text-slate-500 block leading-tight mt-0.5">Ciblage</span>
+                </div>
+              </button>
+
+              {/* Foreur Montabert T23 */}
+              <button
+                onClick={() => setShowDrillMachine(prev => !prev)}
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-18 ${
+                  showDrillMachine
+                    ? 'bg-amber-500/5 border-amber-500/20 text-slate-900'
+                    : 'bg-slate-50/50 border-slate-200 text-slate-400'
+                }`}
+              >
+                <User className={`w-3.5 h-3.5 ${showDrillMachine ? 'text-amber-500' : 'text-slate-400'}`} />
+                <div className="mt-1">
+                  <span className="text-[8px] font-black uppercase tracking-wider block leading-none">Foreur</span>
+                  <span className="text-[7px] font-medium text-slate-500 block leading-tight mt-0.5">Montabert</span>
                 </div>
               </button>
             </div>

@@ -881,7 +881,7 @@ export const Tutoriel: React.FC = () => {
                             { val: 'eco', label: 'Économiser la dynamite et réduire le budget d\'explosifs' },
                             { val: 'expansion', label: 'Offrir un vide d\'expansion pour que la roche se décomprime et se brise' },
                             { val: 'vent', label: 'Améliorer le flux de ventilation et dissiper les gaz toxiques' },
-                            { val: 'topo', label: 'Repères topographiques indispensables pour guider le laser du Jumbo' }
+                            { val: 'topo', label: 'Repères topographiques indispensables pour guider le laser de ciblage' }
                           ].map(item => (
                             <label 
                               key={item.val}
@@ -1617,7 +1617,7 @@ export const Tutoriel: React.FC = () => {
                         <div className="space-y-3.5 pt-2">
                           {/* Alignement */}
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                            <span className="text-[10.5px] font-bold text-slate-700">1. Alignement et parallélisme du Jumbo :</span>
+                            <span className="text-[10.5px] font-bold text-slate-700">1. Alignement et parallélisme du perforateur Montabert T23 :</span>
                             <div className="flex gap-2">
                               {['CONFORME', 'NON CONFORME'].map(val => (
                                 <button
@@ -1754,7 +1754,7 @@ export const Tutoriel: React.FC = () => {
                       </p>
                       <div className="space-y-2">
                         {[
-                          { val: 'chef', label: 'Le chef d\'équipe lui-même depuis sa cabine de Jumbo au fond de la galerie' },
+                          { val: 'chef', label: 'Le chef d\'équipe lui-même sur place au fond de la galerie avec son perforateur Montabert T23' },
                           { val: 'sec', label: 'Le secrétaire de chantier (vous-même) sur la base des déclarations verbales du chef' },
                           { val: 'dir', label: 'Le directeur général de la SMI lors de la commission d\'analyse hebdomadaire' }
                         ].map(item => (
@@ -2113,7 +2113,7 @@ export const Tutoriel: React.FC = () => {
                                   >
                                     <option value="">-- Sélectionner la cause --</option>
                                     <option value="Bourrage insuffisant">💥 Bourrage d'argile insuffisant (Coup soufflé)</option>
-                                    <option value="Taillant cassé">🔧 Taillant de Jumbo cassé</option>
+                                    <option value="Taillant cassé">🔧 Taillant de perforateur Montabert T23 cassé</option>
                                     <option value="Retard de déblayage">⏰ Retard de marinage/déblayage</option>
                                   </select>
                                 </div>

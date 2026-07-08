@@ -244,7 +244,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                     <h4 className="text-xs font-black uppercase text-slate-900">Atelier Parallélisme & Calibrage</h4>
                   </div>
                   <p className="text-[11px] font-semibold text-slate-600 leading-relaxed">
-                    Le mineur foreur doit utiliser les règles d'alignement télescopiques du jumbo ou du marteau à expansion. Les {is9m2 ? 28 : 38} trous doivent être parfaitement parallèles les uns aux autres. Une déviation d'angle supérieure à 5% augmente la ligne de moindre résistance (W) en fond de trou, empêchant le cisaillement de se produire, ce qui laisse des culots de plus de 40 cm.
+                    Le mineur foreur doit veiller à l'alignement et au parallélisme parfait de son perforateur pneumatique Montabert T23 avec son poussoir. Les {is9m2 ? 28 : 38} trous doivent être parfaitement parallèles les uns aux autres. Une déviation d'angle supérieure à 5% augmente la ligne de moindre résistance (W) en fond de trou, empêchant le cisaillement de se produire, ce qui laisse des culots de plus de 40 cm.
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl">
