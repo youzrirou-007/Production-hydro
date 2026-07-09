@@ -4,7 +4,19 @@ import { getFirestore, doc, getDocFromServer, enableIndexedDbPersistence } from 
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
+
+// Determine if we are running in the AI Studio development sandbox or local preview
+const isDevelopmentSandbox = typeof window !== 'undefined' && (
+  window.location.hostname.includes('run.app') || 
+  window.location.hostname.includes('localhost') || 
+  window.location.hostname.includes('127.0.0.1')
+);
+
+// If in AI Studio, we use the custom database ID configured for the sandbox.
+// In production (e.g., HMproduction.web.app), we connect to your main "(default)" Firestore database.
+const databaseId = isDevelopmentSandbox ? firebaseConfig.firestoreDatabaseId : undefined;
+
+export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
 export const auth = getAuth(app);
 
 // Enable Firestore offline persistence for subterranean operations (SMI Imiter isolated network)
