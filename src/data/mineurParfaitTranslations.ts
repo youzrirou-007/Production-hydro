@@ -426,7 +426,7 @@ export const t: Record<'fr' | 'ar', Translation> = {
  btnEnLargePurge: "تكبير الصورة",
  btnEnLargeForage: "تكبير الصورة",
  btnEnLargeSoufflage: "تكبير الصورة",
- pressureSpecs: "⚠️ الضغوط المقررة: الهواء 7-9 بار (Bar) | الماء 4-6 بار (Bar)",
+ pressureSpecs: "⚠️ الضغوط المقررة: الهواء 7-9 بار (bar) | الماء 4-6 بار (bar)",
  earSpecsTitle: "🎧 معدات حماية السمع (Protection auditive)",
  earSpecsDesc: "واقيات الأذن أو السماعات المضادة للضوضاء (Casque antibruit) إلزامية قبل بدء تشغيل آلة الحفر (Perforatrice). مستوى ضجيج الحفر: 100 ديسيبل إلى 110 ديسيبل (dB). التعرض بدون حماية يؤدي إلى فقدان السمع بشكل دائم وغير قابل للاسترداد.",
  gallerySection: "مقطع النفق (Section de la galerie) — مخطط التفجير (Plan de tir):",
@@ -532,7 +532,7 @@ export const t: Record<'fr' | 'ar', Translation> = {
  step1Title: "إن ما تتلقاه من الوردية السابقة يحدد مدى كفاءتك وسلامتك طوال اليوم.",
  step1Grid: [
  { title: "📍 تقدم العمل في الورشة (Avancement du chantier)", text: "الأمتار المنجزة في الوردية السابقة. الموقع الحالي لجبهة العمل (Front de taille)." },
- { title: "💥 حالة التفجير الأخير (Dernier tir)", text: "ثقوب فاشلة؟ ثقوب لم تنفجر؟ بقايا الثقوب (Culots) المسجلة؟" },
+ { title: "💥 حالة التفجير الأخير (Dernier tir)", text: "ثقوب فاشلة؟ ثقوب لم تنفجر؟ بقايا الثقوب (Culots) المسجّلة؟" },
  { title: "🌬️ حالة التهوية (Aérage)", text: "هل النفق مهوى؟ منذ متى؟ نسبة غاز أحادي أكسيد الكربون (CO) المتبقي؟" },
  { title: "🔧 المعدات المتاحة (Équipement)", text: "هل آلة الحفر (Perforatrice) جاهزة؟ هل الخراطيم (Flexibles) بحالة جيدة؟ المستهلكات (Consommables)؟" },
  { title: "📦 مخزون المتفجرات (Stock d'explosifs)", text: "هل الأنفور (ANFO)، والتوفيكس (TOVEX)، والمفجرات (Détonateurs) متوفرة بكميات كافية؟" },
@@ -572,7 +572,7 @@ export const t: Record<'fr' | 'ar', Translation> = {
  "مسافة العمل الآمنة: 15 متراً كحد أدنى من الجبهة (Front)"
  ],
  step4AlertSafety: "الكتلة الصخرية التي لم تتم إزالتها قد تسقط أثناء الحفر (Forage) أو التعبئة (Chargement). كتلة واحدة تكفي لإحداث كارثة. لا تستهن أبداً بعملية التطهير (Purge) ولا تختصرها.",
- step5Title: "قبل تشغيل آلة الحفر (Perforatrice)، يتم فحص كل جزء بدقة. إن انفجار خرطوم (Flexible) تحت ضغط 10 bar (Bar) يتحول إلى سوطٍ قاتلٍ داخل النفق.",
+ step5Title: "قبل تشغيل آلة الحفر (Perforatrice)، يتم فحص كل جزء بدقة. إن انفجار خرطوم (Flexible) تحت ضغط 10 bar (bar) يتحول إلى سوطٍ قاتلٍ داخل النفق.",
  step5ChecklistTitle: "🔩 قائمة فحص آلة الحفر مونتابير (Montabert T23)",
  step5Checklist: [
  "لقمة الحفر ذات الأزرار (Taillant à boutons) 38 مم: مثبتة بإحكام وغير متآكلة",
@@ -588,7 +588,7 @@ export const t: Record<'fr' | 'ar', Translation> = {
  "المثبتات والمرابط (Colliers et raccords) مشدودة جيداً من الطرفين",
  "خرطوم مياه الحفر (Flexible d'eau) (2 بوصة): تم التحقق من حالته"
  ],
- step5SafetyAlert: "إن خرطوم الهواء (Flexible d'air) الخاضع لضغط 10 bar (Bar) إذا انفصل أو انفجر يتحول إلى سوط عنيف ومميت. يجب تأمين كل وصلة تماماً قبل تشغيل الضغط.",
+ step5SafetyAlert: "إن خرطوم الهواء (Flexible d'air) الخاضع لضغط 10 bar (bar) إذا انفصل أو انفجر يتحول إلى سوط عنيف ومميت. يجب تأمين كل وصلة تماماً قبل تشغيل الضغط.",
  step5NoiseTitle: "🎧 معدات حماية السمع (Protection auditive)",
  step5NoiseDesc: "واقي الأذن أو خوذة الحماية من الضوضاء (Casque antibruit) إلزامي قبل بدء تشغيل آلة الحفر (Perforatrice). مستوى ضجيج الحفر: 100 ديسيبل إلى 110 ديسيبل (dB). التعرض بدون حماية يؤدي إلى فقدان السمع بشكل دائم.",
  step7Title: "قبل تعبئة المتفجرات (Explosifs)، يتم تنظيف كل ثقب بالنفخ (Soufflage) وفحصه بدقة. أي ثقب مسدود أو غير عميق بما يكفي = احتباس خرطوشة التوفيكس (TOVEX) = فشل التفجير (Raté de tir).",
