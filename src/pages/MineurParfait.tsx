@@ -246,14 +246,10 @@ export const MineurParfait: React.FC = () => {
     const stepConfig = t[lang].stepHeaders.find(s => s.num === num)!;
     const isOpen = expandedStep === num;
     const catStyles = {
-      FORAGE: 'bg-blue-50 text-blue-700 border border-blue-200',
-      EXPLOSIFS: 'bg-rose-50 text-rose-700 border border-rose-200',
-      TECHNIQUE: 'bg-slate-100 text-slate-700 border border-slate-200',
-      SÉCURITÉ: 'bg-amber-50 text-amber-800 border border-amber-200',
-      'حفر': 'bg-blue-50 text-blue-700 border border-blue-200',
-      'متفجرات': 'bg-rose-50 text-rose-700 border border-rose-200',
-      'فني': 'bg-slate-100 text-slate-700 border border-slate-200',
-      'سلامة': 'bg-amber-50 text-amber-800 border border-amber-200',
+      [t[lang].catForage]: 'bg-blue-50 text-blue-700 border border-blue-200',
+      [t[lang].catExplosifs]: 'bg-rose-50 text-rose-700 border border-rose-200',
+      [t[lang].catTechnique]: 'bg-slate-100 text-slate-700 border border-slate-200',
+      [t[lang].catSecurite]: 'bg-amber-50 text-amber-800 border border-amber-200',
     };
 
     const catLabel = stepConfig.cat;
@@ -382,7 +378,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 1 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 1 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(1, '📋', 'PRISE DE POSTE & CONSIGNES TECHNIQUES', 'TECHNIQUE')}
+            {renderStepHeader(1, '📋', t[lang].step1ShortTitle, t[lang].catTechnique)}
             <AnimatePresence initial={false}>
               {expandedStep === 1 && (
                 <motion.div 
@@ -410,7 +406,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 2 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 2 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(2, '🌬', 'VÉRIFICATION DE L\'AÉRAGE', 'TECHNIQUE')}
+            {renderStepHeader(2, '🌬', t[lang].step2ShortTitle, t[lang].catTechnique)}
             <AnimatePresence initial={false}>
               {expandedStep === 2 && (
                 <motion.div 
@@ -438,7 +434,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 3 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 3 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(3, '💧', 'ARROSAGE DU CHANTIER', 'TECHNIQUE')}
+            {renderStepHeader(3, '💧', t[lang].step3ShortTitle, t[lang].catTechnique)}
             <AnimatePresence initial={false}>
               {expandedStep === 3 && (
                 <motion.div 
@@ -467,7 +463,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 4 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 4 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(4, '⛏️', 'PURGE DU CHANTIER', 'SÉCURITÉ')}
+            {renderStepHeader(4, '⛏️', t[lang].step4ShortTitle, t[lang].catSecurite)}
             <AnimatePresence initial={false}>
               {expandedStep === 4 && (
                 <motion.div 
@@ -540,7 +536,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 5 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 5 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(5, '🔧', 'VÉRIFICATION MATÉRIEL FORAGE', 'TECHNIQUE')}
+            {renderStepHeader(5, '🔧', t[lang].step5ShortTitle, t[lang].catTechnique)}
             <AnimatePresence initial={false}>
               {expandedStep === 5 && (
                 <motion.div 
@@ -625,7 +621,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 6 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 6 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(6, '🔩', 'FORAGE — ATTEINDRE 100% DU MÉTRAGE', 'FORAGE')}
+            {renderStepHeader(6, '🔩', t[lang].step6ShortTitle, t[lang].catForage)}
             <AnimatePresence initial={false}>
               {expandedStep === 6 && (
                 <motion.div 
@@ -898,7 +894,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 7 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 7 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(7, '🔍', 'VÉRIFICATION & NETTOYAGE DES TROUS', 'TECHNIQUE')}
+            {renderStepHeader(7, '🔍', t[lang].step7ShortTitle, t[lang].catTechnique)}
             <AnimatePresence initial={false}>
               {expandedStep === 7 && (
                 <motion.div 
@@ -973,7 +969,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 8 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 8 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(8, '💥', 'CHARGEMENT EXPLOSIFS', 'EXPLOSIFS')}
+            {renderStepHeader(8, '💥', t[lang].step8ShortTitle, t[lang].catExplosifs)}
             <AnimatePresence initial={false}>
               {expandedStep === 8 && (
                 <motion.div 
@@ -1117,7 +1113,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 9 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 9 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(9, '🔌', 'PRÉ-TIR & MISE À FEU', 'TECHNIQUE')}
+            {renderStepHeader(9, '🔌', t[lang].step9ShortTitle, t[lang].catExplosifs)}
             <AnimatePresence initial={false}>
               {expandedStep === 9 && (
                 <motion.div 
@@ -1163,7 +1159,7 @@ export const MineurParfait: React.FC = () => {
 
           {/* STEP 10 */}
           <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${expandedStep === 10 ? 'border-[#b8860b]/60 shadow-[0_4px_20px_rgba(184,134,11,0.08)]' : 'border-slate-100 hover:border-[#b8860b]/20 shadow-xs'}`}>
-            {renderStepHeader(10, '📝', 'SAISIE DU REGISTRE JOURNALIER', 'TECHNIQUE')}
+            {renderStepHeader(10, '📝', t[lang].step10ShortTitle, t[lang].catTechnique)}
             <AnimatePresence initial={false}>
               {expandedStep === 10 && (
                 <motion.div 
