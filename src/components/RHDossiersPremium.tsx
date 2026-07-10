@@ -89,11 +89,24 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
     let totalPresenceShifts = 0;
     allProductionDocs.forEach(doc => {
       let isPresent = false;
-      if (doc.minageRows && Array.isArray(doc.minageRows)) {
-        if (doc.minageRows.some((r: any) => r.minerMatricule === mat || r.assistantMatricule === mat)) isPresent = true;
-      }
-      if (doc.deblayageRows && Array.isArray(doc.deblayageRows)) {
-        if (doc.deblayageRows.some((r: any) => r.driverMatricule === mat)) isPresent = true;
+      if (doc.postes) {
+        ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+          const p = doc.postes[pKey];
+          if (p) {
+            if (Array.isArray(p.minage) && p.minage.some((r: any) => {
+              const reel = r.reel || r || {};
+              return reel.minerMatricule === mat || reel.assistantMatricule === mat;
+            })) {
+              isPresent = true;
+            }
+            if (Array.isArray(p.deblayage) && p.deblayage.some((r: any) => {
+              const reel = r.reel || r || {};
+              return reel.driverMatricule === mat;
+            })) {
+              isPresent = true;
+            }
+          }
+        });
       }
       if (isPresent) totalPresenceShifts++;
     });

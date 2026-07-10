@@ -112,49 +112,66 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
     });
 
     targetDocs.forEach(doc => {
-      // Minage rows
-      if (doc.minageRows && Array.isArray(doc.minageRows)) {
-        doc.minageRows.forEach((r: any) => {
-          totalRealMet += Number(r.realMeterage || 0);
-          presenceReal++;
-        });
-      }
-      // Deblayage rows
-      if (doc.deblayageRows && Array.isArray(doc.deblayageRows)) {
-        doc.deblayageRows.forEach((r: any) => {
-          totalRealVol += Number(r.volumeEstimated || 0);
-          totalLhdGasoil += Number(r.gasoil || 0);
-        });
-      }
-      // Extraction rows
-      if (doc.extractionRows && Array.isArray(doc.extractionRows)) {
-        doc.extractionRows.forEach((r: any) => {
-          totalRealWag += Number(r.realWagons || 0);
-        });
-      }
-      // Maintenance rows
-      if (doc.maintenanceRows && Array.isArray(doc.maintenanceRows)) {
-        doc.maintenanceRows.forEach((r: any) => {
-          totalMaintHours += Number(r.hoursSpent || 0);
+      if (doc.postes) {
+        ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+          const p = doc.postes[pKey];
+          if (p) {
+            if (Array.isArray(p.minage)) {
+              p.minage.forEach((r: any) => {
+                const reel = r.reel || r || {};
+                totalRealMet += Number(reel.realMeterage || 0);
+                presenceReal++;
+              });
+            }
+            if (Array.isArray(p.deblayage)) {
+              p.deblayage.forEach((r: any) => {
+                const reel = r.reel || r || {};
+                totalRealVol += Number(reel.volumeEstimated || 0);
+                totalLhdGasoil += Number(reel.gasoil || 0);
+              });
+            }
+            if (Array.isArray(p.extraction)) {
+              p.extraction.forEach((r: any) => {
+                const reel = r.reel || r || {};
+                totalRealWag += Number(reel.realWagons || 0);
+              });
+            }
+            if (Array.isArray(p.maintenance)) {
+              p.maintenance.forEach((r: any) => {
+                const reel = r.reel || r || {};
+                totalMaintHours += Number(reel.hoursSpent || 0);
+              });
+            }
+          }
         });
       }
     });
 
     targetPlannings.forEach(sheet => {
-      if (sheet.minageRows && Array.isArray(sheet.minageRows)) {
-        sheet.minageRows.forEach((r: any) => {
-          totalPlanMet += Number(r.plannedRounds || 0) * 1.7; // Approx target meters
-          presencePlan++;
-        });
-      }
-      if (sheet.deblayageRows && Array.isArray(sheet.deblayageRows)) {
-        sheet.deblayageRows.forEach((r: any) => {
-          totalPlanVol += Number(r.volumeEstimated || 0);
-        });
-      }
-      if (sheet.extractionRows && Array.isArray(sheet.extractionRows)) {
-        sheet.extractionRows.forEach((r: any) => {
-          totalPlanWag += Number(r.plannedWagons || 0);
+      if (sheet.postes) {
+        ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+          const p = sheet.postes[pKey];
+          if (p) {
+            if (Array.isArray(p.minage)) {
+              p.minage.forEach((r: any) => {
+                const plan = r.plan || r || {};
+                totalPlanMet += Number(plan.plannedRounds || 0) * 1.7; // Approx target meters
+                presencePlan++;
+              });
+            }
+            if (Array.isArray(p.deblayage)) {
+              p.deblayage.forEach((r: any) => {
+                const plan = r.plan || r || {};
+                totalPlanVol += Number(plan.volumeEstimated || 0);
+              });
+            }
+            if (Array.isArray(p.extraction)) {
+              p.extraction.forEach((r: any) => {
+                const plan = r.plan || r || {};
+                totalPlanWag += Number(plan.plannedWagons || 0);
+              });
+            }
+          }
         });
       }
     });
@@ -274,12 +291,18 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
       const historyMeters: { [date: string]: number } = {};
 
       allProductionDocs.forEach(doc => {
-        if (doc.minageRows && Array.isArray(doc.minageRows)) {
-          doc.minageRows.forEach((r: any) => {
-            if (r.chantierId === c.id) {
-              const meters = Number(r.realMeterage || 0);
-              const dateStr = doc.id;
-              historyMeters[dateStr] = (historyMeters[dateStr] || 0) + meters;
+        if (doc.postes) {
+          ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+            const p = doc.postes[pKey];
+            if (p && Array.isArray(p.minage)) {
+              p.minage.forEach((r: any) => {
+                const reel = r.reel || r || {};
+                if (reel.chantierId === c.id) {
+                  const meters = Number(reel.realMeterage || 0);
+                  const dateStr = doc.id;
+                  historyMeters[dateStr] = (historyMeters[dateStr] || 0) + meters;
+                }
+              });
             }
           });
         }
@@ -357,14 +380,30 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
         const mStr = doc.id.substring(0, 7); // yyyy-MM
         monthsSet.add(mStr);
 
-        if (doc.minageRows && Array.isArray(doc.minageRows)) {
-          doc.minageRows.forEach((r: any) => totalMet += Number(r.realMeterage || 0));
-        }
-        if (doc.deblayageRows && Array.isArray(doc.deblayageRows)) {
-          doc.deblayageRows.forEach((r: any) => totalVol += Number(r.volumeEstimated || 0));
-        }
-        if (doc.extractionRows && Array.isArray(doc.extractionRows)) {
-          doc.extractionRows.forEach((r: any) => totalWag += Number(r.realWagons || 0));
+        if (doc.postes) {
+          ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+            const p = doc.postes[pKey];
+            if (p) {
+              if (Array.isArray(p.minage)) {
+                p.minage.forEach((r: any) => {
+                  const reel = r.reel || r || {};
+                  totalMet += Number(reel.realMeterage || 0);
+                });
+              }
+              if (Array.isArray(p.deblayage)) {
+                p.deblayage.forEach((r: any) => {
+                  const reel = r.reel || r || {};
+                  totalVol += Number(reel.volumeEstimated || 0);
+                });
+              }
+              if (Array.isArray(p.extraction)) {
+                p.extraction.forEach((r: any) => {
+                  const reel = r.reel || r || {};
+                  totalWag += Number(reel.realWagons || 0);
+                });
+              }
+            }
+          });
         }
       });
 

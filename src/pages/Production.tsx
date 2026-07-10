@@ -55,8 +55,8 @@ const DEFAULT_EMPLOYEES = [
   { id: 'e1', matricule: 'M001', nom: 'El Idrissi', prenom: 'Ahmed', fonction: 'CHEF', status: 'actif' },
   { id: 'e2', matricule: 'M002', nom: 'Ait Oufkir', prenom: 'Mustapha', fonction: 'MINEUR', status: 'actif' },
   { id: 'e3', matricule: 'M003', nom: 'Haddad', prenom: 'Youssef', fonction: 'MINEUR', status: 'actif' },
-  { id: 'e4', matricule: 'M004', nom: 'Amrani', prenom: 'Rachid', fonction: 'CONDUCTEUR', status: 'actif' },
-  { id: 'e5', matricule: 'M005', nom: 'Kassimi', prenom: 'Hassan', fonction: 'ÉLECTRICIEN', status: 'actif' },
+  { id: 'e4', matricule: 'M004', nom: 'Amrani', prenom: 'Rachid', fonction: 'CONDUCTEUR_ENGIN', status: 'actif' },
+  { id: 'e5', matricule: 'M005', nom: 'Kassimi', prenom: 'Hassan', fonction: 'ELECTRICIEN', status: 'actif' },
   { id: 'e6', matricule: 'M006', nom: 'Naji', prenom: 'Khalid', fonction: 'CHAUDRONNIER', status: 'actif' },
 ];
 

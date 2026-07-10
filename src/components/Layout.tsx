@@ -436,7 +436,7 @@ export const Layout: React.FC<{
           width: isOpen ? 260 : 72,
           borderRightWidth: 1
         }}
-        className="bg-white border-[#141414]/10 flex flex-col z-50 overflow-hidden relative shadow-2xl"
+        className="bg-white border-[#141414]/10 flex flex-col z-50 overflow-hidden relative shadow-[4px_0_30px_rgba(255,255,255,1)]"
       >
         <div className={cn(
           "border-b border-[#141414]/10 flex items-center justify-between gap-2.5",

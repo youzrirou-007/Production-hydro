@@ -20,7 +20,6 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
   const [drillDepth, setDrillDepth] = useState<number>(defaultDepth);
 
   const [divergenceAngle, setDivergenceAngle] = useState<number>(0);
-  const [rodLength, setRodLength] = useState<'1.8' | '2.4'>('1.8');
 
   // When gabarit changes, we should also handle state sync or update
   React.useEffect(() => {
@@ -80,7 +79,7 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
 
   const chart = getChartData();
 
-  const drilledLength = rodLength === '1.8' ? 1.7 : 2.3;
+  const drilledLength = rodType === '1.8' ? 1.7 : 2.3;
   const lossPerHole = parseFloat(
     (drilledLength * Math.tan((divergenceAngle * Math.PI) / 180)).toFixed(3)
   );
@@ -474,9 +473,9 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
             <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
               <button
                 type="button"
-                onClick={() => setRodLength('1.8')}
+                onClick={() => handleRodChange('1.8')}
                 className={`py-2 rounded-lg text-xs font-black uppercase transition-all ${
-                  rodLength === '1.8'
+                  rodType === '1.8'
                     ? 'bg-slate-900 text-white shadow'
                     : 'text-slate-600 hover:bg-slate-200'
                 }`}
@@ -485,9 +484,9 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
               </button>
               <button
                 type="button"
-                onClick={() => setRodLength('2.4')}
+                onClick={() => handleRodChange('2.4')}
                 className={`py-2 rounded-lg text-xs font-black uppercase transition-all ${
-                  rodLength === '2.4'
+                  rodType === '2.4'
                     ? 'bg-slate-900 text-white shadow'
                     : 'text-slate-600 hover:bg-slate-200'
                 }`}

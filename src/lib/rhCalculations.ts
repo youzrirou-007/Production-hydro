@@ -50,7 +50,7 @@ export function calculateMinerStats(matricule: string, productionDocs: any[]): M
     ['poste1', 'poste2', 'poste3'].forEach(pKey => {
       (pDoc.postes?.[pKey]?.minage || []).forEach((row: any) => {
         const r = row.reel || row;
-        if (r.agentMatricule?.toUpperCase() === matricule.toUpperCase()) {
+        if (r.minerMatricule?.toUpperCase() === matricule.toUpperCase()) {
           totalMeters += Number(r.realMeterage || 0);
           totalRounds += Number(r.realRounds || 0);
           totalAnfo += Number(r.anfo || 0);
@@ -88,7 +88,7 @@ export function calculateDriverStats(matricule: string, productionDocs: any[]): 
     ['poste1', 'poste2', 'poste3'].forEach(pKey => {
       (pDoc.postes?.[pKey]?.deblayage || []).forEach((row: any) => {
         const r = row.reel || row;
-        if (r.operatorMatricule?.toUpperCase() === matricule.toUpperCase()) {
+        if (r.driverMatricule?.toUpperCase() === matricule.toUpperCase()) {
           totalVolume += Number(r.volumeEstimated || 0);
           totalGodets += Number(r.godets || 0);
           totalGasoil += Number(r.gasoil || 0);
@@ -118,34 +118,45 @@ export function calculateChiefStats(matricule: string, productionDocs: any[], pl
   let totalMetersUnderManagement = 0;
   let totalVolumeUnderManagement = 0;
 
-  // We look through planning and production to identify shift sheets led by this chief
   productionDocs.forEach(pDoc => {
-    const prevDate = pDoc.id; // Or standard shift date
-    const sDoc = planningSheets.find(s => s.id === prevDate);
-
     ['poste1', 'poste2', 'poste3'].forEach(pKey => {
       const realPost = pDoc.postes?.[pKey] || {};
-      const planPost = sDoc?.postes?.[pKey] || {};
 
-      // Match chief on Minage or Deblayage or Extraction rows
-      let ledByThisChief = false;
+      // Match chief on post level (chiefMatricule or secondChiefMatricule)
+      const isPostChief = realPost.chiefMatricule?.toUpperCase() === matricule.toUpperCase() ||
+                          realPost.secondChiefMatricule?.toUpperCase() === matricule.toUpperCase();
 
-      (realPost.minage || []).forEach((r: any) => {
-        if (r.reel?.chefEquipeMatricule?.toUpperCase() === matricule.toUpperCase()) {
-          ledByThisChief = true;
-          totalMetersUnderManagement += Number(r.reel?.realMeterage || r.realMeterage || 0);
-        }
-      });
+      // Or match on sector chiefs
+      const ledSectors = new Set<string>();
+      if (realPost.sectorChefs) {
+        Object.entries(realPost.sectorChefs).forEach(([secName, secChef]: [string, any]) => {
+          if (secChef?.chiefMatricule?.toUpperCase() === matricule.toUpperCase() ||
+              secChef?.secondChiefMatricule?.toUpperCase() === matricule.toUpperCase()) {
+            ledSectors.add(secName.toUpperCase());
+          }
+        });
+      }
 
-      (realPost.deblayage || []).forEach((r: any) => {
-        if (r.reel?.chefEquipeMatricule?.toUpperCase() === matricule.toUpperCase()) {
-          ledByThisChief = true;
-          totalVolumeUnderManagement += Number(r.reel?.volumeEstimated || r.volumeEstimated || 0);
-        }
-      });
+      const isSectorChief = ledSectors.size > 0;
 
-      if (ledByThisChief) {
+      if (isPostChief || isSectorChief) {
         shiftsLed++;
+
+        (realPost.minage || []).forEach((row: any) => {
+          const r = row.reel || row;
+          const rSector = (r.sector || '').toUpperCase();
+          if (isPostChief || ledSectors.has(rSector)) {
+            totalMetersUnderManagement += Number(r.realMeterage || 0);
+          }
+        });
+
+        (realPost.deblayage || []).forEach((row: any) => {
+          const r = row.reel || row;
+          const rSector = (r.sector || '').toUpperCase();
+          if (isPostChief || ledSectors.has(rSector)) {
+            totalVolumeUnderManagement += Number(r.volumeEstimated || 0);
+          }
+        });
       }
     });
   });
@@ -155,7 +166,7 @@ export function calculateChiefStats(matricule: string, productionDocs: any[], pl
     shiftsLed,
     totalMetersUnderManagement,
     totalVolumeUnderManagement,
-    averageGlobalScoreUnderManagement: shiftsLed > 0 ? 88.5 : 0 // standard weighted indicator proxy
+    averageGlobalScoreUnderManagement: shiftsLed > 0 ? 88.5 : 0
   };
 }
 
@@ -170,8 +181,7 @@ export function calculateAssistantMinerStats(matricule: string, productionDocs: 
     ['poste1', 'poste2', 'poste3'].forEach(pKey => {
       (pDoc.postes?.[pKey]?.minage || []).forEach((row: any) => {
         const r = row.reel || row;
-        // In mining templates, assistant miners are sometimes stored in an array or as 'aideMineurMatricule'
-        if (r.aideMineurMatricule?.toUpperCase() === matricule.toUpperCase() || r.helperMatricule?.toUpperCase() === matricule.toUpperCase()) {
+        if (r.assistantMatricule?.toUpperCase() === matricule.toUpperCase()) {
           roundsAssisted += Number(r.realRounds || 0);
           totalMetersAssisted += Number(r.realMeterage || 0);
         }

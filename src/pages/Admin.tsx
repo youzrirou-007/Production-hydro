@@ -20,10 +20,10 @@ import {
   TrendingUp,
   Tractor
 } from 'lucide-react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, getDoc, orderBy, updateDoc, setDoc, collectionGroup, deleteField } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, getDoc, getDocs, orderBy, updateDoc, setDoc, collectionGroup, deleteField } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { SMI_SEED } from '../config/siteSeed';
+import { SMI_SEED, SEED_EMPLOYEES } from '../config/siteSeed';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 interface Employee {
@@ -103,8 +103,241 @@ export const Admin: React.FC = () => {
       alert("Une erreur est survenue lors de l'initialisation.");
     }
   };
+
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedCompleteWorkforce = async () => {
+    const confirmSeed = window.confirm(
+      "⚡ IMPORTANT ! Voulez-vous vraiment initialiser l'effectif complet réglementaire de la mine ?\n\nCela écrira les 35 collaborateurs standards (Chefs, Boutefeus, Mineurs, Conducteurs d'engins, Treuillistes, Mécaniciens, Électriciens, etc.) dans votre base de données.\nLes collaborateurs déjà existants avec les mêmes matricules ne seront pas dupliqués."
+    );
+    if (!confirmSeed) return;
+
+    setSeeding(true);
+    let addedCount = 0;
+    try {
+      for (const emp of SEED_EMPLOYEES) {
+        const alreadyExists = employees.some(e => e.matricule?.toUpperCase() === emp.matricule.toUpperCase());
+        if (!alreadyExists) {
+          await addDoc(collection(db, 'personnel'), emp);
+          addedCount++;
+        }
+      }
+      alert(`🎉 Succès ! ${addedCount} nouveaux collaborateurs ont été enregistrés dans l'effectif de la mine.`);
+    } catch (err: any) {
+      console.error("Erreur d'initialisation de l'effectif:", err);
+      alert(`Une erreur s'est produite lors de la génération de l'effectif : ${err.message}`);
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const [migrationLoading, setMigrationLoading] = useState(false);
+  const [migrationLog, setMigrationLog] = useState<string[]>([]);
+  const [exportedJsonString, setExportedJsonString] = useState<string>('');
+  const [importJsonText, setImportJsonText] = useState<string>('');
+  const [copiedSuccess, setCopiedSuccess] = useState(false);
+
+  const COLLECTIONS_TO_MIGRATE = [
+    'personnel',
+    'chantiers',
+    'settings',
+    'platform_settings',
+    'daily_planning_sheets',
+    'production',
+    'production_history',
+    'rotations_history',
+    'rotations_drafts',
+    'non_realisation_explanations',
+    'system_messages',
+    'attachements',
+    'sites',
+    'audit_logs',
+    'users'
+  ];
+
+  const handleExportDatabase = async () => {
+    const confirmExport = window.confirm(
+      "📥 EXPORTATION COMPLÈTE DE LA BASE DE DONNÉES S.M.I\n\n" +
+      "Cette opération va lire toutes les collections de votre base de données actuelle (personnel, chantiers, planning, rapports journaliers, paramètres, etc.) et générer un fichier JSON de sauvegarde.\n\n" +
+      "Voulez-vous lancer l'exportation ?"
+    );
+    if (!confirmExport) return;
+
+    setMigrationLoading(true);
+    setMigrationLog(["Début de l'exportation..."]);
+    setExportedJsonString('');
+    setCopiedSuccess(false);
+    
+    try {
+      const backupData: Record<string, any[]> = {};
+      
+      for (const colName of COLLECTIONS_TO_MIGRATE) {
+        setMigrationLog(prev => [...prev, `Lecture de la collection: ${colName}...`]);
+        const snap = await getDocs(collection(db, colName));
+        backupData[colName] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setMigrationLog(prev => [...prev, `✅ Collection ${colName} lue : ${snap.docs.length} documents.`]);
+      }
+
+      const backupObj = {
+        exportedAt: new Date().toISOString(),
+        sourceProject: "smi-imiter",
+        payload: backupData
+      };
+
+      const jsonString = JSON.stringify(backupObj, null, 2);
+      setExportedJsonString(jsonString);
+
+      // Attempt file download via Blob (more reliable inside iframes)
+      try {
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", url);
+        downloadAnchor.setAttribute("download", `smi_backup_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        URL.revokeObjectURL(url);
+        setMigrationLog(prev => [...prev, `🎉 Exportation réussie ! Le fichier de sauvegarde a été généré.`]);
+        alert("🎉 Exportation réussie ! Conservez bien le fichier ou copiez-collez le texte JSON ci-dessous s'il n'a pas pu se télécharger.");
+      } catch (downloadErr: any) {
+        console.warn("Téléchargement de fichier bloqué par l'iframe sandbox:", downloadErr);
+        setMigrationLog(prev => [...prev, `⚠️ Le navigateur a bloqué le téléchargement automatique (normal dans un iframe sécurisé). Veuillez utiliser le bouton de copie ci-dessous pour copier le texte JSON de sauvegarde.`]);
+      }
+    } catch (err: any) {
+      console.error("Erreur d'exportation:", err);
+      setMigrationLog(prev => [...prev, `❌ Erreur lors de l'exportation : ${err.message}`]);
+      alert(`Une erreur est survenue lors de l'exportation : ${err.message}`);
+    } finally {
+      setMigrationLoading(false);
+    }
+  };
+
+  const handleImportDatabase = async (file: File) => {
+    const confirmImport = window.confirm(
+      "📤 IMPORTATION COMPLÈTE DE LA BASE DE DONNÉES S.M.I\n\n" +
+      "⚠️ ATTENTION : Cette opération va injecter toutes les données du fichier JSON dans votre base de données Firestore ACTIVE.\n" +
+      "Les documents ayant le même identifiant seront écrasés. Cette action est irréversible.\n\n" +
+      "Voulez-vous procéder à l'importation ?"
+    );
+    if (!confirmImport) return;
+
+    setMigrationLoading(true);
+    setMigrationLog(["Lecture du fichier de sauvegarde..."]);
+
+    try {
+      const fileReader = new FileReader();
+      fileReader.onload = async (e) => {
+        try {
+          const content = e.target?.result as string;
+          const backupObj = JSON.parse(content);
+          
+          if (!backupObj.payload || typeof backupObj.payload !== 'object') {
+            throw new Error("Format de fichier de sauvegarde invalide (payload manquant).");
+          }
+
+          const payload = backupObj.payload;
+          setMigrationLog(prev => [...prev, "Fichier lu avec succès. Début de l'écriture dans Firestore..."]);
+
+          let totalImported = 0;
+
+          for (const colName of COLLECTIONS_TO_MIGRATE) {
+            const docsList = payload[colName];
+            if (Array.isArray(docsList) && docsList.length > 0) {
+              setMigrationLog(prev => [...prev, `Écriture dans la collection: ${colName} (${docsList.length} documents)...`]);
+              let successCount = 0;
+              for (const docItem of docsList) {
+                const { id, ...data } = docItem;
+                if (id) {
+                  await setDoc(doc(db, colName, id), data);
+                  successCount++;
+                  totalImported++;
+                }
+              }
+              setMigrationLog(prev => [...prev, `✅ Collection ${colName} importée : ${successCount}/${docsList.length} documents enregistrés.`]);
+            } else {
+              setMigrationLog(prev => [...prev, `Collection ${colName} vide ou inexistante dans le fichier, ignorée.`]);
+            }
+          }
+
+          setMigrationLog(prev => [...prev, `🎉 IMPORTATION ET MIGRATION TERMINÉES AVEC SUCCÈS ! ${totalImported} documents ont été synchronisés.`]);
+          alert(`🎉 Migration réussie ! ${totalImported} documents ont été écrits avec succès dans votre base de données active.`);
+        } catch (innerErr: any) {
+          console.error("Erreur de parsing de sauvegarde:", innerErr);
+          setMigrationLog(prev => [...prev, `❌ Erreur de parsing ou d'écriture : ${innerErr.message}`]);
+          alert(`Erreur d'importation : ${innerErr.message}`);
+        }
+      };
+      fileReader.readAsText(file);
+    } catch (err: any) {
+      console.error("Erreur d'importation:", err);
+      setMigrationLog(prev => [...prev, `❌ Erreur : ${err.message}`]);
+      alert(`Une erreur est survenue : ${err.message}`);
+    } finally {
+      setMigrationLoading(false);
+    }
+  };
+
+  const handleImportDatabaseFromJsonText = async (jsonString: string) => {
+    if (!jsonString.trim()) {
+      alert("⚠️ Veuillez coller un JSON de sauvegarde valide.");
+      return;
+    }
+    const confirmImport = window.confirm(
+      "📤 IMPORTATION COMPLÈTE DE LA BASE DE DONNÉES S.M.I (TEXTE COLLÉ)\n\n" +
+      "⚠️ ATTENTION : Cette opération va injecter toutes les données du texte collé dans votre base de données Firestore ACTIVE.\n" +
+      "Les documents ayant le même identifiant seront écrasés. Cette action est irréversible.\n\n" +
+      "Voulez-vous procéder à l'importation ?"
+    );
+    if (!confirmImport) return;
+
+    setMigrationLoading(true);
+    setMigrationLog(["Analyse du texte de sauvegarde..."]);
+
+    try {
+      const backupObj = JSON.parse(jsonString);
+      
+      if (!backupObj.payload || typeof backupObj.payload !== 'object') {
+        throw new Error("Format de sauvegarde invalide (payload manquant).");
+      }
+
+      const payload = backupObj.payload;
+      setMigrationLog(prev => [...prev, "Texte décodé avec succès. Début de l'écriture dans Firestore..."]);
+
+      let totalImported = 0;
+
+      for (const colName of COLLECTIONS_TO_MIGRATE) {
+        const docsList = payload[colName];
+        if (Array.isArray(docsList) && docsList.length > 0) {
+          setMigrationLog(prev => [...prev, `Écriture dans la collection: ${colName} (${docsList.length} documents)...`]);
+          let successCount = 0;
+          for (const docItem of docsList) {
+            const { id, ...data } = docItem;
+            if (id) {
+              await setDoc(doc(db, colName, id), data);
+              successCount++;
+              totalImported++;
+            }
+          }
+          setMigrationLog(prev => [...prev, `✅ Collection ${colName} importée : ${successCount}/${docsList.length} documents enregistrés.`]);
+        } else {
+          setMigrationLog(prev => [...prev, `Collection ${colName} vide ou inexistante dans le fichier, ignorée.`]);
+        }
+      }
+
+      setMigrationLog(prev => [...prev, `🎉 IMPORTATION ET MIGRATION TERMINÉES AVEC SUCCÈS ! ${totalImported} documents ont été synchronisés.`]);
+      alert(`🎉 Migration réussie ! ${totalImported} documents ont été écrits avec succès dans votre base de données active.`);
+    } catch (err: any) {
+      console.error("Erreur d'importation depuis texte:", err);
+      setMigrationLog(prev => [...prev, `❌ Erreur : ${err.message}`]);
+      alert(`Une erreur est survenue lors de l'importation : ${err.message}`);
+    } finally {
+      setMigrationLoading(false);
+    }
+  };
+
   const [loading, setLoading] = useState(false);
-  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'effectifs' | 'hierarchie' | 'parametres' | 'demandes'>('effectifs');
+  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'effectifs' | 'hierarchie' | 'parametres' | 'demandes' | 'migration'>('effectifs');
 
   const [rolePermissions, setRolePermissions] = useState<any>({
     'Super Admin': { planning: 'full', production: 'full', chantiers: 'full', rapports: 'full', settings: 'full', approve: true },
@@ -738,6 +971,16 @@ export const Admin: React.FC = () => {
                 ⚙️ Paramètres
               </button>
               <button
+                onClick={() => setActiveAdminSubTab('migration')}
+                className={`px-3 py-1.5 font-black text-[10px] uppercase tracking-wider transition-all rounded-lg cursor-pointer ${
+                  activeAdminSubTab === 'migration' 
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                🔄 Migration
+              </button>
+              <button
                 onClick={() => setActiveAdminSubTab('demandes')}
                 className={`px-3 py-1.5 font-black text-[10px] uppercase tracking-wider transition-all rounded-lg relative flex items-center gap-1.5 cursor-pointer ${
                   activeAdminSubTab === 'demandes' 
@@ -754,13 +997,22 @@ export const Admin: React.FC = () => {
               </button>
             </div>
 
-            {/* Ajouter Effectif Button styled in harmonized gold/gradient */}
-            <button 
-              onClick={() => setShowAdd(true)}
-              className="px-5 py-2.5 rounded-xl text-slate-950 font-black text-[10.5px] uppercase tracking-wider flex items-center justify-center gap-1.5 border border-[#b8860b]/30 shadow-md cursor-pointer hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] mt-auto"
-            >
-              <Plus className="w-4 h-4 text-slate-950" /> Ajouter Effectif
-            </button>
+            {/* Seed and Add buttons container */}
+            <div className="flex flex-wrap items-center gap-2 mt-auto">
+              <button 
+                onClick={handleSeedCompleteWorkforce}
+                disabled={seeding}
+                className="px-4 py-2.5 rounded-xl text-slate-700 font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 border border-slate-300 shadow-xs cursor-pointer hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                {seeding ? '⚡ Initialisation...' : '⚡ Initialiser l\'Effectif (35)'}
+              </button>
+              <button 
+                onClick={() => setShowAdd(true)}
+                className="px-5 py-2.5 rounded-xl text-slate-950 font-black text-[10.5px] uppercase tracking-wider flex items-center justify-center gap-1.5 border border-[#b8860b]/30 shadow-md cursor-pointer hover:scale-[1.02] active:scale-[0.98] bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e]"
+              >
+                <Plus className="w-4 h-4 text-slate-950" /> Ajouter Effectif
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1010,13 +1262,39 @@ export const Admin: React.FC = () => {
                       )}
                     </tr>
                   ))}
-                  {filteredEmployees.length === 0 && (
+                  {employees.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-10 text-slate-400 font-bold italic">
+                      <td colSpan={7} className="text-center py-20 px-6 bg-slate-50/40">
+                        <div className="max-w-lg mx-auto space-y-4">
+                          <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-[#b8860b]">
+                            <Briefcase className="w-6 h-6" />
+                          </div>
+                          <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                            Aucun collaborateur enregistré dans la base de données
+                          </h4>
+                          <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                            L'effectif réglementaire de la mine S.M.I Imiter n'est pas encore initialisé dans votre nouvelle base de données Firestore. Vous pouvez le générer instantanément avec l'équipe complète (35 collaborateurs, répartis par postes, spécialités et secteurs).
+                          </p>
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={handleSeedCompleteWorkforce}
+                              disabled={seeding}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl shadow-md border border-[#b8860b]/20 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform disabled:opacity-50"
+                            >
+                              {seeding ? '⚡ Génération en cours...' : '🚀 Initialiser l\'effectif réglementaire complet (35)'}
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredEmployees.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-10 text-slate-400 font-bold italic bg-slate-50/20">
                         Aucun collaborateur ne correspond à ces critères.
                       </td>
                     </tr>
-                  )}
+                  ) : null}
                 </tbody>
               </table>
             </div>
@@ -2135,7 +2413,7 @@ export const Admin: React.FC = () => {
             </div>
           </div>
         </div>
-      ) : (
+      ) : activeAdminSubTab === 'demandes' ? (
         /* DEMANDES DE MODIFICATION TAB PANEL */
         <div className="bg-white border border-slate-200 p-6 space-y-6 shadow-sm font-sans">
           <div className="border-b border-slate-150 pb-3 flex justify-between items-center">
@@ -2250,6 +2528,157 @@ export const Admin: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+      ) : (
+        /* MIGRATION TAB PANEL */
+        <div className="bg-white border border-slate-200 p-6 space-y-6 shadow-sm font-sans">
+          <div className="border-b border-slate-150 pb-3">
+            <h3 className="text-sm font-black uppercase text-[#8B0000] tracking-wide flex items-center gap-2">
+              <span>🔄</span> Sauvegarde & Migration de la Base de Données S.M.I
+            </h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+              Transférez toutes vos données existantes de l'environnement de développement (AI Studio) vers votre base de données de production en un clic.
+            </p>
+          </div>
+
+          {/* MIGRATION EXPLANATION GUIDE */}
+          <div className="bg-amber-50 border-l-4 border-amber-600 p-4 rounded-r">
+            <h4 className="text-[11px] font-black uppercase text-amber-950 tracking-wider mb-2 flex items-center gap-1.5">
+              <span>💡</span> Comment migrer vos données vers votre site de production ?
+            </h4>
+            <ol className="list-decimal list-inside text-[10.5px] text-slate-700 space-y-1 leading-relaxed font-medium">
+              <li>Ouvrez cette page de <strong className="text-amber-900">Migration</strong> sur votre espace de développement <strong className="text-amber-900">AI Studio</strong> (cette page-ci).</li>
+              <li>Cliquez sur le bouton <strong className="text-amber-900">Exporter toutes les données</strong> ci-dessous pour télécharger le fichier de sauvegarde <code>smi_backup_....json</code> sur votre ordinateur.</li>
+              <li>Ouvrez votre site de production connecté à votre nouvelle base de données (ex: <code>production-hydromines</code>).</li>
+              <li>Connectez-vous avec votre compte administrateur, allez dans l'onglet <strong>Admin → Migration</strong>.</li>
+              <li>Sélectionnez le fichier JSON téléchargé à l'étape 2 et cliquez sur <strong>Importer les données</strong>.</li>
+              <li><em>Toutes vos données (Personnel, Chantiers, Paramètres, Plannings, Rapports, etc.) seront instantanément synchronisées !</em></li>
+            </ol>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            {/* EXPORT CARD */}
+            <div className="border border-slate-200 p-5 rounded space-y-4 bg-slate-50 flex flex-col justify-between shadow-xs">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">📥</span>
+                  <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                    Étape 1 : Exporter (Sauvegarder)
+                  </h4>
+                </div>
+                <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                  Générez et téléchargez un fichier de sauvegarde au format JSON contenant l'intégralité des données présentes sur la base de données actuellement connectée (<strong>acquired-totality-n07pf</strong>).
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={handleExportDatabase}
+                  disabled={migrationLoading}
+                  className="w-full py-3 bg-[#141414] hover:bg-slate-850 text-white font-black text-[10px] uppercase tracking-wider rounded border-0 cursor-pointer disabled:opacity-50 transition-colors shadow-sm"
+                >
+                  {migrationLoading ? "⚡ Traitement en cours..." : "📥 Exporter toutes les données"}
+                </button>
+
+                {exportedJsonString && (
+                  <div className="p-3 bg-slate-900 border border-slate-800 rounded space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] text-[#ffd700] uppercase font-black font-mono">💾 Sauvegarde prête :</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(exportedJsonString);
+                          setCopiedSuccess(true);
+                          setTimeout(() => setCopiedSuccess(false), 3000);
+                        }}
+                        className="px-3 py-1 bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:scale-[1.02] transition-transform text-slate-950 font-black text-[9px] uppercase tracking-wider rounded cursor-pointer border-0"
+                      >
+                        {copiedSuccess ? "✅ Copié !" : "📋 Copier le code"}
+                      </button>
+                    </div>
+                    <textarea
+                      readOnly
+                      value={exportedJsonString}
+                      className="w-full h-32 bg-slate-950 border border-slate-850 p-2 font-mono text-[9px] text-[#ffd700] rounded focus:outline-none resize-y"
+                      onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                    />
+                    <p className="text-[9px] text-slate-400 font-medium leading-normal italic">
+                      Astuce : Si le téléchargement direct du fichier de sauvegarde a été bloqué par votre navigateur dans l'iframe d'AI Studio, cliquez sur le bouton "Copier le code" ci-dessus pour copier la sauvegarde complète dans votre presse-papiers.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* IMPORT CARD */}
+            <div className="border border-slate-200 p-5 rounded space-y-4 bg-slate-50 flex flex-col justify-between shadow-xs">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">📤</span>
+                  <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                    Étape 2 : Importer (Restaurer)
+                  </h4>
+                </div>
+                <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                  Sélectionnez un fichier ou collez le texte de sauvegarde précédemment copié de l'étape 1 pour synchroniser vos données dans la base active connectée.
+                </p>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-600 tracking-wider block">
+                    Option A : Importer un fichier .json
+                  </label>
+                  <input
+                    type="file"
+                    accept=".json"
+                    disabled={migrationLoading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleImportDatabase(file);
+                      }
+                    }}
+                    className="w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border file:border-slate-300 file:text-[10px] file:font-black file:uppercase file:bg-white file:text-slate-800 hover:file:bg-slate-50 cursor-pointer"
+                  />
+                </div>
+
+                <div className="border-t border-slate-200 pt-3 space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-600 tracking-wider block">
+                    Option B : Coller le texte JSON directement
+                  </label>
+                  <textarea
+                    placeholder="Collez ici le texte JSON complet copié de l'étape 1..."
+                    value={importJsonText}
+                    onChange={(e) => setImportJsonText(e.target.value)}
+                    disabled={migrationLoading}
+                    className="w-full h-32 bg-white border border-slate-300 p-2 font-mono text-[9px] text-slate-700 rounded focus:ring-1 focus:ring-amber-500 focus:outline-none resize-y"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleImportDatabaseFromJsonText(importJsonText)}
+                    disabled={migrationLoading || !importJsonText.trim()}
+                    className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-black text-[9px] uppercase tracking-wider rounded border-0 cursor-pointer disabled:opacity-50 transition-colors shadow-sm"
+                  >
+                    ⚡ Importer depuis le texte collé
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* LOG CONSOLE */}
+          {migrationLog.length > 0 && (
+            <div className="bg-slate-950 border border-slate-800 rounded p-4 font-mono text-[9px] text-slate-300 space-y-1.5 max-h-[220px] overflow-y-auto shadow-inner">
+              <p className="text-[#ffd700] border-b border-slate-800 pb-1 mb-1 font-black uppercase tracking-wider">Console de Migration S.M.I :</p>
+              {migrationLog.map((log, idx) => (
+                <p key={idx} className={log.startsWith('❌') ? 'text-red-400' : log.startsWith('✅') ? 'text-emerald-400' : 'text-slate-300'}>
+                  {log}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
