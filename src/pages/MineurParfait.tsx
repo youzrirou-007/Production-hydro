@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { t } from '../data/mineurParfaitTranslations';
 import { IllustrationPurge, IllustrationForage, IllustrationSoufflage, IllustrationPortanole } from '../components/Illustrations';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -199,6 +200,7 @@ const Alert: React.FC<AlertProps> = ({ type, text }) => {
 };
 
 export const MineurParfait: React.FC = () => {
+  const [lang, setLang] = useState<'fr' | 'ar'>('fr');
   const [gabarit, setGabarit] = useState<'12m2' | '12m2_intl' | '9m2'>('12m2');
   const [expandedStep, setExpandedStep] = useState<number | null>(1);
   const [divergenceAngle, setDivergenceAngle] = useState<number>(0);
@@ -212,18 +214,18 @@ export const MineurParfait: React.FC = () => {
 
   const getVerdictDetails = () => {
     if (divergenceAngle === 0) {
-      return { text: 'PARFAIT — 170cm arrachés / 170cm', color: 'text-emerald-600' };
+      return { text: t[lang].verdictPerfect, color: 'text-emerald-600' };
     }
     if (divergenceAngle <= 1) {
-      return { text: `EXCELLENT — ${effectiveCm}cm`, color: 'text-emerald-600' };
+      return { text: `${t[lang].verdictExcellent}${effectiveCm}cm`, color: 'text-emerald-600' };
     }
     if (divergenceAngle <= 2) {
-      return { text: `ACCEPTABLE — ${effectiveCm}cm`, color: 'text-amber-600' };
+      return { text: `${t[lang].verdictAcceptable}${effectiveCm}cm`, color: 'text-amber-600' };
     }
     if (divergenceAngle <= 3) {
-      return { text: `ATTENTION — ${effectiveCm}cm`, color: 'text-orange-600' };
+      return { text: `${t[lang].verdictAttention}${effectiveCm}cm`, color: 'text-orange-600' };
     }
-    return { text: `CRITIQUE — ${effectiveCm}cm — REFORER`, color: 'text-rose-600' };
+    return { text: `${t[lang].verdictCritique}${effectiveCm}cm${t[lang].verdictReformer}`, color: 'text-rose-600' };
   };
 
   const verdict = getVerdictDetails();
@@ -240,14 +242,22 @@ export const MineurParfait: React.FC = () => {
     setExpandedStep(expandedStep === stepNumber ? null : stepNumber);
   };
 
-  const renderStepHeader = (num: number, icon: string, title: string, cat: 'FORAGE' | 'EXPLOSIFS' | 'TECHNIQUE' | 'SÉCURITÉ') => {
+  const renderStepHeader = (num: number, _icon: string, _title: string, _cat: 'FORAGE' | 'EXPLOSIFS' | 'TECHNIQUE' | 'SÉCURITÉ') => {
+    const stepConfig = t[lang].stepHeaders.find(s => s.num === num)!;
     const isOpen = expandedStep === num;
     const catStyles = {
       FORAGE: 'bg-blue-50 text-blue-700 border border-blue-200',
       EXPLOSIFS: 'bg-rose-50 text-rose-700 border border-rose-200',
       TECHNIQUE: 'bg-slate-100 text-slate-700 border border-slate-200',
       SÉCURITÉ: 'bg-amber-50 text-amber-800 border border-amber-200',
+      'حفر': 'bg-blue-50 text-blue-700 border border-blue-200',
+      'متفجرات': 'bg-rose-50 text-rose-700 border border-rose-200',
+      'فني': 'bg-slate-100 text-slate-700 border border-slate-200',
+      'سلامة': 'bg-amber-50 text-amber-800 border border-amber-200',
     };
+
+    const catLabel = stepConfig.cat;
+    const catClass = catStyles[catLabel as keyof typeof catStyles] || 'bg-slate-100 text-slate-700 border border-slate-200';
 
     return (
       <div 
@@ -258,14 +268,14 @@ export const MineurParfait: React.FC = () => {
           <div className="bg-gradient-to-br from-amber-400 to-[#b8860b] text-white font-black text-sm w-9 h-9 flex items-center justify-center rounded-full shadow-xs">
             {num}
           </div>
-          <span className="text-2xl">{icon}</span>
+          <span className="text-2xl">{stepConfig.icon}</span>
           <h3 className="font-bold text-slate-800 text-[14px] uppercase tracking-wide">
-            {title}
+            {stepConfig.title}
           </h3>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-full tracking-wider ${catStyles[cat]}`}>
-            {cat}
+          <span className={`text-[9px] font-extrabold uppercase px-2.5 py-0.5 rounded-full tracking-wider ${catClass}`}>
+            {catLabel}
           </span>
           {isOpen ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
         </div>
@@ -274,8 +284,19 @@ export const MineurParfait: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-800 pb-24 font-sans">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="min-h-screen bg-white text-slate-800 pb-24 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <div className={`max-w-4xl mx-auto px-4 ${lang === 'ar' ? 'text-right' : 'text-left'}`}>
+        
+        {/* Language Selection Button */}
+        <div className="pt-4 flex justify-end">
+          <button
+            onClick={() => setLang(lang === 'fr' ? 'ar' : 'fr')}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl border border-amber-500/20 bg-amber-500/5 text-[#b8860b] hover:bg-amber-500/10 transition-all cursor-pointer shadow-sm"
+          >
+            🌐 {lang === 'fr' ? 'العربية' : 'Français'}
+          </button>
+        </div>
+
         {/* Premium Hydromines Gold Banner - Identical to EspaceDT */}
         <div 
           className="bg-white p-6 sm:p-8 rounded-3xl border border-[#b8860b]/15 shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6 mt-6"
@@ -284,7 +305,7 @@ export const MineurParfait: React.FC = () => {
           {/* Background Subtle Shimmer */}
           <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-amber-500/5 animate-pulse pointer-events-none" />
           
-          <div className="flex items-center gap-5 z-10 text-center md:text-left flex-col md:flex-row">
+          <div className={`flex items-center gap-5 z-10 text-center ${lang === 'ar' ? 'md:text-right' : 'md:text-left'} flex-col md:flex-row`}>
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-[#b8860b] flex items-center justify-center shadow-md shrink-0 relative overflow-hidden">
               <svg viewBox="0 0 100 100" className="w-12 h-12 drop-shadow-md">
                 {/* White safety helmet contours */}
@@ -331,13 +352,13 @@ export const MineurParfait: React.FC = () => {
               </svg>
             </div>
             <div>
-              <div className="subtle-glow-line w-24 mb-1.5 mx-auto md:mx-0 opacity-80" />
+              <div className={`subtle-glow-line w-24 mb-1.5 ${lang === 'ar' ? 'mr-0' : 'ml-0'} mx-auto md:mx-0 opacity-80`} />
               <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase">
-                LE MINEUR PARFAIT
+                {t[lang].title}
               </h1>
               <div className="subtle-glow-line w-full mt-2 mb-2.5 opacity-80" />
               <p className="text-[10px] sm:text-xs font-black uppercase text-slate-500 tracking-widest">
-                SMI IMITER — PROCÉDURES OPÉRATIONNELLES DE FORAGE & TIR DE PERFORMANCE
+                {t[lang].subtitle}
               </p>
             </div>
           </div>
@@ -345,14 +366,14 @@ export const MineurParfait: React.FC = () => {
           {/* Welcome Card & Bilan summary on the right side - representing the 25% Hydromines Touch */}
           <div className="bg-slate-50 border border-amber-500/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center z-10 w-full md:w-56 shrink-0 shadow-xs">
             <div className="text-[#b8860b] text-[8px] font-black uppercase tracking-wider">
-              Rendement Cible
+              {t[lang].targetYield}
             </div>
             <div className="text-slate-800 text-[12px] font-black uppercase flex items-center gap-1.5 mt-1">
-              🎯 EXCELLENCE 100%
+              {t[lang].excellence}
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             </div>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-              Du Bouchon au Registre
+              {t[lang].fromBouchon}
             </p>
           </div>
         </div>
@@ -371,35 +392,17 @@ export const MineurParfait: React.FC = () => {
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed"
                 >
                   <p className="font-bold text-slate-800 text-sm mb-4">
-                    Ce que vous recevez du poste précédent conditionne votre efficacité et votre sécurité pour toute la journée.
+                    {t[lang].step1Title}
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                      <div className="font-black text-[#b8860b] uppercase text-[10px] tracking-wider mb-1">📍 Avancement du chantier</div>
-                      <p>Métrage réalisé au poste précédent. Position actuelle du front.</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                      <div className="font-black text-[#b8860b] uppercase text-[10px] tracking-wider mb-1">💥 État de la dernière volée</div>
-                      <p>Trous ratés ? Raté non tiré ? Culots résiduels signalés ?</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                      <div className="font-black text-[#b8860b] uppercase text-[10px] tracking-wider mb-1">🌬️ État de la ventilation</div>
-                      <p>Galerie aérée ? Depuis combien de temps ? CO résiduel ?</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                      <div className="font-black text-[#b8860b] uppercase text-[10px] tracking-wider mb-1">🔧 Matériel disponible</div>
-                      <p>Perforateur opérationnel ? Flexibles en état ? Consommables ?</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                      <div className="font-black text-[#b8860b] uppercase text-[10px] tracking-wider mb-1">📦 Stock explosifs</div>
-                      <p>ANFO disponible, TOVEX, amorces — quantités suffisantes ?</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                      <div className="font-black text-[#b8860b] uppercase text-[10px] tracking-wider mb-1">⚠️ Anomalies signalées</div>
-                      <p>Zones instables, infiltrations eau, incidents du poste précédent</p>
-                    </div>
+                    {t[lang].step1Grid.map((item, idx) => (
+                      <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                        <div className="font-black text-[#b8860b] uppercase text-[10px] tracking-wider mb-1">{item.title}</div>
+                        <p>{item.text}</p>
+                      </div>
+                    ))}
                   </div>
-                  <Alert type="securite" text="Un trou raté non signalé par le poste précédent est un danger mortel. Exiger la confirmation explicite de l'état des trous avant d'entrer dans la galerie." />
+                  <Alert type="securite" text={t[lang].step1Alert} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -417,19 +420,17 @@ export const MineurParfait: React.FC = () => {
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed"
                 >
                   <p className="font-bold text-slate-800 text-sm mb-4">
-                    L'aérage est la première vérification technique avant toute entrée en galerie. Une galerie mal ventilée contient du CO (monoxyde de carbone) et des fumées nitreuses post-tir invisibles et mortels.
+                    {t[lang].step2Title}
                   </p>
                   <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 space-y-3.5">
-                    <h4 className="font-black uppercase text-[10px] tracking-widest text-slate-500">Procédure de vérification :</h4>
-                    <ol className="list-decimal pl-5 space-y-2.5 text-slate-700 font-medium">
-                      <li>Vérifier le débit d'air à l'entrée de la galerie — flux d'air perceptible sur la peau du visage</li>
-                      <li>Contrôler l'état du ventilateur et du tubage souple (manchette) : aucun pli, aucune déchirure, raccords étanches</li>
-                      <li>En présence d'un détecteur CO : mesure &lt; 25 ppm avant entrée</li>
-                      <li>Délai post-tir minimum à respecter : 30 minutes de ventilation avant tout accès au chantier</li>
-                      <li>Vérifier que l'air circule jusqu'au FRONT DE TAILLE — pas seulement à l'entrée de la galerie</li>
+                    <h4 className="font-black uppercase text-[10px] tracking-widest text-slate-500">{t[lang].step2ProcTitle}</h4>
+                    <ol className={`list-decimal ${lang === 'ar' ? 'pr-5' : 'pl-5'} space-y-2.5 text-slate-700 font-medium`}>
+                      {t[lang].step2Proc.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
                     </ol>
                   </div>
-                  <Alert type="regle" text="L'aérage n'est pas optionnel. Si la ventilation est insuffisante — STOP — le travail est interdit jusqu'au rétablissement d'un débit conforme." />
+                  <Alert type="regle" text={t[lang].step2Alert} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -447,21 +448,18 @@ export const MineurParfait: React.FC = () => {
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed"
                 >
                   <p className="font-bold text-slate-800 text-sm mb-4">
-                    L'arrosage précède toujours la purge. L'eau humidifie la roche et révèle les fissures, les zones de décollement et les blocs instables invisibles à l'œil sec. Un chantier mal arrosé cache ses dangers.
+                    {t[lang].step3Title}
                   </p>
-                  <Alert type="regle" text="L'eau révèle ce que l'œil ne voit pas sur roche sèche. Arroser = préparer une purge efficace." />
+                  <Alert type="regle" text={t[lang].step3Alert} />
                   <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 space-y-3.5 mt-4">
-                    <h4 className="font-black uppercase text-[10px] tracking-widest text-slate-500">Procédure d'arrosage :</h4>
-                    <ol className="list-decimal pl-5 space-y-2.5 text-slate-700 font-medium">
-                      <li>Connecter le flexible d'eau à la conduite de chantier</li>
-                      <li>Arroser le FRONT DE TAILLE en premier : zones fissurées, joints de stratification, discontinuités visibles</li>
-                      <li>Arroser la VOÛTE sur 15m minimum depuis le front — les zones humides qui ressortent signalent des fissures ouvertes</li>
-                      <li>Arroser les PAREMENTS (murs latéraux) de haut en bas</li>
-                      <li>Arroser le SOL — lutte contre la poussière de silice</li>
-                      <li>Le chantier est correctement arrosé quand aucun nuage de poussière ne se soulève lors des déplacements</li>
+                    <h4 className="font-black uppercase text-[10px] tracking-widest text-slate-500">{t[lang].step3ProcTitle}</h4>
+                    <ol className={`list-decimal ${lang === 'ar' ? 'pr-5' : 'pl-5'} space-y-2.5 text-slate-700 font-medium`}>
+                      {t[lang].step3Proc.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
                     </ol>
                   </div>
-                  <Alert type="securite" text="La poussière de roche contient de la silice libre. Inhalation chronique = silicose professionnelle irréversible. L'arrosage protège les poumons pour toute la carrière du mineur." />
+                  <Alert type="securite" text={t[lang].step3AlertSilicose} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -478,23 +476,23 @@ export const MineurParfait: React.FC = () => {
                   exit={{ height: 0, opacity: 0 }}
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed"
                 >
-                  <Alert type="regle" text="« La chute de blocs est le premier ennemi dans les mines souterraines »" />
+                  <Alert type="regle" text={t[lang].step4Alert} />
                   <p className="font-bold text-slate-800 text-sm mb-4">
-                    La purge consiste à désolidariser tous les blocs instables de la voûte et des parements sur 15 mètres minimum depuis le front de taille. Elle se fait APRÈS l'arrosage, quand la roche a révélé ses fissures.
+                    {t[lang].step4Title}
                   </p>
 
                   {/* HIGH-FIDELITY VECTOR ILLUSTRATION FOR PURGE */}
                   <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 flex flex-col md:flex-row gap-6 items-center my-5">
                     <div className="w-full md:w-1/2 space-y-3">
                       <div>
-                        <span className="text-[10px] font-black text-[#b8860b] uppercase tracking-wider block">Équipement Certifié SMI</span>
-                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">Pince à Purger & Bec de Purge Type 2</h4>
+                        <span className="text-[10px] font-black text-[#b8860b] uppercase tracking-wider block">{t[lang].purgeEquip}</span>
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">{t[lang].purgeEquipTitle}</h4>
                       </div>
                       <p className="text-slate-600 leading-relaxed text-[11px]">
-                        La pince à purger est une barre robuste en acier spécial ou alliage léger d'aluminium haute résistance, conçue spécifiquement pour la purge minière manuelle.
+                        {t[lang].purgeEquipDesc1}
                       </p>
                       <p className="text-slate-600 leading-relaxed text-[11px]">
-                        Le <strong>bec de purge de Type 2 (Spécification SMI Imiter)</strong> possède un angle de levier optimisé et un tranchant trempé double biseau. Il permet de s'insérer précisément dans les fractures de décollement pour déloger mécaniquement les dalles instables à distance de sécurité.
+                        {t[lang].purgeEquipDesc2}
                       </p>
                     </div>
                     <div className="w-full md:w-1/2 bg-white rounded-xl p-3 border border-slate-200/50 flex flex-col items-center justify-center shadow-xs">
@@ -515,28 +513,26 @@ export const MineurParfait: React.FC = () => {
                         />
                         <span className="relative z-10 flex items-center gap-1.5">
                           <span className="text-slate-400">🔍</span>
-                          <span>Agrandir l'image</span>
+                          <span>{t[lang].btnEnLarge}</span>
                         </span>
                       </motion.button>
 
                       <div className="flex gap-4 text-[9px] text-slate-500 font-bold uppercase mt-1 border-t border-slate-100 pt-2 w-full justify-around">
-                        <span className="flex items-center gap-1">🔘 Manche acier/alu : légère & rigide</span>
-                        <span className="flex items-center gap-1">📐 Bec Type 2 : angle levier 35°</span>
+                        <span className="flex items-center gap-1">{t[lang].purgeSpecs1}</span>
+                        <span className="flex items-center gap-1">{t[lang].purgeSpecs2}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 space-y-3">
-                    <h4 className="font-black text-[#b8860b] uppercase text-[10px] tracking-widest">Règles absolues :</h4>
-                    <ul className="list-disc pl-5 space-y-2.5 text-slate-700 font-medium">
-                      <li>AUCUNE MACHINE EN FONCTIONNEMENT pendant la purge — L'écoute des vibrations et craquements est essentielle</li>
-                      <li>Se positionner TOUJOURS hors de la zone de chute potentielle — jamais sous un bloc en cours de purge</li>
-                      <li>Frapper méthodiquement la voûte et les parements — SON CREUX = bloc instable à purger immédiatement | SON PLEIN = roche stable, continuer</li>
-                      <li>La purge est terminée quand 100% des zones testées donnent un son plein — pas 99%</li>
-                      <li>Distance de travail : 15m minimum depuis le front</li>
+                    <h4 className="font-black text-[#b8860b] uppercase text-[10px] tracking-widest">{t[lang].step4RuleTitle}</h4>
+                    <ul className={`list-disc ${lang === 'ar' ? 'pr-5' : 'pl-5'} space-y-2.5 text-slate-700 font-medium`}>
+                      {t[lang].step4Rules.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
                     </ul>
                   </div>
-                  <Alert type="securite" text="Un bloc non purgé peut tomber lors du forage ou du chargement. Un seul bloc suffit. La purge n'est jamais abrégée." />
+                  <Alert type="securite" text={t[lang].step4AlertSafety} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -554,34 +550,43 @@ export const MineurParfait: React.FC = () => {
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed"
                 >
                   <p className="font-bold text-slate-800 text-sm mb-4">
-                    Avant de démarrer le perforateur, chaque composant est inspecté. Un flexible qui éclate sous 10 bars est une arme dans la galerie.
+                    {t[lang].step5Title}
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-4">
                       <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60">
-                        <h4 className="font-black text-[#b8860b] uppercase text-[10px] tracking-widest mb-3">🔩 Montabert T23 — Checklist</h4>
+                        <h4 className="font-black text-[#b8860b] uppercase text-[10px] tracking-widest mb-3">{t[lang].step5ChecklistTitle}</h4>
                         <ul className="space-y-2 text-slate-700 font-medium">
-                          <li>☐ Taillant bouton 38mm : serré et non usé</li>
-                          <li>☐ Lubrificateur d'air : niveau huile suffisant</li>
-                          <li>☐ Raccord d'eau de forage : connexion étanche</li>
-                          <li>☐ Boulon de fixation barre de guidage : serré</li>
-                          <li>☐ Silencieux et protège-taillant : en place</li>
+                          {t[lang].step5Checklist.map((item, idx) => (
+                            <li key={idx}>☐ {item}</li>
+                          ))}
                         </ul>
                       </div>
                       <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60">
-                        <h4 className="font-black text-[#b8860b] uppercase text-[10px] tracking-widest mb-3">🌬️ Flexibles — Anti-éclatement</h4>
+                        <h4 className="font-black text-[#b8860b] uppercase text-[10px] tracking-widest mb-3">{t[lang].step5FlexTitle}</h4>
                         <ul className="space-y-2 text-slate-700 font-medium">
-                          <li>☐ Aucune coupure, boursouflure ou usure</li>
-                          <li>☐ Raccord d'air comprimé protégé par :<br/><span className="text-slate-500 pl-4">→ Colliers de sécurité ou câbles anti-fouet</span></li>
-                          <li>☐ Attaches et colliers serrés des deux côtés</li>
-                          <li>☐ Flexible d'eau de forage (2 pouces) : état vérifié</li>
+                          {t[lang].step5Flex.map((item, idx) => {
+                            const lines = item.split('\n');
+                            return (
+                              <li key={idx}>
+                                ☐ {lines[0]}
+                                {lines.slice(1).map((line, lIdx) => (
+                                  <span key={lIdx} className={`${lang === 'ar' ? 'pr-4' : 'pl-4'} text-slate-500 block`}>
+                                    {line}
+                                  </span>
+                                ))}
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col items-center justify-center">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Schéma Technique — Matériel SMI</span>
-                      <div className="bg-white rounded-xl p-3 border border-slate-200/40 w-full flex items-center justify-center shadow-xs">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                        {lang === 'ar' ? "مخطط الحفار والدافع" : "SCHÉMA PERFORATEUR & POUSSOIR"}
+                      </span>
+                      <div className="bg-white rounded-xl p-3 border border-slate-200/40 w-full flex flex-col items-center justify-center shadow-xs">
                         <IllustrationForage className="w-full h-auto max-w-[290px]" />
 
                         <motion.button 
@@ -599,19 +604,19 @@ export const MineurParfait: React.FC = () => {
                           />
                           <span className="relative z-10 flex items-center gap-1.5">
                             <span className="text-slate-400">🔍</span>
-                            <span>Agrandir l'image</span>
+                            <span>{t[lang].btnEnLarge}</span>
                           </span>
                         </motion.button>
                       </div>
                       <div className="text-[8px] text-slate-500 font-semibold mt-2 uppercase tracking-wide">
-                        ⚠️ Pressions nominales : Air 7-9 bars | Eau 4-6 bars
+                        {t[lang].pressureSpecs}
                       </div>
                     </div>
                   </div>
-                  <Alert type="securite" text="Un flexible d'air sous 10 bars qui se décroche ou éclate devient un fouet violent. Chaque raccord doit être sécurisé avant de mettre en pression." />
+                  <Alert type="securite" text={t[lang].step5SafetyAlert} />
                   <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 mt-4">
-                    <h4 className="font-black text-rose-700 uppercase text-[10px] tracking-widest mb-2">🎧 Équipement auditif</h4>
-                    <p className="text-slate-700 font-medium">Casque anti-bruit obligatoire avant démarrage du perforateur. Niveau sonore forage : 100-110 dB. Exposition non protégée = perte auditive irréversible.</p>
+                    <h4 className="font-black text-rose-700 uppercase text-[10px] tracking-widest mb-2">{t[lang].step5NoiseTitle}</h4>
+                    <p className="text-slate-700 font-medium">{t[lang].step5NoiseDesc}</p>
                   </div>
                 </motion.div>
               )}
@@ -630,25 +635,25 @@ export const MineurParfait: React.FC = () => {
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed space-y-6"
                 >
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[#b8860b]">Section de galerie — Plan de tir :</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[#b8860b]">{t[lang].gallerySection}</span>
                     <div className="flex gap-2">
                       <button 
                         onClick={() => setGabarit('12m2')}
                         className={`px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wide transition-all ${gabarit === '12m2' ? 'bg-[#b8860b] text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                       >
-                        🔷 12m² — SMI
+                        🔷 {t[lang].smiGabarit}
                       </button>
                       <button 
                         onClick={() => setGabarit('12m2_intl')}
                         className={`px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wide transition-all ${gabarit === '12m2_intl' ? 'bg-[#b8860b] text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                       >
-                        🌍 12m² — Intl
+                        🌍 {t[lang].intlGabarit}
                       </button>
                       <button 
                         onClick={() => setGabarit('9m2')}
                         className={`px-3 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wide transition-all ${gabarit === '9m2' ? 'bg-[#b8860b] text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                       >
-                        🔹 9m² — Traçage
+                        🔹 {t[lang].gabarit9m2}
                       </button>
                     </div>
                   </div>
@@ -659,28 +664,28 @@ export const MineurParfait: React.FC = () => {
                         1.7m
                       </div>
                       <div className="text-slate-500 text-[10px] font-black uppercase tracking-wider mt-1">
-                        FORÉ → DOIT ÊTRE ARRACHÉ
+                        {t[lang].foreMustArrache}
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-3 mt-4 text-center">
                       <div>
                         <div className="text-slate-800 font-black text-xl">100%</div>
-                        <div className="text-emerald-600 text-[9px] uppercase font-bold">Bourrage parfait</div>
+                        <div className="text-emerald-600 text-[9px] uppercase font-bold">{t[lang].bourrageParfait}</div>
                       </div>
                       <div>
                         <div className="text-slate-800 font-black text-xl">0°</div>
-                        <div className="text-emerald-600 text-[9px] uppercase font-bold">Divergence idéale</div>
+                        <div className="text-emerald-600 text-[9px] uppercase font-bold">{t[lang].divergenceIdeale}</div>
                       </div>
                       <div>
                         <div className="text-slate-800 font-black text-xl">{gabarit === '9m2' ? '28' : '38'}</div>
-                        <div className="text-emerald-600 text-[9px] uppercase font-bold">Trous respectés</div>
+                        <div className="text-emerald-600 text-[9px] uppercase font-bold">{t[lang].trousRespectes}</div>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Plan de Tir Interactif</h4>
-                    <p className="text-[10px] text-slate-500">Survolez un groupe de délais pour mettre en évidence les trous correspondants et visualiser l'ordre séquentiel du tir.</p>
+                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">{t[lang].planTirInteractive}</h4>
+                    <p className="text-[10px] text-slate-500">{t[lang].planTirInstruction}</p>
                     
                     <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 flex flex-col items-center">
                       <svg viewBox={gabarit === '9m2' ? "0 0 1000 660" : "0 0 1000 710"} className="w-full max-w-[550px] h-auto">
@@ -733,76 +738,71 @@ export const MineurParfait: React.FC = () => {
                             fontWeight="900" 
                             fontFamily="Arial"
                           >
-                            {activeGroup === 0 ? "D0 — 0ms — BOUCHON (TOVEX)" :
-                             activeGroup === 25 ? "D1 — 25ms — GROUPE 1 (ANFO)" :
-                             activeGroup === 50 ? "D2 — 50ms — GROUPE 2 (ANFO)" :
-                             activeGroup === 75 ? "D3 — 75ms — GROUPE 3 (ANFO)" :
-                             activeGroup === 100 ? "D4 — 100ms — GROUPE 4 (ANFO)" :
-                             "D5 — 125ms — CONTOUR (Radier / Parements / Voûte) — ANFO"}
+                            {t[lang].activeGroupLabels[activeGroup] || t[lang].activeGroupLabels['contour']}
                           </text>
                         )}
                       </svg>
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full mt-4 border-t border-slate-200 pt-4 text-[10px] text-slate-700 font-medium">
-                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#60a5fa] border border-[#3b82f6]" /> <span>Vide décharge (V)</span></div>
-                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#fbbf24] border border-[#f59e0b]" /> <span>Bouchon TOVEX (D0)</span></div>
-                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#22c55e] border border-[#16a34a]" /> <span>Groupe 1 (D1 — 25ms)</span></div>
-                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#f97316] border border-[#ea580c]" /> <span>Groupe 2 (D2 — 50ms)</span></div>
-                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#06b6d4] border border-[#0891b2]" /> <span>Groupe 3 (D3 — 75ms)</span></div>
+                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#60a5fa] border border-[#3b82f6]" /> <span>{t[lang].legendVide}</span></div>
+                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#fbbf24] border border-[#f59e0b]" /> <span>{t[lang].legendBouchon}</span></div>
+                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#22c55e] border border-[#16a34a]" /> <span>{t[lang].legendG1}</span></div>
+                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#f97316] border border-[#ea580c]" /> <span>{t[lang].legendG2}</span></div>
+                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#06b6d4] border border-[#0891b2]" /> <span>{t[lang].legendG3}</span></div>
                         {gabarit !== '9m2' && (
-                          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#a855f7] border border-[#9333ea]" /> <span>Groupe 4 (D4 — 100ms)</span></div>
+                          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#a855f7] border border-[#9333ea]" /> <span>{t[lang].legendG4}</span></div>
                         )}
-                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#8b5cf6] border border-[#7c3aed]" /> <span>Radier ({gabarit === '9m2' ? 'D4' : 'D5'})</span></div>
-                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#2dd4bf] border border-[#14b8a6]" /> <span>Parements ({gabarit === '9m2' ? 'D4' : 'D5'})</span></div>
-                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#f43f5e] border border-[#e11d48]" /> <span>Voûte ({gabarit === '9m2' ? 'D5' : 'D6'})</span></div>
+                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#8b5cf6] border border-[#7c3aed]" /> <span>{t[lang].legendRadier} ({gabarit === '9m2' ? 'D4' : 'D5'})</span></div>
+                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#2dd4bf] border border-[#14b8a6]" /> <span>{t[lang].legendParements} ({gabarit === '9m2' ? 'D4' : 'D5'})</span></div>
+                        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#f43f5e] border border-[#e11d48]" /> <span>{t[lang].legendVoute} ({gabarit === '9m2' ? 'D5' : 'D6'})</span></div>
                       </div>
 
                       <div className="text-[10px] text-slate-500 mt-4 text-center bg-white px-4 py-2 rounded-xl border border-slate-200/80">
-                        {gabarit === '12m2' && "12m² SMI : 38 trous | Bouchon : 3V + 6C | 6 groupes | D0 → D5"}
-                        {gabarit === '12m2_intl' && "12m² Intl : 38 trous | Bouchon : 6V + 3C | 6 groupes | D0 → D5"}
-                        {gabarit === '9m2' && "9m² : 28 trous | Bouchon : 1V + 4C | 5 groupes | D0 → D4"}
+                        {gabarit === '12m2' && t[lang].gabarit12m2Label}
+                        {gabarit === '12m2_intl' && t[lang].gabaritIntlLabel}
+                        {gabarit === '9m2' && t[lang].gabarit9m2Label}
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-3.5">
-                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Ordre de Forage — Ne Jamais Déroger</h4>
+                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">{t[lang].ordreForageTitle}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
                         <div>
-                          <div className="font-black text-[#b8860b] text-[10px] uppercase tracking-wider mb-2">ÉTAPE A → BOUCHON EN PREMIER</div>
-                          <p className="text-[10px] text-slate-600">Le bouchon crée la première face libre. Sans face libre, l'énergie explose dans toutes les directions et rien ne bouge. Le bouchon est la fondation de tout le tir.</p>
+                          <div className="font-black text-[#b8860b] text-[10px] uppercase tracking-wider mb-2">{t[lang].orderStepA}</div>
+                          <p className="text-[10px] text-slate-600">{t[lang].orderStepADesc}</p>
                         </div>
                       </div>
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
                         <div>
-                          <div className="font-black text-[#b8860b] text-[10px] uppercase tracking-wider mb-2">ÉTAPE B → INTÉRIEUR VERS EXTÉRIEUR</div>
+                          <div className="font-black text-[#b8860b] text-[10px] uppercase tracking-wider mb-2">{t[lang].orderStepB}</div>
                           <p className="text-[10px] text-slate-600">
-                            {gabarit === '9m2' ? 'G1 → G2 → G3' : 'G1 → G2 → G3 → G4'}. Chaque groupe tire vers le vide créé par le groupe précédent. Ne jamais sauter un groupe — le vide n'existe pas encore.
+                            {gabarit === '9m2' ? t[lang].orderStepBDesc9m2 : t[lang].orderStepBDesc12m2}.
                           </p>
                         </div>
                       </div>
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
                         <div>
-                          <div className="font-black text-[#b8860b] text-[10px] uppercase tracking-wider mb-2">ÉTAPE C → CONTOUR EN DERNIER</div>
-                          <p className="text-[10px] text-slate-600">Radier → Parements → Voûte. Le contour découpe le profil officiel de la galerie. Foré en dernier pour ne pas fragiliser la galerie pendant le forage des trous centraux.</p>
+                          <div className="font-black text-[#b8860b] text-[10px] uppercase tracking-wider mb-2">{t[lang].orderStepC}</div>
+                          <p className="text-[10px] text-slate-600">{t[lang].orderStepCDesc}</p>
                         </div>
                       </div>
                     </div>
-                    <Alert type="regle" text="Un seul trou foré dans le mauvais ordre = rendement réduit. L'ordre n'est pas une suggestion — c'est une règle physique." />
+                    <Alert type="regle" text={t[lang].orderRule} />
                   </div>
 
                   <div className="space-y-4 pt-2 border-t border-slate-200">
-                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Parallélisme des Trous — L'Ennemi du Rendement</h4>
+                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">{t[lang].parallelismeTitle}</h4>
                     <p className="text-[10.5px] text-slate-600 leading-relaxed">
-                      Tous les trous doivent être rigoureusement parallèles entre eux et perpendiculaires au front de taille. Un trou dévié crée un culot (fond de trou non arraché) qui se cumule d'une volée à l'autre.
+                      {t[lang].parallelismeDesc}
                     </p>
                     
                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-4">
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider">Simulateur de déviation de tir :</span>
+                        <span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider">{t[lang].simulatorDeviation}</span>
                         <span className="text-[#b8860b] font-mono font-black text-sm bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-xs">
-                          Angle de divergence : {divergenceAngle}°
+                          {t[lang].angleDivergence} : {divergenceAngle}°
                         </span>
                       </div>
 
@@ -820,19 +820,19 @@ export const MineurParfait: React.FC = () => {
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-center">
                         <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-xs">
-                          <div className="text-[10px] uppercase text-slate-500 font-bold">Volume Arraché</div>
+                          <div className="text-[10px] uppercase text-slate-500 font-bold">{t[lang].volumeArrache}</div>
                           <div className={`text-lg font-black mt-0.5 ${verdict.color}`}>
                             {effectiveCm} cm / {drilledCm} cm
                           </div>
                         </div>
                         <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-xs">
-                          <div className="text-[10px] uppercase text-slate-500 font-bold">Rendement Volée</div>
+                          <div className="text-[10px] uppercase text-slate-500 font-bold">{t[lang].rendementVolee}</div>
                           <div className={`text-lg font-black mt-0.5 ${verdict.color}`}>
                             {yieldPct}%
                           </div>
                         </div>
                         <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-xs">
-                          <div className="text-[10px] uppercase text-slate-500 font-bold">Culot Résiduel</div>
+                          <div className="text-[10px] uppercase text-slate-500 font-bold">{t[lang].culotResiduel}</div>
                           <div className="text-rose-600 text-lg font-black mt-0.5">
                             {lostCm} cm
                           </div>
@@ -846,13 +846,13 @@ export const MineurParfait: React.FC = () => {
                       </div>
 
                       <div className="pt-2">
-                        <table className="w-full text-left text-[10px] border-collapse">
+                        <table className="w-full text-left text-[10px] border-collapse" dir="ltr">
                           <thead>
                             <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-wider">
-                              <th className="py-2">Angle</th>
-                              <th className="py-2">Culot</th>
-                              <th className="py-2">Arraché</th>
-                              <th className="py-2">Rendement</th>
+                              <th className="py-2">{t[lang].angle}</th>
+                              <th className="py-2">{t[lang].culot}</th>
+                              <th className="py-2">{t[lang].arrache}</th>
+                              <th className="py-2">{t[lang].rendement}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -908,46 +908,39 @@ export const MineurParfait: React.FC = () => {
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed"
                 >
                   <p className="font-bold text-slate-800 text-sm mb-4">
-                    Avant le chargement des explosifs, chaque trou est soufflé et contrôlé. Un trou bouché ou insuffisamment profond = cartouche TOVEX coincée = raté de tir.
+                    {t[lang].step7Title}
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 space-y-3.5 md:col-span-2 flex flex-col justify-between">
                       <div>
-                        <h4 className="font-black uppercase text-[10px] tracking-widest text-slate-500 mb-2">Checklist technique :</h4>
+                        <h4 className="font-black uppercase text-[10px] tracking-widest text-slate-500 mb-2">{t[lang].step7ChecklistTitle}</h4>
                         <ul className="space-y-3 text-slate-700 font-medium text-[11px]">
-                          <li className="flex items-start gap-2.5">
-                            <span className="text-[#b8860b] font-bold">☐</span>
-                            <span>Soufflage de chaque trou à l'air comprimé (du fond vers l'entrée)</span>
-                          </li>
-                          <li className="flex items-start gap-2.5">
-                            <span className="text-[#b8860b] font-bold">☐</span>
-                            <span>Vérification de la profondeur avec la tige de mesure<br/>
-                              <span className="text-slate-500 pl-4 block mt-0.5">→ Trou trop court : noter la référence pour correction</span>
-                              <span className="text-slate-500 pl-4 block">→ Profondeur conforme : marquer d'un repère à la craie</span>
-                            </span>
-                          </li>
-                          <li className="flex items-start gap-2.5">
-                            <span className="text-[#b8860b] font-bold">☐</span>
-                            <span>Contrôle rigoureux de l'humidité :<br/>
-                              <span className="text-slate-500 pl-4 block mt-0.5">→ Trou sec : chargeable à l'ANFO de performance</span>
-                              <span className="text-slate-500 pl-4 block">→ Trou humide/eau : TOVEX uniquement (l'ANFO se dissout)</span>
-                            </span>
-                          </li>
-                          <li className="flex items-start gap-2.5">
-                            <span className="text-[#b8860b] font-bold">☐</span>
-                            <span>Contrôle visuel des trous de bouchon (alignement)</span>
-                          </li>
+                          {t[lang].step7Checklist.map((item, idx) => {
+                            const lines = item.split('\n');
+                            return (
+                              <li key={idx} className="flex items-start gap-2.5">
+                                <span className="text-[#b8860b] font-bold">☐</span>
+                                <div>
+                                  {lines.map((line, lIdx) => (
+                                    <span key={lIdx} className={`${lIdx > 0 ? (lang === 'ar' ? 'text-slate-500 pr-4 block mt-0.5' : 'text-slate-500 pl-4 block mt-0.5') : 'block'}`}>
+                                      {line}
+                                    </span>
+                                  ))}
+                                </div>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                       <div className="text-[10px] text-[#b8860b] font-bold bg-amber-500/5 p-3 rounded-lg border border-amber-500/10 mt-2">
-                        💡 CONSEIL : Souffler énergiquement libère la silice résiduelle. Portez impérativement votre masque respiratoire à cartouche lors de cette opération !
+                        {t[lang].step7Advice}
                       </div>
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col items-center justify-center">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2.5 text-center">Trou Nettoyé & Soufflé</span>
-                      <div className="bg-white rounded-xl p-3 border border-slate-200/40 w-full flex items-center justify-center shadow-xs">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2.5 text-center">{t[lang].step7VisualTitle}</span>
+                      <div className="bg-white rounded-xl p-3 border border-slate-200/40 w-full flex flex-col items-center justify-center shadow-xs">
                         <IllustrationSoufflage className="w-full h-auto max-w-[200px]" />
 
                         <motion.button 
@@ -965,14 +958,14 @@ export const MineurParfait: React.FC = () => {
                           />
                           <span className="relative z-10 flex items-center gap-1.5">
                             <span className="text-slate-400">🔍</span>
-                            <span>Agrandir l'image</span>
+                            <span>{t[lang].btnEnLarge}</span>
                           </span>
                         </motion.button>
                       </div>
                     </div>
                   </div>
 
-                  <Alert type="technique" text="Un trou mouillé chargé avec ANFO = raté garanti. Le TOVEX résiste à l'eau et garantit la détonation même dans un trou noyé. Adapter selon l'état de chaque trou." />
+                  <Alert type="technique" text={t[lang].step7Alert} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -990,28 +983,28 @@ export const MineurParfait: React.FC = () => {
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed space-y-6"
                 >
                   <p className="font-bold text-slate-800 text-sm">
-                    Le chargement se fait 30 à 60 minutes avant l'heure de tir. L'ordre est impératif : TOVEX en premier, ANFO ensuite, bourrage en dernier.
+                    {t[lang].step8Title}
                   </p>
 
                   <div className="space-y-3">
-                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">1. TOVEX + Amorce — La Base du Tir</h4>
+                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">{t[lang].step8TovexTitle}</h4>
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 space-y-3">
-                      <ol className="list-decimal pl-5 space-y-2 text-slate-700 font-medium">
-                        <li>Prendre la cartouche TOVEX 100g</li>
-                        <li>Insérer la capsule électrique dans la cartouche TOVEX</li>
-                        <li className="font-bold text-slate-800">RÈGLE ABSOLUE — SHUNTAGE DES FILS :</li>
+                      <ol className={`list-decimal ${lang === 'ar' ? 'pr-5' : 'pl-5'} space-y-2 text-slate-700 font-medium`}>
+                        <li>{t[lang].step8TovexProc[0]}</li>
+                        <li>{t[lang].step8TovexProc[1]}</li>
+                        <li className="font-bold text-slate-800">{t[lang].step8TovexProc[2]}</li>
                       </ol>
-                      <Alert type="regle" text="Les fils de l'amorce doivent être TORSADÉS ENSEMBLE (shuntés) jusqu'au moment du raccordement final au fil de tir. Aucun fil ne doit rester libre. Un fil libre capte l'électricité statique ou un courant vagabond = détonation accidentelle." />
-                      <ol className="list-decimal pl-5 space-y-2 text-slate-700 font-medium" start={4}>
-                        <li>Introduire la cartouche TOVEX amorcée AU FOND DU TROU</li>
-                        <li>Ne jamais forcer — ne jamais utiliser la tige de forage</li>
-                        <li>Le fil de l'amorce sort du trou et reste shunté</li>
+                      <Alert type="regle" text={t[lang].step8TovexProc[3]} />
+                      <ol className={`list-decimal ${lang === 'ar' ? 'pr-5' : 'pl-5'} space-y-2 text-slate-700 font-medium`} start={4}>
+                        <li>{t[lang].step8TovexProc[4]}</li>
+                        <li>{t[lang].step8TovexProc[5]}</li>
+                        <li>{t[lang].step8TovexProc[6]}</li>
                       </ol>
                     </div>
                   </div>
 
                   <div className="space-y-4 pt-2 border-t border-slate-200">
-                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">2. Portanole Pneumatique — Chargement ANFO</h4>
+                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">{t[lang].step8PortanoleTitle}</h4>
                     
                     <div className="flex flex-col md:flex-row gap-6 items-center">
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 w-full max-w-[220px] flex justify-center">
@@ -1019,70 +1012,101 @@ export const MineurParfait: React.FC = () => {
                       </div>
 
                       <div className="flex-1 space-y-2">
-                        <ol className="list-decimal pl-5 space-y-1.5 text-slate-700 font-medium">
-                          <li>Vérifier que le FLEXIBLE ANTISTATIQUE est bien attaché à la portanole</li>
-                          <li>Vérifier l'état du flexible — aucune coupure ni usure</li>
-                          <li>Introduire l'extrémité du flexible au fond du trou</li>
-                          <li>Charger l'ANFO (granulés) dans la portanole</li>
-                          <li>Souffler progressivement — du fond vers le col</li>
-                          <li>Arrêter à la longueur de colonne explosive prévue :</li>
+                        <ol className={`list-decimal ${lang === 'ar' ? 'pr-5' : 'pl-5'} space-y-1.5 text-slate-700 font-medium`}>
+                          {t[lang].step8PortanoleProc.map((stepItem, sIdx) => (
+                            <li key={sIdx}>{stepItem}</li>
+                          ))}
                         </ol>
                       </div>
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 space-y-2 text-[10.5px]">
-                      <div className="font-bold text-slate-800 mb-1">Configuration de la colonne :</div>
-                      <p className="text-slate-600">• Barre 1.8m (forage 1.7m = 170cm) : bourrage 76cm → colonne ANFO 94cm</p>
-                      <p className="text-slate-600">• Barre 2.4m (forage 2.3m = 230cm) : bourrage 76cm → colonne ANFO 154cm</p>
+                      <div className="font-bold text-slate-800 mb-1">{t[lang].colonneConfigTitle}</div>
+                      <p className="text-slate-600">• {t[lang].colonneConfig18}</p>
+                      <p className="text-slate-600">• {t[lang].colonneConfig24}</p>
                     </div>
 
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60">
-                      <div className="font-black text-slate-700 text-[10px] uppercase tracking-wider mb-2">Quantités requises estimées pour ce gabarit ({gabarit}) :</div>
+                      <div className="font-black text-slate-700 text-[10px] uppercase tracking-wider mb-2">
+                        {t[lang].step8QuantitiesTitle.replace('{gabarit}', gabarit === '9m2' ? (lang === 'ar' ? '9م²' : '9m²') : gabarit === '12m2' ? (lang === 'ar' ? '12م² SMI' : '12m² SMI') : (lang === 'ar' ? '12م² الدولي' : '12m² Intl'))}
+                      </div>
                       {gabarit === '9m2' ? (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                          <div className="bg-white p-2 rounded-lg border border-slate-200/60"><div className="font-bold text-[#b8860b]">22 à 24 kg</div><div className="text-[8px] text-slate-500">ANFO TOTAL</div></div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-200/60"><div className="font-bold text-[#b8860b]">4 cartouches</div><div className="text-[8px] text-slate-500">TOVEX 100G</div></div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-200/60"><div className="font-bold text-[#b8860b]">28 unités</div><div className="text-[8px] text-slate-500">AMORCES</div></div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-200/60"><div className="font-bold text-[#b8860b]">27 trous</div><div className="text-[8px] text-slate-500">À CHARGER</div></div>
+                          <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "22 إلى 24 كجم" : "22 à 24 kg"}</div>
+                            <div className="text-[8px] text-slate-500">{t[lang].qAnfoTotal}</div>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "4 خراطيش" : "4 cartouches"}</div>
+                            <div className="text-[8px] text-slate-500">{t[lang].qTovex100g}</div>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "28 وحدة" : "28 unités"}</div>
+                            <div className="text-[8px] text-slate-500">{t[lang].qAmorces}</div>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "27 ثقباً" : "27 trous"}</div>
+                            <div className="text-[8px] text-slate-500">{t[lang].qToCharge}</div>
+                          </div>
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                          <div className="bg-white p-2 rounded-lg border border-slate-200/60"><div className="font-bold text-[#b8860b]">29 à 32 kg</div><div className="text-[8px] text-slate-500">ANFO TOTAL</div></div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-200/60"><div className="font-bold text-[#b8860b]">{gabarit === '12m2' ? '6' : '3'} cartouches</div><div className="text-[8px] text-slate-500">TOVEX 100G</div></div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-200/60"><div className="font-bold text-[#b8860b]">38 unités</div><div className="text-[8px] text-slate-500">AMORCES</div></div>
-                          <div className="bg-white p-2 rounded-lg border border-slate-200/60"><div className="font-bold text-[#b8860b]">{gabarit === '12m2' ? '35' : '32'} trous</div><div className="text-[8px] text-slate-500">À CHARGER</div></div>
+                          <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "29 إلى 32 كجم" : "29 à 32 kg"}</div>
+                            <div className="text-[8px] text-slate-500">{t[lang].qAnfoTotal}</div>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                            <div className="font-bold text-[#b8860b]">
+                              {lang === 'ar' 
+                                ? (gabarit === '12m2' ? "6 خراطيش" : "3 خراطيش") 
+                                : `${gabarit === '12m2' ? '6' : '3'} cartouches`}
+                            </div>
+                            <div className="text-[8px] text-slate-500">{t[lang].qTovex100g}</div>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "38 وحدة" : "38 unités"}</div>
+                            <div className="text-[8px] text-slate-500">{t[lang].qAmorces}</div>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                            <div className="font-bold text-[#b8860b]">
+                              {lang === 'ar' 
+                                ? (gabarit === '12m2' ? "35 ثقباً" : "32 ثقباً") 
+                                : `${gabarit === '12m2' ? '35' : '32'} trous`}
+                            </div>
+                            <div className="text-[8px] text-slate-500">{t[lang].qToCharge}</div>
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div className="space-y-3 pt-2 border-t border-slate-200">
-                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">3. Bourrage — La Clé du Rendement 100%</h4>
+                    <h4 className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">{t[lang].lBourrageTitle}</h4>
                     <p className="text-[10.5px] text-slate-600 leading-relaxed">
-                      Un bourrage insuffisant = les gaz s'échappent vers l'entrée = 50 à 80% de l'énergie explosive perdue = culot = métrage raté. Le bourrage est ce qui fait la différence entre 70% et 100% du métrage arraché.
+                      {t[lang].lBourrageDesc}
                     </p>
                     
                     <div className="bg-slate-50 border border-amber-500/20 rounded-xl p-4">
                       <div className="text-[#b8860b] font-mono font-black text-xl text-center">
-                        L_bourrage = 20 × Ø_taillant
+                        {t[lang].lBourrageFormula}
                       </div>
                       <div className="text-center text-slate-600 text-[10px] mt-2 uppercase tracking-wider">
-                        20 × 38mm = 760mm = <strong className="text-slate-800">76cm MINIMUM</strong>
+                        {t[lang].lBourrageMinimum}
                       </div>
                     </div>
 
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 space-y-3 text-slate-700 font-medium">
-                      <div className="font-bold text-slate-800">Procédure de bourrage :</div>
-                      <ul className="list-disc pl-5 space-y-2">
+                      <div className="font-bold text-slate-800">{t[lang].bourrageProcTitle}</div>
+                      <ul className={`list-disc ${lang === 'ar' ? 'pr-5' : 'pl-5'} space-y-2`}>
                         <li>
-                          <span className="font-semibold text-[#b8860b]">Matériau : ARGILE de préférence</span><br/>
-                          <span className="text-slate-500 pl-4">→ En dépannage : fines de roche anguleuses (efficacité 70%)</span><br/>
-                          <span className="text-slate-500 pl-4">→ Jamais : galets ronds, pierres lisses, déblais grossiers</span>
+                          <span className="font-semibold text-[#b8860b]">{t[lang].bourrageProc1}</span><br/>
+                          <span className={`${lang === 'ar' ? 'pr-4' : 'pl-4'} text-slate-500 block`}>{t[lang].bourrageProc1a}</span>
+                          <span className={`${lang === 'ar' ? 'pr-4' : 'pl-4'} text-slate-500 block`}>{t[lang].bourrageProc1b}</span>
                         </li>
-                        <li>Introduire l'argile par couches de 15-20cm</li>
-                        <li>Compacter chaque couche : 6 à 8 coups de tige MINIMUM</li>
-                        <li>Remplir jusqu'à 70-80cm de l'entrée du trou</li>
-                        <li>Vérifier que le fil de l'amorce sort proprement — non coincé</li>
+                        <li>{t[lang].bourrageProc2}</li>
+                        <li>{t[lang].bourrageProc3}</li>
+                        <li>{t[lang].bourrageProc4}</li>
+                        <li>{t[lang].bourrageProc5}</li>
                       </ul>
                     </div>
                   </div>
@@ -1103,41 +1127,34 @@ export const MineurParfait: React.FC = () => {
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed space-y-4"
                 >
                   <p className="font-bold text-slate-800 text-sm">
-                    La mise à feu est la conclusion de toute la préparation. Les 15 minutes précédentes sont les plus critiques — une check-list non respectée ici remet en cause toute la journée.
+                    {t[lang].step9Title}
                   </p>
 
                   <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 space-y-3">
-                    <h4 className="font-black uppercase text-[10px] tracking-widest text-slate-500">CHECKLIST PRÉ-TIR :</h4>
+                    <h4 className="font-black uppercase text-[10px] tracking-widest text-slate-500">{t[lang].step9ChecklistTitle}</h4>
                     <ul className="space-y-2.5 text-slate-700 font-medium">
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Outils de forage évacués de la zone de tir</span></li>
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Flexibles d'air comprimé rangés et sécurisés</span></li>
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Pince à purger replacée — hors zone tir</span></li>
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Fil de tir principal : non coupé, non coincé, longueur suffisante</span></li>
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Connexion de chaque amorce au fil de tir vérifiée</span></li>
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Shuntage maintenu jusqu'à la connexion finale</span></li>
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Galvanomètre : continuité du circuit confirmée</span></li>
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Signalisation de la zone de tir mise en place (barrières)</span></li>
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Évacuation totale confirmée — mineur + aide-mineur</span></li>
-                      <li className="flex items-start gap-2.5"><span>☐</span> <span>Heure de tir planifiée respectée</span></li>
+                      {t[lang].step9Checklist.map((chk, cIdx) => (
+                        <li key={cIdx} className="flex items-start gap-2.5">
+                          <span>☐</span> <span>{chk}</span>
+                        </li>
+                      ))}
                     </ul>
                   </div>
 
                   <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 space-y-2.5">
-                    <h4 className="font-black text-[#b8860b] uppercase text-[10px] tracking-widest">Procédure de mise à feu :</h4>
-                    <ol className="list-decimal pl-5 space-y-2 text-[10.5px] text-slate-700 font-medium">
-                      <li>S'éloigner à distance de sécurité (minimum 100m depuis le front)</li>
-                      <li>Vérifier une dernière fois qu'aucune personne n'est dans la zone</li>
-                      <li>Raccorder le fil de tir à l'appareil de tir homologué SMI</li>
-                      <li>Charger l'appareil de tir (impulsion électrique)</li>
-                      <li>Déclencher — vérifier le signal de mise à feu</li>
+                    <h4 className="font-black text-[#b8860b] uppercase text-[10px] tracking-widest">{t[lang].step9ProcTitle}</h4>
+                    <ol className={`list-decimal ${lang === 'ar' ? 'pr-5' : 'pl-5'} space-y-2 text-[10.5px] text-slate-700 font-medium`}>
+                      {t[lang].step9Proc.map((prc, pIdx) => (
+                        <li key={pIdx}>{prc}</li>
+                      ))}
                     </ol>
                   </div>
 
                   <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl text-rose-900 text-[10.5px]">
-                    <div className="font-black text-rose-700 uppercase tracking-wider mb-1">⚠️ POST-TIR & INCIDENTS</div>
-                    <p className="font-medium">• Attente minimum 30 minutes avant tout accès</p>
-                    <p className="font-medium">• Vérification ventilation et CO avant retour</p>
-                    <p className="font-medium">• En cas de raté : procédure trou raté — NE PAS APPROCHER avant 30 minutes. Signaler au Responsable Technique.</p>
+                    <div className="font-black text-rose-700 uppercase tracking-wider mb-1">{t[lang].step9AlertTitle}</div>
+                    {t[lang].step9Alerts.map((altLine, aIdx) => (
+                      <p key={aIdx} className="font-medium">{altLine}</p>
+                    ))}
                   </div>
                 </motion.div>
               )}
@@ -1156,53 +1173,55 @@ export const MineurParfait: React.FC = () => {
                   className="border-t border-slate-100 p-6 bg-white text-xs text-slate-600 leading-relaxed space-y-4"
                 >
                   <p className="font-bold text-slate-800 text-sm">
-                    La déclaration dans le registre journalier est l'acte technique final du mineur. Elle alimente directement la plateforme HydroMines Production — les données doivent être exactes et complètes.
+                    {t[lang].step10Desc}
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
                       <div>
-                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">📊 Trous forés total</div>
-                        <p className="text-slate-600">{gabarit === '9m2' ? '28' : '38'} trous — conformes au plan</p>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
-                      <div>
-                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">🔩 Répartition bouchon</div>
+                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">{t[lang].step10Grid1Title}</div>
                         <p className="text-slate-600">
-                          {gabarit === '12m2' && "3 vides + 6 chargés TOVEX"}
-                          {gabarit === '12m2_intl' && "6 vides + 3 chargés TOVEX"}
-                          {gabarit === '9m2' && "1 vide + 4 chargés TOVEX"}
+                          {gabarit === '9m2' ? t[lang].step10Grid1Desc9m2 : t[lang].step10Grid1Desc12m2}
                         </p>
                       </div>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
                       <div>
-                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">📏 Barre utilisée</div>
-                        <p className="text-slate-600 font-semibold">Barre 1.8m (forage 1.7m) ou Barre 2.4m (forage 2.3m)</p>
+                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">{t[lang].step10Grid2Title}</div>
+                        <p className="text-slate-600">
+                          {gabarit === '12m2' && t[lang].step10Grid2Desc12m2}
+                          {gabarit === '12m2_intl' && t[lang].step10Grid2DescIntl}
+                          {gabarit === '9m2' && t[lang].step10Grid2Desc9m2}
+                        </p>
                       </div>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
                       <div>
-                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">💥 Explosifs consommés</div>
-                        <p className="text-slate-600">ANFO : X kg | TOVEX : X cartouches | Amorces : X</p>
+                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">{t[lang].step10Grid3Title}</div>
+                        <p className="text-slate-600 font-semibold">{t[lang].step10Grid3Desc}</p>
                       </div>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
                       <div>
-                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">📐 Métrage foré déclaré</div>
-                        <p className="text-slate-600 font-semibold">= Longueur barre × 1 (par trou) — hors trous vides</p>
+                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">{t[lang].step10Grid4Title}</div>
+                        <p className="text-slate-600">{t[lang].step10Grid4Desc}</p>
                       </div>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
                       <div>
-                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">⏰ Heure de tir effective</div>
-                        <p className="text-slate-600">Heure réelle du tir — à déclarer précisément</p>
+                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">{t[lang].step10Grid5Title}</div>
+                        <p className="text-slate-600 font-semibold">{t[lang].step10Grid5Desc}</p>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col justify-between">
+                      <div>
+                        <div className="font-bold text-slate-800 text-[10px] uppercase tracking-wider mb-1">{t[lang].step10Grid6Title}</div>
+                        <p className="text-slate-600">{t[lang].step10Grid6Desc}</p>
                       </div>
                     </div>
                   </div>
 
-                  <Alert type="regle" text="Un registre inexact a des conséquences sur la traçabilité des explosifs et sur la sécurité du poste suivant. La précision du registre reflète la rigueur du mineur." />
+                  <Alert type="regle" text={t[lang].step10Alert} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1213,7 +1232,7 @@ export const MineurParfait: React.FC = () => {
 
       {/* Bottom progress bar */}
       <div className="sticky bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-3 flex items-center gap-3 z-50 shadow-lg">
-        <span className="text-slate-500 text-[9px] font-black uppercase">Progression :</span>
+        <span className="text-slate-500 text-[9px] font-black uppercase">{t[lang].progression}</span>
         <div className="flex gap-1 flex-1">
           {Array.from({ length: 10 }).map((_, i) => (
             <div 
@@ -1255,9 +1274,9 @@ export const MineurParfait: React.FC = () => {
               
               <div className="w-full flex flex-col items-center">
                 <h3 className="text-base font-black text-slate-800 uppercase tracking-widest mb-4">
-                  {activeLightbox === 'purge' && "🔍 Illustration : Pince à purger & Bec Type 2 (Agrandie)"}
-                  {activeLightbox === 'forage' && "🔍 Illustration : Perforateur Montabert T23 & Poussoir (Agrandie)"}
-                  {activeLightbox === 'soufflage' && "🔍 Illustration : Nettoyage & Soufflage du Trou (Agrandie)"}
+                  {activeLightbox === 'purge' && t[lang].lightboxPurgeTitle}
+                  {activeLightbox === 'forage' && t[lang].lightboxForageTitle}
+                  {activeLightbox === 'soufflage' && t[lang].lightboxSoufflageTitle}
                 </h3>
                 
                 <div className="w-full max-w-[550px] aspect-[4/3] bg-white rounded-xl p-2 flex items-center justify-center border border-slate-100">
@@ -1275,9 +1294,9 @@ export const MineurParfait: React.FC = () => {
                 </div>
                 
                 <p className="mt-4 text-xs text-slate-500 text-center leading-relaxed font-medium">
-                  {activeLightbox === 'purge' && "Détail haute définition de la pince à purger et du bec de Type 2 SMI avec biseau double trempé de 35° engagé dans la fissure."}
-                  {activeLightbox === 'forage' && "Schéma précis du perforateur à poussoir pneumatique Montabert T23 en livrée verte d'origine avec son raccordement de béquille excentré à l'arrière."}
-                  {activeLightbox === 'soufflage' && "Illustration de la canne de soufflage en cuivre insérée à fond de trou pour l'évacuation cyclonique des poussières de silice."}
+                  {activeLightbox === 'purge' && t[lang].lightboxPurgeDesc}
+                  {activeLightbox === 'forage' && t[lang].lightboxForageDesc}
+                  {activeLightbox === 'soufflage' && t[lang].lightboxSoufflageDesc}
                 </p>
               </div>
             </motion.div>

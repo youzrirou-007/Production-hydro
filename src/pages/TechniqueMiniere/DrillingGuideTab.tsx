@@ -346,12 +346,28 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
           badge: 'Étape 4 : Élargisseur 3'
         },
         {
-          id: 'contour',
-          title: '5. Trous de Contour & Finition',
-          desc: 'Forage périphérique de découpe finale : trous de semelle (Radier), parois droites/gauche (Parements) et voûte d\'arche.',
-          types: ['radier', 'parement', 'voute'],
-          color: 'from-purple-500 to-violet-400',
-          badge: 'Étape 5 : Découpe Gabarit'
+          id: 'radier',
+          title: '5. Radier — Découpe du Plancher',
+          desc: '4 trous de sol. Définissent le niveau plancher définitif du traçage 9m². Profondeur identique aux autres trous.',
+          types: ['radier'],
+          color: 'from-violet-600 to-purple-500',
+          badge: 'Étape 5 : Radier (Sol)'
+        },
+        {
+          id: 'parements',
+          title: '6. Parements — Découpe des Parois',
+          desc: '4 trous latéraux (2 par côté). Forés en alternance gauche/droite. Maille : 55-60cm entre trous. Découpe les parois verticales du traçage 9m².',
+          types: ['parement'],
+          color: 'from-teal-600 to-cyan-500',
+          badge: 'Étape 6 : Parements (Murs)'
+        },
+        {
+          id: 'voute',
+          title: '7. Voûte — Toujours en Dernier',
+          desc: '3 trous : clé de voûte centrale EN PREMIER, puis flanc gauche, puis flanc droit. Dernière opération de forage sans exception.',
+          types: ['voute'],
+          color: 'from-rose-600 to-pink-500',
+          badge: 'Étape 7 : Voûte (Arche) — DERNIÈRE'
         }
       ];
     } else if (gabarit === '12m2_intl') {
@@ -397,12 +413,28 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
           badge: 'Étape 5 : Élargisseur 4'
         },
         {
-          id: 'contour',
-          title: '6. Trous de Contour & Finition',
-          desc: 'Forage périphérique final : Radier (sol), Parements (murs), Voûte (arche). Découpe le profil officiel 12m² de la galerie.',
-          types: ['radier', 'parement', 'voute'],
-          color: 'from-purple-500 to-violet-400',
-          badge: 'Étape 6 : Découpe Gabarit'
+          id: 'radier',
+          title: '6. Radier — Découpe du Plancher',
+          desc: '4 trous de sol forés en dernier avant les parements. Le radier découpe le niveau de plancher définitif de la galerie — garantissant le passage des LHD et wagons. Forage identique aux autres trous, profondeur pleine (1.7m ou 2.3m).',
+          types: ['radier'],
+          color: 'from-violet-600 to-purple-500',
+          badge: 'Étape 6 : Radier (Sol)'
+        },
+        {
+          id: 'parements',
+          title: '7. Parements — Découpe des Parois',
+          desc: '6 trous latéraux (3 par côté). Forés en alternance gauche/droite pour maintenir l\'équilibre des contraintes dans la roche : 1 trou gauche → 1 trou droit → 1 trou gauche → ... Maille : 60-65cm entre trous. Les parements découpent les parois verticales de la galerie.',
+          types: ['parement'],
+          color: 'from-teal-600 to-cyan-500',
+          badge: 'Étape 7 : Parements (Murs)'
+        },
+        {
+          id: 'voute',
+          title: '8. Voûte — Toujours en Dernier',
+          desc: '3 trous d\'arche : trou central (clé de voûte) foré EN PREMIER, puis trou flanc gauche, puis trou flanc droit. Le trou central définit la clé de l\'arche — les deux flancs convergent vers lui. La voûte est TOUJOURS la dernière opération de forage. Un profil arqué correct = stabilité structurelle de la galerie = sécurité de l\'équipe.',
+          types: ['voute'],
+          color: 'from-rose-600 to-pink-500',
+          badge: 'Étape 8 : Voûte (Arche) — DERNIÈRE'
         }
       ];
     } else {
@@ -449,12 +481,28 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
           badge: 'Étape 5 : Élargisseur 4'
         },
         {
-          id: 'contour',
-          title: '6. Trous de Contour & Finition',
-          desc: 'Forage périphérique de découpe finale de la galerie de 12m² : trous de semelle (Radier), parois (Parements) et voûte d\'arche.',
-          types: ['radier', 'parement', 'voute'],
-          color: 'from-purple-500 to-violet-400',
-          badge: 'Étape 6 : Découpe Gabarit'
+          id: 'radier',
+          title: '6. Radier — Découpe du Plancher',
+          desc: '4 trous de sol forés en dernier avant les parements. Le radier découpe le niveau de plancher définitif de la galerie — garantissant le passage des LHD et wagons. Forage identique aux autres trous, profondeur pleine (1.7m ou 2.3m).',
+          types: ['radier'],
+          color: 'from-violet-600 to-purple-500',
+          badge: 'Étape 6 : Radier (Sol)'
+        },
+        {
+          id: 'parements',
+          title: '7. Parements — Découpe des Parois',
+          desc: '6 trous latéraux (3 par côté). Forés en alternance gauche/droite pour maintenir l\'équilibre des contraintes dans la roche : 1 trou gauche → 1 trou droit → 1 trou gauche → ... Maille : 60-65cm entre trous. Les parements découpent les parois verticales de la galerie.',
+          types: ['parement'],
+          color: 'from-teal-600 to-cyan-500',
+          badge: 'Étape 7 : Parements (Murs)'
+        },
+        {
+          id: 'voute',
+          title: '8. Voûte — Toujours en Dernier',
+          desc: '3 trous d\'arche : trou central (clé de voûte) foré EN PREMIER, puis trou flanc gauche, puis trou flanc droit. Le trou central définit la clé de l\'arche — les deux flancs convergent vers lui. La voûte est TOUJOURS la dernière opération de forage. Un profil arqué correct = stabilité structurelle de la galerie = sécurité de l\'équipe.',
+          types: ['voute'],
+          color: 'from-rose-600 to-pink-500',
+          badge: 'Étape 8 : Voûte (Arche) — DERNIÈRE'
         }
       ];
     }
@@ -626,9 +674,8 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
       const emptyHoles = holesList.filter(h => h.type === 'vide');
       if (emptyHoles.length > 0) {
         const targetEmpty = emptyHoles.find(h => h.id === 'v2') || emptyHoles[0];
-        // Scientific calculation for medium hardness rock with 38mm drilling bit
-        const distCm = 30;
-        return { refHole: targetEmpty, label: "Distance au vide du bouchon", distCm };
+        const distCm = 38;
+        return { refHole: targetEmpty, label: "Distance bord vide → G1", distCm };
       }
     }
     
@@ -644,9 +691,8 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
             nearest = gh;
           }
         });
-        // Scientific calculation for medium hardness rock with 38mm drilling bit
-        const distCm = 45;
-        return { refHole: nearest, label: "Distance à la cavité G1", distCm };
+        const distCm = 32;
+        return { refHole: nearest, label: "Distance bord G1 → G2", distCm };
       }
     }
     
@@ -662,9 +708,8 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
             nearest = gh;
           }
         });
-        // Scientific calculation for medium hardness rock with 38mm drilling bit
-        const distCm = 60;
-        return { refHole: nearest, label: "Distance à la cavité G2", distCm };
+        const distCm = 38;
+        return { refHole: nearest, label: "Distance bord G2 → G3", distCm };
       }
     }
     
@@ -680,9 +725,8 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
             nearest = gh;
           }
         });
-        // Scientific calculation for medium hardness rock with 38mm drilling bit
-        const distCm = 75;
-        return { refHole: nearest, label: "Distance à la cavité G3", distCm };
+        const distCm = 42;
+        return { refHole: nearest, label: "Distance bord G3 → G4", distCm };
       }
     }
     
@@ -698,10 +742,10 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
             nearest = sh;
           }
         });
-        let distCm = 60;
-        if (hole.type === 'radier') distCm = 70;
-        if (hole.type === 'voute') distCm = 50;
-        return { refHole: nearest, label: "Écartement (Maille)", distCm };
+        let distCm = 62;
+        if (hole.type === 'radier') distCm = 72;
+        if (hole.type === 'voute') distCm = 52;
+        return { refHole: nearest, label: "Maille de forage (SMI)", distCm };
       }
     }
     
@@ -764,7 +808,10 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
     const MAX_HEIGHT = 580;
     const autoFitScaleX = width > 0 ? MAX_WIDTH / width : 1.0;
     const autoFitScaleY = height > 0 ? MAX_HEIGHT / height : 1.0;
-    const autoFitScale = Math.min(autoFitScaleX, autoFitScaleY);
+    const autoFitScale = Math.min(
+      Math.min(autoFitScaleX, autoFitScaleY),
+      1.8
+    );
 
     return {
       offsetX: projCenterX,
@@ -1461,135 +1508,138 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
 
                       const isDrilling = getHoleDrillingStatus(selectedHole) === 'drilling';
                       const drillPercentage = isDrilling ? drillProgress : 100;
+                      const t23Scale = Math.max(0.8, Math.min(2.5, zoom * 1.2));
 
                       return (
                         <g id="montabert-t23-drill">
-                          {/* 1. OPERATOR SILHOUETTE (Miner Foreur holding the handles) */}
-                          <g opacity="0.95">
-                            {/* Torso */}
-                            <path
-                              d={`M ${pOperator.x - 12} ${pOperator.y + 15} L ${pOperator.x + 12} ${pOperator.y + 15} L ${pOperator.x + 8} ${pOperator.y + 50} L ${pOperator.x - 8} ${pOperator.y + 50} Z`}
-                              fill="#1e293b"
-                              stroke="#0f172a"
-                              strokeWidth="1.5"
-                            />
-                            {/* Head */}
-                            <circle cx={pOperator.x} cy={pOperator.y} r="8.5" fill="#1e293b" />
-                            {/* High-visibility safety helmet (orange/yellow) */}
-                            <path
-                              d={`M ${pOperator.x - 10} ${pOperator.y - 1} A 10 10 0 0 1 ${pOperator.x + 10} ${pOperator.y - 1} Z`}
-                              fill="#f97316"
-                              stroke="#c2410c"
-                              strokeWidth="1"
-                            />
-                            {/* Helmet cap brim */}
-                            <path
-                              d={`M ${pOperator.x - 11} ${pOperator.y - 1} L ${pOperator.x + 12} ${pOperator.y - 1}`}
-                              stroke="#c2410c"
-                              strokeWidth="1.5"
-                            />
-                            {/* Helmet lamp light cone pointing to the target */}
-                            <polygon
-                              points={`${pOperator.x} ${pOperator.y - 3} ${pStart.x - 10} ${pStart.y - 10} ${pStart.x + 10} ${pStart.y + 10}`}
-                              fill="url(#headlamp-beam)"
-                              opacity="0.22"
-                            />
-                            {/* Arms extending to the drill handles */}
-                            <path
-                              d={`M ${pOperator.x - 10} ${pOperator.y + 20} Q ${(pOperator.x + pStart.x) / 2 - 15} ${(pOperator.y + pStart.y) / 2 + 10} ${pStart.x - 12} ${pStart.y + 5}`}
-                              fill="none"
-                              stroke="#1e293b"
-                              strokeWidth="4"
-                              strokeLinecap="round"
-                            />
-                          </g>
+                          <g transform={`translate(${pStart.x}, ${pStart.y}) scale(${t23Scale}) translate(${-pStart.x}, ${-pStart.y})`}>
+                            {/* 1. OPERATOR SILHOUETTE (Miner Foreur holding the handles) */}
+                            <g opacity="0.95">
+                              {/* Torso */}
+                              <path
+                                d={`M ${pOperator.x - 12} ${pOperator.y + 15} L ${pOperator.x + 12} ${pOperator.y + 15} L ${pOperator.x + 8} ${pOperator.y + 50} L ${pOperator.x - 8} ${pOperator.y + 50} Z`}
+                                fill="#1e293b"
+                                stroke="#0f172a"
+                                strokeWidth="1.5"
+                              />
+                              {/* Head */}
+                              <circle cx={pOperator.x} cy={pOperator.y} r="8.5" fill="#1e293b" />
+                              {/* High-visibility safety helmet (orange/yellow) */}
+                              <path
+                                d={`M ${pOperator.x - 10} ${pOperator.y - 1} A 10 10 0 0 1 ${pOperator.x + 10} ${pOperator.y - 1} Z`}
+                                fill="#f97316"
+                                stroke="#c2410c"
+                                strokeWidth="1"
+                              />
+                              {/* Helmet cap brim */}
+                              <path
+                                d={`M ${pOperator.x - 11} ${pOperator.y - 1} L ${pOperator.x + 12} ${pOperator.y - 1}`}
+                                stroke="#c2410c"
+                                strokeWidth="1.5"
+                              />
+                              {/* Helmet lamp light cone pointing to the target */}
+                              <polygon
+                                points={`${pOperator.x} ${pOperator.y - 3} ${pStart.x - 10} ${pStart.y - 10} ${pStart.x + 10} ${pStart.y + 10}`}
+                                fill="url(#headlamp-beam)"
+                                opacity="0.22"
+                              />
+                              {/* Arms extending to the drill handles */}
+                              <path
+                                d={`M ${pOperator.x - 10} ${pOperator.y + 20} Q ${(pOperator.x + pStart.x) / 2 - 15} ${(pOperator.y + pStart.y) / 2 + 10} ${pStart.x - 12} ${pStart.y + 5}`}
+                                fill="none"
+                                stroke="#1e293b"
+                                strokeWidth="4"
+                                strokeLinecap="round"
+                              />
+                            </g>
 
-                          {/* 2. PNEUMATIC JACKLEG SUPPORT (Poussoir télescopique) */}
-                          <g>
-                            {/* Outer tube (dark steel) */}
+                            {/* 2. PNEUMATIC JACKLEG SUPPORT (Poussoir télescopique) */}
+                            <g>
+                              {/* Outer tube (dark steel) */}
+                              <line
+                                x1={pLegBase.x} y1={pLegBase.y}
+                                x2={(pLegBase.x + pStart.x) / 2} y2={(pLegBase.y + pStart.y) / 2}
+                                stroke="#334155"
+                                strokeWidth="4.5"
+                                strokeLinecap="round"
+                              />
+                              {/* Inner silver rod extension */}
+                              <line
+                                x1={(pLegBase.x + pStart.x) / 2} y1={(pLegBase.y + pStart.y) / 2}
+                                x2={pStart.x - 10} y2={pStart.y + 6}
+                                stroke="#94a3b8"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                              />
+                              {/* Swivel bracket connector */}
+                              <circle cx={pStart.x - 10} cy={pStart.y + 6} r="3" fill="#1e293b" />
+                            </g>
+
+                            {/* 3. PERFORATEUR MONTABERT T23 BODY (pneumatic block) */}
+                            <g>
+                              {/* Main heavy block positioned just behind the start of the hole */}
+                              <rect
+                                x={pStart.x - 16}
+                                y={pStart.y - 5}
+                                width="12"
+                                height="10"
+                                rx="1.5"
+                                fill="#475569"
+                                stroke="#334155"
+                                strokeWidth="1.2"
+                                transform={`rotate(${Math.atan2(pStart.y - pOperator.y, pStart.x - pOperator.x) * (180 / Math.PI)}, ${pStart.x - 10}, ${pStart.y})`}
+                              />
+                              {/* Pneumatic rear valves & air line hose connection */}
+                              <path
+                                d={`M ${pStart.x - 16} ${pStart.y + 2} Q ${pStart.x - 25} ${pStart.y + 12} ${pOperator.x - 5} ${pOperator.y + 40}`}
+                                fill="none"
+                                stroke="#0284c7"
+                                strokeWidth="2"
+                                strokeDasharray="1.5 1.5"
+                                opacity="0.8"
+                              />
+                              {/* Water line hose connection */}
+                              <path
+                                d={`M ${pStart.x - 16} ${pStart.y - 2} Q ${pStart.x - 22} ${pStart.y - 12} ${pOperator.x - 15} ${pOperator.y + 40}`}
+                                fill="none"
+                                stroke="#10b981"
+                                strokeWidth="1.5"
+                                opacity="0.8"
+                              />
+                            </g>
+
+                            {/* 4. DRILL STEEL / TIGE DE FORAGE (Fleuret) entering the hole */}
                             <line
-                              x1={pLegBase.x} y1={pLegBase.y}
-                              x2={(pLegBase.x + pStart.x) / 2} y2={(pLegBase.y + pStart.y) / 2}
-                              stroke="#334155"
-                              strokeWidth="4.5"
-                              strokeLinecap="round"
-                            />
-                            {/* Inner silver rod extension */}
-                            <line
-                              x1={(pLegBase.x + pStart.x) / 2} y1={(pLegBase.y + pStart.y) / 2}
-                              x2={pStart.x - 10} y2={pStart.y + 6}
-                              stroke="#94a3b8"
+                              x1={pStart.x - 8} y1={pStart.y}
+                              x2={pStart.x} y2={pStart.y}
+                              stroke="#cbd5e1"
                               strokeWidth="2.5"
                               strokeLinecap="round"
                             />
-                            {/* Swivel bracket connector */}
-                            <circle cx={pStart.x - 10} cy={pStart.y + 6} r="3" fill="#1e293b" />
+
+                            {/* Sparks contact point */}
+                            {isDrilling && drillPercentage > 0 && drillPercentage < 100 && (
+                              <g>
+                                <circle cx={pStart.x} cy={pStart.y} r="6" fill="#f97316" className="animate-ping" opacity="0.8" />
+                                <circle cx={pStart.x} cy={pStart.y} r="2.5" fill="#fef08a" />
+                                {/* Sparks particles */}
+                                {Array.from({ length: 4 }).map((_, i) => {
+                                  const angle = (i * Math.PI) / 2 + (Date.now() / 150);
+                                  const sx = pStart.x + Math.cos(angle) * 8;
+                                  const sy = pStart.y + Math.sin(angle) * 8;
+                                  return (
+                                    <line
+                                      key={i}
+                                      x1={pStart.x} y1={pStart.y}
+                                      x2={sx} y2={sy}
+                                      stroke="#f97316"
+                                      strokeWidth="1"
+                                    />
+                                  );
+                                })}
+                              </g>
+                            )}
                           </g>
-
-                          {/* 3. PERFORATEUR MONTABERT T23 BODY (pneumatic block) */}
-                          <g>
-                            {/* Main heavy block positioned just behind the start of the hole */}
-                            <rect
-                              x={pStart.x - 16}
-                              y={pStart.y - 5}
-                              width="12"
-                              height="10"
-                              rx="1.5"
-                              fill="#475569"
-                              stroke="#334155"
-                              strokeWidth="1.2"
-                              transform={`rotate(${Math.atan2(pStart.y - pOperator.y, pStart.x - pOperator.x) * (180 / Math.PI)}, ${pStart.x - 10}, ${pStart.y})`}
-                            />
-                            {/* Pneumatic rear valves & air line hose connection */}
-                            <path
-                              d={`M ${pStart.x - 16} ${pStart.y + 2} Q ${pStart.x - 25} ${pStart.y + 12} ${pOperator.x - 5} ${pOperator.y + 40}`}
-                              fill="none"
-                              stroke="#0284c7"
-                              strokeWidth="2"
-                              strokeDasharray="1.5 1.5"
-                              opacity="0.8"
-                            />
-                            {/* Water line hose connection */}
-                            <path
-                              d={`M ${pStart.x - 16} ${pStart.y - 2} Q ${pStart.x - 22} ${pStart.y - 12} ${pOperator.x - 15} ${pOperator.y + 40}`}
-                              fill="none"
-                              stroke="#10b981"
-                              strokeWidth="1.5"
-                              opacity="0.8"
-                            />
-                          </g>
-
-                          {/* 4. DRILL STEEL / TIGE DE FORAGE (Fleuret) entering the hole */}
-                          <line
-                            x1={pStart.x - 8} y1={pStart.y}
-                            x2={pStart.x} y2={pStart.y}
-                            stroke="#cbd5e1"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                          />
-
-                          {/* Sparks contact point */}
-                          {isDrilling && drillPercentage > 0 && drillPercentage < 100 && (
-                            <g>
-                              <circle cx={pStart.x} cy={pStart.y} r="6" fill="#f97316" className="animate-ping" opacity="0.8" />
-                              <circle cx={pStart.x} cy={pStart.y} r="2.5" fill="#fef08a" />
-                              {/* Sparks particles */}
-                              {Array.from({ length: 4 }).map((_, i) => {
-                                const angle = (i * Math.PI) / 2 + (Date.now() / 150);
-                                const sx = pStart.x + Math.cos(angle) * 8;
-                                const sy = pStart.y + Math.sin(angle) * 8;
-                                return (
-                                  <line
-                                    key={i}
-                                    x1={pStart.x} y1={pStart.y}
-                                    x2={sx} y2={sy}
-                                    stroke="#f97316"
-                                    strokeWidth="1"
-                                  />
-                                );
-                              })}
-                            </g>
-                          )}
                         </g>
                       );
                     })()}
