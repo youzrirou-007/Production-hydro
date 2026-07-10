@@ -57,7 +57,6 @@ const PlaceholderContent: React.FC<{ title: string }> = ({ title }) => (
 );
 
 const AppContent: React.FC = () => {
-  const { user, profile, loading, signIn } = useAuth();
   const [activeTab, setActiveTab] = useState('production');
 
   React.useEffect(() => {
@@ -74,67 +73,6 @@ const AppContent: React.FC = () => {
     window.addEventListener('navigate-to-tab', handleNavigate);
     return () => window.removeEventListener('navigate-to-tab', handleNavigate);
   }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#fafaf9] flex flex-col items-center justify-center p-6">
-        <div className="flex flex-col items-center gap-6 max-w-xs text-center">
-          {/* Logo container with delicate shadow and shape */}
-          <div className="relative w-20 h-20 flex items-center justify-center bg-white rounded-2xl shadow-md border border-stone-200/40 p-2 overflow-hidden mb-2">
-            <img 
-              src={logoImg} 
-              alt="HydroMines Logo" 
-              className="w-full h-full object-contain" 
-              referrerPolicy="no-referrer"
-            />
-          </div>
-          
-          {/* Elegant Circular Progress Indicator */}
-          <div className="relative flex items-center justify-center">
-            {/* Outer golden/amber delicate spinning ring */}
-            <div className="w-10 h-10 rounded-full border-2 border-stone-200/60 border-t-amber-500 animate-spin" />
-          </div>
-
-          <div className="space-y-1">
-            <h2 className="text-sm font-bold tracking-[0.25em] text-[#141414] uppercase">
-              HydroMines
-            </h2>
-            <p className="text-[9px] font-medium tracking-[0.15em] text-stone-400 uppercase">
-              Initialisation du système...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#F5F5F0] flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white p-12 rounded-[40px] shadow-2xl border border-[#141414]/5 text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#00BFFF] to-[#8B0000]" />
-          <Factory className="w-20 h-20 text-[#00BFFF] mx-auto mb-8" />
-          <h1 className="text-4xl font-black tracking-tighter uppercase mb-2">
-            <span className="text-[#00BFFF]">Hydro</span>
-            <span className="text-[#8B0000]">Mines</span>
-          </h1>
-          <p className="text-xs font-bold text-[#141414]/40 uppercase tracking-[0.2em] mb-12">Système de Commandement Minier</p>
-          
-          <button 
-            onClick={signIn}
-            className="w-full bg-[#141414] text-white py-5 rounded-2xl flex items-center justify-center gap-4 font-black uppercase tracking-widest text-sm hover:scale-[1.02] transition-all shadow-xl active:scale-95 group mb-4"
-          >
-            <LogIn className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            Accès Collaborateur
-          </button>
-          
-          <p className="text-[10px] text-[#141414]/30 font-medium">
-            Accès sécurisé réservé au personnel autorisé.<br/>Authentification Multi-Facteurs (MFA) requise.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   // Route Rendering
   const renderContent = () => {

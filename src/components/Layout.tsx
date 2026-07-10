@@ -617,18 +617,6 @@ export const Layout: React.FC<{
             )}
             {isOpen && <span className="text-xs font-bold uppercase tracking-widest">Réduire</span>}
           </button>
-          
-          <button 
-            onClick={logout}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors",
-              !isOpen && "justify-center"
-            )}
-            title={!isOpen ? "Déconnexion" : undefined}
-          >
-            <LogOut className="w-5 h-5" />
-            {isOpen && <span className="text-sm font-bold uppercase tracking-widest">Déconnexion</span>}
-          </button>
         </div>
       </motion.aside>
 
@@ -671,17 +659,6 @@ export const Layout: React.FC<{
                 </select>
               </div>
             )}
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-black uppercase text-[#141414] leading-none mb-1">
-                {user.displayName || user.email?.split('@')[0]}
-              </p>
-              <p className="text-[10px] font-bold uppercase text-[#141414]/40 tracking-wider">
-                {profile?.role || 'Compte non configuré'}
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-[#141414] flex items-center justify-center text-white font-black text-sm border-2 border-white shadow-sm overflow-hidden">
-              {user.photoURL ? <img src={user.photoURL} alt="" /> : user.email?.[0].toUpperCase()}
-            </div>
           </div>
         </header>
 
