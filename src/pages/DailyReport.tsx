@@ -69,12 +69,12 @@ export const DailyReport: React.FC = () => {
     
     const q = query(
       collection(db, 'non_realisation_explanations'),
-      where('date', '==', filterDate),
-      where('status', '==', 'pending')
+      where('date', '==', filterDate)
     );
     
     const unsub = onSnapshot(q, (snap) => {
-      setUnexplainedGapsForDate(snap.size);
+      const pendingGaps = snap.docs.filter(doc => doc.data().status === 'pending');
+      setUnexplainedGapsForDate(pendingGaps.length);
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, 'non_realisation_explanations');
     });

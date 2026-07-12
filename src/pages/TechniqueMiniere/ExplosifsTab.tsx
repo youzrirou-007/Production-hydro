@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Flame, ShieldAlert, Zap, Layers } from 'lucide-react';
 
 import { GabaritType } from './types';
+import { getExplosifsData } from './explosifsCalc';
 
 interface ExplosifsTabProps {
   gabarit: GabaritType;
@@ -11,9 +12,10 @@ interface ExplosifsTabProps {
 export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
   const is9m2 = gabarit === '9m2';
 
-  const anfoQty = is9m2 ? "30.0" : "40.0";
-  const tovexQty = is9m2 ? "2.4" : "3.2";
-  const detonatorQty = is9m2 ? "27" : "32";
+  const explosifs = getExplosifsData(gabarit, '1.8');
+  const anfoQty = explosifs.anfoKgTotal.toFixed(1);
+  const tovexQty = explosifs.tovexKgTotal.toFixed(2);
+  const detonatorQty = explosifs.amorces.toString();
 
   return (
     <div className="space-y-8 bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
@@ -199,7 +201,7 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
                 <span className="text-2xl">⚡</span>
                 <div>
                   <h3 className="text-sm font-black uppercase text-slate-900">Détonateurs</h3>
-                  <p className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">Amorces Électroniques</p>
+                  <p className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">Amorces Électriques</p>
                 </div>
               </div>
               <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[8px] font-black uppercase rounded">
@@ -215,11 +217,11 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
               </div>
               <div className="grid grid-cols-2 gap-2 py-1.5 border-b border-slate-50">
                 <span className="text-slate-400 font-bold uppercase text-[9px]">Précision de tir</span>
-                <span className="font-extrabold text-slate-800 text-right">±0.05 ms (Électronique)</span>
+                <span className="font-extrabold text-slate-800 text-right">±2 à 5 ms (Pyrotechnique)</span>
               </div>
               <div className="grid grid-cols-2 gap-2 py-1.5 border-b border-slate-50">
                 <span className="text-slate-400 font-bold uppercase text-[9px]">Type de signal</span>
-                <span className="font-extrabold text-slate-800 text-right">Bus numérique codé</span>
+                <span className="font-extrabold text-slate-800 text-right">Ligne bifilaire cuivre</span>
               </div>
               <div className="grid grid-cols-2 gap-2 py-1.5 border-b border-slate-50">
                 <span className="text-slate-400 font-bold uppercase text-[9px]">Résistance d'eau</span>
@@ -247,7 +249,7 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
 
           <div className="bg-blue-50 border-t border-blue-200 p-4">
             <p className="text-[9.5px] font-bold text-blue-800 leading-relaxed uppercase">
-              🔒 Sécurité foudre : La technologie électronique codée empêche tout déclenchement intempestif par courants vagabonds ou décharges électrostatiques atmosphériques.
+              🔒 Sécurité : Le shuntage des fils (torsadés ensemble) jusqu'au raccordement final empêche tout déclenchement intempestif par courants vagabonds ou décharges électrostatiques.
             </p>
           </div>
         </div>

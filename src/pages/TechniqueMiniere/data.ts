@@ -378,8 +378,8 @@ export const HOLES_DATA: HoleInfo[] = [
     y: 80,
     type: 'voute',
     label: 'VC',
-    desc: 'Tir contrôlé de voûte (125ms). Crée un arc régulier auto-portant très stable.',
-    delay: 125
+    desc: 'Tir contrôlé de voûte (150ms). Crée un arc régulier auto-portant très stable.',
+    delay: 150
   },
   {
     id: 'voute2',
@@ -388,8 +388,8 @@ export const HOLES_DATA: HoleInfo[] = [
     y: 200,
     type: 'voute',
     label: 'VL',
-    desc: 'Tir contrôlé de voûte (125ms). Découpe l\'épaulement cintré gauche de la galerie.',
-    delay: 125
+    desc: 'Tir contrôlé de voûte (150ms). Découpe l\'épaulement cintré gauche de la galerie.',
+    delay: 150
   },
   {
     id: 'voute3',
@@ -398,8 +398,8 @@ export const HOLES_DATA: HoleInfo[] = [
     y: 200,
     type: 'voute',
     label: 'VL',
-    desc: 'Tir contrôlé de voûte (125ms). Découpe l\'épaulement cintré droit de la galerie.',
-    delay: 125
+    desc: 'Tir contrôlé de voûte (150ms). Découpe l\'épaulement cintré droit de la galerie.',
+    delay: 150
   }
 ];
 

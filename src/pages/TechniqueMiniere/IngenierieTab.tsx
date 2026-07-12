@@ -4,6 +4,7 @@ import { BookOpen, Compass, Award, ShieldAlert, Check, HelpCircle, Activity, Arr
 import { QUIZ_DATA } from './data';
 
 import { GabaritType } from './types';
+import { getExplosifsData } from './explosifsCalc';
 
 interface IngenierieTabProps {
   gabarit: GabaritType;
@@ -11,6 +12,7 @@ interface IngenierieTabProps {
 
 export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
   const is9m2 = gabarit === '9m2';
+  const explosifs = getExplosifsData(gabarit, '1.8');
 
   const [subTab, setSubTab] = useState<'tiges' | 'ateliers' | 'examen'>('tiges');
 
@@ -266,7 +268,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                     <h4 className="text-xs font-black uppercase text-slate-900">Atelier Confinement & Énergie</h4>
                   </div>
                   <p className="text-[11px] font-semibold text-slate-600 leading-relaxed">
-                    Avant de charger l'ANFO, chaque trou doit être nettoyé à l'aide d'une tige soufflante à air comprimé pour éliminer l'eau et les poussières de forage. La cartouche de Tovex (primer) contenant le détonateur électronique doit être tassée fermement au fond du trou. L'ANFO est ensuite injecté sous pression pneumatique uniforme à une densité constante de 0.85 g/cm³.
+                    Avant de charger l'ANFO, chaque trou doit être nettoyé à l'aide d'une tige soufflante à air comprimé pour éliminer l'eau et les poussières de forage. La cartouche de Tovex (primer) contenant le détonateur électrique doit être tassée fermement au fond du trou. L'ANFO est ensuite injecté sous pression pneumatique uniforme à une densité constante de 0.85 g/cm³.
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl">
@@ -285,10 +287,10 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                   </div>
                   <div>
                     <span className="text-[9px] font-black uppercase text-slate-400">Phase Raccordement</span>
-                    <h4 className="text-xs font-black uppercase text-slate-900">Atelier Séquençage Numérique</h4>
+                    <h4 className="text-xs font-black uppercase text-slate-900">Atelier Séquençage Électrique</h4>
                   </div>
                   <p className="text-[11px] font-semibold text-slate-600 leading-relaxed">
-                    Le boutefeu qualifié raccorde les {is9m2 ? '27' : '32'} détonateurs électroniques en série stricte à l'aide de connecteurs étanches à double bus. La résistance électrique de la ligne globale doit être mesurée à l'aide du consolateur numérique SMI en retrait de sécurité avant d'envoyer l'impulsion électrique codée finale de tir.
+                    Le boutefeu qualifié raccorde les {explosifs.amorces} détonateurs électriques en série stricte à l'aide de connecteurs étanches à double bus. La résistance électrique de la ligne globale doit être mesurée à l'aide de l'ohmmètre de ligne SMI en retrait de sécurité avant d'envoyer l'impulsion électrique codée finale de tir.
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl">

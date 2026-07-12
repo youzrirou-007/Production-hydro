@@ -48,8 +48,8 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   const [view3D, setView3D] = useState<boolean>(false);
 
   const REAL_DELAYS_MS = gabarit === '9m2'
-    ? [0, 25, 50, 75, 100, 125]
-    : [0, 25, 50, 75, 100, 125, 150];
+    ? [0, 0, 25, 50, 75, 100, 125]
+    : [0, 0, 25, 50, 75, 100, 125, 150];
 
   const TOTAL_DURATION_MS = gabarit === '9m2' ? 125 : 150;
 
@@ -95,7 +95,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const maxStep = gabarit === '9m2' ? 5 : 6;
+  const maxStep = gabarit === '9m2' ? 6 : 7;
 
   // Reset step if it exceeds bounds on gabarit swap
   useEffect(() => {
@@ -152,19 +152,21 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
         case 1: return Number((totalDepth * 0.15).toFixed(2));
         case 2: return Number((totalDepth * 0.30).toFixed(2));
         case 3: return Number((totalDepth * 0.50).toFixed(2));
-        case 4: return Number((totalDepth * 0.75).toFixed(2));
-        case 5: return totalDepth;
+        case 4: return Number((totalDepth * 0.70).toFixed(2));
+        case 5: return Number((totalDepth * 0.85).toFixed(2));
+        case 6: return totalDepth;
         default: return 0.0;
       }
     } else {
       switch (activeStep) {
         case 0: return 0.0;
         case 1: return Number((totalDepth * 0.15).toFixed(2));
-        case 2: return Number((totalDepth * 0.35).toFixed(2));
-        case 3: return Number((totalDepth * 0.55).toFixed(2));
-        case 4: return Number((totalDepth * 0.70).toFixed(2));
-        case 5: return Number((totalDepth * 0.85).toFixed(2));
-        case 6: return totalDepth;
+        case 2: return Number((totalDepth * 0.30).toFixed(2));
+        case 3: return Number((totalDepth * 0.45).toFixed(2));
+        case 4: return Number((totalDepth * 0.60).toFixed(2));
+        case 5: return Number((totalDepth * 0.75).toFixed(2));
+        case 6: return Number((totalDepth * 0.90).toFixed(2));
+        case 7: return totalDepth;
         default: return 0.0;
       }
     }
@@ -179,7 +181,8 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
         case 2: return 90;   // G1
         case 3: return 140;  // G2
         case 4: return 200;  // G3
-        case 5: return 200;  // Finition : le vide ne s'agrandit pas pendant la finition
+        case 5: return 200;  // Radier + Parements
+        case 6: return 200;  // Voûte
         default: return 0;
       }
     } else {
@@ -190,7 +193,8 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
         case 3: return 200;  // G2 petite croix
         case 4: return 280;  // G3 grand carré
         case 5: return 360;  // G4 grande croix
-        case 6: return 360;  // Finition : le vide ne s'agrandit pas pendant la finition
+        case 6: return 360;  // Radier + Parements
+        case 7: return 360;  // Voûte
         default: return 0;
       }
     }
@@ -204,14 +208,18 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
       if (hole.type === 'g1') return 2;
       if (hole.type === 'g2') return 3;
       if (hole.type === 'g3') return 4;
-      return 5; // radier, parement, voute
+      if (hole.type === 'radier') return 5;
+      if (hole.type === 'parement') return 5;
+      return 6; // voute — dernière, séparée
     } else {
       if (hole.type === 'charge') return 1;
       if (hole.type === 'g1') return 2;
       if (hole.type === 'g2') return 3;
       if (hole.type === 'g3') return 4;
       if (hole.type === 'g4') return 5;
-      return 6; // radier, parement, voute
+      if (hole.type === 'radier') return 6;
+      if (hole.type === 'parement') return 6;
+      return 7; // voute — dernière, séparée
     }
   };
 
@@ -2910,7 +2918,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
       // Animate glowing back face border line representing perfect gabarit finish
       if (backBorderLineRef.current) {
         const mat = backBorderLineRef.current.material as THREE.LineBasicMaterial;
-        const maxStep = gabarit === '9m2' ? 5 : 6;
+        const maxStep = gabarit === '9m2' ? 6 : 7;
         if (activeStep === maxStep) {
           const pulse = 0.5 + 0.5 * Math.sin(now * 0.008);
           mat.opacity = 0.4 + 0.6 * pulse;
@@ -3417,7 +3425,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
     const camera = cameraRef.current;
     if (!camera) return;
 
-    const totalSteps = gabarit === '9m2' ? 5 : 6;
+    const totalSteps = gabarit === '9m2' ? 6 : 7;
     const progress = activeStep / totalSteps;
 
     const targetZ = -10 + progress * 7;

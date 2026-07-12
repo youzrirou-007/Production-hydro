@@ -169,7 +169,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
                   {/* 1. Tovex Primer at base */}
                   <rect x="40" y="66" width="60" height="48" fill="#F97316" rx="3" stroke="#ffffff" strokeWidth="0.5" />
                   <text x="70" y="92" textAnchor="middle" className="fill-white font-black text-[9px] uppercase tracking-wider">TOVEX</text>
-                  <text x="70" y="103" textAnchor="middle" className="fill-white font-bold text-[7px] uppercase opacity-90">135g</text>
+                  <text x="70" y="103" textAnchor="middle" className="fill-white font-bold text-[7px] uppercase opacity-90">100g</text>
 
                   {/* Detonator Wire */}
                   <path d="M 70 90 Q 200 70 470 90" fill="none" stroke="#ffd700" strokeWidth="2" className="pressure-line" />
@@ -229,7 +229,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
                   {/* 1. Tovex Primer at base */}
                   <rect x="40" y="66" width="60" height="48" fill="#F97316" rx="3" stroke="#ffffff" strokeWidth="0.5" />
                   <text x="70" y="92" textAnchor="middle" className="fill-white font-black text-[9px] uppercase tracking-wider">TOVEX</text>
-                  <text x="70" y="103" textAnchor="middle" className="fill-white font-bold text-[7px] uppercase opacity-90">135g</text>
+                  <text x="70" y="103" textAnchor="middle" className="fill-white font-bold text-[7px] uppercase opacity-90">100g</text>
 
                   {/* Detonator Wire */}
                   <path d="M 70 90 Q 200 70 470 90" fill="none" stroke="#f43f5e" strokeWidth="2" />

@@ -1,22 +1,21 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, enableIndexedDbPersistence, Firestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
-// Determine if we are running in the AI Studio development sandbox or local preview
-const isDevelopmentSandbox = typeof window !== 'undefined' && (
-  window.location.hostname.includes('run.app') || 
-  window.location.hostname.includes('localhost') || 
-  window.location.hostname.includes('127.0.0.1')
-);
+const configDbId = firebaseConfig.firestoreDatabaseId || undefined;
 
-// If in AI Studio, we use the custom database ID configured for the sandbox.
-// In production (e.g., HMproduction.web.app), we connect to your main "(default)" Firestore database.
-const databaseId = isDevelopmentSandbox ? firebaseConfig.firestoreDatabaseId : undefined;
+export const db: Firestore = (() => {
+  try {
+    return configDbId ? getFirestore(app, configDbId) : getFirestore(app);
+  } catch (e) {
+    console.warn('Initial Firestore setup error, defaulting to (default):', e);
+    return getFirestore(app);
+  }
+})();
 
-export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
 export const auth = getAuth(app);
 
 // Enable Firestore offline persistence for subterranean operations (SMI Imiter isolated network)
@@ -54,9 +53,13 @@ if (isPersistenceSafe()) {
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
+    console.info(`Firestore connected successfully.`);
   } catch (error: any) {
-    if (error?.message?.includes('the client is offline')) {
+    const errMsg = error?.message || String(error);
+    if (errMsg.includes('the client is offline')) {
       console.warn("Firestore is offline or config is missing.");
+    } else {
+      console.warn("Firestore connection check info:", errMsg);
     }
   }
 }

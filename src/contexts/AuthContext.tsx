@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
-import { User as FirebaseUser } from 'firebase/auth';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { auth, db } from '../lib/firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 interface UserProfile {
   role: 'secretary' | 'responsible' | 'chief' | 'direction' | 'admin' | 'direction_technique';
@@ -17,26 +19,55 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const dummyUser: any = {
-  uid: 'admin-bypass-user-id',
-  email: 'youzrirou@gmail.com',
-  displayName: 'Administrateur',
-  photoURL: null,
-};
-
-const dummyProfile: UserProfile = {
-  role: 'admin',
-  siteIds: ['SMI'],
-  name: 'Administrateur',
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user] = useState<FirebaseUser | null>(dummyUser);
-  const [profile] = useState<UserProfile | null>(dummyProfile);
-  const [loading] = useState(false);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const signIn = async () => {};
-  const logout = async () => {};
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      if (!firebaseUser) {
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+    return () => unsubAuth();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      const unsubProfile = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
+        if (docSnap.exists()) {
+          setProfile(docSnap.data() as UserProfile);
+          setLoading(false);
+        } else {
+          try {
+            await setDoc(doc(db, 'users', user.uid), {
+              role: 'secretary',
+              siteIds: ['SMI'],
+              name: user.displayName || user.email?.split('@')[0] || 'Utilisateur'
+            });
+            setLoading(false);
+          } catch (err) {
+            console.error("Bootstrapping profile failed", err);
+            setProfile(null);
+            setLoading(false);
+          }
+        }
+      });
+      return () => unsubProfile();
+    }
+  }, [user]);
+
+  const signIn = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  };
+
+  const logout = async () => {
+    await signOut(auth);
+  };
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, signIn, logout }}>

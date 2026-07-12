@@ -3,12 +3,17 @@ import { motion } from 'motion/react';
 import { Activity, Info, Award, ShieldAlert, TrendingUp } from 'lucide-react';
 
 import { GabaritType } from './types';
+import { getExplosifsData } from './explosifsCalc';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface CalculsTabProps {
   gabarit: GabaritType;
 }
 
 export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
+  const { profile } = useAuth();
+  const canSeePrime = profile?.role === 'admin' || profile?.role === 'direction_technique';
+
   const is9m2 = gabarit === '9m2';
   const initialHoles = is9m2 ? 28 : 38;
 
@@ -33,21 +38,17 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
   };
 
   // MATHEMATICAL ESTIMATES
+  const explosifs = getExplosifsData(gabarit, rodType);
   // Loaded holes and empty holes based on gabarit
-  const emptyHolesCount = is9m2 ? 1 : 3;
+  const emptyHolesCount = explosifs.emptyHoles;
   const loadedHoles = Math.max(0, numHoles - emptyHolesCount);
 
   // ANFO consumption:
-  // 12m²: ~40kg / 35 loaded holes = ~1.14 kg per hole
-  // 9m²: ~30kg / 27 loaded holes = ~1.11 kg per hole
-  const anfoPerHole = is9m2 ? (30.0 / 27) : (40.0 / 35);
+  const anfoPerHole = explosifs.anfoKgPerHole;
   const totalAnfoKg = loadedHoles * anfoPerHole;
 
   // Tovex consumption:
-  // 12m²: ~3.2kg / 35 loaded holes = ~0.091 kg per hole
-  // 9m²: ~2.4kg / 27 loaded holes = ~0.089 kg per hole
-  const tovexPerHole = is9m2 ? (2.4 / 27) : (3.2 / 35);
-  const totalTovexKg = loadedHoles * tovexPerHole;
+  const totalTovexKg = explosifs.tovexKgTotal;
 
   // Detonator count matches loaded holes
   const detonatorsCount = loadedHoles;
@@ -90,7 +91,7 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
     ((effectiveMeterage / drilledLength) * 100).toFixed(1)
   );
 
-  const totalHoles = gabarit === '9m2' ? 27 : 35;
+  const totalHoles = explosifs.loadedHoles;
   const totalLoss = parseFloat((lossPerHole * totalHoles).toFixed(2));
 
   const severityLevel =
@@ -272,15 +273,23 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
               </h4>
             </div>
 
-            <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase text-slate-400">Prime d'Avancement</span>
-              <p className="text-3xl font-black text-slate-950 tracking-tight">
-                {minerBonusMAD.toFixed(2)} MAD
-              </p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase">
-                Base officielle de 35 MAD par mètre arraché
-              </p>
-            </div>
+            {canSeePrime ? (
+              <div className="space-y-1">
+                <span className="text-[10px] font-black uppercase text-slate-400">Prime d'Avancement</span>
+                <p className="text-3xl font-black text-slate-950 tracking-tight">
+                  {minerBonusMAD.toFixed(2)} MAD
+                </p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase">
+                  Base officielle de 35 MAD par mètre arraché
+                </p>
+              </div>
+            ) : (
+              <div className="bg-slate-100 border border-slate-200 rounded-xl p-4 text-center">
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-wider">
+                  🔒 Information réservée à la Direction Technique
+                </p>
+              </div>
+            )}
 
             <div className="bg-white border border-amber-400/20 p-3 rounded-xl flex items-center gap-2.5">
               <Award className="w-5 h-5 text-amber-500 shrink-0" />

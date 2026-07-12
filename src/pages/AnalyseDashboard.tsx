@@ -174,13 +174,13 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
     
     const q = query(
       collection(db, 'non_realisation_explanations'),
-      where('date', '>=', startStr),
-      where('date', '<=', endStr),
       where('status', '==', 'explained')
     );
     
     const unsub = onSnapshot(q, (snap) => {
-      const explanations = snap.docs.map(d => d.data());
+      const explanations = snap.docs
+        .map(d => d.data())
+        .filter(e => e.date >= startStr && e.date <= endStr);
       
       const groupByCause = (activityFilter?: string) => {
         const filtered = activityFilter 

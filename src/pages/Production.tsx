@@ -489,12 +489,12 @@ export const Production: React.FC = () => {
     
     const q = query(
       collection(db, 'non_realisation_explanations'),
-      where('date', '==', selectedDate),
-      where('status', '==', 'pending')
+      where('date', '==', selectedDate)
     );
     
     const unsub = onSnapshot(q, (snap) => {
-      setUnexplainedGaps(snap.size);
+      const pendingGaps = snap.docs.filter(doc => doc.data().status === 'pending');
+      setUnexplainedGaps(pendingGaps.length);
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, 'non_realisation_explanations');
     });

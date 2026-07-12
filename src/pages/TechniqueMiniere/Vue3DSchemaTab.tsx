@@ -96,11 +96,11 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
     return HOLES_DATA;
   }, [gabarit]);
 
-  const maxStep = gabarit === '9m2' ? 5 : 6;
+  const maxStep = gabarit === '9m2' ? 6 : 7;
 
   const REAL_DELAYS_MS = gabarit === '9m2'
-    ? [0, 25, 50, 75, 100, 125]
-    : [0, 25, 50, 75, 100, 125, 150];
+    ? [0, 0, 25, 50, 75, 100, 125]
+    : [0, 0, 25, 50, 75, 100, 125, 150];
 
   const TOTAL_DURATION_MS = gabarit === '9m2' ? 125 : 150;
 
@@ -494,14 +494,18 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
       if (hole.type === 'g1') return 2;
       if (hole.type === 'g2') return 3;
       if (hole.type === 'g3') return 4;
-      return 5;
+      if (hole.type === 'radier') return 5;
+      if (hole.type === 'parement') return 5;
+      return 6; // voute — dernière, séparée
     } else {
       if (hole.type === 'charge') return 1;
       if (hole.type === 'g1') return 2;
       if (hole.type === 'g2') return 3;
       if (hole.type === 'g3') return 4;
       if (hole.type === 'g4') return 5;
-      return 6;
+      if (hole.type === 'radier') return 6;
+      if (hole.type === 'parement') return 6;
+      return 7; // voute — dernière, séparée
     }
   };
 
@@ -513,19 +517,21 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
         case 1: return Number((totalDepth * 0.15).toFixed(2));
         case 2: return Number((totalDepth * 0.30).toFixed(2));
         case 3: return Number((totalDepth * 0.50).toFixed(2));
-        case 4: return Number((totalDepth * 0.75).toFixed(2));
-        case 5: return totalDepth;
+        case 4: return Number((totalDepth * 0.70).toFixed(2));
+        case 5: return Number((totalDepth * 0.85).toFixed(2));
+        case 6: return totalDepth;
         default: return 0.0;
       }
     } else {
       switch (activeStep) {
         case 0: return 0.0;
         case 1: return Number((totalDepth * 0.15).toFixed(2));
-        case 2: return Number((totalDepth * 0.35).toFixed(2));
-        case 3: return Number((totalDepth * 0.55).toFixed(2));
-        case 4: return Number((totalDepth * 0.70).toFixed(2));
-        case 5: return Number((totalDepth * 0.85).toFixed(2));
-        case 6: return totalDepth;
+        case 2: return Number((totalDepth * 0.30).toFixed(2));
+        case 3: return Number((totalDepth * 0.45).toFixed(2));
+        case 4: return Number((totalDepth * 0.60).toFixed(2));
+        case 5: return Number((totalDepth * 0.75).toFixed(2));
+        case 6: return Number((totalDepth * 0.90).toFixed(2));
+        case 7: return totalDepth;
         default: return 0.0;
       }
     }

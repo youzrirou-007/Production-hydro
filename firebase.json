@@ -1,7 +1,14 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  },
+  "firestore": [
+    {
+      "database": "(default)",
+      "rules": "firestore.rules"
+    },
+    {
+      "database": "ai-studio-hydromines-a6fcbecb-aa8d-4505-8468-eee95f33de8d",
+      "rules": "firestore.rules"
+    }
+  ],
   "hosting": {
     "public": "dist",
     "ignore": [

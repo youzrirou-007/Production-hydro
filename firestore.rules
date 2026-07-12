@@ -1,8 +1,153 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+
+    function isSignedIn() {
+      return request.auth != null;
     }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function hasRole(roles) {
+      return isSignedIn() && getUserRole() in roles;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (request.auth.uid == userId || hasRole(['admin']));
+      allow delete: if hasRole(['admin']);
+    }
+
+    match /sites/{siteId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin']);
+    }
+
+    match /chantiers/{chantierId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief']);
+    }
+
+    match /personnel/{personnelId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction']);
+    }
+
+    match /engines/{engineId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief']);
+    }
+
+    match /daily_planning_sheets/{sheetId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+
+      match /modification_requests/{requestId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
+      }
+    }
+
+    match /planning/{planId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+    }
+
+    match /deleted_plannings_log/{logId} {
+      allow read: if isSignedIn();
+      allow create: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+      allow update, delete: if false;
+    }
+
+    match /production/{prodId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+    }
+
+    match /production_history/{histId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+    }
+
+    match /non_realisation_explanations/{expId} {
+      allow read: if isSignedIn();
+      allow create: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+      allow update, delete: if hasRole(['admin', 'direction', 'chief']);
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if hasRole(['admin', 'direction']);
+      allow create: if hasRole(['admin', 'direction']);
+      allow update, delete: if false;
+    }
+
+    match /platform_settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin']);
+    }
+
+    match /system_messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if hasRole(['admin', 'direction']);
+      allow update: if isSignedIn();
+      allow delete: if hasRole(['admin', 'direction']);
+    }
+
+    match /attachements/{attachementId} {
+      allow read: if hasRole(['admin', 'direction', 'direction_technique']);
+      allow create, update: if hasRole(['admin', 'direction_technique']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    match /rotations_drafts/{draftId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+    }
+
+    match /rotations_history/{historyId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+    }
+
+    match /maintenance/{maintenanceId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief']);
+    }
+
+    match /modification_requests/{requestId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /stocks/{stockId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief']);
+    }
+
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin']);
+    }
+
+    match /logs/{logId} {
+      allow read: if hasRole(['admin', 'direction']);
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    match /failed_blasts/{blastId} {
+      allow read: if isSignedIn();
+      allow create: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
+      allow update: if hasRole(['admin', 'direction']);
+      allow delete: if hasRole(['admin']);
+    }
+
+    match /test/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
   }
 }
