@@ -35,7 +35,7 @@ export const getHoleVisuals = (type: string) => {
         cylinder: 'url(#cylinder-grad-vide)',
         stroke: '#94a3b8', // Slate Blue Gray (cohérent avec Plan de Tir 2D)
         collar: '#64748b',
-        text: 'Vide de décharge (Ø 75mm)',
+        text: 'Vide de décharge (Ø 38mm)',
         badgeClass: 'bg-slate-500/10 text-slate-400 border-slate-500/20'
       };
     case 'charge':
@@ -2016,7 +2016,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                       <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-900">
                         <span className="text-[8px] text-slate-500 block uppercase font-bold">Diamètre Taillant</span>
                         <span className="text-xs font-black text-slate-200 font-mono">
-                          {selectedHole.type === 'vide' ? '75 mm' : '38 mm'} (T23)
+                          38 mm (T23)
                         </span>
                       </div>
                       <div className="bg-slate-900/60 p-2 rounded-xl border border-slate-900">

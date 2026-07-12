@@ -110,11 +110,11 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Charges explosifs :</span>
-                <p className="text-slate-800 font-extrabold uppercase">ANFO 40kg / Tovex 3.2kg</p>
+                <p className="text-slate-800 font-extrabold uppercase">ANFO 26.6kg / TOVEX 3.5kg</p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Plan d'amorçage :</span>
-                <p className="text-slate-800 font-extrabold uppercase">32 à 38 Amorces</p>
+                <p className="text-slate-800 font-extrabold uppercase">35 Amorces</p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Bouchon :</span>
@@ -190,11 +190,11 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Charges explosifs :</span>
-                <p className="text-slate-800 font-extrabold uppercase">ANFO 40kg / Tovex 3.2kg</p>
+                <p className="text-slate-800 font-extrabold uppercase">ANFO 24.4kg / TOVEX 3.2kg</p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Plan d'amorçage :</span>
-                <p className="text-slate-800 font-extrabold uppercase">32 à 38 Amorces</p>
+                <p className="text-slate-800 font-extrabold uppercase">32 Amorces</p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Bouchon :</span>
