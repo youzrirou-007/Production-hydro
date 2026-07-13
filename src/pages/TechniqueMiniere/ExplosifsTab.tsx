@@ -10,7 +10,7 @@ interface ExplosifsTabProps {
 }
 
 export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
-  const is9m2 = gabarit === '9m2';
+  const is9m2 = gabarit.startsWith('9m2');
 
   const explosifs = getExplosifsData(gabarit, '1.8');
   const anfoQty = explosifs.anfoKgTotal.toFixed(1);
@@ -26,7 +26,7 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
           Ressources & Substances explosives
         </span>
         <h2 className="text-xl font-black uppercase tracking-widest text-slate-900 mt-1">
-          Inventaire des Explosifs pour Galerie de {gabarit === '9m2' ? '9 m²' : '12 m²'}
+          Inventaire des Explosifs pour Galerie de {is9m2 ? '9 m²' : '12 m²'}
         </h2>
         <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
           Dosages officiels de l'ingénierie SMI pour garantir un abattage optimal sans hors-profils

@@ -118,13 +118,15 @@ interface DrillingGuideTabProps {
 }
 
 export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '12m2' }) => {
+  const is9m2 = gabarit.startsWith('9m2');
+
   // Stem (Tige) selection
   const [tige, setTige] = useState<'1.8m' | '2.4m'>('1.8m');
   const targetDepth = tige === '1.8m' ? 1.7 : 2.3;
 
   // Exact gallery geometry defining 2D profile coordinates & 3D projection parameters
   const galleryGeometry = useMemo(() => {
-    if (gabarit === '9m2') {
+    if (is9m2) {
       return {
         xMin: 280,
         xMax: 720,
@@ -325,6 +327,65 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
           id: 'g1',
           title: '2. Élargissement - Groupe 1',
           desc: 'Premier anneau concentrique de 4 trous autour du bouchon. Pousse la roche diagonalement vers le vide central d\'abattage.',
+          types: ['g1'],
+          color: 'from-blue-500 to-cyan-400',
+          badge: 'Étape 2 : Élargisseur 1'
+        },
+        {
+          id: 'g2',
+          title: '3. Élargissement - Groupe 2',
+          desc: 'Deuxième couronne d\'abattage de 4 trous à retardement (50ms). Augmente la cavité centrale libérée.',
+          types: ['g2'],
+          color: 'from-rose-500 to-pink-400',
+          badge: 'Étape 3 : Élargisseur 2'
+        },
+        {
+          id: 'g3',
+          title: '4. Élargissement - Groupe 3',
+          desc: 'Troisième couronne d\'abattage concentrique de 4 trous à 75ms d\'allumage préparant le contour de la galerie.',
+          types: ['g3'],
+          color: 'from-teal-500 to-emerald-400',
+          badge: 'Étape 4 : Élargisseur 3'
+        },
+        {
+          id: 'radier',
+          title: '5. Radier — Découpe du Plancher',
+          desc: '4 trous de sol. Définissent le niveau plancher définitif du traçage 9m². Profondeur identique aux autres trous.',
+          types: ['radier'],
+          color: 'from-violet-600 to-purple-500',
+          badge: 'Étape 5 : Radier (Sol)'
+        },
+        {
+          id: 'parements',
+          title: '6. Parements — Découpe des Parois',
+          desc: '4 trous latéraux (2 par côté). Forés en alternance gauche/droite. Maille : 55-60cm entre trous. Découpe les parois verticales du traçage 9m².',
+          types: ['parement'],
+          color: 'from-teal-600 to-cyan-500',
+          badge: 'Étape 6 : Parements (Murs)'
+        },
+        {
+          id: 'voute',
+          title: '7. Voûte — Toujours en Dernier',
+          desc: '3 trous : clé de voûte centrale EN PREMIER, puis flanc gauche, puis flanc droit. Dernière opération de forage sans exception.',
+          types: ['voute'],
+          color: 'from-rose-600 to-pink-500',
+          badge: 'Étape 7 : Voûte (Arche) — DERNIÈRE'
+        }
+      ];
+    } else if (gabarit === '9m2_intl') {
+      return [
+        {
+          id: 'bouchon',
+          title: '1. Bouchon Standard International (9m²)',
+          desc: 'Configuration standard international à 7 trous : 3 trous vides d\'expansion (non chargés) alignés horizontalement au centre, et 4 trous de mine chargés au TOVEX tirés à 0ms pour casser la roche vers le prisme libre.',
+          types: ['vide', 'charge'],
+          color: 'from-amber-500 to-yellow-400',
+          badge: 'Étape 1 : Bouchon International'
+        },
+        {
+          id: 'g1',
+          title: '2. Élargissement - Groupe 1',
+          desc: 'Premier anneau concentrique de 4 trous autour du bouchon. Pousse la roche diagonalement vers la fente centrale d\'abattage.',
           types: ['g1'],
           color: 'from-blue-500 to-cyan-400',
           badge: 'Étape 2 : Élargisseur 1'
@@ -932,7 +993,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
             </span>
           </div>
           <h2 className="text-xl md:text-2xl font-black uppercase tracking-wide text-slate-100 font-sans">
-            Guide de Forage & Implantation d'Arche ({gabarit === '9m2' ? '9 m²' : '12 m²'})
+            Guide de Forage & Implantation d'Arche ({is9m2 ? '9 m²' : '12 m²'})
           </h2>
           <p className="text-xs text-slate-400 max-w-3xl leading-relaxed">
             Pour la mine souterraine de <strong className="text-slate-200">SMI Imiter (Maroc)</strong>, la régularité spatiale est le premier facteur d'arrachement. 

@@ -11,7 +11,7 @@ interface IngenierieTabProps {
 }
 
 export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
-  const is9m2 = gabarit === '9m2';
+  const is9m2 = gabarit.startsWith('9m2');
   const explosifs = getExplosifsData(gabarit, '1.8');
 
   const [subTab, setSubTab] = useState<'tiges' | 'ateliers' | 'examen'>('tiges');
@@ -246,7 +246,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                     <h4 className="text-xs font-black uppercase text-slate-900">Atelier Parallélisme & Calibrage</h4>
                   </div>
                   <p className="text-[11px] font-semibold text-slate-600 leading-relaxed">
-                    Le mineur foreur doit veiller à l'alignement et au parallélisme parfait de son perforateur pneumatique Montabert T23 avec son poussoir. Les {is9m2 ? 28 : 38} trous doivent être parfaitement parallèles les uns aux autres. Une déviation d'angle supérieure à 5% augmente la ligne de moindre résistance (W) en fond de trou, empêchant le cisaillement de se produire, ce qui laisse des culots de plus de 40 cm.
+                    Le mineur foreur doit veiller à l'alignement et au parallélisme parfait de son perforateur pneumatique Montabert T23 avec son poussoir. Les {gabarit === '9m2_intl' ? 30 : is9m2 ? 28 : 38} trous doivent être parfaitement parallèles les uns aux autres. Une déviation d'angle supérieure à 5% augmente la ligne de moindre résistance (W) en fond de trou, empêchant le cisaillement de se produire, ce qui laisse des culots de plus de 40 cm.
                   </p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl">

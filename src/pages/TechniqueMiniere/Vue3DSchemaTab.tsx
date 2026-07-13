@@ -24,7 +24,7 @@ import {
   Volume2,
   User
 } from 'lucide-react';
-import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL } from './data';
+import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL, HOLES_DATA_9_INTL } from './data';
 import { HoleInfo, GabaritType } from './types';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -92,17 +92,19 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
   // Hole data mapping
   const holesToRender = useMemo(() => {
     if (gabarit === '9m2') return HOLES_DATA_9;
+    if (gabarit === '9m2_intl') return HOLES_DATA_9_INTL;
     if (gabarit === '12m2_intl') return HOLES_DATA_12_INTL;
     return HOLES_DATA;
   }, [gabarit]);
 
-  const maxStep = gabarit === '9m2' ? 6 : 7;
+  const is9m2 = gabarit.startsWith('9m2');
+  const maxStep = is9m2 ? 6 : 7;
 
-  const REAL_DELAYS_MS = gabarit === '9m2'
+  const REAL_DELAYS_MS = is9m2
     ? [0, 0, 25, 50, 75, 100, 125]
     : [0, 0, 25, 50, 75, 100, 125, 150];
 
-  const TOTAL_DURATION_MS = gabarit === '9m2' ? 125 : 150;
+  const TOTAL_DURATION_MS = is9m2 ? 125 : 150;
 
   // Realtime playback loop
   const startRealtimePlayback = () => {
@@ -489,7 +491,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
   // Retrieve blasting step for specific hole
   const getBlastStepForHole = (hole: HoleInfo, gab: GabaritType) => {
     if (hole.type === 'vide') return -1;
-    if (gab === '9m2') {
+    if (gab.startsWith('9m2')) {
       if (hole.type === 'charge') return 1;
       if (hole.type === 'g1') return 2;
       if (hole.type === 'g2') return 3;
@@ -511,7 +513,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
 
   const getFootage = () => {
     const totalDepth = rodType === '1.8' ? 1.7 : 2.3;
-    if (gabarit === '9m2') {
+    if (gabarit.startsWith('9m2')) {
       switch (activeStep) {
         case 0: return 0.0;
         case 1: return Number((totalDepth * 0.15).toFixed(2));
@@ -558,12 +560,12 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
 
   // Dimension helpers
   const gCX = 500;
-  const gCY = gabarit === '9m2' ? 350 : 430;
-  const DEPTH = gabarit === '9m2' ? 240 : 300;
+  const gCY = is9m2 ? 350 : 430;
+  const DEPTH = is9m2 ? 240 : 300;
 
   // Real world dimensions (meters)
-  const SCALE = gabarit === '9m2' ? 0.007 : 0.005;
-  const DEPTH_METERS = gabarit === '9m2' ? 12.0 : 15.0;
+  const SCALE = is9m2 ? 0.007 : 0.005;
+  const DEPTH_METERS = is9m2 ? 12.0 : 15.0;
 
   // Coordinate mapper (Hole relative x,y,z in SVG space to 3D Space meters)
   const getHole3DVector = (hole: HoleInfo, zValue: number): THREE.Vector3 => {
@@ -581,7 +583,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
   };
 
   // Interactive camera preset interpolator
-  const targetCamPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0.7, gabarit === '9m2' ? -3.8 : -4.5));
+  const targetCamPos = useRef<THREE.Vector3>(new THREE.Vector3(0, 0.7, is9m2 ? -3.8 : -4.5));
   const targetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(0, 0.7, 3.0));
   const isInterpolating = useRef<boolean>(true);
 
@@ -592,7 +594,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
 
     if (preset === 'face') {
       targetLookAt.current.set(0, 0.7, 3.0);
-      targetCamPos.current.set(0, 0.7, gabarit === '9m2' ? -3.8 : -4.5);
+      targetCamPos.current.set(0, 0.7, is9m2 ? -3.8 : -4.5);
     } else if (preset === 'iso') {
       targetLookAt.current.set(0, 0.5, centerZ);
       targetCamPos.current.set(3.5, 2.5, -3.0);
@@ -757,14 +759,14 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
 
     // 6. Geological Workbench helper floor
     const gridHelper = new THREE.GridHelper(40, 40, 0x334155, 0x0f172a);
-    const floorY = gabarit === '9m2' ? -(520 - gCY) * SCALE : -(650 - gCY) * SCALE;
+    const floorY = is9m2 ? -(520 - gCY) * SCALE : -(650 - gCY) * SCALE;
     gridHelper.position.y = floorY - 0.01;
     gridHelper.position.z = DEPTH_METERS / 2;
     scene.add(gridHelper);
 
     // 7. Tunnel Gallery Geometry
     const shape = new THREE.Shape();
-    if (gabarit !== '9m2') {
+    if (!is9m2) {
       // 12m2 tunnel profile (width = 800px, height = 750px)
       // Bottom-left corner is at (100, 650) relative to (gCX, gCY) = (500, 430)
       const x1 = (100 - gCX) * SCALE;
@@ -948,7 +950,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
             const startVec = new THREE.Vector3(wallPt.x, wallPt.y, zOffset);
             
             // direction vector pointing away from gallery arch center
-            const arcCenterY = gabarit === '9m2' ? -(280 - gCY) * SCALE : -(300 - gCY) * SCALE;
+            const arcCenterY = is9m2 ? -(280 - gCY) * SCALE : -(300 - gCY) * SCALE;
             const dirVec = new THREE.Vector3(wallPt.x, wallPt.y - arcCenterY, 0).normalize();
             const endVec = startVec.clone().addScaledVector(dirVec, boltLength);
 
@@ -1659,7 +1661,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
               <span className="flex items-center gap-1.5 text-slate-200">
                 <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block" /> G3
               </span>
-              {gabarit !== '9m2' && (
+              {!is9m2 && (
                 <span className="flex items-center gap-1.5 text-slate-200">
                   <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block" /> G4
                 </span>
@@ -1730,7 +1732,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
             </div>
 
             <div className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <p>Section : <span className="text-white font-extrabold">{gabarit === '9m2' ? 'Traçage 9m² (1.7m)' : 'Galerie 12m² (2.3m)'}</span></p>
+              <p>Section : <span className="text-white font-extrabold">{gabarit === '9m2' ? 'Traçage 9m² (1.7m)' : gabarit === '9m2_intl' ? 'Traçage 9m² Intl (1.7m)' : 'Galerie 12m² (2.3m)'}</span></p>
               <div className="w-px h-4 bg-slate-800" />
               <p>Foration : <span className="text-white font-extrabold">{holesToRender.length} Trous</span></p>
             </div>

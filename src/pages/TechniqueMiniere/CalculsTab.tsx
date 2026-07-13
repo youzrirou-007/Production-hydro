@@ -14,8 +14,8 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
   const { profile } = useAuth();
   const canSeePrime = profile?.role === 'admin' || profile?.role === 'direction_technique';
 
-  const is9m2 = gabarit === '9m2';
-  const initialHoles = is9m2 ? 28 : 38;
+  const is9m2 = gabarit.startsWith('9m2');
+  const initialHoles = gabarit === '9m2_intl' ? 30 : is9m2 ? 28 : 38;
 
   const [rodType, setRodType] = useState<'1.8' | '2.4'>('1.8');
   const [numHoles, setNumHoles] = useState<number>(initialHoles);
@@ -28,8 +28,8 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
 
   // When gabarit changes, we should also handle state sync or update
   React.useEffect(() => {
-    setNumHoles(is9m2 ? 28 : 38);
-  }, [gabarit, is9m2]);
+    setNumHoles(initialHoles);
+  }, [gabarit, initialHoles]);
 
   // When rod type changes, update the default depth
   const handleRodChange = (type: '1.8' | '2.4') => {
