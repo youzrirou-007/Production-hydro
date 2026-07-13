@@ -796,8 +796,87 @@ export const HOLES_DATA_12_INTL: HoleInfo[] = [
   }))
 ];
 
+export const HOLES_DATA_9_INTL: HoleInfo[] = [
+  // BOUCHON CYLINDRIQUE INTL (7 trous : 4 chargés + 3 vides)
+  {
+    id: 'vi9_1',
+    name: 'Bouchon Intl - Trou Vide Gauche',
+    x: 480,
+    y: 350,
+    type: 'vide',
+    label: 'V',
+    desc: 'Trou vide d\'expansion gauche (Ø 38mm). Augmente la surface libre initiale pour le cisaillement de la roche.',
+    delay: 0
+  },
+  {
+    id: 'vi9_2',
+    name: 'Bouchon Intl - Trou Vide Central',
+    x: 500,
+    y: 350,
+    type: 'vide',
+    label: 'V',
+    desc: 'Trou vide d\'expansion central (Ø 38mm). Axe de symétrie de la décompression du bouchon.',
+    delay: 0
+  },
+  {
+    id: 'vi9_3',
+    name: 'Bouchon Intl - Trou Vide Droit',
+    x: 520,
+    y: 350,
+    type: 'vide',
+    label: 'V',
+    desc: 'Trou vide d\'expansion droit (Ø 38mm). Assure un ratio optimal vides/chargés pour le traçage.',
+    delay: 0
+  },
+  {
+    id: 'ci9_1',
+    name: 'Bouchon Intl - Chargé Central Haut',
+    x: 500,
+    y: 310,
+    type: 'charge',
+    label: '0',
+    desc: 'Trou chargé au TOVEX (0ms). Pousse la roche verticalement vers les 3 trous vides alignés.',
+    delay: 0
+  },
+  {
+    id: 'ci9_2',
+    name: 'Bouchon Intl - Chargé Central Bas',
+    x: 500,
+    y: 390,
+    type: 'charge',
+    label: '0',
+    desc: 'Trou chargé au TOVEX (0ms). Pousse la roche vers le haut vers l\'espace d\'expansion.',
+    delay: 0
+  },
+  {
+    id: 'ci9_3',
+    name: 'Bouchon Intl - Chargé Central Gauche',
+    x: 450,
+    y: 350,
+    type: 'charge',
+    label: '0',
+    desc: 'Trou chargé au TOVEX (0ms). Cisaille la roche horizontalement vers la gauche du prisme vide.',
+    delay: 0
+  },
+  {
+    id: 'ci9_4',
+    name: 'Bouchon Intl - Chargé Central Droit',
+    x: 550,
+    y: 350,
+    type: 'charge',
+    label: '0',
+    desc: 'Trou chargé au TOVEX (0ms). Cisaille la roche horizontalement vers la droite du prisme vide.',
+    delay: 0
+  },
+  ...HOLES_DATA_9.slice(5).map(hole => ({
+    ...hole,
+    id: 'intl9_' + hole.id
+  }))
+];
+
 export const getHolesData = (gabarit: GabaritType): HoleInfo[] => {
   return gabarit === '9m2' ? HOLES_DATA_9 :
+         gabarit === '9m2_intl' ? HOLES_DATA_9_INTL :
          gabarit === '12m2_intl' ? HOLES_DATA_12_INTL :
          HOLES_DATA;
 };

@@ -1,3 +1,5 @@
+import { GabaritType } from './types';
+
 export interface ExplosifsData {
   totalHoles: number;
   emptyHoles: number;
@@ -16,13 +18,17 @@ const ANFO_DENSITY_KGM3 = 850;
 const HOLE_RADIUS_M = 0.019;
 
 export const getExplosifsData = (
-  gabarit: '12m2' | '12m2_intl' | '9m2',
+  gabarit: GabaritType,
   barreType: '1.8' | '2.4'
 ): ExplosifsData => {
-  const totalHoles = gabarit === '9m2' ? 28 : 38;
+  const is9m2 = gabarit.startsWith('9m2');
+  const totalHoles = is9m2 
+    ? (gabarit === '9m2_intl' ? 30 : 28) 
+    : 38;
   const emptyHoles =
     gabarit === '12m2' ? 3 :
     gabarit === '12m2_intl' ? 6 :
+    gabarit === '9m2_intl' ? 3 :
     1;
 
   const loadedHoles = totalHoles - emptyHoles;

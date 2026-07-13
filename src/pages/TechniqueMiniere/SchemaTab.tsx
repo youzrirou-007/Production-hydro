@@ -12,8 +12,9 @@ import {
   ShieldAlert, 
   Activity 
 } from 'lucide-react';
-import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL } from './data';
+import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL, HOLES_DATA_9_INTL } from './data';
 import { HoleInfo, GabaritType } from './types';
+import { getExplosifsData } from './explosifsCalc';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
@@ -22,6 +23,9 @@ interface SchemaTabProps {
 }
 
 export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
+  const is9m2 = gabarit.startsWith('9m2');
+  const initialHolesCount = gabarit === '9m2_intl' ? 30 : gabarit === '9m2' ? 28 : 38;
+
   const [activeStep, setActiveStep] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [rodType, setRodType] = useState<'1.8' | '2.4'>('1.8');
@@ -35,7 +39,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     boutefeuMatricule: '',
     chefPostNom: '',
     barreType: '1.8' as '1.8' | '2.4',
-    nbTrousForés: gabarit === '9m2' ? 28 : 38,
+    nbTrousForés: initialHolesCount,
     observations: '',
   });
   const [showFicheForm, setShowFicheForm] = useState(false);
@@ -47,11 +51,11 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   const [activeDangerLayer, setActiveDangerLayer] = useState<'all' | 'projection' | 'vibrations' | 'gaz'>('all');
   const [view3D, setView3D] = useState<boolean>(false);
 
-  const REAL_DELAYS_MS = gabarit === '9m2'
+  const REAL_DELAYS_MS = is9m2
     ? [0, 0, 25, 50, 75, 100, 125]
     : [0, 0, 25, 50, 75, 100, 125, 150];
 
-  const TOTAL_DURATION_MS = gabarit === '9m2' ? 125 : 150;
+  const TOTAL_DURATION_MS = is9m2 ? 125 : 150;
 
   const startRealtimePlayback = () => {
     setRealtimeMs(0);
@@ -95,15 +99,15 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const maxStep = gabarit === '9m2' ? 6 : 7;
+  const maxStep = is9m2 ? 6 : 7;
 
   // Reset step if it exceeds bounds on gabarit swap
   useEffect(() => {
     if (activeStep > maxStep) {
       setActiveStep(maxStep);
     }
-    setFicheData(p => ({ ...p, nbTrousForés: gabarit === '9m2' ? 28 : 38 }));
-  }, [gabarit, maxStep, activeStep]);
+    setFicheData(p => ({ ...p, nbTrousForés: initialHolesCount }));
+  }, [gabarit, maxStep, activeStep, initialHolesCount]);
 
   // Auto playback controls
   useEffect(() => {
@@ -146,7 +150,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   // Footage math linked to the rod type and the current blast step
   const getFootage = () => {
     const totalDepth = rodType === '1.8' ? 1.7 : 2.3;
-    if (gabarit === '9m2') {
+    if (is9m2) {
       switch (activeStep) {
         case 0: return 0.0;
         case 1: return Number((totalDepth * 0.15).toFixed(2));
@@ -174,7 +178,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 
   // Cavity expansion dimensions on SVG
   const getCavityRadius = () => {
-    if (gabarit === '9m2') {
+    if (is9m2) {
       switch (activeStep) {
         case 0: return 0;
         case 1: return 45;   // Bouchon central
@@ -236,35 +240,38 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   const generateFicheTir = () => {
     const drilledLength = ficheData.barreType === '1.8' ? 1.7 : 2.3;
     const isIntl = gabarit === '12m2_intl';
-    const is9m2 = gabarit === '9m2';
+    const is9m2Family = gabarit.startsWith('9m2');
 
-    const bouchonConfig = is9m2
-      ? '5 trous (1 vide + 4 chargés TOVEX) — Bouchon cylindrique'
+    const bouchonConfig = gabarit === '9m2_intl'
+      ? '7 trous (3 vides + 4 chargés TOVEX + ANFO) — Standard International (3 Vides)'
+      : gabarit === '9m2'
+      ? '5 trous (1 vide + 4 chargés TOVEX + ANFO) — Bouchon cylindrique'
       : isIntl
-      ? '9 trous (6 vides + 3 chargés TOVEX) — Standard Langefors-Kihlström'
-      : '9 trous (3 vides + 6 chargés TOVEX) — Configuration SMI Imiter';
+      ? '9 trous (6 vides + 3 chargés TOVEX + ANFO) — Standard Langefors-Kihlström'
+      : '9 trous (3 vides + 6 chargés TOVEX + ANFO) — Configuration SMI Imiter';
 
-    const totalTrous = is9m2 ? 28 : 38;
-    const nbChargés = is9m2 ? 27 : 37;
-    const anfoKg = is9m2 ? 22.8 : 29.0;
-    const tovexCartouches = is9m2 ? 4 : 3;
-    const nbAmorces = totalTrous;
+    const explosifs = getExplosifsData(gabarit, ficheData.barreType);
+    const totalTrous = explosifs.totalHoles;
+    const nbChargés = explosifs.loadedHoles;
+    const anfoKg = explosifs.anfoKgTotal;
+    const tovexCartouches = explosifs.tovexCartouches;
+    const nbAmorces = explosifs.amorces;
 
-    const sequenceLignes = is9m2 ? [
-      { det: '0 ms', desc: 'Bouchon cylindrique — TOVEX', trous: 4 },
-      { det: '25 ms', desc: 'Groupe 1 — ANFO', trous: 4 },
-      { det: '50 ms', desc: 'Groupe 2 — ANFO', trous: 4 },
-      { det: '75 ms', desc: 'Groupe 3 — ANFO', trous: 4 },
-      { det: '100 ms', desc: 'Radier + Parements — ANFO', trous: 8 },
-      { det: '125 ms', desc: 'Voûte — ANFO', trous: 3 },
+    const sequenceLignes = is9m2Family ? [
+      { det: '0 ms', desc: 'Bouchon central', trous: 4 },
+      { det: '25 ms', desc: 'Groupe d\'Élargissement 1', trous: 4 },
+      { det: '50 ms', desc: 'Groupe d\'Élargissement 2', trous: 4 },
+      { det: '75 ms', desc: 'Groupe d\'Élargissement 3', trous: 4 },
+      { det: '100 ms', desc: 'Radier + Parements', trous: 8 },
+      { det: '125 ms', desc: 'Voûte (Découpe d\'Arche)', trous: 3 },
     ] : [
-      { det: '0 ms', desc: 'Bouchon brûlé — TOVEX', trous: isIntl ? 3 : 6 },
-      { det: '25 ms', desc: 'Groupe 1 — ANFO', trous: 4 },
-      { det: '50 ms', desc: 'Groupe 2 — ANFO', trous: 4 },
-      { det: '75 ms', desc: 'Groupe 3 — ANFO', trous: 4 },
-      { det: '100 ms', desc: 'Groupe 4 — ANFO', trous: 4 },
-      { det: '125 ms', desc: 'Radier + Parements — ANFO', trous: 10 },
-      { det: '150 ms', desc: 'Voûte — ANFO', trous: 3 },
+      { det: '0 ms', desc: 'Bouchon brûlé', trous: isIntl ? 3 : 6 },
+      { det: '25 ms', desc: 'Groupe d\'Élargissement 1', trous: 4 },
+      { det: '50 ms', desc: 'Groupe d\'Élargissement 2', trous: 4 },
+      { det: '75 ms', desc: 'Groupe d\'Élargissement 3', trous: 4 },
+      { det: '100 ms', desc: 'Groupe d\'Élargissement 4', trous: 4 },
+      { det: '125 ms', desc: 'Radier + Parements', trous: 10 },
+      { det: '150 ms', desc: 'Voûte (Découpe de Voûte)', trous: 3 },
     ];
 
     const dateFormatted = new Date(ficheData.date + 'T12:00:00')
@@ -280,7 +287,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 
     const signatureMatriculeHTML = ficheData.boutefeuMatricule ? `<div style="font-size:8px;color:#64748b;">Mat: ${ficheData.boutefeuMatricule}</div>` : '';
 
-    const sequenceLignesRows = sequenceLignes.map(l => '<tr><td><strong>' + l.det + '</strong></td><td>' + l.desc + '</td><td style="text-align:center;">' + l.trous + '</td><td>' + (l.desc.includes('TOVEX') ? 'TOVEX 100g' : 'ANFO') + '</td></tr>').join('');
+    const sequenceLignesRows = sequenceLignes.map(l => '<tr><td><strong>' + l.det + '</strong></td><td>' + l.desc + '</td><td style="text-align:center;">' + l.trous + '</td><td>' + 'TOVEX 100g (Amorceur) + ANFO (Colonne)' + '</td></tr>').join('');
 
     const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -524,7 +531,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
       
       // Determine the precise target radius for this angle and step
       let r = 0;
-      if (gabarit === '9m2') {
+      if (is9m2) {
         switch (step) {
           case 1: // Bouchon central
             r = 45;
@@ -656,7 +663,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     }
   ];
 
-  const stepExplanations = gabarit === '9m2' ? stepExplanationsNine : stepExplanationsTwelve;
+  const stepExplanations = is9m2 ? stepExplanationsNine : stepExplanationsTwelve;
 
   // Colors for rendering the holes based on type
   const getHoleColorClasses = (hole: HoleInfo, status: string) => {
@@ -684,7 +691,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   // Logic to draw vector arrow pointing from hole center towards the epicentre (500, 430) for 12m2, and (500, 350) for 9m2
   const getArrowCoords = (hole: HoleInfo) => {
     const cx = 500;
-    const cy = gabarit === '9m2' ? 350 : 430;
+    const cy = is9m2 ? 350 : 430;
     const dx = cx - hole.x;
     const dy = cy - hole.y;
     const len = Math.sqrt(dx * dx + dy * dy);
@@ -707,6 +714,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   const currentPercentage = Math.round((getFootage() / currentMaxDepth) * 100);
   const holesToRender =
     gabarit === '9m2' ? HOLES_DATA_9 :
+    gabarit === '9m2_intl' ? HOLES_DATA_9_INTL :
     gabarit === '12m2_intl' ? HOLES_DATA_12_INTL :
     HOLES_DATA;
 
@@ -718,7 +726,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
     const debrisMap: Record<string, any[]> = {};
 
     const cx = 500;
-    const cy = gabarit === '9m2' ? 350 : 430;
+    const cy = is9m2 ? 350 : 430;
 
     holesToRender.forEach((hole) => {
       // 1. PARTICLES (Polygons of rock, max 15 per hole)
@@ -831,7 +839,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
       const dbr = [];
       if (!isFinishing && hole.type !== 'vide') {
         const debrisCount = 3 + (parseInt(hole.id.replace(/\D/g, '') || '0') % 3); // 3 to 5 debris pieces
-        const floorY = gabarit === '9m2' ? 520 : 650;
+        const floorY = is9m2 ? 520 : 650;
         const fallDist = floorY - hole.y;
 
         for (let i = 0; i < debrisCount; i++) {
@@ -867,7 +875,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
       const sumY = blastingHoles.reduce((acc, h) => acc + h.y, 0);
       return { x: sumX / blastingHoles.length, y: sumY / blastingHoles.length };
     }
-    return { x: 500, y: gabarit === '9m2' ? 350 : 430 };
+    return { x: 500, y: is9m2 ? 350 : 430 };
   })();
 
   // Dynamic screen shake intensity and duration based on blasting step
@@ -879,7 +887,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   })();
 
   // Dynamic zoom viewBox with expanded empty margins at top and bottom for optimal vertical space
-  const dynamicViewBox = gabarit === '9m2' ? "210 -10 580 580" : "0 -180 1000 920";
+  const dynamicViewBox = is9m2 ? "210 -10 580 580" : "0 -180 1000 920";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-white rounded-3xl p-6 border border-slate-100 shadow-xs">
@@ -953,12 +961,12 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                 <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /> Groupe 1 : 25ms</p>
                 <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /> Groupe 2 : 50ms</p>
                 <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-cyan-400" /> Groupe 3 : 75ms</p>
-                {gabarit === '12m2' && (
+                {!is9m2 && (
                   <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500" /> Groupe 4 : 100ms</p>
                 )}
-                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-violet-500" /> Radier : {gabarit === '9m2' ? '100ms' : '125ms'}</p>
-                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500" /> Parement : {gabarit === '9m2' ? '100ms' : '125ms'}</p>
-                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> Voûte : 125ms</p>
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-violet-500" /> Radier : {is9m2 ? '100ms' : '125ms'}</p>
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500" /> Parement : {is9m2 ? '100ms' : '125ms'}</p>
+                <p className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500" /> Voûte : {is9m2 ? '125ms' : '150ms'}</p>
               </div>
 
               <svg viewBox={dynamicViewBox} className="w-full h-auto select-none">
@@ -1059,7 +1067,8 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               <rect x="-1000" y="-1000" width="3000" height="3000" fill="url(#granite-rock)" />
 
               {/* Gallery Tunnel Face Silhouette */}
-              {gabarit === '9m2' ? (
+              {/* Gallery Tunnel Face Silhouette */}
+              {is9m2 ? (
                 <path
                   d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
                   fill="url(#granite-rock)"
@@ -1078,7 +1087,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               )}
 
               {/* Internal edge shadow line */}
-              {gabarit === '9m2' ? (
+              {is9m2 ? (
                 <path
                   d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
                   fill="none"
@@ -1102,7 +1111,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                   {/* Outer glow/rim shadow */}
                   <motion.path
                     key={`organic-void-bg-${gabarit}`}
-                    d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, activeStep, 3)}
+                    d={getOrganicVoidPath(500, is9m2 ? 350 : 430, activeStep, 3)}
                     fill="none"
                     stroke="#475569"
                     strokeWidth="4"
@@ -1112,7 +1121,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                   {/* The jagged raw rock void itself */}
                   <motion.path
                     key={`organic-void-${gabarit}`}
-                    d={getOrganicVoidPath(500, gabarit === '9m2' ? 350 : 430, activeStep, 0)}
+                    d={getOrganicVoidPath(500, is9m2 ? 350 : 430, activeStep, 0)}
                     fill="url(#void-backlight)"
                     stroke="#ffffff"
                     strokeWidth="2"
@@ -1128,7 +1137,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
               {/* STAGE COMPLETE: FULL Profile Excavation Complete */}
               {activeStep === maxStep && (
                 <motion.path
-                  d={gabarit === '9m2' ? "M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z" : "M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"}
+                  d={is9m2 ? "M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z" : "M 100,650 L 100,300 A 400,400 0 0,1 900,300 L 900,650 Z"}
                   fill="#000000"
                   stroke="#22c55e"
                   strokeWidth="4"
@@ -1171,7 +1180,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                     cx={centerOfGravity.x}
                     cy={centerOfGravity.y}
                     initial={{ r: 10, opacity: 0.8 }}
-                    animate={{ r: gabarit === '9m2' ? 200 : 350, opacity: 0 }}
+                    animate={{ r: is9m2 ? 200 : 350, opacity: 0 }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
                     fill="none"
                     stroke="#fbbf24"
@@ -1308,29 +1317,29 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                         <circle
                           cx={hole.x}
                           cy={hole.y}
-                          r={gabarit === '9m2' ? "6" : "10"}
+                          r={is9m2 ? "6" : "10"}
                           fill="#1a1a2e"
                           stroke="#4b5563"
                           strokeWidth="1.5"
                           strokeDasharray="3,2"
                         />
                         {/* Radial cracking lines */}
-                        <line x1={hole.x - (gabarit === '9m2' ? 9 : 14)} y1={hole.y} x2={hole.x - (gabarit === '9m2' ? 4 : 6)} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
-                        <line x1={hole.x + (gabarit === '9m2' ? 4 : 6)} y1={hole.y} x2={hole.x + (gabarit === '9m2' ? 9 : 14)} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
-                        <line x1={hole.x} y1={hole.y - (gabarit === '9m2' ? 9 : 14)} x2={hole.x} y2={hole.y - (gabarit === '9m2' ? 4 : 6)} stroke="#4b5563" strokeWidth="1.5" />
-                        <line x1={hole.x} y1={hole.y + (gabarit === '9m2' ? 4 : 6)} x2={hole.x} y2={hole.y + (gabarit === '9m2' ? 9 : 14)} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x - (is9m2 ? 9 : 14)} y1={hole.y} x2={hole.x - (is9m2 ? 4 : 6)} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x + (is9m2 ? 4 : 6)} y1={hole.y} x2={hole.x + (is9m2 ? 9 : 14)} y2={hole.y} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x} y1={hole.y - (is9m2 ? 9 : 14)} x2={hole.x} y2={hole.y - (is9m2 ? 4 : 6)} stroke="#4b5563" strokeWidth="1.5" />
+                        <line x1={hole.x} y1={hole.y + (is9m2 ? 4 : 6)} x2={hole.x} y2={hole.y + (is9m2 ? 9 : 14)} stroke="#4b5563" strokeWidth="1.5" />
                         
                         {/* Diagonal cracking lines */}
-                        <line x1={hole.x - (gabarit === '9m2' ? 6 : 10)} y1={hole.y - (gabarit === '9m2' ? 6 : 10)} x2={hole.x - (gabarit === '9m2' ? 3 : 4)} y2={hole.y - (gabarit === '9m2' ? 3 : 4)} stroke="#4b5563" strokeWidth="1" />
-                        <line x1={hole.x + (gabarit === '9m2' ? 3 : 4)} y1={hole.y + (gabarit === '9m2' ? 3 : 4)} x2={hole.x + (gabarit === '9m2' ? 6 : 10)} y2={hole.y + (gabarit === '9m2' ? 6 : 10)} stroke="#4b5563" strokeWidth="1" />
-                        <line x1={hole.x + (gabarit === '9m2' ? 3 : 4)} y1={hole.y - (gabarit === '9m2' ? 3 : 4)} x2={hole.x + (gabarit === '9m2' ? 6 : 10)} y2={hole.y - (gabarit === '9m2' ? 6 : 10)} stroke="#4b5563" strokeWidth="1" />
-                        <line x1={hole.x - (gabarit === '9m2' ? 6 : 10)} y1={hole.y + (gabarit === '9m2' ? 3 : 4)} x2={hole.x - (gabarit === '9m2' ? 3 : 4)} y2={hole.y + (gabarit === '9m2' ? 6 : 10)} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x - (is9m2 ? 6 : 10)} y1={hole.y - (is9m2 ? 6 : 10)} x2={hole.x - (is9m2 ? 3 : 4)} y2={hole.y - (is9m2 ? 3 : 4)} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x + (is9m2 ? 3 : 4)} y1={hole.y + (is9m2 ? 3 : 4)} x2={hole.x + (is9m2 ? 6 : 10)} y2={hole.y + (is9m2 ? 6 : 10)} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x + (is9m2 ? 3 : 4)} y1={hole.y - (is9m2 ? 3 : 4)} x2={hole.x + (is9m2 ? 6 : 10)} y2={hole.y - (is9m2 ? 6 : 10)} stroke="#4b5563" strokeWidth="1" />
+                        <line x1={hole.x - (is9m2 ? 6 : 10)} y1={hole.y + (is9m2 ? 3 : 4)} x2={hole.x - (is9m2 ? 3 : 4)} y2={hole.y + (is9m2 ? 6 : 10)} stroke="#4b5563" strokeWidth="1" />
                         
                         {/* Central hot spot */}
                         <circle
                           cx={hole.x}
                           cy={hole.y}
-                          r={gabarit === '9m2' ? "2" : "3"}
+                          r={is9m2 ? "2" : "3"}
                           fill="#ef4444"
                           opacity="0.6"
                         />
@@ -1348,7 +1357,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                                 key={s.id}
                                 cx={hole.x}
                                 cy={hole.y}
-                                r={gabarit === '9m2' ? s.size * 0.6 : s.size}
+                                r={is9m2 ? s.size * 0.6 : s.size}
                                 fill="#4b5563"
                                 initial={{ x: 0, y: 0, opacity: 0.6, scale: 0.6 }}
                                 animate={{ x: s.tx, y: s.ty, opacity: 0, scale: 1.5 }}
@@ -1370,7 +1379,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                           <motion.circle
                             cx={hole.x}
                             cy={hole.y}
-                            r={gabarit === '9m2' ? "17" : "26"}
+                            r={is9m2 ? "17" : "26"}
                             fill="none"
                             stroke={getHoleColorHex(hole)}
                             strokeWidth="1.5"
@@ -1390,7 +1399,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                         <circle
                           cx={hole.x}
                           cy={hole.y}
-                          r={hoveredHole?.id === hole.id ? (gabarit === '9m2' ? "16" : "24") : (gabarit === '9m2' ? "11.5" : "18")}
+                          r={hoveredHole?.id === hole.id ? (is9m2 ? "16" : "24") : (is9m2 ? "11.5" : "18")}
                           className={`${getHoleColorClasses(hole, status)} transition-all duration-300 cursor-pointer stroke-[3.5px]`}
                           onMouseEnter={() => setHoveredHole(hole)}
                           onMouseLeave={() => setHoveredHole(null)}
@@ -1402,10 +1411,10 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                     {status !== 'exploded' && (
                       <text
                         x={hole.x}
-                        y={gabarit === '9m2' ? hole.y + 3.5 : hole.y + 5}
+                        y={is9m2 ? hole.y + 3.5 : hole.y + 5}
                         textAnchor="middle"
                         className="font-black uppercase tracking-tighter fill-current select-none pointer-events-none"
-                        style={{ fontSize: gabarit === '9m2' ? '8px' : '12px' }}
+                        style={{ fontSize: is9m2 ? '8px' : '12px' }}
                         fill={
                           hole.type === 'vide'
                             ? '#1e293b'
@@ -1425,8 +1434,8 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                         <motion.circle
                           cx={hole.x}
                           cy={hole.y}
-                          initial={{ r: gabarit === '9m2' ? 12 : 20, opacity: 0.8 }}
-                          animate={{ r: gabarit === '9m2' ? 50 : 80, opacity: 0 }}
+                          initial={{ r: is9m2 ? 12 : 20, opacity: 0.8 }}
+                          animate={{ r: is9m2 ? 50 : 80, opacity: 0 }}
                           transition={{ duration: 0.5, ease: "easeOut" }}
                           fill="url(#blast-glow)"
                           pointerEvents="none"
@@ -1436,7 +1445,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                         <circle
                           cx={hole.x}
                           cy={hole.y}
-                          r={gabarit === '9m2' ? "22" : "35"}
+                          r={is9m2 ? "22" : "35"}
                           fill="rgba(245, 158, 11, 0.35)"
                           className="animate-ping"
                         />
@@ -1445,8 +1454,8 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                         <motion.circle
                           cx={hole.x}
                           cy={hole.y}
-                          initial={{ r: gabarit === '9m2' ? 9 : 15, opacity: 0.9 }}
-                          animate={{ r: gabarit === '9m2' ? 32 : 50, opacity: 0 }}
+                          initial={{ r: is9m2 ? 9 : 15, opacity: 0.9 }}
+                          animate={{ r: is9m2 ? 32 : 50, opacity: 0 }}
                           transition={{ duration: 0.5, ease: "easeOut" }}
                           fill="none"
                           stroke="#fbbf24"
@@ -1985,6 +1994,11 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                       Le gabarit 9m² est optimisé pour les galeries de reconnaissance et de traçage de section réduite (3m x 3m). Avec seulement 28 trous et un bouchon à un seul trou vide d'expansion, il réduit la consommation d'explosifs et le temps de foration par cycle, tout en maintenant un profil de voûte en arc de cercle autoportant.
                     </p>
                   )}
+                  {gabarit === '9m2_intl' && (
+                    <p>
+                      Le gabarit 9m² International est configuré avec un bouchon standard de 7 trous (3 vides de décompression et 4 chargés avec TOVEX + ANFO). Ce standard permet d'équilibrer l'évacuation de la roche broyée et de garantir un avancement parfait de la galerie même dans les terrains rocheux les plus durs et silicifiés de SMI.
+                    </p>
+                  )}
                 </div>
                 <div className="pt-2 flex justify-end">
                   <button
@@ -2026,7 +2040,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                   📄 FICHE DE TIR — SMI IMITER
                 </h3>
                 <p className="text-[10px] text-slate-300 uppercase font-bold tracking-wider mt-1">
-                  {gabarit === '9m2' ? 'Traçage 9m²' : 'Galerie 12m²'}
+                  {is9m2 ? 'Traçage 9m²' : 'Galerie 12m²'}
                 </p>
               </div>
 
@@ -2188,6 +2202,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
   gabarit, activeStep, holesToRender, getBlastStepForHole, setHoveredHole, hoveredHole
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const is9m2 = gabarit.startsWith('9m2');
   
   // Engine selection state
   const [engineMode, setEngineMode] = useState<'webgl' | 'svg'>('webgl');
@@ -2202,19 +2217,19 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
   // Vector 3D Engine coordinates state (SVG fall-back / concurrent mode)
   const [yaw, setYaw] = useState<number>(35);
   const [pitch, setPitch] = useState<number>(-20);
-  const [zoom, setZoom] = useState<number>(gabarit === '9m2' ? 1.05 : 0.85);
+  const [zoom, setZoom] = useState<number>(is9m2 ? 1.05 : 0.85);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
   // Dimensioning
-  const gW = gabarit === '9m2' ? 260 : 400;
-  const gH = gabarit === '9m2' ? 160 : 220;
+  const gW = is9m2 ? 260 : 400;
+  const gH = is9m2 ? 160 : 220;
   const gCX = 500;
-  const gCY = gabarit === '9m2' ? 350 : 430;
-  const DEPTH = gabarit === '9m2' ? 240 : 300;
+  const gCY = is9m2 ? 350 : 430;
+  const DEPTH = is9m2 ? 240 : 300;
 
   const sectionPoints = useMemo(() => {
-    return gabarit === '9m2' ? [
+    return is9m2 ? [
       [gCX - gW/2, gCY + gH/2],
       [gCX + gW/2, gCY + gH/2],
       [gCX + gW/2, gCY],
@@ -2231,7 +2246,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
       [gCX - gW*0.45, gCY - gH*0.55],
       [gCX - gW/2, gCY],
     ];
-  }, [gabarit, gW, gH, gCX, gCY]);
+  }, [is9m2, gW, gH, gCX, gCY]);
 
   // WebGL detector
   useEffect(() => {
@@ -2918,7 +2933,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
       // Animate glowing back face border line representing perfect gabarit finish
       if (backBorderLineRef.current) {
         const mat = backBorderLineRef.current.material as THREE.LineBasicMaterial;
-        const maxStep = gabarit === '9m2' ? 6 : 7;
+        const maxStep = is9m2 ? 6 : 7;
         if (activeStep === maxStep) {
           const pulse = 0.5 + 0.5 * Math.sin(now * 0.008);
           mat.opacity = 0.4 + 0.6 * pulse;
@@ -3425,7 +3440,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
     const camera = cameraRef.current;
     if (!camera) return;
 
-    const totalSteps = gabarit === '9m2' ? 6 : 7;
+    const totalSteps = is9m2 ? 6 : 7;
     const progress = activeStep / totalSteps;
 
     const targetZ = -10 + progress * 7;
@@ -3512,7 +3527,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
               </span>
             </div>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
-              Excavation Tridimensionnelle interactive · {gabarit === '9m2' ? 'Traçage 9m²' : 'Galerie 12m²'}
+              Excavation Tridimensionnelle interactive · {is9m2 ? 'Traçage 9m²' : 'Galerie 12m²'}
             </p>
           </div>
         </div>
@@ -3601,7 +3616,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
               📊 TÉLÉMÉTRIE SÉQUENCE WEBGL
             </p>
             <div className="text-[9px] font-bold text-slate-400 space-y-1 uppercase tracking-wider">
-              <p>Profil : <span className="text-white font-extrabold">{gabarit === '9m2' ? 'Traçage 9m² (1.7m)' : 'Galerie 12m² (2.3m)'}</span></p>
+              <p>Profil : <span className="text-white font-extrabold">{is9m2 ? 'Traçage 9m² (1.7m)' : 'Galerie 12m² (2.3m)'}</span></p>
               <p>Éléments Actifs : <span className="text-white font-extrabold">{holesToRender.length} Trous de forage</span></p>
               <p id="hud-camera-angles">Caméra : Yaw 35° | Pitch -20°</p>
               <p>Moteur : <span className="text-emerald-400 font-black">GPU matériel • 60 FPS</span></p>
@@ -3692,7 +3707,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
               📊 TÉLÉMÉTRIE VECTORIELLE 3D
             </p>
             <div className="text-[9px] font-bold text-slate-400 space-y-1 uppercase tracking-wider">
-              <p>Profil : <span className="text-white font-extrabold">{gabarit === '9m2' ? 'Traçage 9m² (1.7m)' : 'Galerie 12m² (2.3m)'}</span></p>
+              <p>Profil : <span className="text-white font-extrabold">{is9m2 ? 'Traçage 9m² (1.7m)' : 'Galerie 12m² (2.3m)'}</span></p>
               <p>Éléments Actifs : <span className="text-white font-extrabold">{holesToRender.length} Trous de forage</span></p>
               <p>Rotation : <span className="text-amber-400 font-extrabold">Yaw {Math.round(yaw)}° | Pitch {Math.round(pitch)}°</span></p>
               <p>Rendu : <span className="text-amber-400 font-black">Vectoriel SVG 3D • 100% Fluide</span></p>

@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Crown, ArrowRight } from 'lucide-react';
 import logoImg from '../../assets/images/hydromines_logo_1781337889277.jpg';
-import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL } from './data';
+import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL, HOLES_DATA_9_INTL } from './data';
 import { GabaritType } from './types';
 
 interface HomeCardsProps {
@@ -50,14 +50,14 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto w-full flex-1 items-center py-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto w-full flex-1 items-center py-4">
         <motion.div
           onClick={() => onSelect('12m2')}
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ type: 'spring', stiffness: 100, damping: 15 }}
           whileHover={{ y: -8, scale: 1.02 }}
-          className="cursor-pointer bg-white border-2 border-amber-400/60 rounded-3xl overflow-hidden shadow-[0_10px_30px_rgba(218,165,32,0.06)] hover:shadow-[0_20px_40px_rgba(218,165,32,0.15)] transition-shadow duration-300 relative flex flex-col justify-between h-[480px]"
+          className="cursor-pointer bg-white border-2 border-amber-400/60 rounded-3xl overflow-hidden shadow-[0_10px_30px_rgba(218,165,32,0.06)] hover:shadow-[0_20px_40px_rgba(218,165,32,0.15)] transition-shadow duration-300 relative flex flex-col justify-between min-h-[510px] h-full"
         >
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500" />
           <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-400" />
@@ -123,9 +123,9 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
             </div>
 
             <div className="pt-2">
-              <div className="w-full py-3 bg-slate-900 hover:bg-black text-white rounded-xl text-center text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors border border-amber-400/30 group">
+              <div className="w-full py-3 px-3 bg-slate-900 hover:bg-black text-white rounded-xl text-center text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors border border-amber-400/30 group">
                 ACCÉDER AU PLAN DE TIR
-                <ArrowRight className="w-4 h-4 text-amber-400 transition-transform group-hover:translate-x-1.5" />
+                <ArrowRight className="w-3.5 h-3.5 text-amber-400 transition-transform group-hover:translate-x-1.5" />
               </div>
             </div>
           </div>
@@ -137,7 +137,7 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 100, damping: 15 }}
           whileHover={{ y: -8, scale: 1.02 }}
-          className="cursor-pointer bg-white border-2 border-amber-400/60 rounded-3xl overflow-hidden shadow-[0_10px_30px_rgba(218,165,32,0.06)] hover:shadow-[0_20px_40px_rgba(218,165,32,0.15)] transition-shadow duration-300 relative flex flex-col justify-between h-[480px]"
+          className="cursor-pointer bg-white border-2 border-amber-400/60 rounded-3xl overflow-hidden shadow-[0_10px_30px_rgba(218,165,32,0.06)] hover:shadow-[0_20px_40px_rgba(218,165,32,0.15)] transition-shadow duration-300 relative flex flex-col justify-between min-h-[510px] h-full"
         >
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500" />
           <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-400" />
@@ -203,9 +203,9 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
             </div>
 
             <div className="pt-2">
-              <div className="w-full py-3 bg-slate-900 hover:bg-black text-white rounded-xl text-center text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors border border-amber-400/30 group">
+              <div className="w-full py-3 px-3 bg-slate-900 hover:bg-black text-white rounded-xl text-center text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors border border-amber-400/30 group">
                 ACCÉDER AU PLAN DE TIR
-                <ArrowRight className="w-4 h-4 text-amber-400 transition-transform group-hover:translate-x-1.5" />
+                <ArrowRight className="w-3.5 h-3.5 text-amber-400 transition-transform group-hover:translate-x-1.5" />
               </div>
             </div>
           </div>
@@ -217,13 +217,13 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ type: 'spring', stiffness: 100, damping: 15 }}
           whileHover={{ y: -8, scale: 1.02 }}
-          className="cursor-pointer bg-white border-2 border-amber-400/60 rounded-3xl overflow-hidden shadow-[0_10px_30px_rgba(218,165,32,0.06)] hover:shadow-[0_20px_40px_rgba(218,165,32,0.15)] transition-shadow duration-300 relative flex flex-col justify-between h-[480px]"
+          className="cursor-pointer bg-white border-2 border-amber-400/60 rounded-3xl overflow-hidden shadow-[0_10px_30px_rgba(218,165,32,0.06)] hover:shadow-[0_20px_40px_rgba(218,165,32,0.15)] transition-shadow duration-300 relative flex flex-col justify-between min-h-[510px] h-full"
         >
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500" />
           <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-400" />
 
-          <span className="absolute top-4 right-4 bg-slate-700 text-[#ffd700] text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-sm">
-            🔹 TRAÇAGE 9M²
+          <span className="absolute top-4 right-4 bg-[#1e293b] text-amber-400 text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-sm">
+            🔹 TRAÇAGE 9M² SMI
           </span>
 
           <div className="p-8 space-y-6 flex-1 flex flex-col justify-between">
@@ -232,7 +232,7 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
                 9 m²
               </h2>
               <p className="text-xs font-bold uppercase text-amber-600 tracking-widest mt-1">
-                Galerie de reconnaissance — 3.0m x 3.0m
+                Configuration terrain SMI
               </p>
             </div>
 
@@ -270,7 +270,7 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Charges explosifs :</span>
-                <p className="text-slate-800 font-extrabold uppercase">ANFO 30kg / Tovex 2.4kg</p>
+                <p className="text-slate-800 font-extrabold uppercase">ANFO 20.6kg / TOVEX 2.7kg</p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Plan d'amorçage :</span>
@@ -283,9 +283,89 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
             </div>
 
             <div className="pt-2">
-              <div className="w-full py-3 bg-slate-900 hover:bg-black text-white rounded-xl text-center text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors border border-amber-400/30 group">
+              <div className="w-full py-3 px-3 bg-slate-900 hover:bg-black text-white rounded-xl text-center text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors border border-amber-400/30 group">
                 ACCÉDER AU PLAN DE TIR
-                <ArrowRight className="w-4 h-4 text-amber-400 transition-transform group-hover:translate-x-1.5" />
+                <ArrowRight className="w-3.5 h-3.5 text-amber-400 transition-transform group-hover:translate-x-1.5" />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          onClick={() => onSelect('9m2_intl')}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+          whileHover={{ y: -8, scale: 1.02 }}
+          className="cursor-pointer bg-white border-2 border-amber-400/60 rounded-3xl overflow-hidden shadow-[0_10px_30px_rgba(218,165,32,0.06)] hover:shadow-[0_20px_40px_rgba(218,165,32,0.15)] transition-shadow duration-300 relative flex flex-col justify-between min-h-[510px] h-full"
+        >
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500" />
+          <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-400" />
+
+          <span className="absolute top-4 right-4 bg-amber-600 text-white text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-sm">
+            🌍 STANDARD INTL
+          </span>
+
+          <div className="p-8 space-y-6 flex-1 flex flex-col justify-between">
+            <div>
+              <h2 className="text-4xl font-black uppercase tracking-tight text-slate-900">
+                9 m²
+              </h2>
+              <p className="text-xs font-bold uppercase text-amber-700 tracking-widest mt-1">
+                Standard International (3 Vides)
+              </p>
+            </div>
+
+            <div className="bg-slate-950/95 rounded-2xl p-4 flex items-center justify-center h-32 relative border border-slate-800 overflow-hidden shadow-inner">
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]" />
+              <svg viewBox="250 120 500 420" className="w-full h-full max-h-24">
+                <path
+                  d="M 280,520 L 280,280 A 220,220 0 0,1 720,280 L 720,520 Z"
+                  fill="none"
+                  stroke="#334155"
+                  strokeWidth="3.5"
+                  strokeDasharray="4,4"
+                  opacity="0.4"
+                />
+                {HOLES_DATA_9_INTL.map((hole) => (
+                  <circle
+                    key={hole.id}
+                    cx={hole.x}
+                    cy={hole.y}
+                    r="15"
+                    className={`${getHoleColor(hole.type)} stroke-[3px]`}
+                  />
+                ))}
+              </svg>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-slate-700">
+              <div className="space-y-1">
+                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Tiges coniques :</span>
+                <p className="text-slate-800 font-extrabold uppercase">1,8 m ou 2,4 m</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Métrage foré :</span>
+                <p className="text-slate-800 font-extrabold uppercase">1,7 m ou 2,3 m</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Charges explosifs :</span>
+                <p className="text-slate-800 font-extrabold uppercase">ANFO 19.8kg / TOVEX 2.7kg</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Plan d'amorçage :</span>
+                <p className="text-slate-800 font-extrabold uppercase">27 Amorces (30 trous)</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Bouchon :</span>
+                <p className="text-slate-800 font-extrabold uppercase">3 Vides + 4 Chargés</p>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <div className="w-full py-3 px-3 bg-slate-900 hover:bg-black text-white rounded-xl text-center text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors border border-amber-400/30 group">
+                ACCÉDER AU PLAN DE TIR
+                <ArrowRight className="w-3.5 h-3.5 text-amber-400 transition-transform group-hover:translate-x-1.5" />
               </div>
             </div>
           </div>
