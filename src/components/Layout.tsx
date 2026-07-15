@@ -196,6 +196,7 @@ export const Layout: React.FC<{
   const [rotationPending, setRotationPending] = React.useState(false);
   const [hasPendingRequests, setHasPendingRequests] = React.useState(false);
   const [unexplainedCount, setUnexplainedCount] = React.useState(0);
+  const [hoveredItem, setHoveredItem] = React.useState<{ label: string; top: number } | null>(null);
 
   // Unread alerts (System messages) states
   const [unreadAlerts, setUnreadAlerts] = React.useState<any[]>([]);
@@ -651,10 +652,20 @@ export const Layout: React.FC<{
                       onClick={() => {
                         setActiveTab(item.id);
                       }}
-                      onMouseEnter={() => prefetchPage(item.id)}
+                      onMouseEnter={(e) => {
+                        prefetchPage(item.id);
+                        if (!isOpen) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setHoveredItem({
+                            label: item.label,
+                            top: rect.top + (rect.height / 2) - 16
+                          });
+                        }
+                      }}
+                      onMouseLeave={() => setHoveredItem(null)}
                       className={cn(
-                        "w-full flex items-center rounded-none transition-all duration-300 group relative overflow-hidden",
-                        isOpen ? "gap-3 px-3 py-2.5" : "justify-center p-3",
+                        "w-full flex items-center rounded-none transition-all duration-300 group relative",
+                        isOpen ? "overflow-hidden gap-3 px-3 py-2.5" : "justify-center p-3",
                         isEspaceDT
                           ? isActive
                             ? "bg-black text-[#ffd700] border border-[#ffd700]/50 shadow-[0_0_20px_rgba(255,215,0,0.4)] font-black"
@@ -669,7 +680,7 @@ export const Layout: React.FC<{
                           "bg-red-50/10"
                         ]
                       )}
-                      title={!isOpen ? item.label : undefined}
+                      title={undefined}
                     >
                       <div className={cn(
                         "flex-shrink-0 transition-transform duration-300 relative",
@@ -910,6 +921,23 @@ export const Layout: React.FC<{
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating high-contrast tooltip for collapsed sidebar */}
+      <AnimatePresence>
+        {hoveredItem && !isOpen && (
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.15 }}
+            style={{ top: hoveredItem.top }}
+            className="fixed left-20 z-[99999] bg-[#0b1c28] text-[#ffd700] border border-[#ffd700]/30 text-[10px] font-black uppercase tracking-wider px-3.5 py-2 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-none whitespace-nowrap flex items-center gap-2"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-[#00BFFF] animate-pulse" />
+            {hoveredItem.label}
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

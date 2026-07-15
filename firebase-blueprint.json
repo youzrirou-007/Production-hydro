@@ -279,6 +279,17 @@
         "siteId": { "type": "string" }
       },
       "required": ["date", "sector", "post", "chantierId", "plannedMeterage", "realMeterage", "cause", "status", "siteId"]
+    },
+    "BannedIp": {
+      "title": "BannedIp",
+      "description": "Banned IP addresses for security firewall",
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "bannedAt": { "type": "string" },
+        "bannedBy": { "type": "string" }
+      },
+      "required": ["reason", "bannedAt", "bannedBy"]
     }
   },
   "firestore": {
@@ -299,6 +310,7 @@
     "/deleted_plannings_log": { "schema": "DeletedPlanningLog", "description": "Deleted planning logs" },
     "/non_realisation_explanations": { "schema": "NonRealisationExplanation", "description": "Explanations for non-realisation gaps" },
     "/system_messages": { "schema": "SystemMessage", "description": "System messaging, notifications, read receipts, response telemetry, and drafts tracking" },
-    "/failed_blasts": { "schema": "FailedBlast", "description": "Failed blast tracking records" }
+    "/failed_blasts": { "schema": "FailedBlast", "description": "Failed blast tracking records" },
+    "/banned_ips": { "schema": "BannedIp", "description": "Active IP address bans" }
   }
 }

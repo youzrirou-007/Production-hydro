@@ -157,5 +157,10 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    match /banned_ips/{ip} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction_technique']);
+    }
+
   }
 }
