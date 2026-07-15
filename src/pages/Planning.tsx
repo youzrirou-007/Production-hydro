@@ -64,6 +64,9 @@ interface ExcelMinage {
   // Custom UI groupings/overrides
   sectorGroup?: string;
   explosivesManualOverride?: boolean;
+  isBoulonnage?: boolean;
+  boulonnageType?: 'Boulonnage SPLIT 1.7m' | 'Soutènement SPLIT 1.7m & Grillage';
+  plannedBolts?: number;
 }
 
 interface ExcelDeblayage {
@@ -174,6 +177,17 @@ const isMinageRowActive = (row: any): boolean => {
 };
 
 const recalculateExplosivesIfNeeded = (row: any, platformSettings?: any) => {
+  if (row.isBoulonnage) {
+    return {
+      ...row,
+      plannedHoles: 0,
+      realHoles: 0,
+      anfo: 0,
+      tovex: 0,
+      ammorces: 0,
+      meterage: 0,
+    };
+  }
   if (!isMinageRowActive(row)) {
     return {
       ...row,
@@ -430,7 +444,7 @@ export const Planning: React.FC = () => {
 
   // App views: 'sheet' (Excel Mode) or 'history' (Consolidated lists)
   const [viewMode, setViewMode] = useState<'sheet' | 'history'>('sheet');
-  const [activeSheetTab, setActiveSheetTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance'>('minage');
+  const [activeSheetTab, setActiveSheetTab] = useState<'minage' | 'deblayage' | 'extraction' | 'maintenance' | 'boulonnage'>('minage');
 
   // Core planning filters: default date is today
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -1698,6 +1712,12 @@ export const Planning: React.FC = () => {
       ...prev,
       [post]: prev[post].filter((_, idx) => idx !== flatIdx)
     }));
+  };
+
+  const addBoltingForSector = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', sector: string) => {
+    addRowToBoulonnageSector(post, sector);
+    setActiveSheetTab('boulonnage');
+    safeAlert(`Ligne de boulonnage ajoutée pour le secteur ${sector} (${post}). Remplissez l'équipe et le chantier sur l'onglet Boulonnage.`, "Boulonnage Secteur", "success");
   };
 
   const updateBoulonnageCell = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', index: number, field: keyof ExcelBoulonnage, value: any) => {
@@ -3296,13 +3316,15 @@ export const Planning: React.FC = () => {
         ? format(new Date(monthClosureInfo.closedAt), 'dd/MM/yyyy à HH:mm')
         : '';
       return (
-        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 flex items-center gap-3 text-red-900 text-[11px] font-medium mb-1 select-none w-full shadow-sm animate-fade-in">
-          <span className="text-xl shrink-0">🔒</span>
-          <div>
-            <span className="font-black text-red-800 uppercase text-[9px] tracking-widest block mb-0.5">
-              Mois clôturé — Aucune modification possible
-            </span>
-            Le mois {selectedDate.substring(0, 7)} a été clôturé le {closedDateFormatted} par <strong>{monthClosureInfo?.closedBy || 'Administrateur'}</strong>. Toute intervention est définitivement interdite.
+        <div className="p-[1.5px] bg-gradient-to-r from-red-600 via-amber-500 to-red-700 rounded-2xl mb-2.5 shadow-md animate-fade-in">
+          <div className="bg-red-50 rounded-[14.5px] p-4 flex items-center gap-3 text-red-900 text-[11px] font-medium select-none w-full">
+            <span className="text-xl shrink-0">🔒</span>
+            <div>
+              <span className="font-black text-red-800 uppercase text-[9px] tracking-widest block mb-0.5">
+                Mois clôturé — Aucune modification possible
+              </span>
+              Le mois {selectedDate.substring(0, 7)} a été clôturé le {closedDateFormatted} par <strong>{monthClosureInfo?.closedBy || 'Administrateur'}</strong>. Toute intervention est définitivement interdite.
+            </div>
           </div>
         </div>
       );
@@ -3322,51 +3344,53 @@ export const Planning: React.FC = () => {
       const rejectedReq = modRequests.find(r => r.status === 'rejected');
 
       return (
-        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-red-955 text-[11px] font-medium leading-normal mb-1 select-none">
-          <div className="flex items-center gap-3">
-            <span className="text-xl shrink-0">🔒</span>
-            <div>
-              <span className="font-black text-red-800 uppercase text-[9px] tracking-widest block mb-0.5">Planification verrouillée — Niveau 2</span>
-              Planification verrouillée — validée le <strong>{valDateFormatted}</strong> par <strong>{validationInfo?.validatedBy || 'Administrateur'}</strong>. Toute modification requiert une approbation direction ou admin.
+        <div className="p-[1.5px] bg-gradient-to-r from-red-600 via-amber-500 to-red-700 rounded-2xl mb-2.5 shadow-md">
+          <div className="bg-red-50 rounded-[14.5px] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-red-955 text-[11px] font-medium leading-normal select-none">
+            <div className="flex items-center gap-3">
+              <span className="text-xl shrink-0">🔒</span>
+              <div>
+                <span className="font-black text-red-800 uppercase text-[9px] tracking-widest block mb-0.5">Planification verrouillée — Niveau 2</span>
+                Planification verrouillée — validée le <strong>{valDateFormatted}</strong> par <strong>{validationInfo?.validatedBy || 'Administrateur'}</strong>. Toute modification requiert une approbation direction ou admin.
+              </div>
             </div>
-          </div>
-          
-          <div className="flex flex-col items-stretch md:items-end gap-1.5 shrink-0">
-            {pendingReq ? (
-              <span className="bg-amber-105 text-amber-800 font-extrabold px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wide border border-amber-200 bg-amber-50 flex items-center gap-1.5">
-                ⏳ Demande de modification en attente d'approbation
-              </span>
-            ) : rejectedReq ? (
-              <div className="flex flex-col items-stretch md:items-end gap-1">
-                <span className="bg-red-100 text-red-800 font-extrabold px-3 py-1 bg-red-100 border border-red-200 rounded-lg text-[9px] uppercase tracking-wide">
-                  ❌ Demande rejetée par l'admin
+            
+            <div className="flex flex-col items-stretch md:items-end gap-1.5 shrink-0">
+              {pendingReq ? (
+                <span className="bg-amber-100 text-amber-800 font-extrabold px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wide border border-amber-200 bg-amber-50 flex items-center gap-1.5">
+                  ⏳ Demande de modification en attente d'approbation
                 </span>
-                <span className="text-[9px] text-gray-500 italic max-w-xs truncate" title={rejectedReq.rejectReason}>
-                  Motif : {rejectedReq.rejectReason || 'Non spécifié'}
-                </span>
+              ) : rejectedReq ? (
+                <div className="flex flex-col items-stretch md:items-end gap-1">
+                  <span className="bg-red-100 text-red-800 font-extrabold px-3 py-1 bg-red-100 border border-red-200 rounded-lg text-[9px] uppercase tracking-wide">
+                    ❌ Demande rejetée par l'admin
+                  </span>
+                  <span className="text-[9px] text-gray-500 italic max-w-xs truncate" title={rejectedReq.rejectReason}>
+                    Motif : {rejectedReq.rejectReason || 'Non spécifié'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRequestReason('');
+                      setIsRequestModalOpen(true);
+                    }}
+                    className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-2.5 py-1 rounded text-[9.5px] uppercase tracking-wider shadow-xs shrink-0 cursor-pointer mt-1"
+                  >
+                    Faire une nouvelle demande
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
                   onClick={() => {
                     setRequestReason('');
                     setIsRequestModalOpen(true);
                   }}
-                  className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-2.5 py-1 rounded text-[9.5px] uppercase tracking-wider shadow-xs shrink-0 cursor-pointer mt-1"
+                  className="bg-red-650 hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider shadow-sm hover:shadow active:translate-y-px transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Faire une nouvelle demande
+                  📝 Demander une modification
                 </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setRequestReason('');
-                  setIsRequestModalOpen(true);
-                }}
-                className="bg-red-650 hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider shadow-sm hover:shadow active:translate-y-px transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                📝 Demander une modification
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </div>
       );
@@ -3383,18 +3407,20 @@ export const Planning: React.FC = () => {
       const diffMs = new Date(activeReopenRequest.reopenUntil).getTime() - currentTime;
       const diffMinutes = Math.max(0, Math.ceil(diffMs / 1000 / 60));
       return (
-        <div className="bg-sky-50 border-2 border-sky-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-sky-955 text-[11px] font-medium leading-normal mb-1">
-          <div className="flex items-center gap-3">
-            <span className="text-xl shrink-0">🔓</span>
-            <div>
-              <span className="font-black text-sky-700 uppercase text-[9px] tracking-widest block mb-0.5">Fenêtre temporaire de modification active</span>
-              Planification réouverte temporairement par <strong>{activeReopenRequest.approvedBy || 'Admin'}</strong>.<br />
-              Toutes les modifications sont autorisées et seront tracées. Temps d'uniquement 2 heures accordé. Reste : <strong>{diffMinutes} minute{diffMinutes > 1 ? 's' : ''}</strong>.
+        <div className="p-[1.5px] bg-gradient-to-r from-sky-400 via-[#ffd700] to-sky-500 rounded-2xl mb-2.5 shadow-md">
+          <div className="bg-sky-50 rounded-[14.5px] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-sky-955 text-[11px] font-medium leading-normal">
+            <div className="flex items-center gap-3">
+              <span className="text-xl shrink-0">🔓</span>
+              <div>
+                <span className="font-black text-sky-700 uppercase text-[9px] tracking-widest block mb-0.5">Fenêtre temporaire de modification active</span>
+                Planification réouverte temporairement par <strong>{activeReopenRequest.approvedBy || 'Admin'}</strong>.<br />
+                Toutes les modifications sont autorisées et seront tracées. Temps d'uniquement 2 heures accordé. Reste : <strong>{diffMinutes} minute{diffMinutes > 1 ? 's' : ''}</strong>.
+              </div>
             </div>
+            <span className="bg-[#00BFFF]/10 text-sky-800 font-black px-3 py-1.5 rounded-lg text-[9.5px] uppercase border border-[#00BFFF]/20 animate-pulse self-center">
+              ⚡ EDITION RE-AUTORISÉE ({diffMinutes} min)
+            </span>
           </div>
-          <span className="bg-[#00BFFF]/10 text-sky-800 font-black px-3 py-1.5 rounded-lg text-[9.5px] uppercase border border-[#00BFFF]/20 animate-pulse self-center">
-            ⚡ EDITION RE-AUTORISÉE ({diffMinutes} min)
-          </span>
         </div>
       );
     }
@@ -3414,20 +3440,23 @@ export const Planning: React.FC = () => {
     }
 
     const isPast = selectedDate < todayStr;
-    const bannerClass = isPast 
-      ? "bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-3 text-amber-900 text-[11px] font-medium leading-normal select-none mb-1"
-      : "bg-[#00BFFF]/5 border border-[#00BFFF]/20 rounded-xl p-3.5 flex items-center gap-3 text-sky-955 text-[11px] font-medium leading-normal select-none mb-1";
-      
+    const bannerGradient = isPast
+      ? "from-amber-500/40 via-amber-400/95 to-amber-500/40"
+      : "from-red-500/45 via-[#ffd700] to-[#00BFFF]/75";
+    
+    const bannerBgClass = isPast ? "bg-amber-50/90 text-amber-900" : "bg-sky-50/70 text-sky-955";
     const headerClass = isPast 
       ? "font-black text-amber-800 uppercase text-[8.5px] tracking-widest block mb-0.5"
       : "font-black text-sky-900 uppercase text-[8.5px] tracking-widest block mb-0.5";
 
     return (
-      <div className={bannerClass}>
-        <span className="text-base">{icon}</span>
-        <div>
-          <span className={headerClass}>Statut de la planification</span>
-          {message}
+      <div className={`p-[1.5px] bg-gradient-to-r ${bannerGradient} rounded-2xl mb-2.5 shadow-sm`}>
+        <div className={`${bannerBgClass} rounded-[14.5px] p-3.5 flex items-center gap-3 text-[11px] font-medium leading-normal select-none`}>
+          <span className="text-base">{icon}</span>
+          <div>
+            <span className={headerClass}>Statut de la planification</span>
+            {message}
+          </div>
         </div>
       </div>
     );
@@ -3438,187 +3467,189 @@ export const Planning: React.FC = () => {
       {/* Unified Elegant Header Banner with Premium Styling, Single Line Gold Title & Optimized Flex Layout */}
       <div 
         id="unified-planning-banner" 
-        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
+        className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-[18px] w-full shadow-sm"
         style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
       >
-        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
-          
-          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
-          <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
-            <img 
-              src={logoImg} 
-              alt="HydroMines Logo" 
-              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
-              referrerPolicy="no-referrer" 
-            />
-          </div>
-
-          {/* Centered Column: Header Title on One Line, Subtitle, Date & Shift controls */}
-          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
-            {/* Upper Decorative Gold Line */}
-            <div className="subtle-glow-line w-full opacity-80" />
+        <div className="bg-white p-6 md:p-8 rounded-[16.5px] w-full h-full">
+          <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
             
-            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-xl lg:text-[23px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
-              PLANIFICATION — ORDONNANCEMENT SMI
-            </h1>
-            
-            {/* Lower Decorative Gold Line */}
-            <div className="subtle-glow-line w-full opacity-80" />
-
-            {/* Elegant Subtitle with precise spacing */}
-            <p 
-              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
-              style={{ color: '#64748b', letterSpacing: '0.2em' }}
-            >
-              Cahier de chargement théorique • Exploitation Minière Souterraine Imiter
-            </p>
-
-            {/* Centered shift and date options paired inside harmonized Amber/Gold capsules */}
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
-              <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs">
-                <span className="text-[10px] font-black uppercase text-[#b8860b] tracking-wider flex items-center gap-1">
-                  📅 Plan théorique du :
-                </span>
-                <input 
-                  type="date"
-                  value={selectedDate}
-                  onChange={e => setSelectedDate(e.target.value)}
-                  className="bg-white hover:bg-amber-50/30 text-gray-950 font-extrabold text-[12px] uppercase border border-amber-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#b8860b]/30 cursor-pointer transition-colors"
-                />
-              </div>
-
-              {(activeSheetTab === 'minage' || activeSheetTab === 'deblayage') ? (
-                <div className="inline-flex items-center gap-2 bg-amber-50/80 border border-amber-200/80 px-3 py-1.5 rounded-xl shadow-xs">
-                  <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
-                    📚 3 postes synchronisés en continu
-                  </span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 bg-amber-50/50 border border-amber-200 px-3 py-1 rounded-xl shadow-xs">
-                  <span className="text-[10px] font-extrabold uppercase text-amber-800 tracking-wider">
-                    Poste actif :
-                  </span>
-                  <select 
-                    value={selectedPost}
-                    onChange={e => setSelectedPost(e.target.value as any)}
-                    className="bg-white text-gray-950 font-extrabold text-[11px] uppercase border border-amber-200 rounded-lg px-2 py-0.5 outline-none cursor-pointer focus:ring-1 focus:ring-[#b8860b]/30 transition-colors"
-                  >
-                    <option value="Poste 1">POSTE 1 (MATIN)</option>
-                    <option value="Poste 2">POSTE 2 (MIDI)</option>
-                    <option value="Poste 3">POSTE 3 (NUIT)</option>
-                  </select>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: View toggles at top & Quick action items at bottom */}
-          <div className="flex flex-col items-center lg:items-end justify-between gap-4 w-full lg:w-auto self-center lg:self-stretch min-h-[140px]">
-            {/* Top view switcher buttons - Premium Amber styling */}
-            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full max-w-xs md:max-w-none border border-slate-200 shadow-xs">
-              <button 
-                onClick={() => setViewMode('sheet')}
-                className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
-                  viewMode === 'sheet' 
-                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                }`}
-              >
-                🟩 Planification
-              </button>
-              <button 
-                onClick={() => setViewMode('history')}
-                className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
-                  viewMode === 'history' 
-                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                }`}
-              >
-                📋 Cahiers ({planningsHistory.length})
-              </button>
+            {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+            <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
+              <img 
+                src={logoImg} 
+                alt="HydroMines Logo" 
+                className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
+                referrerPolicy="no-referrer" 
+              />
             </div>
 
-            {/* Bottom action buttons aligned perfectly at the bottom */}
-            {viewMode === 'sheet' && (
-              <div className="flex flex-wrap justify-center lg:justify-end gap-1.5 w-full items-center mt-auto">
-                {lastAutosaveTime && (
-                  <span className="text-[8.5px] text-slate-400 font-medium select-none mr-2">
-                    💾 Brouillon local sauvé à {format(lastAutosaveTime, 'HH:mm')}
-                  </span>
-                )}
-                <button
-                  onClick={() => setIsAuditDrawerOpen(true)}
-                  className="bg-slate-50 hover:bg-amber-50/50 text-slate-800 hover:text-[#b8860b] border border-slate-200 hover:border-amber-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  title="Consulter le registre d'audit et historique des événements"
-                >
-                  🪵 Traces Audit
-                </button>
-                <ExcelExportButton
-                  selectedDate={selectedDate}
-                  minageRowsByPost={minageRowsByPost}
-                  deblayageRowsByPost={deblayageRowsByPost}
-                  extractionRowsByPost={extractionRowsByPost}
-                  maintenanceRowsByPost={maintenanceRowsByPost}
-                  sectorChiefs={sectorChiefs}
-                  chantiers={chantiers}
-                  employees={employees}
-                />
-                <button
-                  onClick={triggerDuplicatePreviousDay}
-                  disabled={isLockedByNiveau2 || isMonthClosedForPlanning}
-                  className={`border px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 shadow-xs font-sans ${isLockedByNiveau2 || isMonthClosedForPlanning ? 'bg-gray-100 text-gray-450 border-gray-200 cursor-not-allowed opacity-60' : 'bg-amber-50 hover:bg-amber-100/70 text-amber-800 border-amber-200/80 cursor-pointer'}`}
-                  title="Dupliquer la planification complète du jour précédent J-1"
-                >
-                  <Copy className="w-3 h-3 text-amber-600" /> Dupliquer J-1
-                </button>
+            {/* Centered Column: Header Title on One Line, Subtitle, Date & Shift controls */}
+            <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+              {/* Upper Decorative Gold Line */}
+              <div className="subtle-glow-line w-full opacity-80" />
+              
+              {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
+              <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-xl lg:text-[23px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+                PLANIFICATION — ORDONNANCEMENT SMI
+              </h1>
+              
+              {/* Lower Decorative Gold Line */}
+              <div className="subtle-glow-line w-full opacity-80" />
 
-                <button
-                  onClick={loadPlanningWorkbook}
-                  className="bg-gray-50 hover:bg-amber-50/50 text-gray-855 hover:text-[#b8860b] border border-gray-200 hover:border-amber-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
-                  title="Réinitialiser ou recharger depuis le cloud"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-[#b8860b]" /> Recharger
-                </button>
-                <button
-                  onClick={savePlanningWorkbook}
-                  disabled={saveStatus === 'saving' || isLockedByNiveau2 || isMonthClosedForPlanning}
-                  className={`font-black px-4 py-1.5 rounded-lg text-[9.5px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:translate-y-px hover:scale-[1.02] active:scale-[0.98] ${
-                    isLockedByNiveau2 || isMonthClosedForPlanning
-                      ? 'bg-gray-200 text-gray-400 border border-gray-250 cursor-not-allowed opacity-60' 
-                      : 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 cursor-pointer border border-[#b8860b]/30'
-                  }`}
-                  title="Enregistrer durablement ce document"
-                >
-                  <Save className="w-3.5 h-3.5" /> 
-                  {saveStatus === 'saving' ? '...' : saveStatus === 'saved' ? 'Enregistré !' : 'Graver'}
-                </button>
-                {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && !isMonthClosedForPlanning && (
-                  <button
-                    onClick={validatePlanningWorkbook}
-                    disabled={saveStatus === 'saving'}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px cursor-pointer"
-                    title="Valider officiellement cette planification"
-                  >
-                    <Check className="w-3.5 h-3.5" /> Valider
-                  </button>
-                )}
-                {validationInfo?.status === 'valide' && (
-                  <div className="bg-emerald-50 text-emerald-850 border border-emerald-250 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1.5 shadow-sm select-none">
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>
-                      ✓ Validée {validationInfo.validatedAt ? (() => {
-                        try {
-                          return `le ${format(new Date(validationInfo.validatedAt), 'dd/MM/yyyy à HH:mm')}`;
-                        } catch {
-                          return '';
-                        }
-                      })() : ''} par {validationInfo.validatedBy}
+              {/* Elegant Subtitle with precise spacing */}
+              <p 
+                className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
+                style={{ color: '#64748b', letterSpacing: '0.2em' }}
+              >
+                Cahier de chargement théorique • Exploitation Minière Souterraine Imiter
+              </p>
+
+              {/* Centered shift and date options paired inside harmonized Amber/Gold capsules */}
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
+                <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-[#b8860b] tracking-wider flex items-center gap-1">
+                    📅 Plan théorique du :
+                  </span>
+                  <input 
+                    type="date"
+                    value={selectedDate}
+                    onChange={e => setSelectedDate(e.target.value)}
+                    className="bg-white hover:bg-amber-50/30 text-gray-950 font-extrabold text-[12px] uppercase border border-amber-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#b8860b]/30 cursor-pointer transition-colors"
+                  />
+                </div>
+
+                {(activeSheetTab === 'minage' || activeSheetTab === 'deblayage') ? (
+                  <div className="inline-flex items-center gap-2 bg-amber-50/80 border border-amber-200/80 px-3 py-1.5 rounded-xl shadow-xs">
+                    <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
+                      📚 3 postes synchronisés en continu
                     </span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 bg-amber-50/50 border border-amber-200 px-3 py-1 rounded-xl shadow-xs">
+                    <span className="text-[10px] font-extrabold uppercase text-amber-800 tracking-wider">
+                      Poste actif :
+                    </span>
+                    <select 
+                      value={selectedPost}
+                      onChange={e => setSelectedPost(e.target.value as any)}
+                      className="bg-white text-gray-950 font-extrabold text-[11px] uppercase border border-amber-200 rounded-lg px-2 py-0.5 outline-none cursor-pointer focus:ring-1 focus:ring-[#b8860b]/30 transition-colors"
+                    >
+                      <option value="Poste 1">POSTE 1 (MATIN)</option>
+                      <option value="Poste 2">POSTE 2 (MIDI)</option>
+                      <option value="Poste 3">POSTE 3 (NUIT)</option>
+                    </select>
                   </div>
                 )}
               </div>
-            )}
+            </div>
+
+            {/* Right Column: View toggles at top & Quick action items at bottom */}
+            <div className="flex flex-col items-center lg:items-end justify-between gap-4 w-full lg:w-auto self-center lg:self-stretch min-h-[140px]">
+              {/* Top view switcher buttons - Premium Amber styling */}
+              <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full max-w-xs md:max-w-none border border-slate-200 shadow-xs">
+                <button 
+                  onClick={() => setViewMode('sheet')}
+                  className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
+                    viewMode === 'sheet' 
+                      ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                  }`}
+                >
+                  🟩 Planification
+                </button>
+                <button 
+                  onClick={() => setViewMode('history')}
+                  className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
+                    viewMode === 'history' 
+                      ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm' 
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                  }`}
+                >
+                  📋 Cahiers ({planningsHistory.length})
+                </button>
+              </div>
+
+              {/* Bottom action buttons aligned perfectly at the bottom */}
+              {viewMode === 'sheet' && (
+                <div className="flex flex-wrap justify-center lg:justify-end gap-1.5 w-full items-center mt-auto">
+                  {lastAutosaveTime && (
+                    <span className="text-[8.5px] text-slate-400 font-medium select-none mr-2">
+                      💾 Brouillon local sauvé à {format(lastAutosaveTime, 'HH:mm')}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setIsAuditDrawerOpen(true)}
+                    className="bg-slate-50 hover:bg-amber-50/50 text-slate-800 hover:text-[#b8860b] border border-slate-200 hover:border-amber-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    title="Consulter le registre d'audit et historique des événements"
+                  >
+                    🪵 Traces Audit
+                  </button>
+                  <ExcelExportButton
+                    selectedDate={selectedDate}
+                    minageRowsByPost={minageRowsByPost}
+                    deblayageRowsByPost={deblayageRowsByPost}
+                    extractionRowsByPost={extractionRowsByPost}
+                    maintenanceRowsByPost={maintenanceRowsByPost}
+                    sectorChiefs={sectorChiefs}
+                    chantiers={chantiers}
+                    employees={employees}
+                  />
+                  <button
+                    onClick={triggerDuplicatePreviousDay}
+                    disabled={isLockedByNiveau2 || isMonthClosedForPlanning}
+                    className={`border px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 shadow-xs font-sans ${isLockedByNiveau2 || isMonthClosedForPlanning ? 'bg-gray-100 text-gray-450 border-gray-200 cursor-not-allowed opacity-60' : 'bg-amber-50 hover:bg-amber-100/70 text-amber-800 border-amber-200/80 cursor-pointer'}`}
+                    title="Dupliquer la planification complète du jour précédent J-1"
+                  >
+                    <Copy className="w-3 h-3 text-amber-600" /> Dupliquer J-1
+                  </button>
+
+                  <button
+                    onClick={loadPlanningWorkbook}
+                    className="bg-gray-50 hover:bg-amber-50/50 text-gray-855 hover:text-[#b8860b] border border-gray-200 hover:border-amber-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 cursor-pointer"
+                    title="Réinitialiser ou recharger depuis le cloud"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-[#b8860b]" /> Recharger
+                  </button>
+                  <button
+                    onClick={savePlanningWorkbook}
+                    disabled={saveStatus === 'saving' || isLockedByNiveau2 || isMonthClosedForPlanning}
+                    className={`font-black px-4 py-1.5 rounded-lg text-[9.5px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:translate-y-px hover:scale-[1.02] active:scale-[0.98] ${
+                      isLockedByNiveau2 || isMonthClosedForPlanning
+                        ? 'bg-gray-200 text-gray-400 border border-gray-250 cursor-not-allowed opacity-60' 
+                        : 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 cursor-pointer border border-[#b8860b]/30'
+                    }`}
+                    title="Enregistrer durablement ce document"
+                  >
+                    <Save className="w-3.5 h-3.5" /> 
+                    {saveStatus === 'saving' ? '...' : saveStatus === 'saved' ? 'Enregistré !' : 'Graver'}
+                  </button>
+                  {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && !isMonthClosedForPlanning && (
+                    <button
+                      onClick={validatePlanningWorkbook}
+                      disabled={saveStatus === 'saving'}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px cursor-pointer"
+                      title="Valider officiellement cette planification"
+                    >
+                      <Check className="w-3.5 h-3.5" /> Valider
+                    </button>
+                  )}
+                  {validationInfo?.status === 'valide' && (
+                    <div className="bg-emerald-50 text-emerald-850 border border-emerald-250 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1.5 shadow-sm select-none">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>
+                        ✓ Validée {validationInfo.validatedAt ? (() => {
+                          try {
+                            return `le ${format(new Date(validationInfo.validatedAt), 'dd/MM/yyyy à HH:mm')}`;
+                          } catch {
+                            return '';
+                          }
+                        })() : ''} par {validationInfo.validatedBy}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -3688,63 +3719,80 @@ export const Planning: React.FC = () => {
             {renderPlanningStatusBanner()}
 
             {/* Sheet Tabs */}
-            <div className="flex flex-wrap items-center justify-center border-b border-gray-250 pb-2.5 gap-2">
-              {[
-                { 
-                  id: 'minage', 
-                  label: 'Sheet 1 - Alignement Forage & Minage', 
-                  icon: Hammer,
-                  activeClass: 'border-red-500 text-red-600 bg-gradient-to-b from-red-50/70 via-white to-white shadow-[0_-4px_16px_rgba(239,68,68,0.18)] border-t-2', 
-                  inactiveClass: 'text-gray-400 hover:text-red-500 hover:bg-red-50/5 border-t-2 border-transparent',
-                  glowDot: 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.85)]'
-                },
-                { 
-                  id: 'deblayage', 
-                  label: 'Sheet 2 - Programme Déblayage & Vol', 
-                  icon: Tractor,
-                  activeClass: 'border-[#00BFFF] text-sky-600 bg-gradient-to-b from-sky-50/70 via-white to-white shadow-[0_-4px_16px_rgba(0,191,255,0.22)] border-t-2', 
-                  inactiveClass: 'text-gray-400 hover:text-sky-400 hover:bg-sky-50/5 border-t-2 border-transparent',
-                  glowDot: 'bg-[#00BFFF] shadow-[0_0_10px_rgba(0,191,255,0.85)]'
-                },
-                { 
-                  id: 'extraction', 
-                  label: 'Sheet 3 - Objectifs Extraction', 
-                  icon: Train,
-                  activeClass: 'border-emerald-500 text-emerald-600 bg-gradient-to-b from-emerald-50/70 via-white to-white shadow-[0_-4px_16px_rgba(16,185,129,0.18)] border-t-2', 
-                  inactiveClass: 'text-gray-400 hover:text-emerald-500 hover:bg-emerald-50/5 border-t-2 border-transparent',
-                  glowDot: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.85)]'
-                },
-                { 
-                  id: 'maintenance', 
-                  label: 'Sheet 4 - Brigade Maintenance Programmée', 
-                  icon: Wrench,
-                  activeClass: 'border-purple-500 text-purple-600 bg-gradient-to-b from-purple-50/70 via-white to-white shadow-[0_-4px_16px_rgba(168,85,247,0.18)] border-t-2', 
-                  inactiveClass: 'text-gray-400 hover:text-purple-500 hover:bg-purple-50/5 border-t-2 border-transparent',
-                  glowDot: 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.85)]'
-                },
-              ].map(sheet => {
-                const isActive = activeSheetTab === sheet.id;
-                const IconComponent = sheet.icon;
-                return (
-                  <button
-                    key={sheet.id}
-                    onClick={() => setActiveSheetTab(sheet.id as any)}
-                    className={`px-4.5 py-2.5 text-[10px] rounded-t-xl uppercase tracking-wider transition-all duration-300 border-r border-gray-100 flex items-center gap-2.5 select-none cursor-pointer ${
-                      isActive 
-                        ? `${sheet.activeClass} font-black` 
-                        : `${sheet.inactiveClass} font-semibold`
-                    }`}
-                  >
-                    {IconComponent && (
-                      <IconComponent className={`w-3.5 h-3.5 ${isActive ? 'opacity-100 scale-105' : 'opacity-60'} transition-all duration-300`} />
-                    )}
-                    <span>{sheet.label}</span>
-                    <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                      isActive ? `${sheet.glowDot} animate-pulse scale-110` : 'bg-gray-300/40'
-                    }`} />
-                  </button>
-                );
-              })}
+            <div className="relative pb-6">
+              <div className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-2xl shadow-[0_4px_24px_rgba(148,163,184,0.06)] backdrop-blur-md">
+                <div className="flex flex-wrap items-center justify-center bg-white/95 rounded-[14.5px] p-2.5 gap-1.5 select-none">
+                  {[
+                    { 
+                      id: 'minage', 
+                      label: 'Sheet 1 - Alignement Forage & Minage', 
+                      icon: Hammer,
+                      activeClass: 'border-red-200 bg-red-50 text-red-700 shadow-[0_4px_12px_rgba(220,38,38,0.08)]', 
+                      inactiveClass: 'text-slate-500 hover:text-red-700 hover:bg-red-50/40 hover:border-red-100',
+                      glowDot: 'bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]'
+                    },
+                    { 
+                      id: 'deblayage', 
+                      label: 'Sheet 2 - Programme Déblayage & Vol', 
+                      icon: Tractor,
+                      activeClass: 'border-sky-200 bg-sky-50 text-sky-600 shadow-[0_4px_12px_rgba(14,165,233,0.08)]', 
+                      inactiveClass: 'text-slate-500 hover:text-sky-600 hover:bg-sky-50/40 hover:border-sky-100',
+                      glowDot: 'bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]'
+                    },
+                    { 
+                      id: 'boulonnage', 
+                      label: 'Sheet 3 - Boulonnage & Soutènement', 
+                      icon: ShieldCheck,
+                      activeClass: 'border-amber-200 bg-amber-50/80 text-amber-700 shadow-[0_4px_12px_rgba(217,119,6,0.1)]', 
+                      inactiveClass: 'text-slate-500 hover:text-amber-700 hover:bg-amber-50/40 hover:border-amber-100',
+                      glowDot: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                    },
+                    { 
+                      id: 'extraction', 
+                      label: 'Sheet 4 - Objectifs Extraction', 
+                      icon: Train,
+                      activeClass: 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow-[0_4px_12px_rgba(5,150,105,0.08)]', 
+                      inactiveClass: 'text-slate-500 hover:text-emerald-700 hover:bg-emerald-50/40 hover:border-emerald-100',
+                      glowDot: 'bg-emerald-600 shadow-[0_0_8px_rgba(5,150,105,0.5)]'
+                    },
+                    { 
+                      id: 'maintenance', 
+                      label: 'Sheet 5 - Brigade Maintenance Programmée', 
+                      icon: Wrench,
+                      activeClass: 'border-purple-200 bg-purple-50 text-purple-700 shadow-[0_4px_12px_rgba(147,51,234,0.08)]', 
+                      inactiveClass: 'text-slate-500 hover:text-purple-700 hover:bg-purple-50/40 hover:border-purple-100',
+                      glowDot: 'bg-purple-600 shadow-[0_0_8px_rgba(147,51,234,0.5)]'
+                    },
+                  ].map(sheet => {
+                    const isActive = activeSheetTab === sheet.id;
+                    const IconComponent = sheet.icon;
+                    return (
+                      <button
+                        key={sheet.id}
+                        onClick={() => setActiveSheetTab(sheet.id as any)}
+                        className={`px-4 py-2 text-[10px] rounded-xl uppercase tracking-wider transition-all duration-300 flex items-center gap-2.5 select-none cursor-pointer border ${
+                          isActive 
+                            ? `${sheet.activeClass} font-black` 
+                            : `${sheet.inactiveClass} font-semibold border-transparent`
+                        }`}
+                      >
+                        {IconComponent && (
+                          <IconComponent className={`w-3.5 h-3.5 ${isActive ? 'opacity-100 scale-105' : 'opacity-55'} transition-all duration-300`} />
+                        )}
+                        <span>{sheet.label}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                          isActive ? `${sheet.glowDot} animate-pulse scale-110` : 'bg-slate-200'
+                        }`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Option 1: Single Blended Hydromines Gradient Separator Line */}
+              <div className="absolute -bottom-1 left-0 right-0 flex items-center justify-center pointer-events-none select-none">
+                <div className="h-[2.5px] w-full max-w-xl rounded-full bg-gradient-to-r from-transparent via-red-600/80 via-amber-400 via-[#00BFFF]/90 to-transparent shadow-[0_1px_8px_rgba(255,215,0,0.45)]" />
+              </div>
             </div>
 
             <fieldset key={`${selectedDate}-${isLockedByNiveau2}-${isMonthClosedForPlanning}`} disabled={isLockedByNiveau2 || isMonthClosedForPlanning} className={(isLockedByNiveau2 || isMonthClosedForPlanning) ? "pointer-events-none opacity-90 select-none cursor-not-allowed" : ""}>
@@ -3765,9 +3813,10 @@ export const Planning: React.FC = () => {
                     const SECTOR_ORDER = ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Autres / Non classés'];
 
                     return (
-                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
+                      <div key={p} className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-2xl shadow-sm">
+                        <div className="bg-white p-4 rounded-[14.5px] h-full">
                         {/* Shifty/Post block banner */}
-                        <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
+                        <div className="relative flex flex-col items-center justify-center mb-5 mt-1 select-none">
                           <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
                             <Hammer className="w-4 h-4 text-[#b8860b]" />
                             <span className="bg-gradient-to-r from-[#8a660d] via-[#b8860b] to-[#8a660d] bg-clip-text text-transparent">
@@ -3778,6 +3827,26 @@ export const Planning: React.FC = () => {
                             </span>
                           </h4>
                           <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-[#b8860b]/35 to-transparent mt-1.5" />
+                          
+                          {/* Option B: Max right Add Bolting Station Dropdown */}
+                          <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                            <span className="text-[9.5px] font-black text-gray-400 uppercase tracking-wider hidden md:inline">🛡️ AJOUTER BOULONNAGE :</span>
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  addBoltingForSector(p, e.target.value);
+                                  e.target.value = "";
+                                }
+                              }}
+                              className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg border border-amber-400/40 outline-none cursor-pointer shadow-sm transition-all"
+                            >
+                              <option value="" disabled className="text-gray-500 font-extrabold">➕ SELECTIONNER SECTEUR</option>
+                              <option value="Imiter 1" className="bg-white text-gray-950 font-semibold">Secteur Imiter 1</option>
+                              <option value="Imiter 2" className="bg-white text-gray-950 font-semibold">Secteur Imiter 2</option>
+                              <option value="Imiter Est" className="bg-white text-gray-950 font-semibold">Secteur Imiter Est</option>
+                            </select>
+                          </div>
                         </div>
 
                         <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -3795,7 +3864,7 @@ export const Planning: React.FC = () => {
                                 <th className="p-2.5 border-r border-slate-700/50 w-16 text-center bg-gradient-to-b from-amber-950/15 to-transparent text-amber-200 font-bold">ANFO (kg)</th>
                                 <th className="p-2.5 border-r border-slate-700/50 w-16 text-center bg-slate-900/60 text-slate-300 font-bold">Tovex (kg)</th>
                                 <th className="p-2.5 text-center w-16 bg-gradient-to-b from-red-950/15 to-transparent text-rose-220 font-bold">Amorces</th>
-                                <th className="p-2.5 border-l border-slate-700/50 text-center w-36 bg-gradient-to-b from-amber-950/25 to-amber-950/10 text-amber-200 font-bold">Soutènement</th>
+                                
                               </tr>
                             </thead>
                             <tbody>
@@ -3810,7 +3879,7 @@ export const Planning: React.FC = () => {
                                   <React.Fragment key={sec}>
                                     {/* Sector Header Badge Row */}
                                     <tr className="bg-gray-50/80 border-y border-gray-200 select-none">
-                                      <td colSpan={12} className="py-2.5 px-3">
+                                      <td colSpan={11} className="py-2.5 px-3">
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                           <div className="flex flex-wrap items-center gap-2">
                                             {(() => {
@@ -4011,227 +4080,187 @@ export const Planning: React.FC = () => {
                                           {/* Type Barre */}
                                           {!isChild && (
                                             <td rowSpan={rowSpan} className="p-1 border-r border-gray-200 w-24 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40 align-middle">
-                                              <select
-                                                value={row.barType || '1.8m'}
-                                                onChange={e => updateMinageCell(p, flatIdx, 'barType', e.target.value)}
-                                                className="w-full bg-transparent border-none text-center outline-none font-bold text-gray-800 text-[11px]"
-                                              >
-                                                <option value="1.8m">1.8m</option>
-                                                <option value="2.4m">2.4m</option>
-                                              </select>
-                                            </td>
-                                          )}
-
-
-
-                                          {/* Mètres prévus */}
-                                          {!isChild && (
-                                            <td rowSpan={rowSpan} className="p-1 border-r border-gray-200 w-20 text-center font-mono font-extrabold text-blue-600 bg-gray-50/80 select-none align-middle animate-fade-in">
-                                              {row.meterage.toFixed(1)} m
-                                            </td>
-                                          )}
-
-                                          {/* Trous prévus */}
-                                          <td data-row={globalIdx} data-col={5} className="p-1 border-r border-gray-200 w-16 text-center relative group/trous focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
-                                            {row.explosivesManualOverride ? (
-                                              <div className="flex items-center justify-center gap-1">
-                                                <input
-                                                  type="number"
-                                                  value={row.plannedHoles}
-                                                  onChange={e => updateMinageCell(p, flatIdx, 'plannedHoles', Number(e.target.value))}
-                                                  onKeyDown={makeExcelKeyHandler(globalIdx, 5)}
-                                                  className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-650"
-                                                />
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                  className="text-red-500 font-extrabold cursor-pointer hover:scale-125 transition-transform"
-                                                  title="Clic pour repasser au calcul automatique"
+                                              {false ? (
+                                                <div className="flex items-center justify-center gap-1 font-mono font-bold text-amber-600 bg-amber-50/50 rounded border border-amber-200/60 p-0.5">
+                                                  <input
+                                                    type="number"
+                                                    value={row.plannedBolts !== undefined ? row.plannedBolts : 22}
+                                                    onChange={e => updateMinageCell(p, flatIdx, 'plannedBolts', Number(e.target.value))}
+                                                    className="w-12 bg-transparent text-center font-bold outline-none border-none text-[10px]"
+                                                  />
+                                                  <span className="text-[9px] text-amber-500 font-extrabold">b.</span>
+                                                </div>
+                                              ) : (
+                                                <select
+                                                  value={row.barType || '1.8m'}
+                                                  onChange={e => updateMinageCell(p, flatIdx, 'barType', e.target.value)}
+                                                  className="w-full bg-transparent border-none text-center outline-none font-bold text-gray-800 text-[11px]"
                                                 >
-                                                  *
-                                                </button>
-                                              </div>
-                                            ) : (
-                                              <div
-                                                onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
-                                                title="Double-clic pour modifier manuellement"
-                                              >
-                                                {row.plannedHoles}
-                                              </div>
-                                            )}
+                                                  <option value="1.8m">1.8m</option>
+                                                  <option value="2.4m">2.4m</option>
+                                                </select>
+                                              )}
+                                            </td>
+                                          )}
 
-                                            {/* High-fidelity professional tooltip popover */}
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/trous:block w-72 bg-slate-950 text-slate-100 text-[10.5px] p-3 rounded-xl shadow-2xl z-50 border border-slate-800 pointer-events-none transition-all duration-200 text-left">
-                                              <div className="font-extrabold text-[#00BFFF] uppercase tracking-wider text-[9px] mb-1">
-                                                ℹ️ Spécifications de Tir & Forage
-                                              </div>
-                                              <p className="font-semibold leading-relaxed text-slate-250">
-                                                {row.gallerySize === 12 ? (
-                                                  <>Le gabarit de foration théorique pour <strong className="text-white">12m²</strong> est de <strong className="text-white font-black">38 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">32 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">32</strong> s\'affiche pour le chargement et les amorces).</>
+                                          {/* Remaining columns conditionally hidden/replaced for boulonnage */}
+                                          {false ? (
+                                            <td colSpan={6} className="p-1 px-3 bg-slate-50 border-r border-gray-200 text-slate-500 font-extrabold tracking-wide text-center select-none text-[10px] align-middle">
+                                              <span className="inline-flex items-center gap-2">
+                                                🔩 <span className="uppercase text-[9.5px]">Boulonnage Planifié (22 par poste)</span> — Explosifs & Métrages neutralisés
+                                              </span>
+                                            </td>
+                                          ) : (
+                                            <>
+                                              {/* Mètres prévus */}
+                                              {!isChild && (
+                                                <td rowSpan={rowSpan} className="p-1 border-r border-gray-200 w-20 text-center font-mono font-extrabold text-blue-600 bg-gray-50/80 select-none align-middle animate-fade-in">
+                                                  {row.meterage.toFixed(1)} m
+                                                </td>
+                                              )}
+
+                                              {/* Trous prévus */}
+                                              <td data-row={globalIdx} data-col={5} className="p-1 border-r border-gray-200 w-16 text-center relative group/trous focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
+                                                {row.explosivesManualOverride ? (
+                                                  <div className="flex items-center justify-center gap-1">
+                                                    <input
+                                                      type="number"
+                                                      value={row.plannedHoles}
+                                                      onChange={e => updateMinageCell(p, flatIdx, 'plannedHoles', Number(e.target.value))}
+                                                      onKeyDown={makeExcelKeyHandler(globalIdx, 5)}
+                                                      className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-655"
+                                                    />
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleToggleManualOverride(p, flatIdx)}
+                                                      className="text-red-500 font-extrabold cursor-pointer hover:scale-125 transition-transform"
+                                                      title="Clic pour repasser au calcul automatique"
+                                                    >
+                                                      *
+                                                    </button>
+                                                  </div>
                                                 ) : (
-                                                  <>Le gabarit de foration théorique pour <strong className="text-white">9m²</strong> est de <strong className="text-white font-black">28 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">26 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">26</strong> s\'affiche pour le chargement et les amorces).</>
-                                                )}
-                                              </p>
-                                              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-950"></div>
-                                            </div>
-                                          </td>
-
-                                          {/* ANFO */}
-                                          <td data-row={globalIdx} data-col={6} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
-                                            {row.explosivesManualOverride ? (
-                                              <div className="flex items-center justify-center gap-1">
-                                                <input
-                                                  type="number"
-                                                  value={row.anfo}
-                                                  onChange={e => updateMinageCell(p, flatIdx, 'anfo', Number(e.target.value))}
-                                                  onKeyDown={makeExcelKeyHandler(globalIdx, 6)}
-                                                  className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-650"
-                                                />
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                  className="text-red-500 font-extrabold cursor-pointer hover:scale-125 transition-transform"
-                                                  title="Clic pour repasser au calcul automatique"
-                                                >
-                                                  *
-                                                </button>
-                                              </div>
-                                            ) : (
-                                              <div
-                                                onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
-                                                title="Double-clic pour modifier manuellement"
-                                              >
-                                                {row.anfo}
-                                              </div>
-                                            )}
-                                          </td>
-
-                                          {/* Tovex */}
-                                          <td data-row={globalIdx} data-col={7} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
-                                            {row.explosivesManualOverride ? (
-                                              <div className="flex items-center justify-center gap-1">
-                                                <input
-                                                  type="number"
-                                                  step="0.5"
-                                                  value={row.tovex}
-                                                  onChange={e => updateMinageCell(p, flatIdx, 'tovex', Number(e.target.value))}
-                                                  onKeyDown={makeExcelKeyHandler(globalIdx, 7)}
-                                                  className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-650"
-                                                />
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                  className="text-red-500 font-extrabold cursor-pointer hover:scale-125 transition-transform"
-                                                  title="Clic pour repasser au calcul automatique"
-                                                >
-                                                  *
-                                                </button>
-                                              </div>
-                                            ) : (
-                                              <div
-                                                onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
-                                                title="Double-clic pour modifier manuellement"
-                                              >
-                                                {row.tovex.toFixed(1)}
-                                              </div>
-                                            )}
-                                          </td>
-
-                                          {/* Amorces */}
-                                          <td data-row={globalIdx} data-col={8} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
-                                            {row.explosivesManualOverride ? (
-                                              <div className="flex items-center justify-center gap-1">
-                                                <input
-                                                  type="number"
-                                                  value={row.ammorces}
-                                                  onChange={e => updateMinageCell(p, flatIdx, 'ammorces', Number(e.target.value))}
-                                                  onKeyDown={makeExcelKeyHandler(globalIdx, 8)}
-                                                  className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-655"
-                                                />
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                  className="text-red-500 font-extrabold cursor-pointer hover:scale-125 transition-transform"
-                                                  title="Clic pour repasser au calcul automatique"
-                                                >
-                                                  *
-                                                </button>
-                                              </div>
-                                            ) : (
-                                              <div
-                                                onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
-                                                className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
-                                                title="Double-clic pour modifier manuellement"
-                                              >
-                                                {row.ammorces}
-                                              </div>
-                                            )}
-                                          </td>
-
-                                          {/* Soutènement / Boulonnage Configuration Cell */}
-                                          <td className="p-1 border-r border-gray-200 w-36 text-center align-middle">
-                                            {row.chantierId ? (
-                                              (() => {
-                                                const bRow = (boulonnageRowsByPost[p] || []).find(br => br.chantierId === row.chantierId);
-                                                const isPlanned = bRow && bRow.plannedBolts > 0;
-                                                return (
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      const existingB = bRow || {
-                                                        chantierId: row.chantierId,
-                                                        minerMatricule: row.minerMatricule || '',
-                                                        minerName: row.minerName || '',
-                                                        assistantMatricule: row.assistantMatricule || '',
-                                                        assistantName: row.assistantName || '',
-                                                        type: 'Boulonnage',
-                                                        plannedBolts: 20,
-                                                        realBolts: 0,
-                                                        hasGrillage: false,
-                                                        grillageQuantity: 0,
-                                                        remarks: '',
-                                                        sectorGroup: sec
-                                                      };
-
-                                                      setActiveBoulonnageModal({
-                                                        post: p,
-                                                        minageRowIndex: flatIdx,
-                                                        chantierId: row.chantierId,
-                                                        chantierName: chantiers.find(c => c.id === row.chantierId)?.name || row.chantierId
-                                                      });
-
-                                                      setModalBoulonnageEnabled(isPlanned);
-                                                      setModalBoulonnageType(existingB.type || 'Boulonnage');
-                                                      setModalPlannedBolts(existingB.plannedBolts > 0 ? existingB.plannedBolts : 20);
-                                                      setModalHasGrillage(existingB.hasGrillage || false);
-                                                      setModalGrillageQty(existingB.grillageQuantity || 0);
-                                                      setModalBoulonnageRemarks(existingB.remarks || '');
-                                                    }}
-                                                    className={`inline-flex items-center gap-1.5 px-2 py-1 text-[9.5px] font-black uppercase rounded-lg border transition-all cursor-pointer ${
-                                                      isPlanned
-                                                        ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border-amber-300 shadow-xs'
-                                                        : 'bg-slate-50 hover:bg-slate-100 text-slate-400 border-slate-200'
-                                                    }`}
+                                                  <div
+                                                    onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
+                                                    className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
+                                                    title="Double-clic pour modifier manuellement"
                                                   >
-                                                    {isPlanned ? (
-                                                      <>
-                                                        🛡️ {bRow.type === 'Soutenement' ? 'Sout.' : 'Boul.'} ({bRow.plannedBolts})
-                                                      </>
+                                                    {row.plannedHoles}
+                                                  </div>
+                                                )}
+
+                                                {/* High-fidelity professional tooltip popover */}
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/trous:block w-72 bg-slate-950 text-slate-100 text-[10.5px] p-3 rounded-xl shadow-2xl z-50 border border-slate-800 pointer-events-none transition-all duration-200 text-left">
+                                                  <div className="font-extrabold text-[#00BFFF] uppercase tracking-wider text-[9px] mb-1">
+                                                    ℹ️ Spécifications de Tir & Forage
+                                                  </div>
+                                                  <p className="font-semibold leading-relaxed text-slate-250">
+                                                    {row.gallerySize === 12 ? (
+                                                      <>Le gabarit de foration théorique pour <strong className="text-white">12m²</strong> est de <strong className="text-white font-black">38 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">32 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">32</strong> s\'affiche pour le chargement et les amorces).</>
                                                     ) : (
-                                                      <>
-                                                        ➕ Planifier
-                                                      </>
+                                                      <>Le gabarit de foration théorique pour <strong className="text-white">9m²</strong> est de <strong className="text-white font-black">28 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">26 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">26</strong> s\'affiche pour le chargement et les amorces).</>
                                                     )}
-                                                  </button>
-                                                );
-                                              })()
-                                            ) : (
-                                              <span className="text-[9.5px] text-gray-300 uppercase font-bold italic select-none">Pas de chantier</span>
-                                            )}
-                                          </td>
+                                                  </p>
+                                                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-950"></div>
+                                                </div>
+                                              </td>
+
+                                              {/* ANFO */}
+                                              <td data-row={globalIdx} data-col={6} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
+                                                {row.explosivesManualOverride ? (
+                                                  <div className="flex items-center justify-center gap-1">
+                                                    <input
+                                                      type="number"
+                                                      value={row.anfo}
+                                                      onChange={e => updateMinageCell(p, flatIdx, 'anfo', Number(e.target.value))}
+                                                      onKeyDown={makeExcelKeyHandler(globalIdx, 6)}
+                                                      className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-655"
+                                                    />
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleToggleManualOverride(p, flatIdx)}
+                                                      className="text-red-500 font-extrabold cursor-pointer hover:scale-125 transition-transform"
+                                                      title="Clic pour repasser au calcul automatique"
+                                                    >
+                                                      *
+                                                    </button>
+                                                  </div>
+                                                ) : (
+                                                  <div
+                                                    onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
+                                                    className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
+                                                    title="Double-clic pour modifier manuellement"
+                                                  >
+                                                    {row.anfo}
+                                                  </div>
+                                                )}
+                                              </td>
+
+                                              {/* Tovex */}
+                                              <td data-row={globalIdx} data-col={7} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
+                                                {row.explosivesManualOverride ? (
+                                                  <div className="flex items-center justify-center gap-1">
+                                                    <input
+                                                      type="number"
+                                                      step="0.5"
+                                                      value={row.tovex}
+                                                      onChange={e => updateMinageCell(p, flatIdx, 'tovex', Number(e.target.value))}
+                                                      onKeyDown={makeExcelKeyHandler(globalIdx, 7)}
+                                                      className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-655"
+                                                    />
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleToggleManualOverride(p, flatIdx)}
+                                                      className="text-red-500 font-extrabold cursor-pointer hover:scale-125 transition-transform"
+                                                      title="Clic pour repasser au calcul automatique"
+                                                    >
+                                                      *
+                                                    </button>
+                                                  </div>
+                                                ) : (
+                                                  <div
+                                                    onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
+                                                    className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
+                                                    title="Double-clic pour modifier manuellement"
+                                                  >
+                                                    {row.tovex.toFixed(1)}
+                                                  </div>
+                                                )}
+                                              </td>
+
+                                              {/* Amorces */}
+                                              <td data-row={globalIdx} data-col={8} className="p-1 border-r border-gray-200 w-16 text-center focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
+                                                {row.explosivesManualOverride ? (
+                                                  <div className="flex items-center justify-center gap-1">
+                                                    <input
+                                                      type="number"
+                                                      value={row.ammorces}
+                                                      onChange={e => updateMinageCell(p, flatIdx, 'ammorces', Number(e.target.value))}
+                                                      onKeyDown={makeExcelKeyHandler(globalIdx, 8)}
+                                                      className="w-full bg-transparent text-center font-mono font-bold text-[11px] outline-none border-none py-0.5 text-red-655"
+                                                    />
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleToggleManualOverride(p, flatIdx)}
+                                                      className="text-red-500 font-extrabold cursor-pointer hover:scale-125 transition-transform"
+                                                      title="Clic pour repasser au calcul automatique"
+                                                    >
+                                                      *
+                                                    </button>
+                                                  </div>
+                                                ) : (
+                                                  <div
+                                                    onDoubleClick={() => handleToggleManualOverride(p, flatIdx)}
+                                                    className="cursor-pointer font-bold text-[11px] text-center select-none py-1 hover:bg-sky-50 w-full text-slate-800"
+                                                    title="Double-clic pour modifier manuellement"
+                                                  >
+                                                    {row.ammorces}
+                                                  </div>
+                                                )}
+                                              </td>
+
+                                            </>
+                                          )}
 
                                           {/* Remarks */}
                                           <td className="hidden">
@@ -4278,6 +4307,7 @@ export const Planning: React.FC = () => {
                         </div>
 
                       </div>
+                    </div>
                     );
                   });
                 })()}
@@ -4301,7 +4331,8 @@ export const Planning: React.FC = () => {
                     const SECTOR_ORDER = ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Autres / Non classés'];
 
                     return (
-                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
+                      <div key={p} className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-2xl shadow-sm">
+                        <div className="bg-white p-4 rounded-[14.5px] h-full">
                         {/* Shifty/Post block banner */}
                         <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
                           <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
@@ -4533,6 +4564,7 @@ export const Planning: React.FC = () => {
                           </table>
                         </div>
                       </div>
+                    </div>
                     );
                   });
                 })()}
@@ -4573,7 +4605,8 @@ export const Planning: React.FC = () => {
                     const eq4Name = getEmployeeName(row.equipier4);
 
                     return (
-                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
+                      <div key={p} className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-2xl shadow-sm">
+                        <div className="bg-white p-4 rounded-[14.5px] h-full">
                         {/* Shifty/Post block banner */}
                         <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
                           <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
@@ -4803,6 +4836,7 @@ export const Planning: React.FC = () => {
                           </div>
                         </div>
                       </div>
+                    </div>
                     );
                   })}
                 </div>
@@ -4824,7 +4858,8 @@ export const Planning: React.FC = () => {
                     const rowsForPost = maintenanceRowsByPost[p] || [];
 
                     return (
-                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
+                      <div key={p} className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-2xl shadow-sm">
+                        <div className="bg-white p-4 rounded-[14.5px] h-full">
                         {/* Shifty/Post block banner */}
                         <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
                           <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
@@ -4940,6 +4975,7 @@ export const Planning: React.FC = () => {
                           </button>
                         </div>
                       </div>
+                    </div>
                     );
                   });
                 })()}
@@ -4947,7 +4983,7 @@ export const Planning: React.FC = () => {
             )}
 
             {/* SHEET 5: BOULONNAGE & SOUTENEMENT INTERACTIVE EXCEL GRID */}
-            {false && activeSheetTab === 'boulonnage' && (
+            {activeSheetTab === 'boulonnage' && (
               <div className="space-y-8">
                 {(() => {
                   let globalIdxCounter = 0;
@@ -4963,7 +4999,8 @@ export const Planning: React.FC = () => {
                     const SECTOR_ORDER = ['Imiter 1', 'Imiter 2', 'Imiter Est', 'Imiter Est Bure', 'Autres / Non classés'];
 
                     return (
-                      <div key={p} className="border border-gray-200 bg-white p-4 shadow-sm rounded-xl">
+                      <div key={p} className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-2xl shadow-sm">
+                        <div className="bg-white p-4 rounded-[14.5px] h-full">
                         {/* Shifty/Post block banner */}
                         <div className="flex flex-col items-center justify-center mb-5 mt-1 select-none">
                           <h4 className="text-[13px] font-black uppercase tracking-[0.25em] flex items-center gap-2">
@@ -5165,6 +5202,7 @@ export const Planning: React.FC = () => {
                           </table>
                         </div>
                       </div>
+                    </div>
                     );
                   });
                 })()}
@@ -5410,69 +5448,71 @@ export const Planning: React.FC = () => {
           </div>
 
           {/* INTEGRATED FULL-WIDTH BOTTOM SUMMARY BAR */}
-          <div className="bg-white p-4 flex flex-col md:flex-row items-center justify-between gap-4 border border-gray-200 rounded-2xl shadow-lg mt-6">
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="border-r border-gray-200 pr-6">
-                <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Activités Planifiées</span>
-                <span className="text-[11px] font-medium text-slate-700 mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 select-none">
-                  <span className="flex items-center gap-1.5">
-                    <Hammer className="w-3.5 h-3.5 text-red-500" />
-                    <span>Minage : <strong className="font-extrabold text-slate-900">{completenessStats.minage}</strong> {completenessStats.minage > 1 ? 'chantiers' : 'chantier'}</span>
+          <div className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-2xl shadow-lg mt-6">
+            <div className="bg-white p-4 flex flex-col md:flex-row items-center justify-between gap-4 rounded-[14.5px]">
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="border-r border-gray-200 pr-6">
+                  <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Activités Planifiées</span>
+                  <span className="text-[11px] font-medium text-slate-700 mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 select-none">
+                    <span className="flex items-center gap-1.5">
+                      <Hammer className="w-3.5 h-3.5 text-red-500" />
+                      <span>Minage : <strong className="font-extrabold text-slate-900">{completenessStats.minage}</strong> {completenessStats.minage > 1 ? 'chantiers' : 'chantier'}</span>
+                    </span>
+                    <span className="text-gray-300">|</span>
+                    <span className="flex items-center gap-1.5">
+                      <Tractor className="w-3.5 h-3.5 text-[#00BFFF]" />
+                      <span>Déblayage : <strong className="font-extrabold text-slate-900">{completenessStats.deblayage}</strong> {completenessStats.deblayage > 1 ? 'équipes' : 'équipe'}</span>
+                    </span>
+                    <span className="text-gray-300">|</span>
+                    <span className="flex items-center gap-1.5">
+                      <Train className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Extraction : <strong className="font-extrabold text-slate-900">{completenessStats.extraction}</strong> {completenessStats.extraction > 1 ? 'postes' : 'poste'}</span>
+                    </span>
+                    <span className="text-gray-300">|</span>
+                    <span className="flex items-center gap-1.5">
+                      <Wrench className="w-3.5 h-3.5 text-purple-500" />
+                      <span>Maintenance : <strong className="font-extrabold text-slate-900">{completenessStats.maintenance}</strong> {completenessStats.maintenance > 1 ? 'agents' : 'agent'}</span>
+                    </span>
                   </span>
-                  <span className="text-gray-300">|</span>
-                  <span className="flex items-center gap-1.5">
-                    <Tractor className="w-3.5 h-3.5 text-[#00BFFF]" />
-                    <span>Déblayage : <strong className="font-extrabold text-slate-900">{completenessStats.deblayage}</strong> {completenessStats.deblayage > 1 ? 'équipes' : 'équipe'}</span>
+                </div>
+                <div className="border-r border-gray-200 pr-6">
+                  <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Objectif Avancement</span>
+                  <span className="text-base font-black text-[#00BFFF] mt-0.5 block">
+                    {totalMeterageEstime.toFixed(1)} mètres
                   </span>
-                  <span className="text-gray-300">|</span>
-                  <span className="flex items-center gap-1.5">
-                    <Train className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Extraction : <strong className="font-extrabold text-slate-900">{completenessStats.extraction}</strong> {completenessStats.extraction > 1 ? 'postes' : 'poste'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Coordinateur</span>
+                  <span className="text-[10px] font-extrabold text-slate-600 mt-0.5 block uppercase">
+                    {user?.email || 'Secrétaire de Planification SMI'}
                   </span>
-                  <span className="text-gray-300">|</span>
-                  <span className="flex items-center gap-1.5">
-                    <Wrench className="w-3.5 h-3.5 text-purple-500" />
-                    <span>Maintenance : <strong className="font-extrabold text-slate-900">{completenessStats.maintenance}</strong> {completenessStats.maintenance > 1 ? 'agents' : 'agent'}</span>
-                  </span>
-                </span>
+                </div>
               </div>
-              <div className="border-r border-gray-200 pr-6">
-                <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Objectif Avancement</span>
-                <span className="text-base font-black text-[#00BFFF] mt-0.5 block">
-                  {totalMeterageEstime.toFixed(1)} mètres
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 uppercase text-[8px] font-black tracking-wider block">Coordinateur</span>
-                <span className="text-[10px] font-extrabold text-slate-600 mt-0.5 block uppercase">
-                  {user?.email || 'Secrétaire de Planification SMI'}
-                </span>
-              </div>
-            </div>
 
-             <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-              <button 
-                onClick={savePlanningWorkbook}
-                disabled={saveStatus === 'saving' || isLockedByNiveau2 || isMonthClosedForPlanning}
-                className={`w-full md:w-auto py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md active:translate-y-px flex items-center justify-center gap-1.5 ${
-                  isLockedByNiveau2 || isMonthClosedForPlanning
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60 border border-gray-250 shadow-none' 
-                    : 'bg-[#00BFFF] hover:bg-sky-500 text-white cursor-pointer hover:shadow-lg'
-                }`}
-              >
-                <Save className="w-4 h-4" />
-                {saveStatus === 'saving' ? 'Validation ...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver l\'Ordonnancement Complet'}
-              </button>
-              {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && !isMonthClosedForPlanning && (
-                <button
-                  onClick={validatePlanningWorkbook}
-                  disabled={saveStatus === 'saving'}
-                  className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md hover:shadow-lg active:translate-y-px cursor-pointer flex items-center justify-center gap-1.5"
+              <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                <button 
+                  onClick={savePlanningWorkbook}
+                  disabled={saveStatus === 'saving' || isLockedByNiveau2 || isMonthClosedForPlanning}
+                  className={`w-full md:w-auto py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md active:translate-y-px flex items-center justify-center gap-1.5 ${
+                    isLockedByNiveau2 || isMonthClosedForPlanning
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60 border border-gray-250 shadow-none' 
+                      : 'bg-[#00BFFF] hover:bg-sky-500 text-white cursor-pointer hover:shadow-lg'
+                  }`}
                 >
-                  <Check className="w-4 h-4" />
-                  ✓ Valider la planification
+                  <Save className="w-4 h-4" />
+                  {saveStatus === 'saving' ? 'Validation ...' : saveStatus === 'saved' ? '✓ Enregistré !' : 'Graver l\'Ordonnancement Complet'}
                 </button>
-              )}
+                {isPlanningSavedInDb && (!validationInfo || validationInfo.status !== 'valide') && !isMonthClosedForPlanning && (
+                  <button
+                    onClick={validatePlanningWorkbook}
+                    disabled={saveStatus === 'saving'}
+                    className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md hover:shadow-lg active:translate-y-px cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    ✓ Valider la planification
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

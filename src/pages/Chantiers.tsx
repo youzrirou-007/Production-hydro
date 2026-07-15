@@ -20,7 +20,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, orderBy, where } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useSite } from '../contexts/SiteContext';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
@@ -130,6 +130,7 @@ export const Chantiers: React.FC = () => {
     } catch (err: any) {
       console.error("Edit chantier error:", err);
       showToast(`Erreur lors de la modification : ${err?.message || err}`, "error");
+      handleFirestoreError(err, OperationType.UPDATE, `chantiers/${editingChantier.id}`);
     } finally {
       setLoading(false);
     }
@@ -154,6 +155,7 @@ export const Chantiers: React.FC = () => {
     }, (error) => {
       console.error("Firestore loading error:", error);
       showToast("Erreur lors de la synchronisation des données depuis le cloud.", "error");
+      handleFirestoreError(error, OperationType.GET, 'chantiers');
     });
     return () => unsub();
   }, [activeSiteId]);
@@ -213,6 +215,7 @@ export const Chantiers: React.FC = () => {
     } catch (err: any) {
       console.error("Create chantier error:", err);
       showToast(`Erreur lors de l'enregistrement : ${err?.message || err}`, "error");
+      handleFirestoreError(err, OperationType.CREATE, 'chantiers');
     } finally {
       setLoading(false);
     }
@@ -224,9 +227,10 @@ export const Chantiers: React.FC = () => {
         status: currentStatus === 'ouvert' ? 'fermé' : 'ouvert'
       });
       showToast(`Chantier mis à jour avec succès.`, 'success');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       showToast("Erreur lors de la mise à jour du chantier.", "error");
+      handleFirestoreError(err, OperationType.UPDATE, `chantiers/${id}`);
     }
   };
 
@@ -235,9 +239,10 @@ export const Chantiers: React.FC = () => {
       try {
         await deleteDoc(doc(db, 'chantiers', id));
         showToast("Le chantier a été définitivement supprimé.", 'success');
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
         showToast("Erreur lors de la suppression.", "error");
+        handleFirestoreError(err, OperationType.DELETE, `chantiers/${id}`);
       }
     }
   };

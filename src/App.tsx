@@ -2,11 +2,17 @@ import React, { useState, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SiteProvider } from './contexts/SiteContext';
 import { Layout } from './components/Layout';
-import { Production } from './pages/Production';
-import { Planning } from './pages/Planning';
-import { DailyReport } from './pages/DailyReport';
 import { Factory, ShieldCheck, Mail, LogIn, HardHat } from 'lucide-react';
 import logoImg from './assets/images/hydromines_logo_1781337889277.jpg';
+
+const Production = lazy(() =>
+  import('./pages/Production').then(m => ({ default: m.Production })));
+
+const Planning = lazy(() =>
+  import('./pages/Planning').then(m => ({ default: m.Planning })));
+
+const DailyReport = lazy(() =>
+  import('./pages/DailyReport').then(m => ({ default: m.DailyReport })));
 
 const Admin = lazy(() =>
   import('./pages/Admin').then(m => ({ default: m.Admin })));
@@ -42,6 +48,8 @@ const MineurParfait = lazy(() =>
   import('./pages/MineurParfait').then(m => ({ default: m.MineurParfait })));
 
 const FailedBlasts = lazy(() => import('./pages/FailedBlasts'));
+
+const Configuration = lazy(() => import('./pages/Configuration'));
 
 const Tutoriel = lazy(() => import('./pages/Tutoriel'));
 
@@ -97,6 +105,7 @@ const AppContent: React.FC = () => {
       case 'mineur_parfait': return <MineurParfait />;
       case 'failed_blasts':
       case '/volées-ratées': return <FailedBlasts />;
+      case 'configuration': return <Configuration />;
       case 'tutoriel':
       case '/tutoriel': return <Tutoriel />;
       case 'admin': return <Admin />;

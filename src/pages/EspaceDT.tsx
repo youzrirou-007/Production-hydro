@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 
-type DTTab = 'journal' | 'attachements' | 'explosifs' | 'rapport' | 'ia' | 'comparaison';
+type DTTab = 'vue_ensemble' | 'journal' | 'attachements' | 'explosifs' | 'rapport' | 'ia' | 'comparaison';
 
 interface AttachementChantier {
   chantierId: string;
@@ -34,7 +34,7 @@ interface Attachement {
 
 export const EspaceDT: React.FC = () => {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<DTTab>('journal');
+  const [activeTab, setActiveTab] = useState<DTTab>('vue_ensemble');
 
   const [selectedMois, setSelectedMois] = useState<string>(() => {
     const now = new Date();
@@ -106,6 +106,7 @@ export const EspaceDT: React.FC = () => {
   const [simChargeTarget, setSimChargeTarget] = useState<number>(24);
 
   const tabs: { id: DTTab; label: string; icon: string }[] = [
+    { id: 'vue_ensemble', label: "Vue d'Ensemble", icon: '🏠' },
     { id: 'journal', label: 'Journal de la Mine', icon: '📋' },
     { id: 'attachements', label: 'Attachements & Fiabilité', icon: '📐' },
     { id: 'explosifs', label: 'Suivi Explosifs', icon: '💥' },
@@ -554,6 +555,7 @@ export const EspaceDT: React.FC = () => {
       monthlyMeterage,
       monthlyRounds,
       theorique,
+      monthlyTheorAnfo,
       ecart,
       ecartPct,
       avgAnfoPerMeter
@@ -1092,6 +1094,46 @@ export const EspaceDT: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadingDT]);
 
+  const overviewBilan = getBilanJournal();
+  const overviewExplosifs = getExplosifsStats();
+
+  const overviewAlerts: { type: 'critique' | 'attention'; text: string; source: DTTab }[] = [];
+
+  if (journalExplications.length > 0) {
+    overviewAlerts.push({
+      type: 'attention',
+      text: `${journalExplications.length} explication${journalExplications.length > 1 ? 's' : ''} en attente pour le ${journalDate}`,
+      source: 'journal'
+    });
+  }
+
+  if (suspectChantiers.length > 0) {
+    suspectChantiers.forEach(c => {
+      overviewAlerts.push({
+        type: 'critique',
+        text: `${c.chantierName} : déclaration suspecte détectée pour ${selectedMois}`,
+        source: 'attachements'
+      });
+    });
+  }
+
+  if (systematicAnomalies.length > 0) {
+    systematicAnomalies.forEach(a => {
+      overviewAlerts.push({
+        type: 'critique',
+        text: `${a.chantierName} : écart anormal sur ${a.consecutiveMonths} mois consécutifs — audit recommandé`,
+        source: 'attachements'
+      });
+    });
+  }
+
+  const overviewStatusGlobal: 'nominal' | 'attention' =
+    overviewAlerts.some(a => a.type === 'critique') ? 'attention' : 'nominal';
+
+  const overviewLastAnalysis = savedAnalyses.length > 0
+    ? savedAnalyses[savedAnalyses.length - 1]
+    : null;
+
   return (
     <div className="min-h-screen bg-white p-4 sm:p-6">
       {/* Premium Hydromines Gold Banner */}
@@ -1155,6 +1197,193 @@ export const EspaceDT: React.FC = () => {
       </div>
 
       <div className="p-6">
+        {activeTab === 'vue_ensemble' && (
+          <div className="space-y-6">
+
+            {/* PANNEAU DE BIENVENUE */}
+            <div className="mb-8 animate-in fade-in slide-in-from-top-2 duration-500">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b8860b] mb-1">
+                {new Date().getHours() < 12 ? 'Bonjour' : new Date().getHours() < 18 ? 'Bon après-midi' : 'Bonsoir'}
+              </p>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                {profile?.name || 'Hamid El Yaakouby'}
+              </h2>
+              <p className="text-[11px] font-semibold text-slate-400 mt-1 capitalize">
+                {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+
+            {/* STATUS GLOBAL */}
+            <div className={`mb-8 rounded-2xl border p-5 flex items-center justify-between
+              animate-in fade-in slide-in-from-top-2 duration-500 delay-75
+              ${overviewStatusGlobal === 'nominal'
+                ? 'bg-emerald-50/50 border-emerald-200'
+                : 'bg-rose-50/50 border-rose-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className={`w-2.5 h-2.5 rounded-full ${
+                  overviewStatusGlobal === 'nominal' ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'
+                }`} />
+                <span className={`text-[13px] font-black uppercase tracking-wider ${
+                  overviewStatusGlobal === 'nominal' ? 'text-emerald-700' : 'text-rose-700'
+                }`}>
+                  {overviewStatusGlobal === 'nominal' ? 'Tout est nominal' : `${overviewAlerts.length} point${overviewAlerts.length > 1 ? 's' : ''} d'attention`}
+                </span>
+              </div>
+              <div className="h-1 w-16 rounded-full bg-gradient-to-r from-[#b8860b] via-[#ffd700] to-[#b8860b] opacity-70" />
+            </div>
+
+            {/* GRILLE DES 4 KPI CARDS */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {[
+                {
+                  label: 'Métrage du jour',
+                  value: `${overviewBilan.totalReel.toFixed(1)}`,
+                  unit: `/ ${overviewBilan.totalPlan.toFixed(1)} m`,
+                  pct: overviewBilan.totalPlan > 0 ? (overviewBilan.totalReel / overviewBilan.totalPlan) * 100 : null,
+                  icon: '⛏️'
+                },
+                {
+                  label: 'Wagons du jour',
+                  value: `${overviewBilan.totalWagonsReel}`,
+                  unit: `/ ${overviewBilan.totalWagonsPlan} u`,
+                  pct: overviewBilan.totalWagonsPlan > 0 ? (overviewBilan.totalWagonsReel / overviewBilan.totalWagonsPlan) * 100 : null,
+                  icon: '🚛'
+                },
+                {
+                  label: `Fiabilité — ${selectedMois}`,
+                  value: currentAttachement ? `${(100 - Math.abs(globalEcartPct)).toFixed(0)}%` : '—',
+                  unit: currentAttachement ? globalFiab.label : 'Non saisi',
+                  pct: currentAttachement ? (100 - Math.abs(globalEcartPct)) : null,
+                  icon: '📐'
+                },
+                {
+                  label: 'ANFO — Réel / Théorique',
+                  value: `${overviewExplosifs.monthlyAnfo.toFixed(0)}`,
+                  unit: `/ ${overviewExplosifs.monthlyTheorAnfo.toFixed(0)} kg`,
+                  pct: overviewExplosifs.monthlyTheorAnfo > 0 ? (overviewExplosifs.monthlyAnfo / overviewExplosifs.monthlyTheorAnfo) * 100 : null,
+                  icon: '💥'
+                },
+              ].map((kpi, i) => (
+                <div
+                  key={kpi.label}
+                  style={{ animationDelay: `${150 + i * 60}ms` }}
+                  className="animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-both
+                    bg-white border border-slate-200/80 rounded-2xl p-5
+                    shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.04)]
+                    hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_12px_32px_rgba(0,0,0,0.08)]
+                    hover:border-slate-300 transition-all duration-300 ease-out"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-lg">{kpi.icon}</span>
+                    {kpi.pct !== null && (
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full font-mono ${
+                        kpi.pct >= 90 ? 'bg-emerald-50 text-emerald-700' :
+                        kpi.pct >= 70 ? 'bg-amber-50 text-amber-700' :
+                        'bg-rose-50 text-rose-700'
+                      }`}>
+                        {kpi.pct.toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1">
+                    {kpi.label}
+                  </p>
+                  <p className="text-2xl font-black text-slate-900 tracking-tight">
+                    {kpi.value}
+                    <span className="text-[11px] font-bold text-slate-400 ml-1.5">{kpi.unit}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* ALERTES */}
+            <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300 fill-mode-both">
+              <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
+                Ce qui mérite votre attention {overviewAlerts.length > 0 && `(${overviewAlerts.length})`}
+              </p>
+              {overviewAlerts.length === 0 ? (
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 text-center
+                  shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                  <p className="text-emerald-600 font-black text-[12px] uppercase tracking-wider">
+                    ✓ Aucune alerte — tout est nominal
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {overviewAlerts.map((a, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveTab(a.source)}
+                      className={`w-full text-left bg-white border rounded-xl px-4 py-3 flex items-center
+                        justify-between group transition-all duration-200
+                        shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]
+                        ${a.type === 'critique' ? 'border-rose-200 hover:border-rose-300' : 'border-amber-200 hover:border-amber-300'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          a.type === 'critique' ? 'bg-rose-500' : 'bg-amber-500'
+                        }`} />
+                        <span className="text-[11px] font-semibold text-slate-700">{a.text}</span>
+                      </div>
+                      <span className="text-slate-300 group-hover:text-slate-500 transition-colors text-xs">→</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ANALYSE IA */}
+            <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-[360ms] fill-mode-both">
+              <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
+                Dernière analyse IA
+              </p>
+              <button
+                onClick={() => setActiveTab('ia')}
+                className="w-full text-left bg-gradient-to-br from-white to-slate-50/50 border border-slate-200/80
+                  rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)]
+                  hover:border-[#ffd700]/40 transition-all duration-300 group"
+              >
+                {overviewLastAnalysis ? (
+                  <>
+                    <p className="text-[13px] font-bold text-slate-800 mb-1">
+                      "{overviewLastAnalysis.question}"
+                    </p>
+                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">
+                      {overviewLastAnalysis.date}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[11px] font-semibold text-slate-400">
+                    Aucune analyse effectuée récemment — Posez une question à l'assistant DT
+                  </p>
+                )}
+              </button>
+            </div>
+
+            {/* BOUTONS ACCES RAPIDE */}
+            <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-[420ms] fill-mode-both">
+              {[
+                { id: 'journal' as DTTab, label: 'Journal de la Mine' },
+                { id: 'attachements' as DTTab, label: 'Attachements & Fiabilité' },
+                { id: 'rapport' as DTTab, label: 'Rapport Mensuel' },
+              ].map(link => (
+                <button
+                  key={link.id}
+                  onClick={() => setActiveTab(link.id)}
+                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px]
+                    font-black uppercase tracking-wider text-slate-600 hover:text-slate-900
+                    hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 shadow-sm"
+                >
+                  {link.label} →
+                </button>
+              ))}
+            </div>
+
+          </div>
+        )}
+
         {activeTab === 'journal' && (
           <div className="space-y-6">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">

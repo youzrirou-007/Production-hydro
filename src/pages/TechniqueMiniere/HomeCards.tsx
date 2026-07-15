@@ -4,12 +4,18 @@ import { Crown, ArrowRight } from 'lucide-react';
 import logoImg from '../../assets/images/hydromines_logo_1781337889277.jpg';
 import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL, HOLES_DATA_9_INTL } from './data';
 import { GabaritType } from './types';
+import { getExplosifsData } from './explosifsCalc';
 
 interface HomeCardsProps {
   onSelect: (gabarit: GabaritType) => void;
 }
 
 export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
+  const explSMI = getExplosifsData('12m2', '1.8');
+  const explIntl = getExplosifsData('12m2_intl', '1.8');
+  const expl9m2 = getExplosifsData('9m2', '1.8');
+  const expl9m2Intl = getExplosifsData('9m2_intl', '1.8');
+
   const getHoleColor = (type: string) => {
     switch (type) {
       case 'vide': return 'fill-white stroke-slate-400';
@@ -110,11 +116,15 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Charges explosifs :</span>
-                <p className="text-slate-800 font-extrabold uppercase">ANFO 26.6kg / TOVEX 3.5kg</p>
+                <p className="text-slate-800 font-extrabold uppercase">
+                  ANFO {explSMI.anfoKgTotal}kg / TOVEX {explSMI.tovexKgTotal}kg
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Plan d'amorçage :</span>
-                <p className="text-slate-800 font-extrabold uppercase">35 Amorces</p>
+                <p className="text-slate-800 font-extrabold uppercase">
+                  {explSMI.amorces} Amorces
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Bouchon :</span>
@@ -190,11 +200,15 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Charges explosifs :</span>
-                <p className="text-slate-800 font-extrabold uppercase">ANFO 24.4kg / TOVEX 3.2kg</p>
+                <p className="text-slate-800 font-extrabold uppercase">
+                  ANFO {explIntl.anfoKgTotal}kg / TOVEX {explIntl.tovexKgTotal}kg
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Plan d'amorçage :</span>
-                <p className="text-slate-800 font-extrabold uppercase">32 Amorces</p>
+                <p className="text-slate-800 font-extrabold uppercase">
+                  {explIntl.amorces} Amorces
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Bouchon :</span>
@@ -270,11 +284,15 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Charges explosifs :</span>
-                <p className="text-slate-800 font-extrabold uppercase">ANFO 20.6kg / TOVEX 2.7kg</p>
+                <p className="text-slate-800 font-extrabold uppercase">
+                  ANFO {expl9m2.anfoKgTotal}kg / TOVEX {expl9m2.tovexKgTotal}kg
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Plan d'amorçage :</span>
-                <p className="text-slate-800 font-extrabold uppercase">27 Amorces (28 trous)</p>
+                <p className="text-slate-800 font-extrabold uppercase">
+                  {expl9m2.amorces} Amorces ({expl9m2.totalHoles} trous)
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Bouchon :</span>
@@ -350,11 +368,15 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Charges explosifs :</span>
-                <p className="text-slate-800 font-extrabold uppercase">ANFO 19.8kg / TOVEX 2.7kg</p>
+                <p className="text-slate-800 font-extrabold uppercase">
+                  ANFO {expl9m2Intl.anfoKgTotal}kg / TOVEX {expl9m2Intl.tovexKgTotal}kg
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Plan d'amorçage :</span>
-                <p className="text-slate-800 font-extrabold uppercase">27 Amorces (30 trous)</p>
+                <p className="text-slate-800 font-extrabold uppercase">
+                  {expl9m2Intl.amorces} Amorces ({expl9m2Intl.totalHoles} trous)
+                </p>
               </div>
               <div className="space-y-1">
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Bouchon :</span>

@@ -11,14 +11,17 @@ service cloud.firestore {
     }
 
     function hasRole(roles) {
-      return isSignedIn() && getUserRole() in roles;
+      return isSignedIn() && (
+        ((request.auth.token.email == 'Youzrirou@gmail.com' || request.auth.token.email == 'youzrirou@gmail.com') && request.auth.token.email_verified == true) ||
+        getUserRole() in roles
+      );
     }
 
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && (request.auth.uid == userId || hasRole(['admin']));
-      allow delete: if hasRole(['admin']);
+      allow update: if isSignedIn() && (request.auth.uid == userId || hasRole(['admin', 'direction_technique']));
+      allow delete: if hasRole(['admin', 'direction_technique']);
     }
 
     match /sites/{siteId} {
@@ -80,7 +83,7 @@ service cloud.firestore {
 
     match /audit_logs/{logId} {
       allow read: if hasRole(['admin', 'direction']);
-      allow create: if hasRole(['admin', 'direction']);
+      allow create: if isSignedIn();
       allow update, delete: if false;
     }
 
@@ -143,6 +146,11 @@ service cloud.firestore {
       allow create: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
       allow update: if hasRole(['admin', 'direction']);
       allow delete: if hasRole(['admin']);
+    }
+
+    match /failed_blast_causes/{causeId} {
+      allow read: if isSignedIn();
+      allow write: if hasRole(['admin', 'direction', 'chief', 'responsible', 'secretary']);
     }
 
     match /test/{docId} {

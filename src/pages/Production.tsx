@@ -904,6 +904,47 @@ export const Production: React.FC = () => {
     });
   };
 
+  const preprocessPlannedRows = (pPlan: any) => {
+    if (!pPlan) return { minage: [], boulonnage: [], deblayage: [], extraction: [], maintenance: [] };
+
+    const rawMinage = pPlan.minage || [];
+    const rawBoulonnage = pPlan.boulonnage || [];
+
+    // 1. Minage rows are those that do NOT have isBoulonnage set to true
+    const filteredMinage = rawMinage.filter((row: any) => !row.isBoulonnage);
+
+    // 2. Bolting rows are the existing ones PLUS the ones from minage that have isBoulonnage === true
+    const boltingFromMinage = rawMinage
+      .filter((row: any) => row.isBoulonnage)
+      .map((row: any) => {
+        const isGrillage = row.boulonnageType === 'Soutènement SPLIT 1.7m & Grillage';
+        return {
+          sectorGroup: row.sectorGroup || row.sector || 'Autres / Non classés',
+          chantierId: row.chantierId,
+          minerMatricule: row.minerMatricule || '',
+          minerName: row.minerName || '',
+          assistantMatricule: row.assistantMatricule || '',
+          assistantName: row.assistantName || '',
+          type: isGrillage ? 'Soutenement' : 'Boulonnage',
+          plannedBolts: row.plannedBolts !== undefined ? row.plannedBolts : 22,
+          realBolts: 0,
+          hasGrillage: isGrillage,
+          grillageQuantity: 0,
+          remarks: row.remarks || ''
+        };
+      });
+
+    const combinedBoulonnage = [...rawBoulonnage, ...boltingFromMinage];
+
+    return {
+      minage: filteredMinage,
+      boulonnage: combinedBoulonnage,
+      deblayage: pPlan.deblayage || [],
+      extraction: pPlan.extraction || [],
+      maintenance: pPlan.maintenance || []
+    };
+  };
+
   const filterRealPlannedRows = <T,>(arr: T[], type: string): T[] => {
     if (!Array.isArray(arr)) return [];
     return arr.filter((item: any) => {
@@ -1664,8 +1705,9 @@ export const Production: React.FC = () => {
           setTemplateDateHint(format(new Date(activePlanDateStr + "T12:00:00"), 'dd/MM/yyyy'));
 
           // Post 1
-          const p1Plan = planData?.postes?.poste1;
-          if (p1Plan) {
+          const p1PlanRaw = planData?.postes?.poste1;
+          if (p1PlanRaw) {
+            const p1Plan = preprocessPlannedRows(p1PlanRaw);
             const p1Min = generateFromPlan(filterRealPlannedRows(p1Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 1', 'minage');
             setP1MinageRows(p1Min);
             const p1Deb = generateFromPlan(filterRealPlannedRows(p1Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 1', 'deblayage');
@@ -1676,10 +1718,10 @@ export const Production: React.FC = () => {
             setP1ExtractionRows(p1Ext);
             const p1Maint = generateFromPlan(filterRealPlannedRows(p1Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 1', 'maintenance');
             setP1MaintenanceRows(p1Maint);
-            setP1ChiefMatricule(p1Plan.chiefMatricule || '');
-            setP1ChiefName(p1Plan.chiefName || '');
-            setP1SecondChiefMatricule(p1Plan.secondChiefMatricule || '');
-            setP1SecondChiefName(p1Plan.secondChiefName || '');
+            setP1ChiefMatricule(p1PlanRaw.chiefMatricule || '');
+            setP1ChiefName(p1PlanRaw.chiefName || '');
+            setP1SecondChiefMatricule(p1PlanRaw.secondChiefMatricule || '');
+            setP1SecondChiefName(p1PlanRaw.secondChiefName || '');
             setP1SectorChefs(buildDefaultSectorChefs('Poste 1', activePlanDateStr));
           } else {
             setP1MinageRows([]);
@@ -1693,8 +1735,9 @@ export const Production: React.FC = () => {
           }
 
           // Post 2
-          const p2Plan = planData?.postes?.poste2;
-          if (p2Plan) {
+          const p2PlanRaw = planData?.postes?.poste2;
+          if (p2PlanRaw) {
+            const p2Plan = preprocessPlannedRows(p2PlanRaw);
             const p2Min = generateFromPlan(filterRealPlannedRows(p2Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 2', 'minage');
             setP2MinageRows(p2Min);
             const p2Deb = generateFromPlan(filterRealPlannedRows(p2Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 2', 'deblayage');
@@ -1705,10 +1748,10 @@ export const Production: React.FC = () => {
             setP2ExtractionRows(p2Ext);
             const p2Maint = generateFromPlan(filterRealPlannedRows(p2Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 2', 'maintenance');
             setP2MaintenanceRows(p2Maint);
-            setP2ChiefMatricule(p2Plan.chiefMatricule || '');
-            setP2ChiefName(p2Plan.chiefName || '');
-            setP2SecondChiefMatricule(p2Plan.secondChiefMatricule || '');
-            setP2SecondChiefName(p2Plan.secondChiefName || '');
+            setP2ChiefMatricule(p2PlanRaw.chiefMatricule || '');
+            setP2ChiefName(p2PlanRaw.chiefName || '');
+            setP2SecondChiefMatricule(p2PlanRaw.secondChiefMatricule || '');
+            setP2SecondChiefName(p2PlanRaw.secondChiefName || '');
             setP2SectorChefs(buildDefaultSectorChefs('Poste 2', activePlanDateStr));
           } else {
             setP2MinageRows([]);
@@ -1722,8 +1765,9 @@ export const Production: React.FC = () => {
           }
 
           // Post 3
-          const p3Plan = planData?.postes?.poste3;
-          if (p3Plan) {
+          const p3PlanRaw = planData?.postes?.poste3;
+          if (p3PlanRaw) {
+            const p3Plan = preprocessPlannedRows(p3PlanRaw);
             const p3Min = generateFromPlan(filterRealPlannedRows(p3Plan.minage || [], 'minage'), createEmptyMinage, 'Poste 3', 'minage');
             setP3MinageRows(p3Min);
             const p3Deb = generateFromPlan(filterRealPlannedRows(p3Plan.deblayage || [], 'deblayage'), createEmptyDeblayage, 'Poste 3', 'deblayage');
@@ -1734,10 +1778,10 @@ export const Production: React.FC = () => {
             setP3ExtractionRows(p3Ext);
             const p3Maint = generateFromPlan(filterRealPlannedRows(p3Plan.maintenance || [], 'maintenance'), createEmptyMaintenance, 'Poste 3', 'maintenance');
             setP3MaintenanceRows(p3Maint);
-            setP3ChiefMatricule(p3Plan.chiefMatricule || '');
-            setP3ChiefName(p3Plan.chiefName || '');
-            setP3SecondChiefMatricule(p3Plan.secondChiefMatricule || '');
-            setP3SecondChiefName(p3Plan.secondChiefName || '');
+            setP3ChiefMatricule(p3PlanRaw.chiefMatricule || '');
+            setP3ChiefName(p3PlanRaw.chiefName || '');
+            setP3SecondChiefMatricule(p3PlanRaw.secondChiefMatricule || '');
+            setP3SecondChiefName(p3PlanRaw.secondChiefName || '');
             setP3SectorChefs(buildDefaultSectorChefs('Poste 3', activePlanDateStr));
           } else {
             setP3MinageRows([]);
@@ -2752,10 +2796,12 @@ export const Production: React.FC = () => {
 
           postsList.forEach(pName => {
             const pKey = pName === 'Poste 1' ? 'poste1' : pName === 'Poste 2' ? 'poste2' : 'poste3';
-            const pPlan = planData?.postes?.[pKey];
+            const pPlanRaw = planData?.postes?.[pKey];
+            const pPlan = pPlanRaw ? preprocessPlannedRows(pPlanRaw) : null;
 
             const minageRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.minage || [], 'minage'), createEmptyMinage, pName, 'minage') : [];
             const deblayageRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.deblayage || [], 'deblayage'), createEmptyDeblayage, pName, 'deblayage') : [];
+            const boulonnageRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.boulonnage || [], 'boulonnage'), createEmptyBoulonnage, pName, 'boulonnage') : [];
             const extractionRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.extraction || [], 'extraction'), createEmptyExtraction, pName, 'extraction') : [];
             const maintenanceRows = pPlan ? generateFromPlan(filterRealPlannedRows(pPlan.maintenance || [], 'maintenance'), createEmptyMaintenance, pName, 'maintenance') : [];
 
@@ -2766,7 +2812,7 @@ export const Production: React.FC = () => {
             const finalMaintenance = maintenanceRows;
 
             // Inject sector chiefs
-            const sectorChefs = pPlan?.sectorChefs || buildDefaultSectorChefs(pName, targetDate);
+            const sectorChefs = pPlanRaw?.sectorChefs || buildDefaultSectorChefs(pName, targetDate);
 
             // Map and format for production compatibility - with fallback chain for sector matching
             const mappedMinage = finalMinage.map((row: any) => {
@@ -2783,13 +2829,14 @@ export const Production: React.FC = () => {
             });
 
             postesObj[pKey] = {
-              chiefMatricule: pPlan?.chiefMatricule || '',
-              chiefName: pPlan?.chiefName || '',
-              secondChiefMatricule: pPlan?.secondChiefMatricule || '',
-              secondChiefName: pPlan?.secondChiefName || '',
+              chiefMatricule: pPlanRaw?.chiefMatricule || '',
+              chiefName: pPlanRaw?.chiefName || '',
+              secondChiefMatricule: pPlanRaw?.secondChiefMatricule || '',
+              secondChiefName: pPlanRaw?.secondChiefName || '',
               status: 'planifie',
               minage: mappedMinage,
               deblayage: finalDeblayage,
+              boulonnage: boulonnageRows || [],
               extraction: finalExtraction,
               maintenance: finalMaintenance,
               sectorChefs: sectorChefs

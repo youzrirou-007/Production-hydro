@@ -584,7 +584,7 @@ export const MineurParfait: React.FC = () => {
 
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex flex-col items-center justify-center">
                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                        {lang === 'ar' ? "مخطط الحفار والدافع" : "SCHÉMA PERFORATEUR & POUSSOIR"}
+                        {lang === 'ar' ? "مخطط المطرقة الثاقبة والدعامة الهوائية" : "SCHÉMA PERFORATEUR & POUSSOIR"}
                       </span>
                       <div className="bg-white rounded-xl p-3 border border-slate-200/40 w-full flex flex-col items-center justify-center shadow-xs">
                         <IllustrationForage className="w-full h-auto max-w-[290px]" />

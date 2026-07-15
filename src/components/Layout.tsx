@@ -46,6 +46,7 @@ import { doc, getDoc, collection, collectionGroup, query, where, onSnapshot, upd
 import { format } from 'date-fns';
 import { getUpcomingSaturday } from '../lib/rotation';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import loginBgImg from '../assets/images/login-background-smi.jpg';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -99,6 +100,7 @@ const NAV_ITEMS: NavItem[] = [
 
   // ADMIN
   { id: 'admin', label: 'Administration', icon: <Users className="w-5 h-5" />, roles: ['admin'], category: 'admin' },
+  { id: 'configuration', label: 'Configuration', icon: <Settings className="w-5 h-5" />, roles: ['admin', 'direction', 'chief', 'responsible', 'secretary', 'direction_technique'], category: 'admin' },
 ];
 
 const prefetchPage = (id: string) => {
@@ -153,6 +155,9 @@ const prefetchPage = (id: string) => {
     case 'failed_blasts':
     case '/volées-ratées':
       import('../pages/FailedBlasts');
+      break;
+    case 'configuration':
+      import('../pages/Configuration');
       break;
     case 'tutoriel':
     case '/tutoriel':
@@ -428,41 +433,138 @@ export const Layout: React.FC<{
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#122e43] to-[#0b1c28] flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white/95 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#1a5276] via-[#ffd700] to-[#1a5276]" />
+      <div className="min-h-screen w-full flex flex-col lg:flex-row overflow-hidden">
+        <div
+          className="hidden lg:flex lg:w-[80%] relative bg-cover bg-center"
+          style={{ backgroundImage: `url(${loginBgImg})` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0f172a]/30 via-transparent to-transparent" />
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#1a5276] via-[#ffd700] to-[#1a5276]" />
+          <div className="absolute bottom-10 left-10 z-10 space-y-3 max-w-md">
+            <div className="flex items-center gap-2">
+              <span className="text-[#ffd700] text-2xl">⛏️</span>
+              <span className="text-white font-black text-sm uppercase tracking-widest">
+                SMI Imiter — 5 Chantiers Actifs
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[#ffd700] text-2xl">🎯</span>
+              <span className="text-white font-black text-sm uppercase tracking-widest">
+                Objectif Rentabilité +20% — 2026
+              </span>
+            </div>
+            <div className="h-px w-24 bg-[#ffd700]/50 my-2" />
+            <p className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">
+              Système de Commandement Production HydroMines
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full lg:w-[20%] min-w-[340px] flex items-center justify-center bg-gradient-to-br from-[#122e43] to-[#0b1c28] p-6 lg:p-8 relative">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#1a5276] via-[#ffd700] to-[#1a5276] lg:hidden" />
+          <div className="w-full max-w-sm bg-white/95 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#1a5276] via-[#ffd700] to-[#1a5276]" />
+            <div className="flex justify-center mb-6">
+              <img
+                src={logoImg}
+                alt="SMI Logo"
+                className="h-20 w-auto object-contain rounded-xl shadow-md"
+              />
+            </div>
+            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">
+              Portail SMI HydroMines
+            </h2>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-8">
+              Suivi & Gestion des Opérations Minières
+            </p>
+            <button
+              onClick={signIn}
+              className="w-full flex items-center justify-center gap-3 bg-[#1a5276] hover:bg-[#154360] text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95 cursor-pointer"
+            >
+              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
+              </svg>
+              Se connecter avec Google
+            </button>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-8">
+              Accès sécurisé réservé au personnel SMI
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Intercept banned/suspended users
+  const isBanned = profile && (
+    (profile as any).bannedPermanently || 
+    ((profile as any).bannedUntil && new Date((profile as any).bannedUntil) > new Date())
+  );
+
+  if (isBanned) {
+    const isPermanent = (profile as any).bannedPermanently;
+    const banUntilDate = (profile as any).bannedUntil ? new Date((profile as any).bannedUntil) : null;
+    const banReason = (profile as any).banReason || 'Infraction aux consignes de sécurité SMI ou suspension par la direction';
+
+    return (
+      <div className="min-h-screen bg-[#0d0707] flex items-center justify-center p-4 selection:bg-red-900/40">
+        <div className="w-full max-w-md bg-zinc-950 border border-red-950 rounded-3xl p-8 shadow-[0_0_50px_rgba(239,68,68,0.15)] text-center relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-red-600 animate-pulse" />
           
           <div className="flex justify-center mb-6">
-            <img 
-              src={logoImg} 
-              alt="SMI Logo" 
-              className="h-20 w-auto object-contain rounded-xl shadow-md"
-            />
+            <div className="p-4 bg-red-950/20 border border-red-500/30 rounded-full">
+              <AlertTriangle className="w-12 h-12 text-red-500" />
+            </div>
           </div>
           
-          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">
-            Portail SMI HydroMines
+          <h2 className="text-xl font-black text-red-400 uppercase tracking-tight mb-1">
+            Accès Suspendu
           </h2>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-8">
-            Suivi & Gestion des Opérations Minières
+          <p className="text-[10px] font-black text-red-500/70 uppercase tracking-widest mb-6">
+            Sécurité & Administration SMI HydroMines
           </p>
+
+          <div className="bg-red-950/10 border border-red-500/20 rounded-2xl p-5 mb-8 text-left space-y-4">
+            <div className="space-y-1">
+              <span className="text-[9px] font-black uppercase text-red-400 tracking-wider">Statut de votre compte</span>
+              <p className="text-xs font-bold text-zinc-300 uppercase">
+                {isPermanent ? "Désactivation définitive" : "Suspension temporaire d'accès"}
+              </p>
+            </div>
+
+            {!isPermanent && banUntilDate && (
+              <div className="space-y-1">
+                <span className="text-[9px] font-black uppercase text-red-400 tracking-wider">Fin de la suspension</span>
+                <p className="text-xs font-black text-zinc-100">
+                  {banUntilDate.toLocaleString('fr-FR', { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <span className="text-[9px] font-black uppercase text-red-400 tracking-wider">Motif de la décision</span>
+              <p className="text-xs font-semibold text-zinc-400 italic">
+                "{banReason}"
+              </p>
+            </div>
+          </div>
 
           <button
-            onClick={signIn}
-            className="w-full flex items-center justify-center gap-3 bg-[#1a5276] hover:bg-[#154360] text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95 cursor-pointer"
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 bg-red-950/40 hover:bg-red-900/30 border border-red-500/30 text-red-200 font-black uppercase text-xs tracking-wider py-3.5 px-6 rounded-2xl transition-all duration-300 shadow-lg cursor-pointer"
           >
-            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
-            </svg>
-            Se connecter avec Google
+            Se déconnecter
           </button>
-
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-8">
-            Accès sécurisé réservé au personnel SMI
-          </p>
         </div>
       </div>
     );

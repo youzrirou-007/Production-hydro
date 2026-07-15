@@ -207,7 +207,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
   // Helper to determine the blasting step for each hole type
   const getBlastStepForHole = (hole: HoleInfo, gab: GabaritType) => {
     if (hole.type === 'vide') return -1;
-    if (gab === '9m2') {
+    if (gab.startsWith('9m2')) {
       if (hole.type === 'charge') return 1;
       if (hole.type === 'g1') return 2;
       if (hole.type === 'g2') return 3;

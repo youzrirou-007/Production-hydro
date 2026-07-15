@@ -39,16 +39,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       const unsubProfile = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
         if (docSnap.exists()) {
-          setProfile(docSnap.data() as UserProfile);
-          setLoading(false);
+          const data = docSnap.data() as UserProfile;
+          const isAdminEmail = user.email?.toLowerCase() === 'youzrirou@gmail.com';
+          if (isAdminEmail && data.role !== 'admin') {
+            try {
+              await setDoc(doc(db, 'users', user.uid), {
+                role: 'admin'
+              }, { merge: true });
+            } catch (err) {
+              console.error("Failed to upgrade existing profile to admin", err);
+            }
+          } else {
+            setProfile(data);
+            setLoading(false);
+          }
         } else {
           try {
+            const isAdminEmail = user.email?.toLowerCase() === 'youzrirou@gmail.com';
             await setDoc(doc(db, 'users', user.uid), {
-              role: 'secretary',
+              role: isAdminEmail ? 'admin' : 'secretary',
               siteIds: ['SMI'],
               name: user.displayName || user.email?.split('@')[0] || 'Utilisateur'
             });
-            setLoading(false);
           } catch (err) {
             console.error("Bootstrapping profile failed", err);
             setProfile(null);
