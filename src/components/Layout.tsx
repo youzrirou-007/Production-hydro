@@ -464,8 +464,8 @@ export const Layout: React.FC<{
           className="fixed inset-0 w-full h-full z-0 bg-cover bg-center overflow-hidden"
           style={{ backgroundImage: `url(${loginBgImg})` }}
         >
-          {/* Bright, Sun-drenched Golden Hour tint boost */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-amber-950/20 via-transparent to-amber-500/15 backdrop-brightness-[1.12] backdrop-contrast-[1.04] backdrop-saturate-[1.15]" />
+          {/* Professional Camera High-Definition Adjustment & Sun-drenched Luminous Tint */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/5 via-transparent to-white/10 backdrop-brightness-[1.28] backdrop-contrast-[1.12] backdrop-saturate-[1.3]" />
           
           {/* Subtle warm ambient dust/particle layer */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
@@ -487,10 +487,6 @@ export const Layout: React.FC<{
           className="absolute bottom-12 left-10 md:left-16 lg:left-24 z-10 max-w-2xl select-none"
         >
           <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-extrabold text-[#ffd700] tracking-[0.25em] uppercase drop-shadow-md">
-              Portail Officiel SMI
-            </span>
-            
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-none text-white drop-shadow-xl mt-1.5">
               <span className="text-[#00A0E3]">HYDRO</span>
               <span className="text-[#8B1A1A]">MINES</span>
@@ -507,7 +503,7 @@ export const Layout: React.FC<{
           </div>
         </motion.div>
 
-        {/* Floating Glassmorphism form aligned on the right */}
+        {/* Floating Pure White form aligned on the right */}
         <div className="absolute right-6 md:right-16 lg:right-24 top-1/2 -translate-y-1/2 z-10 w-full max-w-sm p-4">
           <motion.div
             initial={{ opacity: 0, x: 50, scale: 0.95 }}
@@ -517,14 +513,14 @@ export const Layout: React.FC<{
               scale: introPhase === 'done' ? 1 : 0.95,
             }}
             transition={{ type: 'spring', stiffness: 100, damping: 16 }}
-            className="w-full bg-white/80 backdrop-blur-xl border border-white/40 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+            className="w-full bg-white border border-slate-100 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
           >
             {/* Elegant multi-brand border stripe */}
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#00A0E3] via-[#ffd700] to-[#8B1A1A]" />
             
-            {/* Visual internal gradient overlays to enrich the glass feeling */}
-            <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#00A0E3]/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-[#8B1A1A]/10 rounded-full blur-2xl pointer-events-none" />
+            {/* Visual internal gradient overlays to enrich the form look */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#00A0E3]/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-[#8B1A1A]/5 rounded-full blur-2xl pointer-events-none" />
 
             <div className="flex justify-center mb-6">
               <img
@@ -582,12 +578,12 @@ export const Layout: React.FC<{
           </motion.div>
         </div>
 
-        {/* Cinematic Assembly Intro Overlay */}
+        {/* Cinematic Assembly Intro Overlay with White/Light Radial Background */}
         <AnimatePresence>
           {introPhase !== 'done' && (
             <motion.div
               className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none overflow-hidden"
-              style={{ background: 'radial-gradient(circle at center, #111e2e 0%, #070c14 100%)' }}
+              style={{ background: 'radial-gradient(circle at center, #ffffff 0%, #f8fafc 100%)' }}
               initial={{ opacity: 1 }}
               animate={{
                 opacity: (introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text') ? 0 : 1
@@ -595,6 +591,42 @@ export const Layout: React.FC<{
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: 'easeInOut' }}
             >
+              {/* Celestial Floating Gold & Sapphire Stars */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {[...Array(20)].map((_, i) => {
+                  const size = i % 3 === 0 ? 14 : i % 2 === 0 ? 9 : 5;
+                  const initialRotation = i * 36;
+                  return (
+                    <motion.div
+                      key={i}
+                      className="absolute rounded-full flex items-center justify-center select-none"
+                      style={{
+                        top: `${(i * 19) % 85 + 7}%`,
+                        left: `${(i * 13) % 85 + 7}%`,
+                        color: i % 2 === 0 ? '#ffd700' : '#00A0E3',
+                        fontSize: size,
+                        filter: 'drop-shadow(0 0 4px rgba(255, 215, 0, 0.4))',
+                      }}
+                      initial={{ opacity: 0, scale: 0, rotate: initialRotation }}
+                      animate={{
+                        opacity: [0, 0.9, 0.3, 0.9, 0],
+                        scale: [0.4, 1.25, 0.85, 1.25, 0.4],
+                        rotate: initialRotation + 360,
+                        y: [-12, 12, -12],
+                      }}
+                      transition={{
+                        duration: 3.5 + (i % 3),
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                        delay: (i * 0.12),
+                      }}
+                    >
+                      {size > 9 ? '✦' : '★'}
+                    </motion.div>
+                  );
+                })}
+              </div>
+
               {/* FALLING DROPLET PHASE */}
               {introPhase === 'drop' && (
                 <motion.div
@@ -643,23 +675,23 @@ export const Layout: React.FC<{
                 </>
               )}
 
-              {/* LOGO PIECES ASSEMBLY PHASE */}
+              {/* LOGO PIECES ASSEMBLY PHASE (3D Spring, Double Rotation & Premium Shimmer) */}
               {introPhase === 'assemble' && (
-                <div className="relative w-64 h-64 flex items-center justify-center">
+                <div className="relative w-72 h-72 flex items-center justify-center">
                   {/* Left Fragment of real Logo image */}
                   <motion.img
                     src={logoImg}
                     alt="Logo Fragment Left"
                     style={{
                       position: 'absolute',
-                      width: 150,
-                      height: 150,
+                      width: 160,
+                      height: 160,
                       objectFit: 'contain',
                       clipPath: 'polygon(0 0, 50% 0, 50% 100%, 0 100%)',
                     }}
-                    initial={{ x: -160, opacity: 0, rotate: -15 }}
-                    animate={{ x: 0, opacity: 1, rotate: 0 }}
-                    transition={{ type: 'spring', stiffness: 95, damping: 13, duration: 1.1 }}
+                    initial={{ x: -220, opacity: 0, rotate: -270, scale: 0.4 }}
+                    animate={{ x: 0, opacity: 1, rotate: 0, scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 75, damping: 13, duration: 1.3 }}
                   />
 
                   {/* Right Fragment of real Logo image */}
@@ -668,32 +700,32 @@ export const Layout: React.FC<{
                     alt="Logo Fragment Right"
                     style={{
                       position: 'absolute',
-                      width: 150,
-                      height: 150,
+                      width: 160,
+                      height: 160,
                       objectFit: 'contain',
                       clipPath: 'polygon(50% 0, 100% 0, 100% 100%, 50% 100%)',
                     }}
-                    initial={{ x: 160, opacity: 0, rotate: 15 }}
-                    animate={{ x: 0, opacity: 1, rotate: 0 }}
-                    transition={{ type: 'spring', stiffness: 95, damping: 13, duration: 1.1 }}
+                    initial={{ x: 220, opacity: 0, rotate: 270, scale: 0.4 }}
+                    animate={{ x: 0, opacity: 1, rotate: 0, scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 75, damping: 13, duration: 1.3 }}
                   />
 
                   {/* Soft golden focus light back glow */}
                   <motion.div
                     className="absolute rounded-full bg-gradient-to-r from-[#ffd700] via-[#00A0E3] to-[#ffd700] blur-xl"
-                    style={{ width: 90, height: 90, zIndex: -1 }}
+                    style={{ width: 110, height: 110, zIndex: -1 }}
                     initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: [1, 2.3, 1.8], opacity: [0, 0.75, 0.45] }}
-                    transition={{ delay: 0.5, duration: 1.2, ease: 'easeInOut' }}
+                    animate={{ scale: [1, 2.5, 2], opacity: [0, 0.85, 0.5] }}
+                    transition={{ delay: 0.4, duration: 1.2, ease: 'easeInOut' }}
                   />
 
                   {/* Shimmer sweep effect */}
                   <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none"
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none"
                     style={{ mixBlendMode: 'overlay', transform: 'skewX(-25deg)' }}
                     initial={{ x: '-150%' }}
                     animate={{ x: '150%' }}
-                    transition={{ delay: 1.1, duration: 1.0, ease: 'easeInOut' }}
+                    transition={{ delay: 1.2, duration: 1.0, ease: 'easeInOut' }}
                   />
                 </div>
               )}
