@@ -964,6 +964,40 @@ export const Layout: React.FC<{
                 </select>
               </div>
             )}
+
+            <div className="h-6 w-px bg-slate-200" />
+
+            <div className="flex items-center gap-3">
+              <div className="hidden md:flex flex-col text-right">
+                <span className="text-xs font-black text-slate-800 uppercase tracking-tight leading-none">
+                  {profile?.name || user?.displayName || 'Agent HydroMines'}
+                </span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                  {profile?.role === 'admin' ? 'Administrateur' : profile?.role === 'manager' ? 'Directeur' : profile?.role === 'engineer' ? 'Ingénieur Chantier' : 'Agent'}
+                </span>
+              </div>
+
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName || 'Avatar'}
+                  className="w-8 h-8 rounded-full border border-slate-200 object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#1a5276]/10 border border-[#1a5276]/20 flex items-center justify-center text-xs font-black text-[#1a5276] uppercase">
+                  {(profile?.name || user?.email || 'H').substring(0, 2).toUpperCase()}
+                </div>
+              )}
+
+              <button
+                onClick={logout}
+                className="p-2 hover:bg-red-50 text-slate-500 hover:text-red-600 rounded-lg transition-all border border-transparent hover:border-red-200/50 shadow-xs hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer"
+                title="Se déconnecter"
+              >
+                <LogOut className="w-4.5 h-4.5" />
+              </button>
+            </div>
           </div>
         </header>
 
