@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import {
@@ -35,6 +36,115 @@ interface Attachement {
 export const EspaceDT: React.FC = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<DTTab>('vue_ensemble');
+  const [bannerMouse, setBannerMouse] = useState({ x: 0, y: 0 });
+  const [crownKey, setCrownKey] = useState(0);
+
+  const handleBannerMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+    const y = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+    setBannerMouse({ x, y });
+  };
+
+  const handleBannerMouseLeave = () => {
+    setBannerMouse({ x: 0, y: 0 });
+  };
+
+  const renderKPIIcon = (icon: string) => {
+    if (icon === 'wagon') {
+      return (
+        <motion.div
+          className="relative w-8 h-8 flex items-center justify-center shrink-0"
+          animate={{
+            y: [0, -1.5, 0, -1.5, 0],
+            rotate: [0, -1, 1, -1, 0],
+          }}
+          transition={{
+            duration: 2.0,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        >
+          <svg viewBox="0 0 100 100" className="w-8 h-8 drop-shadow-[0_1px_4px_rgba(184,134,11,0.4)]" fill="none">
+            {/* Rails */}
+            <path d="M 10 82 L 90 82" stroke="#94a3b8" strokeWidth="4" strokeLinecap="round" />
+            <path d="M 25 82 L 25 90" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
+            <path d="M 50 82 L 50 90" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
+            <path d="M 75 82 L 75 90" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
+            
+            {/* Wagon Body (Classic Metallic Mine Cart) */}
+            <path 
+              d="M 15 32 L 85 32 L 75 68 L 25 68 Z" 
+              fill="url(#wagonGoldGradient)" 
+              stroke="#b8860b" 
+              strokeWidth="3.5" 
+              strokeLinejoin="round" 
+            />
+            
+            {/* Metal band accent */}
+            <path d="M 20 50 L 80 50" stroke="#ffd700" strokeWidth="2.5" opacity="0.8" />
+            
+            {/* Mineral loads (Silver ores blocks) stacked inside */}
+            <path d="M 22 32 C 25 15, 38 18, 45 32" fill="#cbd5e1" stroke="#94a3b8" strokeWidth="2" />
+            <path d="M 40 32 C 48 10, 62 14, 68 32" fill="#94a3b8" stroke="#64748b" strokeWidth="2" />
+            <path d="M 60 32 C 65 18, 78 22, 78 32" fill="#cbd5e1" stroke="#94a3b8" strokeWidth="2" />
+            
+            {/* Little glistening stars on silver ore */}
+            <motion.path 
+              d="M 32 18 L 34 22 L 38 22 L 35 24 L 36 28 L 32 25 L 28 28 L 29 24 L 26 22 L 30 22 Z" 
+              fill="#ffffff"
+              animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            />
+            <motion.path 
+              d="M 55 12 L 57 15 L 60 15 L 58 17 L 59 20 L 55 18 L 51 20 L 52 17 L 50 15 L 53 15 Z" 
+              fill="#ffd700"
+              animate={{ opacity: [1, 0.4, 1], scale: [1.2, 0.8, 1.2] }}
+              transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut", delay: 0.3 }}
+            />
+
+            {/* Wheels on tracks */}
+            <motion.circle 
+              cx="35" 
+              cy="76" 
+              r="7.5" 
+              fill="#334155" 
+              stroke="#ffd700" 
+              strokeWidth="2.5" 
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+            />
+            {/* Wheel Spokes */}
+            <line x1="35" y1="68.5" x2="35" y2="83.5" stroke="#ffd700" strokeWidth="1.5" />
+            <line x1="27.5" y1="76" x2="42.5" y2="76" stroke="#ffd700" strokeWidth="1.5" />
+
+            <motion.circle 
+              cx="65" 
+              cy="76" 
+              r="7.5" 
+              fill="#334155" 
+              stroke="#ffd700" 
+              strokeWidth="2.5" 
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+            />
+            {/* Wheel Spokes */}
+            <line x1="65" y1="68.5" x2="65" y2="83.5" stroke="#ffd700" strokeWidth="1.5" />
+            <line x1="57.5" y1="76" x2="72.5" y2="76" stroke="#ffd700" strokeWidth="1.5" />
+
+            <defs>
+              <linearGradient id="wagonGoldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#475569" />
+                <stop offset="50%" stopColor="#1e293b" />
+                <stop offset="100%" stopColor="#0f172a" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </motion.div>
+      );
+    }
+    return <span className="text-xl shrink-0">{icon}</span>;
+  };
 
   const [selectedMois, setSelectedMois] = useState<string>(() => {
     const now = new Date();
@@ -97,6 +207,64 @@ export const EspaceDT: React.FC = () => {
     };
   }[]>([]);
   const [activeReportTab, setActiveReportTab] = useState<'synthese' | 'anomalies' | 'recommandations' | 'logique'>('synthese');
+
+  const [dtNotes, setDtNotes] = useState<string>(() => {
+    return localStorage.getItem('hydromines_dt_notes') || 
+      "✍️ CARNET DU DIRECTEUR - HAMID EL YAAKOUBY\n\n" +
+      "• Suivi ANFO : Veiller à ce que le ratio d'explosifs reste sous la barre nominale.\n" +
+      "• Sécurité Boulonnage : Rappeler au chef du Poste B d'accentuer le contrôle géologique au niveau -1200m.\n" +
+      "• Taux de Réalisation : Atteindre l'objectif de 95% de tirs qualifiés ce mois-ci.\n" +
+      "• Note de service : Planifier l'inspection du système d'aérage de la descenderie Est mardi matin.";
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hydromines_dt_notes', dtNotes);
+  }, [dtNotes]);
+
+  // Dynamic Shift & Local Operational Status
+  const [currentShiftInfo, setCurrentShiftInfo] = useState<{
+    name: string;
+    hours: string;
+    progress: number;
+    supervisor: string;
+  }>({ name: 'Poste A', hours: '06h00 - 14h00', progress: 50, supervisor: 'Y. BENZAKOUR' });
+
+  useEffect(() => {
+    const updateShift = () => {
+      const now = new Date();
+      const hour = now.getHours();
+      let shift = { name: 'Poste C', hours: '22h00 - 06h00', progress: 0, supervisor: 'H. OUTALHA' };
+      if (hour >= 6 && hour < 14) {
+        const elapsedMinutes = (hour - 6) * 60 + now.getMinutes();
+        shift = {
+          name: 'Poste A (Matin)',
+          hours: '06h00 - 14h00',
+          progress: Math.min(100, Math.round((elapsedMinutes / 480) * 100)),
+          supervisor: 'Y. BENZAKOUR'
+        };
+      } else if (hour >= 14 && hour < 22) {
+        const elapsedMinutes = (hour - 14) * 60 + now.getMinutes();
+        shift = {
+          name: 'Poste B (Après-midi)',
+          hours: '14h00 - 22h00',
+          progress: Math.min(100, Math.round((elapsedMinutes / 480) * 100)),
+          supervisor: 'M. EL IDRISSI'
+        };
+      } else {
+        const elapsedMinutes = (hour >= 22 ? hour - 22 : hour + 2) * 60 + now.getMinutes();
+        shift = {
+          name: 'Poste C (Nuit)',
+          hours: '22h00 - 06h00',
+          progress: Math.min(100, Math.round((elapsedMinutes / 480) * 100)),
+          supervisor: 'H. OUTALHA'
+        };
+      }
+      setCurrentShiftInfo(shift);
+    };
+    updateShift();
+    const interval = setInterval(updateShift, 60000); // update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   // Comparison & Simulation Tab States
   const [comparisonMetric, setComparisonMetric] = useState<'meters' | 'explosives' | 'efficiency' | 'extraction'>('meters');
@@ -1138,16 +1306,275 @@ export const EspaceDT: React.FC = () => {
     <div className="min-h-screen bg-white p-4 sm:p-6">
       {/* Premium Hydromines Gold Banner */}
       <div 
-        className="bg-white p-6 sm:p-8 rounded-3xl border border-[#b8860b]/15 shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6"
+        className="bg-white p-6 sm:p-8 rounded-3xl border border-[#b8860b]/15 shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6 group"
         style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        onMouseMove={handleBannerMouseMove}
+        onMouseLeave={handleBannerMouseLeave}
       >
         {/* Background Subtle Shimmer */}
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-amber-500/5 animate-pulse pointer-events-none" />
+
+        {/* High-End Vector Topographical Mine Grid Overlay */}
+        <motion.div 
+          className="absolute inset-0 z-0 opacity-[0.14] pointer-events-none select-none overflow-hidden"
+          animate={{
+            x: bannerMouse.x * -18,
+            y: bannerMouse.y * -18,
+          }}
+          transition={{ type: 'spring', stiffness: 80, damping: 20 }}
+        >
+          <svg viewBox="0 0 1000 240" fill="none" className="w-full h-full object-cover">
+            <defs>
+              <linearGradient id="mineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#b8860b" />
+                <stop offset="50%" stopColor="#ffd700" />
+                <stop offset="100%" stopColor="#b8860b" />
+              </linearGradient>
+            </defs>
+            {/* Topographic mineral veins */}
+            <motion.path 
+              d="M-50,180 Q200,60 450,160 T950,100 T1100,190" 
+              stroke="url(#mineGradient)" 
+              strokeWidth="1.5"
+              strokeDasharray="5, 8"
+              animate={{ strokeDashoffset: [0, -50] }}
+              transition={{ repeat: Infinity, ease: "linear", duration: 15 }}
+            />
+            <motion.path 
+              d="M-50,130 Q250,200 500,80 T1050,140" 
+              stroke="url(#mineGradient)" 
+              strokeWidth="1"
+              strokeDasharray="12, 12"
+              animate={{ strokeDashoffset: [0, 60] }}
+              transition={{ repeat: Infinity, ease: "linear", duration: 25 }}
+            />
+            <motion.path 
+              d="M-50,70 Q300,-10 550,120 T1150,50" 
+              stroke="url(#mineGradient)" 
+              strokeWidth="0.75"
+              opacity="0.6"
+            />
+            {/* Horizontal Grid Lines */}
+            <line x1="0" y1="40" x2="1100" y2="40" stroke="#b8860b" strokeWidth="0.5" strokeDasharray="1, 15" opacity="0.3" />
+            <line x1="0" y1="120" x2="1100" y2="120" stroke="#b8860b" strokeWidth="0.5" strokeDasharray="1, 15" opacity="0.3" />
+            <line x1="0" y1="200" x2="1100" y2="200" stroke="#b8860b" strokeWidth="0.5" strokeDasharray="1, 15" opacity="0.3" />
+            
+            {/* Stylized Tunnel Junction markers */}
+            <circle cx="200" cy="113" r="3" fill="#ffd700" className="animate-ping" style={{ animationDuration: '3s' }} />
+            <circle cx="200" cy="113" r="2.5" fill="#b8860b" />
+            
+            <circle cx="725" cy="118" r="3" fill="#ffd700" className="animate-ping" style={{ animationDuration: '4s' }} />
+            <circle cx="725" cy="118" r="2.5" fill="#b8860b" />
+
+            <circle cx="482" cy="85" r="3" fill="#ffd700" className="animate-ping" style={{ animationDuration: '5s' }} />
+            <circle cx="482" cy="85" r="2.5" fill="#b8860b" />
+          </svg>
+          
+          {/* Mine Coordinate Indicators in monospace for realism */}
+          <div className="absolute bottom-2 left-4 font-mono text-[8px] text-slate-400 tracking-wider">
+            COORD_X: 428.529 • LEVEL: 1450m • GRID: SMI_IMITER_MAIN
+          </div>
+          <div className="absolute top-2 right-4 font-mono text-[8px] text-slate-400 tracking-wider">
+            SYS_STATUS: NOMINAL • LATENCY: 24MS
+          </div>
+        </motion.div>
         
         <div className="flex items-center gap-5 z-10 text-center md:text-left flex-col md:flex-row">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-[#b8860b] flex items-center justify-center shadow-md shrink-0">
-            <span className="text-3xl">👑</span>
-          </div>
+          <motion.div 
+            key={crownKey}
+            title="Cliquez pour ré-assembler la couronne de la Haute Direction"
+            onClick={() => setCrownKey(p => p + 1)}
+            className="w-16 h-16 rounded-2xl bg-slate-950 flex items-center justify-center shadow-[0_4px_15px_rgba(184,134,11,0.2)] border border-[#b8860b]/40 cursor-pointer select-none shrink-0 relative overflow-hidden group/crown"
+            animate={{
+              rotate: [0, -2, 2, -2, 0],
+              scale: [1, 1.02, 1],
+            }}
+            whileHover={{ scale: 1.05, borderColor: '#ffd700', boxShadow: '0 0 20px rgba(255,215,0,0.4)' }}
+            whileTap={{ scale: 0.95 }}
+            transition={{
+              rotate: {
+                repeat: Infinity,
+                duration: 6,
+                ease: "easeInOut"
+              },
+              scale: {
+                repeat: Infinity,
+                duration: 4,
+                ease: "easeInOut"
+              }
+            }}
+          >
+            {/* White shadow/glow at the beginning, fades out completely at 4s */}
+            <motion.div
+              className="absolute inset-2 bg-white rounded-full filter blur-md pointer-events-none"
+              initial={{ opacity: 0.95, scale: 1.1 }}
+              animate={{ 
+                opacity: 0,
+                scale: 0.5,
+              }}
+              transition={{
+                duration: 4.0,
+                ease: [0.16, 1, 0.3, 1]
+              }}
+            />
+
+            {/* Projection de lumière blanche sur le bord droit de sa carte (crown block card) */}
+            <motion.div
+              className="absolute top-0 right-0 h-full w-5 bg-gradient-to-l from-white/45 via-white/15 to-transparent pointer-events-none transform skew-x-[-15deg] origin-top-right z-20"
+              animate={{
+                opacity: [0.3, 0.85, 0.5, 0.85, 0.3],
+              }}
+              transition={{
+                duration: 4.0,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+
+            {/* Subtle rotating starfield or dust particles behind the crown */}
+            <div className="absolute inset-0 bg-[radial-gradient(#ffd70012_1px,transparent_1px)] [background-size:8px_8px] opacity-60 pointer-events-none" />
+
+            {/* Micro-sparkle light glint line */}
+            <motion.div 
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full"
+              style={{
+                animation: 'shimmer-fast 3.5s infinite linear'
+              }}
+            />
+
+            {/* High-End Vector Crown SVG with pure white luminous glow and no dark shadows */}
+            <svg 
+              viewBox="0 0 100 100" 
+              fill="none" 
+              className="w-12 h-12 z-10 drop-shadow-[0_0_12px_rgba(255,255,255,0.95)]"
+            >
+              <defs>
+                <linearGradient id="crownGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ffd700" />
+                  <stop offset="40%" stopColor="#ffb300" />
+                  <stop offset="75%" stopColor="#b8860b" />
+                  <stop offset="100%" stopColor="#ffd700" />
+                </linearGradient>
+                <linearGradient id="jewelAmber" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="35%" stopColor="#ffb300" />
+                  <stop offset="100%" stopColor="#8b5a00" />
+                </linearGradient>
+              </defs>
+
+              {/* 1. Base Band of the Crown - flies in from the bottom with rotation */}
+              <motion.path
+                d="M 22 66 C 22 64.5, 23.5 63, 25 63 h 50 C 76.5 63, 78 64.5, 78 66 v 4 C 78 71.5, 76.5 73, 75 73 H 25 C 23.5 73, 22 71.5, 22 70 Z"
+                fill="url(#crownGold)"
+                initial={{ opacity: 0, y: 55, x: -10, rotate: -25 }}
+                animate={{ opacity: 1, y: 0, x: 0, rotate: 0 }}
+                transition={{ duration: 4.0, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              />
+
+              {/* 2. Left Peak - flies in from left and rotates into place */}
+              <motion.path
+                d="M 24 63 L 33 34 L 42 52 L 35 63 Z"
+                fill="url(#crownGold)"
+                initial={{ opacity: 0, x: -35, y: -20, rotate: -45 }}
+                animate={{ opacity: 1, x: 0, y: 0, rotate: 0 }}
+                transition={{ duration: 4.0, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              />
+
+              {/* 3. Right Peak - flies in from right and rotates into place */}
+              <motion.path
+                d="M 76 63 L 67 34 L 58 52 L 65 63 Z"
+                fill="url(#crownGold)"
+                initial={{ opacity: 0, x: 35, y: -20, rotate: 45 }}
+                animate={{ opacity: 1, x: 0, y: 0, rotate: 0 }}
+                transition={{ duration: 4.0, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              />
+
+              {/* 4. Middle Peak - scale up from center bottom of the crown */}
+              <motion.path
+                d="M 38 63 L 50 21 L 62 63 Z"
+                fill="url(#crownGold)"
+                initial={{ opacity: 0, y: -30, scaleY: 0.2 }}
+                animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                transition={{ duration: 4.0, delay: 1.0, ease: [0.16, 1, 0.3, 1] }}
+              />
+
+              {/* 5. Left Peak Jewel - scales in after peaks land */}
+              <motion.circle
+                cx="33"
+                cy="29"
+                r="3.5"
+                fill="url(#jewelAmber)"
+                stroke="#ffd700"
+                strokeWidth="0.5"
+                initial={{ opacity: 0, scale: 0, y: -15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 4.0, delay: 1.4, ease: [0.16, 1, 0.3, 1] }}
+              />
+
+              {/* 6. Right Peak Jewel - scales in after peaks land */}
+              <motion.circle
+                cx="67"
+                cy="29"
+                r="3.5"
+                fill="url(#jewelAmber)"
+                stroke="#ffd700"
+                strokeWidth="0.5"
+                initial={{ opacity: 0, scale: 0, y: -15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 4.0, delay: 1.6, ease: [0.16, 1, 0.3, 1] }}
+              />
+
+              {/* 7. Middle Peak Jewel (Main Diamond) - drops majestically from above */}
+              <motion.circle
+                cx="50"
+                cy="15"
+                r="4.5"
+                fill="url(#jewelAmber)"
+                stroke="#ffd700"
+                strokeWidth="0.5"
+                initial={{ opacity: 0, y: -50, scale: 0 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 4.0, delay: 2.0, ease: [0.16, 1, 0.3, 1] }}
+              />
+
+              {/* 8. Base Embellishment Gems - appear with a sparkle shimmer */}
+              <motion.circle
+                cx="32"
+                cy="68"
+                r="1.8"
+                fill="#ffffff"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: [0, 0, 1], scale: [0, 0, 1] }}
+                transition={{ duration: 4.0, delay: 2.4 }}
+              />
+              <motion.circle
+                cx="50"
+                cy="68"
+                r="1.8"
+                fill="#ffffff"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: [0, 0, 1], scale: [0, 0, 1] }}
+                transition={{ duration: 4.0, delay: 2.6 }}
+              />
+              <motion.circle
+                cx="68"
+                cy="68"
+                r="1.8"
+                fill="#ffffff"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: [0, 0, 1], scale: [0, 0, 1] }}
+                transition={{ duration: 4.0, delay: 2.8 }}
+              />
+            </svg>
+
+            {/* Glowing gold border overlay after assembly completes */}
+            <motion.div 
+              className="absolute inset-0 border border-[#ffd700] rounded-2xl opacity-0 pointer-events-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0, 0.4, 0] }}
+              transition={{ duration: 4.0, delay: 2.8 }}
+            />
+          </motion.div>
           <div>
             <div className="subtle-glow-line w-24 mb-1.5 mx-auto md:mx-0 opacity-80" />
             <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase">
@@ -1161,36 +1588,54 @@ export const EspaceDT: React.FC = () => {
         </div>
 
         {/* Welcome Card & Bilan summary on the right side - representing the 25% Hydromines Touch */}
-        <div className="bg-slate-50 border border-amber-500/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center z-10 w-full md:w-56 shrink-0 shadow-xs">
-          <div className="text-[#b8860b] text-[8px] font-black uppercase tracking-wider">
+        <motion.div 
+          className="bg-slate-50/95 backdrop-blur-xs border border-amber-500/25 rounded-2xl p-4 flex flex-col items-center justify-center text-center z-10 w-full md:w-56 shrink-0 shadow-sm"
+          animate={{
+            x: bannerMouse.x * 12,
+            y: bannerMouse.y * 12,
+          }}
+          transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+        >
+          <div className="text-[#b8860b] text-[8px] font-black uppercase tracking-widest">
             Session Haute Direction
           </div>
-          <div className="text-slate-800 text-[12px] font-black uppercase flex items-center gap-1.5 mt-1">
+          <div className="text-slate-800 text-[12px] font-black uppercase flex items-center gap-1.5 mt-1.5">
             Mr. HAMID EL YAAKOUBY
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
             Directeur Technique
           </p>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Tab Selector Buttons using Premium Gold & Amber accents */}
-      <div className="flex justify-start sm:justify-center gap-2 mb-6 overflow-x-auto pb-1 scrollbar-thin">
+      {/* Tab Selector Buttons using Premium Gold & Amber accents with smooth sliding pill layout transitions */}
+      <div className="flex justify-start sm:justify-center gap-2 mb-6 overflow-x-auto pb-1.5 scrollbar-thin">
         {tabs.map(tab => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
+              className={`relative flex items-center gap-2 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300 ease-out cursor-pointer select-none border ${
                 isActive
-                  ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 border-transparent shadow-xs font-black scale-102 transform'
-                  : 'bg-white text-slate-600 hover:text-slate-900 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  ? 'border-transparent shadow-[0_2px_10px_rgba(184,134,11,0.15)]'
+                  : 'bg-white border-[#b8860b]/15 shadow-[0_4px_12px_-2px_rgba(184,134,11,0.03),0_1px_2px_rgba(0,0,0,0.02)] hover:border-[#b8860b]/40 hover:shadow-[0_4px_15px_-1px_rgba(184,134,11,0.08)] hover:-translate-y-0.5'
               }`}
             >
-              <span className="text-xs shrink-0">{tab.icon}</span>
-              {tab.label}
+              {isActive && (
+                <motion.div
+                  layoutId="activeDTTab"
+                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#b8860b] to-[#ffd700] shadow-[0_2px_10px_rgba(184,134,11,0.2)]"
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                />
+              )}
+              <span className={`text-xs shrink-0 z-10 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+                {tab.icon}
+              </span>
+              <span className={`z-10 transition-colors duration-300 ${isActive ? 'text-slate-950 font-black' : 'text-slate-600 hover:text-slate-900 font-semibold'}`}>
+                {tab.label}
+              </span>
             </button>
           );
         })}
@@ -1242,41 +1687,48 @@ export const EspaceDT: React.FC = () => {
                   value: `${overviewBilan.totalReel.toFixed(1)}`,
                   unit: `/ ${overviewBilan.totalPlan.toFixed(1)} m`,
                   pct: overviewBilan.totalPlan > 0 ? (overviewBilan.totalReel / overviewBilan.totalPlan) * 100 : null,
-                  icon: '⛏️'
+                  icon: '⛏️',
+                  targetTab: 'journal' as DTTab
                 },
                 {
                   label: 'Wagons du jour',
                   value: `${overviewBilan.totalWagonsReel}`,
                   unit: `/ ${overviewBilan.totalWagonsPlan} u`,
                   pct: overviewBilan.totalWagonsPlan > 0 ? (overviewBilan.totalWagonsReel / overviewBilan.totalWagonsPlan) * 100 : null,
-                  icon: '🚛'
+                  icon: 'wagon',
+                  targetTab: 'journal' as DTTab
                 },
                 {
                   label: `Fiabilité — ${selectedMois}`,
                   value: currentAttachement ? `${(100 - Math.abs(globalEcartPct)).toFixed(0)}%` : '—',
                   unit: currentAttachement ? globalFiab.label : 'Non saisi',
                   pct: currentAttachement ? (100 - Math.abs(globalEcartPct)) : null,
-                  icon: '📐'
+                  icon: '📐',
+                  targetTab: 'attachements' as DTTab
                 },
                 {
                   label: 'ANFO — Réel / Théorique',
                   value: `${overviewExplosifs.monthlyAnfo.toFixed(0)}`,
                   unit: `/ ${overviewExplosifs.monthlyTheorAnfo.toFixed(0)} kg`,
                   pct: overviewExplosifs.monthlyTheorAnfo > 0 ? (overviewExplosifs.monthlyAnfo / overviewExplosifs.monthlyTheorAnfo) * 100 : null,
-                  icon: '💥'
+                  icon: '💥',
+                  targetTab: 'explosifs' as DTTab
                 },
               ].map((kpi, i) => (
-                <div
+                <button
                   key={kpi.label}
+                  onClick={() => setActiveTab(kpi.targetTab)}
                   style={{ animationDelay: `${150 + i * 60}ms` }}
-                  className="animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-both
-                    bg-white border border-slate-200/80 rounded-2xl p-5
-                    shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.04)]
-                    hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_12px_32px_rgba(0,0,0,0.08)]
-                    hover:border-slate-300 transition-all duration-300 ease-out"
+                  className="text-left w-full cursor-pointer select-none animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-both
+                    bg-white border border-[#b8860b]/20 rounded-2xl p-5
+                    shadow-[0_2px_8px_rgba(184,134,11,0.03),0_1px_2px_rgba(0,0,0,0.02)]
+                    hover:shadow-[0_4px_24px_rgba(184,134,11,0.12),0_2px_6px_rgba(184,134,11,0.06)]
+                    hover:border-[#ffd700] hover:-translate-y-0.5 transition-all duration-300 ease-out"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-lg">{kpi.icon}</span>
+                    <div className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100">
+                      {renderKPIIcon(kpi.icon)}
+                    </div>
                     {kpi.pct !== null && (
                       <span className={`text-[9px] font-black px-2 py-0.5 rounded-full font-mono ${
                         kpi.pct >= 90 ? 'bg-emerald-50 text-emerald-700' :
@@ -1294,91 +1746,226 @@ export const EspaceDT: React.FC = () => {
                     {kpi.value}
                     <span className="text-[11px] font-bold text-slate-400 ml-1.5">{kpi.unit}</span>
                   </p>
-                </div>
+                  
+                  {/* Micro gold-accent progress bar */}
+                  {kpi.pct !== null && (
+                    <div className="w-full h-1 bg-slate-100 rounded-full mt-3 overflow-hidden relative">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(100, kpi.pct)}%` }}
+                        transition={{ duration: 1.2, ease: "easeOut", delay: 0.2 }}
+                        className={`h-full rounded-full bg-gradient-to-r ${
+                          kpi.pct >= 90 ? 'from-[#b8860b] to-[#ffd700]' :
+                          kpi.pct >= 70 ? 'from-amber-500 to-amber-300' :
+                          'from-rose-500 to-rose-400'
+                        }`}
+                      />
+                    </div>
+                  )}
+                </button>
               ))}
             </div>
 
-            {/* ALERTES */}
-            <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300 fill-mode-both">
-              <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
-                Ce qui mérite votre attention {overviewAlerts.length > 0 && `(${overviewAlerts.length})`}
-              </p>
-              {overviewAlerts.length === 0 ? (
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-6 text-center
-                  shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-                  <p className="text-emerald-600 font-black text-[12px] uppercase tracking-wider">
-                    ✓ Aucune alerte — tout est nominal
+            {/* TWO-COLUMN GRID FOR PREMIUM INFORMATION & DIRECTEUR ENGAGEMENT */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* LEFT COLUMN: Alerts, AI Analysis, Quick Access */}
+              <div className="lg:col-span-7 space-y-6">
+                {/* ALERTES */}
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300 fill-mode-both">
+                  <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
+                    Ce qui mérite votre attention {overviewAlerts.length > 0 && `(${overviewAlerts.length})`}
                   </p>
+                  {overviewAlerts.length === 0 ? (
+                    <div className="bg-white border border-slate-200/80 rounded-2xl p-6 text-center
+                      shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                      <p className="text-emerald-600 font-black text-[12px] uppercase tracking-wider">
+                        ✓ Aucune alerte — tout est nominal
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {overviewAlerts.map((a, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setActiveTab(a.source)}
+                          className={`w-full text-left bg-white border rounded-xl px-4 py-3 flex items-center
+                            justify-between group transition-all duration-200
+                            shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]
+                            ${a.type === 'critique' ? 'border-rose-200 hover:border-rose-300' : 'border-amber-200 hover:border-amber-300'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              a.type === 'critique' ? 'bg-rose-500' : 'bg-amber-500'
+                            }`} />
+                            <span className="text-[11px] font-semibold text-slate-700">{a.text}</span>
+                          </div>
+                          <span className="text-slate-300 group-hover:text-slate-500 transition-colors text-xs">→</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {overviewAlerts.map((a, i) => (
+
+                {/* ANALYSE IA */}
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-[360ms] fill-mode-both">
+                  <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
+                    Dernière analyse IA
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('ia')}
+                    className="w-full text-left bg-gradient-to-br from-white to-slate-50/50 border border-slate-200/80
+                      rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)]
+                      hover:border-[#ffd700]/40 transition-all duration-300 group"
+                  >
+                    {overviewLastAnalysis ? (
+                      <>
+                        <p className="text-[13px] font-bold text-slate-800 mb-1">
+                          "{overviewLastAnalysis.question}"
+                        </p>
+                        <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">
+                          {overviewLastAnalysis.date}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-[11px] font-semibold text-slate-400">
+                        Aucune analyse effectuée récemment — Posez une question à l'assistant DT
+                      </p>
+                    )}
+                  </button>
+                </div>
+
+                {/* BOUTONS ACCES RAPIDE */}
+                <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-[420ms] fill-mode-both">
+                  {[
+                    { id: 'journal' as DTTab, label: 'Journal de la Mine' },
+                    { id: 'attachements' as DTTab, label: 'Attachements & Fiabilité' },
+                    { id: 'rapport' as DTTab, label: 'Rapport Mensuel' },
+                  ].map(link => (
                     <button
-                      key={i}
-                      onClick={() => setActiveTab(a.source)}
-                      className={`w-full text-left bg-white border rounded-xl px-4 py-3 flex items-center
-                        justify-between group transition-all duration-200
-                        shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)]
-                        ${a.type === 'critique' ? 'border-rose-200 hover:border-rose-300' : 'border-amber-200 hover:border-amber-300'}`}
+                      key={link.id}
+                      onClick={() => setActiveTab(link.id)}
+                      className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px]
+                        font-black uppercase tracking-wider text-slate-600 hover:text-slate-900
+                        hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 shadow-sm"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          a.type === 'critique' ? 'bg-rose-500' : 'bg-amber-500'
-                        }`} />
-                        <span className="text-[11px] font-semibold text-slate-700">{a.text}</span>
-                      </div>
-                      <span className="text-slate-300 group-hover:text-slate-500 transition-colors text-xs">→</span>
+                      {link.label} →
                     </button>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* ANALYSE IA */}
-            <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-[360ms] fill-mode-both">
-              <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
-                Dernière analyse IA
-              </p>
-              <button
-                onClick={() => setActiveTab('ia')}
-                className="w-full text-left bg-gradient-to-br from-white to-slate-50/50 border border-slate-200/80
-                  rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)]
-                  hover:border-[#ffd700]/40 transition-all duration-300 group"
-              >
-                {overviewLastAnalysis ? (
-                  <>
-                    <p className="text-[13px] font-bold text-slate-800 mb-1">
-                      "{overviewLastAnalysis.question}"
-                    </p>
-                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">
-                      {overviewLastAnalysis.date}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-[11px] font-semibold text-slate-400">
-                    Aucune analyse effectuée récemment — Posez une question à l'assistant DT
-                  </p>
-                )}
-              </button>
-            </div>
-
-            {/* BOUTONS ACCES RAPIDE */}
-            <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-[420ms] fill-mode-both">
-              {[
-                { id: 'journal' as DTTab, label: 'Journal de la Mine' },
-                { id: 'attachements' as DTTab, label: 'Attachements & Fiabilité' },
-                { id: 'rapport' as DTTab, label: 'Rapport Mensuel' },
-              ].map(link => (
-                <button
-                  key={link.id}
-                  onClick={() => setActiveTab(link.id)}
-                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px]
-                    font-black uppercase tracking-wider text-slate-600 hover:text-slate-900
-                    hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 shadow-sm"
+              {/* RIGHT COLUMN: Director's Carnet and Mine Operational Status / Météo */}
+              <div className="lg:col-span-5 space-y-6">
+                
+                {/* 1. PREMIUM PERSISTENT NOTEBOOK */}
+                <div 
+                  className="bg-[#fcfaf2] border border-amber-500/20 rounded-2xl p-5 shadow-[0_4px_15px_-3px_rgba(184,134,11,0.06)] relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300"
+                  style={{
+                    backgroundImage: 'radial-gradient(#b8860b10 1px, transparent 1px)',
+                    backgroundSize: '16px 16px'
+                  }}
                 >
-                  {link.label} →
-                </button>
-              ))}
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-amber-500/10">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">✍️</span>
+                      <h3 className="text-[11px] font-black uppercase tracking-wider text-[#b8860b]">
+                        Carnet du Directeur Technique
+                      </h3>
+                    </div>
+                    <span className="text-[8px] font-mono text-amber-500/70 font-bold uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-md border border-amber-500/10">
+                      Local & Privé
+                    </span>
+                  </div>
+                  
+                  <textarea
+                    value={dtNotes}
+                    onChange={(e) => setDtNotes(e.target.value)}
+                    placeholder="Saisissez vos directives de poste, remarques géologiques ou objectifs ici..."
+                    className="w-full h-40 bg-transparent text-xs text-slate-800 focus:outline-none resize-none font-medium leading-relaxed font-sans placeholder-slate-400"
+                    style={{
+                      lineHeight: '1.75rem',
+                    }}
+                  />
+                  
+                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-amber-500/10 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    <span>Sauvegarde auto</span>
+                    <span className="text-[#b8860b]/80">🔒 Mémoire locale sécurisée</span>
+                  </div>
+                </div>
+
+                {/* 2. SITE STATUS & ENVIRONMENTAL WIDGET */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06)] transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-[360ms]">
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">⏱️</span>
+                      <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                        Poste Actif & Climat Site
+                      </h3>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Temps Réel
+                    </span>
+                  </div>
+
+                  <div className="mb-4">
+                    <div className="flex justify-between items-end mb-1.5">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Équipe en rotation</p>
+                        <h4 className="text-[13px] font-black text-slate-800 uppercase tracking-wide">{currentShiftInfo.name}</h4>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Superviseur de poste</p>
+                        <span className="text-[11px] font-black text-[#b8860b] uppercase tracking-wide">{currentShiftInfo.supervisor}</span>
+                      </div>
+                    </div>
+
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden relative">
+                      <div 
+                        className="h-full bg-gradient-to-r from-[#b8860b] to-[#ffd700] rounded-full transition-all duration-1000"
+                        style={{ width: `${currentShiftInfo.progress}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between items-center mt-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span>{currentShiftInfo.hours}</span>
+                      <span>Progression : {currentShiftInfo.progress}%</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                    <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-3 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Météo Imiter</span>
+                        <span className="text-xs">☀️</span>
+                      </div>
+                      <div>
+                        <p className="text-lg font-black text-slate-800">28°C</p>
+                        <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Ciel Dégagé • Vent 12km/h</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-3 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aérage d'Asse</span>
+                        <span className="text-xs">🌪️</span>
+                      </div>
+                      <div>
+                        <p className="text-lg font-black text-emerald-600">Nominal</p>
+                        <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Qualité d'air : Excellente</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 text-center bg-amber-500/5 rounded-xl py-2 px-3 border border-amber-500/10">
+                    <p className="text-[9px] font-black text-[#b8860b] uppercase tracking-wider">
+                      ⚡ Conditions d'exploitation minière idéales
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+
             </div>
 
           </div>
@@ -1440,7 +2027,30 @@ export const EspaceDT: React.FC = () => {
                 </div>
 
                 <div className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-sm">
-                  <span className="text-sm">🚛</span>
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                    <svg viewBox="0 0 100 100" className="w-5 h-5 drop-shadow-[0_0.5px_2px_rgba(184,134,11,0.2)]" fill="none">
+                      {/* Rails */}
+                      <path d="M 10 82 L 90 82" stroke="#94a3b8" strokeWidth="5" strokeLinecap="round" />
+                      
+                      {/* Wagon Body */}
+                      <path 
+                        d="M 15 32 L 85 32 L 75 68 L 25 68 Z" 
+                        fill="#334155" 
+                        stroke="#b8860b" 
+                        strokeWidth="5" 
+                        strokeLinejoin="round" 
+                      />
+                      
+                      {/* Mineral loads */}
+                      <path d="M 22 32 C 25 15, 38 18, 45 32" fill="#cbd5e1" stroke="#cbd5e1" strokeWidth="2" />
+                      <path d="M 40 32 C 48 10, 62 14, 68 32" fill="#94a3b8" stroke="#94a3b8" strokeWidth="2" />
+                      <path d="M 60 32 C 65 18, 78 22, 78 32" fill="#cbd5e1" stroke="#cbd5e1" strokeWidth="2" />
+                      
+                      {/* Wheels */}
+                      <circle cx="35" cy="76" r="9" fill="#1e293b" stroke="#ffd700" strokeWidth="3" />
+                      <circle cx="65" cy="76" r="9" fill="#1e293b" stroke="#ffd700" strokeWidth="3" />
+                    </svg>
+                  </div>
                   <div>
                     <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">Wagons Extraits</p>
                     <p className="text-[10px] text-slate-800 font-extrabold">

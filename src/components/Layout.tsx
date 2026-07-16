@@ -231,10 +231,10 @@ export const Layout: React.FC<{
     const sequence: { phase: typeof introPhase; delay: number }[] = [
       { phase: 'splash', delay: 700 },
       { phase: 'assemble', delay: 1500 },
-      { phase: 'reveal', delay: 5200 },
-      { phase: 'arch', delay: 5900 },
-      { phase: 'text', delay: 6300 },
-      { phase: 'done', delay: 6900 }
+      { phase: 'reveal', delay: 6200 },
+      { phase: 'arch', delay: 6900 },
+      { phase: 'text', delay: 7300 },
+      { phase: 'done', delay: 7900 }
     ];
     const timers = sequence.map(s =>
       setTimeout(() => setIntroPhase(s.phase), s.delay)
@@ -584,21 +584,19 @@ export const Layout: React.FC<{
             >
               <button
                 onClick={signIn}
-                className="group relative w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#1a5276] to-[#154360] hover:from-[#154360] hover:to-[#0f3147] text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer overflow-hidden"
-                style={{
-                  boxShadow: '0 4px 15px rgba(26,82,118,0.2)'
-                }}
+                className="group relative w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#ffd700] via-[#ea580c] to-[#8B1A1A] hover:from-[#ffe033] hover:via-[#ff6b00] hover:to-[#a31a1a] text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-[transform,shadow,border-color,opacity] duration-300 cursor-pointer overflow-hidden border border-[#ffd700]/30 bg-no-repeat bg-clip-padding [transform:translateZ(0)]"
               >
                 {/* Micro-shimmer sweep line on hover */}
                 <div 
-                  className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full pointer-events-none"
+                  className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none"
                   style={{
+                    transform: 'translateX(-200%) skewX(-25deg)',
                     animation: 'shimmer-fast 1.6s infinite linear'
                   }}
                 />
                 
                 {/* Discrete white border glow */}
-                <div className="absolute inset-0 border border-white/10 rounded-2xl pointer-events-none" />
+                <div className="absolute inset-0 border border-white/20 rounded-2xl pointer-events-none" />
 
                 <div className="bg-white p-1 rounded-lg shadow-sm group-hover:scale-110 transition-transform duration-300 z-10">
                   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -613,8 +611,8 @@ export const Layout: React.FC<{
             </motion.div>
 
             <div className="mt-8 text-center border-t border-slate-200/50 pt-6">
-              <span className="inline-block px-2.5 py-0.5 bg-red-50 border border-red-100 rounded-full text-[8px] font-black text-red-500 uppercase tracking-widest">
-                Réseau SMI Intranet Sécurisé
+              <span className="inline-block px-2.5 py-0.5 bg-[#b8860b]/10 border border-[#b8860b]/20 rounded-full text-[8px] font-black text-[#b8860b] uppercase tracking-widest">
+                ISO/IEC 27001 : Authentification Sécurisée
               </span>
               <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">
                 Accès réservé exclusivement au personnel habilité
@@ -688,37 +686,66 @@ export const Layout: React.FC<{
               {introPhase === 'assemble' && (
                 <div className="relative w-96 h-[400px] flex items-center justify-center">
                   
-                  {/* Elegant Twinkling Stars ONLY during logo display */}
+                  {/* Elegant Twinkling Premium Gold Stars ONLY during logo display */}
                   <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    {[...Array(14)].map((_, i) => {
-                      const size = i % 3 === 0 ? 14 : i % 2 === 0 ? 9 : 6;
-                      const initialRotation = i * 45;
+                    {[...Array(18)].map((_, i) => {
+                      const size = i % 3 === 0 ? 30 : i % 2 === 0 ? 22 : 15;
+                      const initialRotation = i * 20;
+                      const isEightPoint = i % 3 === 0;
                       return (
                         <motion.div
                           key={i}
-                          className="absolute rounded-full flex items-center justify-center select-none"
+                          className="absolute select-none flex items-center justify-center filter saturate-[2.5] brightness-[1.35] drop-shadow-[0_0_8px_rgba(255,255,255,0.95)] drop-shadow-[0_0_16px_rgba(212,175,55,0.85)]"
                           style={{
-                            top: `${(i * 23) % 75 + 12}%`,
-                            left: `${(i * 19) % 75 + 12}%`,
-                            color: i % 3 === 0 ? '#00A0E3' : i % 2 === 0 ? '#8B1A1A' : '#FFF2B2',
-                            fontSize: size,
-                            filter: 'drop-shadow(0 0 4px rgba(0, 0, 0, 0.1))',
+                            top: `${(i * 17 + 11) % 80 + 8}%`,
+                            left: `${(i * 23 + 7) % 80 + 8}%`,
+                            width: size,
+                            height: size,
                           }}
                           initial={{ opacity: 0, scale: 0, rotate: initialRotation }}
                           animate={{
-                            opacity: [0, 1, 0.4, 1, 0],
-                            scale: [0.3, 1.2, 0.7, 1.2, 0.3],
-                            rotate: initialRotation + 360,
-                            y: [-6, 6, -6],
+                            opacity: [0, 1, 0.7, 1, 0],
+                            scale: [0, 1.25, 0.95, 1.35, 0],
+                            rotate: initialRotation + 270,
+                            y: [-(i % 3) * 6, (i % 3) * 6, -(i % 3) * 6],
                           }}
                           transition={{
-                            duration: 3.0 + (i % 2),
+                            duration: 2.4 + (i % 3) * 0.4,
                             repeat: Infinity,
                             ease: 'easeInOut',
-                            delay: i * 0.08,
+                            delay: i * 0.06,
                           }}
                         >
-                          ✦
+                          <svg viewBox="0 0 24 24" className="w-full h-full filter drop-shadow-[0_1px_3px_rgba(184,134,11,0.6)]">
+                            <defs>
+                              <linearGradient id={`goldStar-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#FFFFFF" />
+                                <stop offset="25%" stopColor="#FFFEE0" />
+                                <stop offset="55%" stopColor="#FFE875" />
+                                <stop offset="85%" stopColor="#D4AF37" />
+                                <stop offset="100%" stopColor="#9E7815" />
+                              </linearGradient>
+                            </defs>
+                            {isEightPoint ? (
+                              <path 
+                                d="M12 0 L14.5 7.5 L20.5 4.5 L17.5 10.5 L24 12 L17.5 13.5 L20.5 19.5 L14.5 16.5 L12 24 L9.5 16.5 L3.5 19.5 L6.5 13.5 L0 12 L6.5 10.5 L3.5 4.5 L9.5 7.5 Z" 
+                                fill={`url(#goldStar-${i})`} 
+                              />
+                            ) : (
+                              <path 
+                                d="M12 0 L15.2 8.8 L24 12 L15.2 15.2 L12 24 L8.8 15.2 L0 12 L8.8 8.8 Z" 
+                                fill={`url(#goldStar-${i})`} 
+                              />
+                            )}
+                            
+                            {/* Super-bright sunlit glint at the very center of each star */}
+                            <path 
+                              d="M12 6 L13.2 10.8 L18 12 L13.2 13.2 L12 18 L10.8 13.2 L6 12 L10.8 10.8 Z" 
+                              fill="#FFFFFF" 
+                              opacity="0.95" 
+                            />
+                            <circle cx="12" cy="12" r="1.8" fill="#FFFFFF" />
+                          </svg>
                         </motion.div>
                       );
                     })}
