@@ -198,7 +198,7 @@ export const Layout: React.FC<{
   const [unexplainedCount, setUnexplainedCount] = React.useState(0);
   const [hoveredItem, setHoveredItem] = React.useState<{ label: string; top: number } | null>(null);
 
-  const [introPhase, setIntroPhase] = React.useState<'drop' | 'splash' | 'reveal' | 'arch' | 'text' | 'done'>('drop');
+  const [introPhase, setIntroPhase] = React.useState<'drop' | 'splash' | 'assemble' | 'reveal' | 'arch' | 'text' | 'done'>('drop');
 
   React.useEffect(() => {
     if (user) {
@@ -207,10 +207,11 @@ export const Layout: React.FC<{
     }
     const sequence: { phase: typeof introPhase; delay: number }[] = [
       { phase: 'splash', delay: 700 },
-      { phase: 'reveal', delay: 1000 },
-      { phase: 'arch', delay: 1400 },
-      { phase: 'text', delay: 1600 },
-      { phase: 'done', delay: 2000 }
+      { phase: 'assemble', delay: 1500 },
+      { phase: 'reveal', delay: 2700 },
+      { phase: 'arch', delay: 3400 },
+      { phase: 'text', delay: 3800 },
+      { phase: 'done', delay: 4400 }
     ];
     const timers = sequence.map(s =>
       setTimeout(() => setIntroPhase(s.phase), s.delay)
@@ -454,183 +455,247 @@ export const Layout: React.FC<{
 
   if (!user) {
     return (
-      <div className="min-h-screen w-full flex flex-col lg:flex-row overflow-hidden">
+      <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center">
+        {/* Full-screen Background with Golden Hour Atmosphere & Dust Particles */}
         <motion.div
-          className="hidden lg:flex lg:w-[80%] relative bg-cover bg-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: (introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text' || introPhase === 'done') ? 1 : 0 }}
+          transition={{ duration: 1.2, ease: 'easeOut' }}
+          className="fixed inset-0 w-full h-full z-0 bg-cover bg-center overflow-hidden"
           style={{ backgroundImage: `url(${loginBgImg})` }}
         >
-          <motion.div
-            initial={{ clipPath: 'circle(0% at 50% 50%)' }}
-            animate={{
-              clipPath: introPhase === 'drop' || introPhase === 'splash'
-                ? 'circle(0% at 50% 50%)'
-                : 'circle(150% at 50% 50%)'
-            }}
-            transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
-            style={{ position: 'absolute', inset: 0 }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/40 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0f172a]/30 via-transparent to-transparent" />
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#1a5276] via-[#ffd700] to-[#1a5276]" />
-            <div className="absolute bottom-10 left-10 z-10 space-y-3 max-w-md">
-              <div className="flex items-center gap-2">
-                <span className="text-[#ffd700] text-2xl">⛏️</span>
-                <span className="text-white font-black text-sm uppercase tracking-widest">
-                  SMI Imiter — 5 Chantiers Actifs
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[#ffd700] text-2xl">🎯</span>
-                <span className="text-white font-black text-sm uppercase tracking-widest">
-                  Objectif Rentabilité +20% — 2026
-                </span>
-              </div>
-              <div className="h-px w-24 bg-[#ffd700]/50 my-2" />
-              <p className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">
-                Système de Commandement Production HydroMines
-              </p>
-            </div>
-          </motion.div>
+          {/* Bright, Sun-drenched Golden Hour tint boost */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-amber-950/20 via-transparent to-amber-500/15 backdrop-brightness-[1.12] backdrop-contrast-[1.04] backdrop-saturate-[1.15]" />
+          
+          {/* Subtle warm ambient dust/particle layer */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
+            <div className="absolute top-[-50%] left-[-50%] right-[-50%] bottom-[-50%] bg-[radial-gradient(circle_at_center,_rgba(255,215,0,0.18)_1.5px,_transparent_1.5px)] bg-[length:24px_24px] animate-[pulse_6s_infinite_ease-in-out]" />
+          </div>
+          
+          {/* High-end linear shadow gradient overlay for text legibility */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/80 via-slate-900/35 to-transparent" />
         </motion.div>
 
-        <div className="w-full lg:w-[20%] min-w-[340px] flex items-center justify-center bg-gradient-to-br from-[#122e43] to-[#0b1c28] p-6 lg:p-8 relative">
-          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#1a5276] via-[#ffd700] to-[#1a5276] lg:hidden" />
-          
-          <motion.svg
-            viewBox="0 0 200 240"
-            style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 220, pointerEvents: 'none' }}
-            initial={{ opacity: 0, y: -40 }}
-            animate={{
-              opacity: (introPhase === 'arch' || introPhase === 'text' || introPhase === 'done') ? 0.12 : 0,
-              y: (introPhase === 'arch' || introPhase === 'text' || introPhase === 'done') ? 0 : -40
-            }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
-          >
-            <path
-              d="M 30 220 L 30 100 A 70 70 0 0 1 170 100 L 170 220"
-              fill="none"
-              stroke="#8B1A1A"
-              strokeWidth="18"
-            />
-          </motion.svg>
+        {/* Dynamic bottom-left text (Typography pair with custom colors) */}
+        <motion.div
+          initial={{ opacity: 0, y: 35 }}
+          animate={{
+            opacity: (introPhase === 'text' || introPhase === 'done') ? 1 : 0,
+            y: (introPhase === 'text' || introPhase === 'done') ? 0 : 35
+          }}
+          transition={{ type: 'spring', stiffness: 90, damping: 15 }}
+          className="absolute bottom-12 left-10 md:left-16 lg:left-24 z-10 max-w-2xl select-none"
+        >
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-extrabold text-[#ffd700] tracking-[0.25em] uppercase drop-shadow-md">
+              Portail Officiel SMI
+            </span>
+            
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-none text-white drop-shadow-xl mt-1.5">
+              <span className="text-[#00A0E3]">HYDRO</span>
+              <span className="text-[#8B1A1A]">MINES</span>
+            </h1>
+            
+            <div className="h-1 w-24 bg-gradient-to-r from-[#00A0E3] to-[#8B1A1A] rounded-full my-3" />
+            
+            <p className="text-xs md:text-sm font-extrabold text-slate-100 tracking-wider uppercase drop-shadow-md">
+              Système de Commandement de la Production
+            </p>
+            <p className="text-[10px] text-slate-300/80 font-medium tracking-wider mt-1 max-w-sm drop-shadow-md uppercase">
+              Abattage, géologie & chantiers actifs SMI Imiter.
+            </p>
+          </div>
+        </motion.div>
 
-          <div className="w-full max-w-sm bg-white/95 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#1a5276] via-[#ffd700] to-[#1a5276]" />
+        {/* Floating Glassmorphism form aligned on the right */}
+        <div className="absolute right-6 md:right-16 lg:right-24 top-1/2 -translate-y-1/2 z-10 w-full max-w-sm p-4">
+          <motion.div
+            initial={{ opacity: 0, x: 50, scale: 0.95 }}
+            animate={{
+              opacity: introPhase === 'done' ? 1 : 0,
+              x: introPhase === 'done' ? 0 : 50,
+              scale: introPhase === 'done' ? 1 : 0.95,
+            }}
+            transition={{ type: 'spring', stiffness: 100, damping: 16 }}
+            className="w-full bg-white/80 backdrop-blur-xl border border-white/40 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+          >
+            {/* Elegant multi-brand border stripe */}
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#00A0E3] via-[#ffd700] to-[#8B1A1A]" />
+            
+            {/* Visual internal gradient overlays to enrich the glass feeling */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#00A0E3]/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-[#8B1A1A]/10 rounded-full blur-2xl pointer-events-none" />
+
             <div className="flex justify-center mb-6">
               <img
                 src={logoImg}
                 alt="SMI Logo"
-                className="h-20 w-auto object-contain rounded-xl shadow-md"
+                className="h-16 w-auto object-contain rounded-xl shadow-md"
               />
             </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 8 }}>
-              <motion.span
-                initial={{ x: -60, opacity: 0 }}
-                animate={{
-                  x: (introPhase === 'text' || introPhase === 'done') ? 0 : -60,
-                  opacity: (introPhase === 'text' || introPhase === 'done') ? 1 : 0
-                }}
-                transition={{ type: 'spring', stiffness: 120, damping: 14 }}
-                style={{ color: '#00A0E3', fontWeight: 900, fontSize: 20, letterSpacing: '0.05em' }}
-              >
-                HYDRO
-              </motion.span>
-              <motion.span
-                initial={{ x: 60, opacity: 0 }}
-                animate={{
-                  x: (introPhase === 'text' || introPhase === 'done') ? 0 : 60,
-                  opacity: (introPhase === 'text' || introPhase === 'done') ? 1 : 0
-                }}
-                transition={{ type: 'spring', stiffness: 120, damping: 14 }}
-                style={{ color: '#8B1A1A', fontWeight: 900, fontSize: 20, letterSpacing: '0.05em' }}
-              >
-                MINES
-              </motion.span>
+
+            <div className="text-center mb-8">
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 8 }}>
+                <span style={{ color: '#00A0E3', fontWeight: 900, fontSize: 20, letterSpacing: '0.05em' }}>
+                  HYDRO
+                </span>
+                <span style={{ color: '#8B1A1A', fontWeight: 900, fontSize: 20, letterSpacing: '0.05em' }}>
+                  MINES
+                </span>
+              </div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                Suivi & Gestion des Opérations Minières
+              </p>
             </div>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: (introPhase === 'text' || introPhase === 'done') ? 1 : 0 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-              className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-8"
-            >
-              Suivi & Gestion des Opérations Minières
-            </motion.p>
-
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{
-                opacity: introPhase === 'done' ? 1 : 0,
-                y: introPhase === 'done' ? 0 : 20
-              }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               <button
                 onClick={signIn}
-                className="w-full flex items-center justify-center gap-3 bg-[#1a5276] hover:bg-[#154360] text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95 cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#1a5276] to-[#154360] hover:from-[#154360] hover:to-[#0f3147] text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer"
+                style={{
+                  boxShadow: '0 4px 15px rgba(26,82,118,0.2)'
+                }}
               >
-                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
-                </svg>
-                Se connecter avec Google
+                <div className="bg-white p-1 rounded-lg shadow-sm">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
+                  </svg>
+                </div>
+                <span>Se connecter avec Google</span>
               </button>
             </motion.div>
 
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-8">
-              Accès sécurisé réservé au personnel SMI
-            </p>
-          </div>
+            <div className="mt-8 text-center border-t border-slate-200/50 pt-6">
+              <span className="inline-block px-2.5 py-0.5 bg-red-50 border border-red-100 rounded-full text-[8px] font-black text-red-500 uppercase tracking-widest">
+                Réseau SMI Intranet Sécurisé
+              </span>
+              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+                Accès réservé exclusivement au personnel habilité
+              </p>
+            </div>
+          </motion.div>
         </div>
 
+        {/* Cinematic Assembly Intro Overlay */}
         <AnimatePresence>
           {introPhase !== 'done' && (
             <motion.div
-              className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
-              style={{ background: '#0f172a' }}
+              className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none overflow-hidden"
+              style={{ background: 'radial-gradient(circle at center, #111e2e 0%, #070c14 100%)' }}
               initial={{ opacity: 1 }}
               animate={{
-                opacity: introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text' ? 0 : 1
+                opacity: (introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text') ? 0 : 1
               }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: 'easeInOut' }}
             >
-              <motion.div
-                initial={{ y: -300, scale: 0.6, opacity: 0 }}
-                animate={
-                  introPhase === 'drop'
-                    ? { y: 0, scale: 1, opacity: 1 }
-                    : { y: 40, scale: 1.8, opacity: 0 }
-                }
-                transition={
-                  introPhase === 'drop'
-                    ? { type: 'spring', stiffness: 180, damping: 12, duration: 0.7 }
-                    : { duration: 0.5, ease: 'easeOut' }
-                }
-                style={{
-                  width: 56,
-                  height: 72,
-                  background: 'linear-gradient(180deg, #00A0E3 0%, #0077B6 100%)',
-                  borderRadius: '50% 50% 50% 0',
-                  transform: 'rotate(45deg)',
-                  boxShadow: '0 0 40px rgba(0,160,227,0.6)',
-                }}
-              />
-
-              {introPhase === 'splash' && (
+              {/* FALLING DROPLET PHASE */}
+              {introPhase === 'drop' && (
                 <motion.div
-                  className="absolute rounded-full"
+                  initial={{ y: -350, scale: 0.6, opacity: 0 }}
+                  animate={{ y: 0, scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15, duration: 0.8 }}
                   style={{
-                    border: '2px solid #ffd700',
-                    width: 20,
-                    height: 20,
+                    width: 48,
+                    height: 64,
+                    background: 'linear-gradient(180deg, #00A0E3 0%, #0077B6 100%)',
+                    borderRadius: '50% 50% 50% 0',
+                    transform: 'rotate(45deg)',
+                    boxShadow: '0 0 50px rgba(0,160,227,0.8)',
+                    position: 'absolute',
                   }}
-                  initial={{ scale: 0, opacity: 0.9 }}
-                  animate={{ scale: 25, opacity: 0 }}
-                  transition={{ duration: 0.9, ease: 'easeOut' }}
                 />
+              )}
+
+              {/* WATER SPLASH & GOLDEN EXPLOSION PHASE */}
+              {introPhase === 'splash' && (
+                <>
+                  <motion.div
+                    className="absolute rounded-full"
+                    style={{
+                      border: '3px solid #ffd700',
+                      width: 30,
+                      height: 30,
+                      boxShadow: '0 0 30px rgba(255,215,0,0.6)',
+                    }}
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 28, opacity: 0 }}
+                    transition={{ duration: 1.0, ease: 'easeOut' }}
+                  />
+                  <motion.div
+                    className="absolute rounded-full"
+                    style={{
+                      border: '2px solid #00A0E3',
+                      width: 30,
+                      height: 30,
+                      boxShadow: '0 0 20px rgba(0,160,227,0.4)',
+                    }}
+                    initial={{ scale: 0, opacity: 0.8 }}
+                    animate={{ scale: 18, opacity: 0 }}
+                    transition={{ duration: 1.2, delay: 0.15, ease: 'easeOut' }}
+                  />
+                </>
+              )}
+
+              {/* LOGO PIECES ASSEMBLY PHASE */}
+              {introPhase === 'assemble' && (
+                <div className="relative w-64 h-64 flex items-center justify-center">
+                  {/* Left Fragment of real Logo image */}
+                  <motion.img
+                    src={logoImg}
+                    alt="Logo Fragment Left"
+                    style={{
+                      position: 'absolute',
+                      width: 150,
+                      height: 150,
+                      objectFit: 'contain',
+                      clipPath: 'polygon(0 0, 50% 0, 50% 100%, 0 100%)',
+                    }}
+                    initial={{ x: -160, opacity: 0, rotate: -15 }}
+                    animate={{ x: 0, opacity: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 95, damping: 13, duration: 1.1 }}
+                  />
+
+                  {/* Right Fragment of real Logo image */}
+                  <motion.img
+                    src={logoImg}
+                    alt="Logo Fragment Right"
+                    style={{
+                      position: 'absolute',
+                      width: 150,
+                      height: 150,
+                      objectFit: 'contain',
+                      clipPath: 'polygon(50% 0, 100% 0, 100% 100%, 50% 100%)',
+                    }}
+                    initial={{ x: 160, opacity: 0, rotate: 15 }}
+                    animate={{ x: 0, opacity: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 95, damping: 13, duration: 1.1 }}
+                  />
+
+                  {/* Soft golden focus light back glow */}
+                  <motion.div
+                    className="absolute rounded-full bg-gradient-to-r from-[#ffd700] via-[#00A0E3] to-[#ffd700] blur-xl"
+                    style={{ width: 90, height: 90, zIndex: -1 }}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: [1, 2.3, 1.8], opacity: [0, 0.75, 0.45] }}
+                    transition={{ delay: 0.5, duration: 1.2, ease: 'easeInOut' }}
+                  />
+
+                  {/* Shimmer sweep effect */}
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none"
+                    style={{ mixBlendMode: 'overlay', transform: 'skewX(-25deg)' }}
+                    initial={{ x: '-150%' }}
+                    animate={{ x: '150%' }}
+                    transition={{ delay: 1.1, duration: 1.0, ease: 'easeInOut' }}
+                  />
+                </div>
               )}
             </motion.div>
           )}
