@@ -199,6 +199,17 @@ export const Layout: React.FC<{
   const [hoveredItem, setHoveredItem] = React.useState<{ label: string; top: number } | null>(null);
 
   const [introPhase, setIntroPhase] = React.useState<'drop' | 'splash' | 'assemble' | 'reveal' | 'arch' | 'text' | 'done'>('drop');
+  const [bgLoaded, setBgLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const img = new Image();
+      img.src = loginBgImg;
+      img.onload = () => setBgLoaded(true);
+      // Fallback in case of caching or error
+      img.onerror = () => setBgLoaded(true);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (user) {
@@ -455,12 +466,15 @@ export const Layout: React.FC<{
 
   if (!user) {
     return (
-      <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center">
+      <div 
+        className="min-h-screen w-full relative overflow-hidden flex items-center justify-center animate-fade-in"
+        style={{ background: 'radial-gradient(circle at center, #1b354a 0%, #0c1822 100%)' }}
+      >
         {/* Full-screen Background with Golden Hour Atmosphere & Dust Particles */}
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: (introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text' || introPhase === 'done') ? 1 : 0 }}
-          transition={{ duration: 1.2, ease: 'easeOut' }}
+          animate={{ opacity: (bgLoaded && (introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text' || introPhase === 'done')) ? 1 : 0 }}
+          transition={{ duration: 1.4, ease: 'easeOut' }}
           className="fixed inset-0 w-full h-full z-0 bg-cover bg-center overflow-hidden"
           style={{ backgroundImage: `url(${loginBgImg})` }}
         >
@@ -591,42 +605,6 @@ export const Layout: React.FC<{
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: 'easeInOut' }}
             >
-              {/* Celestial Floating Gold & Sapphire Stars */}
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                {[...Array(20)].map((_, i) => {
-                  const size = i % 3 === 0 ? 14 : i % 2 === 0 ? 9 : 5;
-                  const initialRotation = i * 36;
-                  return (
-                    <motion.div
-                      key={i}
-                      className="absolute rounded-full flex items-center justify-center select-none"
-                      style={{
-                        top: `${(i * 19) % 85 + 7}%`,
-                        left: `${(i * 13) % 85 + 7}%`,
-                        color: i % 2 === 0 ? '#ffd700' : '#00A0E3',
-                        fontSize: size,
-                        filter: 'drop-shadow(0 0 4px rgba(255, 215, 0, 0.4))',
-                      }}
-                      initial={{ opacity: 0, scale: 0, rotate: initialRotation }}
-                      animate={{
-                        opacity: [0, 0.9, 0.3, 0.9, 0],
-                        scale: [0.4, 1.25, 0.85, 1.25, 0.4],
-                        rotate: initialRotation + 360,
-                        y: [-12, 12, -12],
-                      }}
-                      transition={{
-                        duration: 3.5 + (i % 3),
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                        delay: (i * 0.12),
-                      }}
-                    >
-                      {size > 9 ? '✦' : '★'}
-                    </motion.div>
-                  );
-                })}
-              </div>
-
               {/* FALLING DROPLET PHASE */}
               {introPhase === 'drop' && (
                 <motion.div
@@ -645,16 +623,16 @@ export const Layout: React.FC<{
                 />
               )}
 
-              {/* WATER SPLASH & GOLDEN EXPLOSION PHASE */}
+              {/* WATER SPLASH & DARK RED/SKY BLUE EXPLOSION PHASE */}
               {introPhase === 'splash' && (
                 <>
                   <motion.div
                     className="absolute rounded-full"
                     style={{
-                      border: '3px solid #ffd700',
+                      border: '3px solid #8B1A1A',
                       width: 30,
                       height: 30,
-                      boxShadow: '0 0 30px rgba(255,215,0,0.6)',
+                      boxShadow: '0 0 30px rgba(139,26,26,0.6)',
                     }}
                     initial={{ scale: 0, opacity: 1 }}
                     animate={{ scale: 28, opacity: 0 }}
@@ -675,58 +653,157 @@ export const Layout: React.FC<{
                 </>
               )}
 
-              {/* LOGO PIECES ASSEMBLY PHASE (3D Spring, Double Rotation & Premium Shimmer) */}
+              {/* LOGO PIECES ASSEMBLY PHASE (With custom crown, subtitle, celestial stars, larger logo, and absolute design precision) */}
               {introPhase === 'assemble' && (
-                <div className="relative w-72 h-72 flex items-center justify-center">
-                  {/* Left Fragment of real Logo image */}
+                <div className="relative w-96 h-[400px] flex items-center justify-center">
+                  
+                  {/* Elegant Twinkling Stars ONLY during logo display */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    {[...Array(14)].map((_, i) => {
+                      const size = i % 3 === 0 ? 14 : i % 2 === 0 ? 9 : 6;
+                      const initialRotation = i * 45;
+                      return (
+                        <motion.div
+                          key={i}
+                          className="absolute rounded-full flex items-center justify-center select-none"
+                          style={{
+                            top: `${(i * 23) % 75 + 12}%`,
+                            left: `${(i * 19) % 75 + 12}%`,
+                            color: i % 3 === 0 ? '#00A0E3' : i % 2 === 0 ? '#8B1A1A' : '#FFF2B2',
+                            fontSize: size,
+                            filter: 'drop-shadow(0 0 4px rgba(0, 0, 0, 0.1))',
+                          }}
+                          initial={{ opacity: 0, scale: 0, rotate: initialRotation }}
+                          animate={{
+                            opacity: [0, 1, 0.4, 1, 0],
+                            scale: [0.3, 1.2, 0.7, 1.2, 0.3],
+                            rotate: initialRotation + 360,
+                            y: [-6, 6, -6],
+                          }}
+                          transition={{
+                            duration: 3.0 + (i % 2),
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                            delay: i * 0.08,
+                          }}
+                        >
+                          ✦
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Golden Crown sitting perfectly above the logo - Enters from top with bouncing motion */}
+                  <motion.div
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      zIndex: 20,
+                    }}
+                    initial={{ y: -180, opacity: 0, scale: 0.3, rotate: -15 }}
+                    animate={{ y: 0, opacity: 1, scale: 1, rotate: 0 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 85,
+                      damping: 12,
+                      delay: 0.55,
+                    }}
+                  >
+                    <svg viewBox="0 0 100 60" className="w-16 h-12 drop-shadow-[0_4px_6px_rgba(0,0,0,0.12)]">
+                      <defs>
+                        <linearGradient id="crownGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#FFF2B2" />
+                          <stop offset="50%" stopColor="#D4AF37" />
+                          <stop offset="100%" stopColor="#AA7C11" />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        d="M 15 50 
+                           L 10 23 
+                           L 32 36 
+                           L 50 12 
+                           L 68 36 
+                           L 90 23 
+                           L 85 50 
+                           Z"
+                        fill="url(#crownGold)"
+                      />
+                      <rect x="15" y="50" width="70" height="6" rx="3" fill="url(#crownGold)" />
+                      {/* Detailed Gemstones matching brand colors */}
+                      <circle cx="10" cy="20" r="3.2" fill="#FFFFFF" />
+                      <circle cx="32" cy="33" r="2.2" fill="#00A0E3" />
+                      <circle cx="50" cy="9" r="4.0" fill="#8B1A1A" />
+                      <circle cx="68" cy="33" r="2.2" fill="#00A0E3" />
+                      <circle cx="90" cy="20" r="3.2" fill="#FFFFFF" />
+                      <circle cx="28" cy="53" r="1.6" fill="#8B1A1A" />
+                      <circle cx="50" cy="53" r="2.0" fill="#FFFFFF" />
+                      <circle cx="72" cy="53" r="1.6" fill="#00A0E3" />
+                    </svg>
+                  </motion.div>
+
+                  {/* Left Fragment of real Logo image (Agrandit & clean without blue shadow glow) */}
                   <motion.img
                     src={logoImg}
                     alt="Logo Fragment Left"
                     style={{
                       position: 'absolute',
-                      width: 160,
-                      height: 160,
+                      width: 210,
+                      height: 210,
                       objectFit: 'contain',
                       clipPath: 'polygon(0 0, 50% 0, 50% 100%, 0 100%)',
+                      top: 75,
                     }}
-                    initial={{ x: -220, opacity: 0, rotate: -270, scale: 0.4 }}
+                    initial={{ x: -240, opacity: 0, rotate: -270, scale: 0.5 }}
                     animate={{ x: 0, opacity: 1, rotate: 0, scale: 1 }}
                     transition={{ type: 'spring', stiffness: 75, damping: 13, duration: 1.3 }}
                   />
 
-                  {/* Right Fragment of real Logo image */}
+                  {/* Right Fragment of real Logo image (Agrandit & clean without blue shadow glow) */}
                   <motion.img
                     src={logoImg}
                     alt="Logo Fragment Right"
                     style={{
                       position: 'absolute',
-                      width: 160,
-                      height: 160,
+                      width: 210,
+                      height: 210,
                       objectFit: 'contain',
                       clipPath: 'polygon(50% 0, 100% 0, 100% 100%, 50% 100%)',
+                      top: 75,
                     }}
-                    initial={{ x: 220, opacity: 0, rotate: 270, scale: 0.4 }}
+                    initial={{ x: 240, opacity: 0, rotate: 270, scale: 0.5 }}
                     animate={{ x: 0, opacity: 1, rotate: 0, scale: 1 }}
                     transition={{ type: 'spring', stiffness: 75, damping: 13, duration: 1.3 }}
                   />
 
-                  {/* Soft golden focus light back glow */}
-                  <motion.div
-                    className="absolute rounded-full bg-gradient-to-r from-[#ffd700] via-[#00A0E3] to-[#ffd700] blur-xl"
-                    style={{ width: 110, height: 110, zIndex: -1 }}
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: [1, 2.5, 2], opacity: [0, 0.85, 0.5] }}
-                    transition={{ delay: 0.4, duration: 1.2, ease: 'easeInOut' }}
-                  />
-
                   {/* Shimmer sweep effect */}
                   <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none"
-                    style={{ mixBlendMode: 'overlay', transform: 'skewX(-25deg)' }}
+                    className="absolute inset-x-0 h-[210px] bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none"
+                    style={{ mixBlendMode: 'overlay', transform: 'skewX(-25deg)', top: 75 }}
                     initial={{ x: '-150%' }}
                     animate={{ x: '150%' }}
                     transition={{ delay: 1.2, duration: 1.0, ease: 'easeInOut' }}
                   />
+
+                  {/* Elegant dynamic Subtitle: Mines - Eau - Environnement */}
+                  <motion.div
+                    style={{
+                      position: 'absolute',
+                      bottom: 35,
+                    }}
+                    initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 90,
+                      damping: 14,
+                      delay: 0.9,
+                    }}
+                    className="text-center"
+                  >
+                    <span className="text-sm font-extrabold tracking-[0.25em] bg-gradient-to-r from-[#00A0E3] via-slate-600 to-[#8B1A1A] bg-clip-text text-transparent uppercase select-none">
+                      Mines • Eau • Environnement
+                    </span>
+                  </motion.div>
                 </div>
               )}
             </motion.div>
