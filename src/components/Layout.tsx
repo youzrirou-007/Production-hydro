@@ -219,10 +219,10 @@ export const Layout: React.FC<{
     const sequence: { phase: typeof introPhase; delay: number }[] = [
       { phase: 'splash', delay: 700 },
       { phase: 'assemble', delay: 1500 },
-      { phase: 'reveal', delay: 2700 },
-      { phase: 'arch', delay: 3400 },
-      { phase: 'text', delay: 3800 },
-      { phase: 'done', delay: 4400 }
+      { phase: 'reveal', delay: 4700 },
+      { phase: 'arch', delay: 5400 },
+      { phase: 'text', delay: 5800 },
+      { phase: 'done', delay: 6400 }
     ];
     const timers = sequence.map(s =>
       setTimeout(() => setIntroPhase(s.phase), s.delay)
@@ -807,6 +807,19 @@ export const Layout: React.FC<{
                 </div>
               )}
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Cinematic Pure White Light Burst (Sans ombre) transitioning from assemble to reveal */}
+        <AnimatePresence>
+          {(introPhase === 'reveal' || introPhase === 'arch') && (
+            <motion.div
+              className="fixed inset-0 z-[120] bg-white pointer-events-none"
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.0, ease: 'easeOut' }}
+            />
           )}
         </AnimatePresence>
       </div>
