@@ -200,6 +200,18 @@ export const Layout: React.FC<{
 
   const [introPhase, setIntroPhase] = React.useState<'drop' | 'splash' | 'assemble' | 'reveal' | 'arch' | 'text' | 'done'>('drop');
   const [bgLoaded, setBgLoaded] = React.useState(false);
+  const [mousePos, setMousePos] = React.useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const { clientWidth, clientHeight } = e.currentTarget;
+    const x = (e.clientX - clientWidth / 2) / (clientWidth / 2);
+    const y = (e.clientY - clientHeight / 2) / (clientHeight / 2);
+    setMousePos({ x, y });
+  };
+
+  const handleMouseLeave = () => {
+    setMousePos({ x: 0, y: 0 });
+  };
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -219,10 +231,10 @@ export const Layout: React.FC<{
     const sequence: { phase: typeof introPhase; delay: number }[] = [
       { phase: 'splash', delay: 700 },
       { phase: 'assemble', delay: 1500 },
-      { phase: 'reveal', delay: 4700 },
-      { phase: 'arch', delay: 5400 },
-      { phase: 'text', delay: 5800 },
-      { phase: 'done', delay: 6400 }
+      { phase: 'reveal', delay: 5200 },
+      { phase: 'arch', delay: 5900 },
+      { phase: 'text', delay: 6300 },
+      { phase: 'done', delay: 6900 }
     ];
     const timers = sequence.map(s =>
       setTimeout(() => setIntroPhase(s.phase), s.delay)
@@ -469,11 +481,18 @@ export const Layout: React.FC<{
       <div 
         className="min-h-screen w-full relative overflow-hidden flex items-center justify-center animate-fade-in"
         style={{ background: 'radial-gradient(circle at center, #1b354a 0%, #0c1822 100%)' }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Full-screen Background with Golden Hour Atmosphere & Dust Particles */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: (bgLoaded && (introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text' || introPhase === 'done')) ? 1 : 0 }}
+          initial={{ opacity: 0, scale: 1.05 }}
+          animate={{ 
+            opacity: (bgLoaded && (introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text' || introPhase === 'done')) ? 1 : 0,
+            x: mousePos.x * -15,
+            y: mousePos.y * -15,
+            scale: 1.05
+          }}
           transition={{ duration: 1.4, ease: 'easeOut' }}
           className="fixed inset-0 w-full h-full z-0 bg-cover bg-center overflow-hidden"
           style={{ backgroundImage: `url(${loginBgImg})` }}
@@ -523,7 +542,8 @@ export const Layout: React.FC<{
             initial={{ opacity: 0, x: 50, scale: 0.95 }}
             animate={{
               opacity: introPhase === 'done' ? 1 : 0,
-              x: introPhase === 'done' ? 0 : 50,
+              x: introPhase === 'done' ? mousePos.x * 12 : 50,
+              y: introPhase === 'done' ? mousePos.y * 12 : 0,
               scale: introPhase === 'done' ? 1 : 0.95,
             }}
             transition={{ type: 'spring', stiffness: 100, damping: 16 }}
@@ -559,17 +579,28 @@ export const Layout: React.FC<{
             </div>
 
             <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.025 }}
+              whileTap={{ scale: 0.975 }}
             >
               <button
                 onClick={signIn}
-                className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#1a5276] to-[#154360] hover:from-[#154360] hover:to-[#0f3147] text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer"
+                className="group relative w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#1a5276] to-[#154360] hover:from-[#154360] hover:to-[#0f3147] text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer overflow-hidden"
                 style={{
                   boxShadow: '0 4px 15px rgba(26,82,118,0.2)'
                 }}
               >
-                <div className="bg-white p-1 rounded-lg shadow-sm">
+                {/* Micro-shimmer sweep line on hover */}
+                <div 
+                  className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full pointer-events-none"
+                  style={{
+                    animation: 'shimmer-fast 1.6s infinite linear'
+                  }}
+                />
+                
+                {/* Discrete white border glow */}
+                <div className="absolute inset-0 border border-white/10 rounded-2xl pointer-events-none" />
+
+                <div className="bg-white p-1 rounded-lg shadow-sm group-hover:scale-110 transition-transform duration-300 z-10">
                   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -577,7 +608,7 @@ export const Layout: React.FC<{
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
                   </svg>
                 </div>
-                <span>Se connecter avec Google</span>
+                <span className="z-10 group-hover:translate-x-1 transition-transform duration-300">Se connecter avec Google</span>
               </button>
             </motion.div>
 
@@ -709,36 +740,48 @@ export const Layout: React.FC<{
                       delay: 0.55,
                     }}
                   >
-                    <svg viewBox="0 0 100 60" className="w-16 h-12 drop-shadow-[0_4px_6px_rgba(0,0,0,0.12)]">
-                      <defs>
-                        <linearGradient id="crownGold" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#FFF2B2" />
-                          <stop offset="50%" stopColor="#D4AF37" />
-                          <stop offset="100%" stopColor="#AA7C11" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M 15 50 
-                           L 10 23 
-                           L 32 36 
-                           L 50 12 
-                           L 68 36 
-                           L 90 23 
-                           L 85 50 
-                           Z"
-                        fill="url(#crownGold)"
+                    <div className="relative overflow-hidden rounded-lg animate-[gold-glow_3.5s_infinite_ease-in-out]">
+                      <svg viewBox="0 0 100 60" className="w-16 h-12 drop-shadow-[0_4px_6px_rgba(0,0,0,0.12)]">
+                        <defs>
+                          <linearGradient id="crownGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#FFF2B2" />
+                            <stop offset="50%" stopColor="#D4AF37" />
+                            <stop offset="100%" stopColor="#AA7C11" />
+                          </linearGradient>
+                        </defs>
+                        <path
+                          d="M 15 50 
+                             L 10 23 
+                             L 32 36 
+                             L 50 12 
+                             L 68 36 
+                             L 90 23 
+                             L 85 50 
+                             Z"
+                          fill="url(#crownGold)"
+                        />
+                        <rect x="15" y="50" width="70" height="6" rx="3" fill="url(#crownGold)" />
+                        {/* Detailed Gemstones matching brand colors */}
+                        <circle cx="10" cy="20" r="3.2" fill="#FFFFFF" />
+                        <circle cx="32" cy="33" r="2.2" fill="#00A0E3" />
+                        <circle cx="50" cy="9" r="4.0" fill="#8B1A1A" />
+                        <circle cx="68" cy="33" r="2.2" fill="#00A0E3" />
+                        <circle cx="90" cy="20" r="3.2" fill="#FFFFFF" />
+                        <circle cx="28" cy="53" r="1.6" fill="#8B1A1A" />
+                        <circle cx="50" cy="53" r="2.0" fill="#FFFFFF" />
+                        <circle cx="72" cy="53" r="1.6" fill="#00A0E3" />
+                      </svg>
+                      
+                      {/* White high-end sliding shine across the crown */}
+                      <div 
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none"
+                        style={{
+                          mixBlendMode: 'overlay',
+                          animation: 'shimmer-slow 4.0s infinite ease-in-out',
+                          clipPath: 'polygon(15% 90%, 10% 40%, 32% 65%, 50% 20%, 68% 65%, 90% 40%, 85% 90%)',
+                        }}
                       />
-                      <rect x="15" y="50" width="70" height="6" rx="3" fill="url(#crownGold)" />
-                      {/* Detailed Gemstones matching brand colors */}
-                      <circle cx="10" cy="20" r="3.2" fill="#FFFFFF" />
-                      <circle cx="32" cy="33" r="2.2" fill="#00A0E3" />
-                      <circle cx="50" cy="9" r="4.0" fill="#8B1A1A" />
-                      <circle cx="68" cy="33" r="2.2" fill="#00A0E3" />
-                      <circle cx="90" cy="20" r="3.2" fill="#FFFFFF" />
-                      <circle cx="28" cy="53" r="1.6" fill="#8B1A1A" />
-                      <circle cx="50" cy="53" r="2.0" fill="#FFFFFF" />
-                      <circle cx="72" cy="53" r="1.6" fill="#00A0E3" />
-                    </svg>
+                    </div>
                   </motion.div>
 
                   {/* Left Fragment of real Logo image (Agrandit & clean without blue shadow glow) */}
@@ -818,10 +861,28 @@ export const Layout: React.FC<{
               initial={{ opacity: 1 }}
               animate={{ opacity: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 1.0, ease: 'easeOut' }}
+              transition={{ duration: 2.0, ease: [0.16, 1, 0.3, 1] }}
             />
           )}
         </AnimatePresence>
+
+        {/* CSS Keyframes for High-End Premium Micro-Animations */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes shimmer-fast {
+            0% { transform: translateX(-150%) skewX(-25deg); }
+            100% { transform: translateX(150%) skewX(-25deg); }
+          }
+          @keyframes shimmer-slow {
+            0% { transform: translateX(-150%) skewX(-20deg); }
+            15% { transform: translateX(-150%) skewX(-20deg); }
+            45% { transform: translateX(150%) skewX(-20deg); }
+            100% { transform: translateX(150%) skewX(-20deg); }
+          }
+          @keyframes gold-glow {
+            0%, 100% { filter: drop-shadow(0 0 2px rgba(212,175,55,0.35)) brightness(1); }
+            50% { filter: drop-shadow(0 0 10px rgba(212,175,55,0.75)) brightness(1.18); }
+          }
+        `}} />
       </div>
     );
   }
