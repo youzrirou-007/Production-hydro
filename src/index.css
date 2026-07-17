@@ -13,7 +13,7 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 8px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;

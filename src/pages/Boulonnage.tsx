@@ -159,14 +159,15 @@ export const Boulonnage: React.FC = () => {
 
     // Filter rows where the selected employee was involved in either actual (reel) or planned (plan) as fallback
     const list = allBoulonnageRows.filter(({ row }) => {
+      if (!row) return false;
       const targetMat = role === 'miner' 
-        ? (row.reel.minerMatricule || row.plan.minerMatricule) 
-        : (row.reel.assistantMatricule || row.plan.assistantMatricule);
+        ? (row.reel?.minerMatricule || row.plan?.minerMatricule) 
+        : (row.reel?.assistantMatricule || row.plan?.assistantMatricule);
       return targetMat && targetMat.toUpperCase() === matricule.toUpperCase();
     });
 
-    const totalRealBolts = list.reduce((acc, { row }) => acc + (Number(row.reel.realBolts) || 0), 0);
-    const totalRealGrillage = list.reduce((acc, { row }) => acc + (Number(row.reel.grillageQuantity) || 0), 0);
+    const totalRealBolts = list.reduce((acc, { row }) => acc + (Number(row.reel?.realBolts) || 0), 0);
+    const totalRealGrillage = list.reduce((acc, { row }) => acc + (Number(row.reel?.grillageQuantity) || 0), 0);
     
     // Each bolt contributes +0.1m of equivalent minage yield/encouragement
     const totalEncouragement = totalRealBolts * 0.1;

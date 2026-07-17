@@ -83,10 +83,8 @@ const NAV_ITEMS: NavItem[] = [
     id: 'mineur_parfait',
     label: 'Le Mineur Parfait',
     icon: <HardHat className="w-5 h-5" />,
-    category: 'production'
+    category: 'ingenierie'
   },
-  { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'ingenierie' },
-  { id: '/volées-ratées', label: 'Volées Ratées', icon: <AlertTriangle className="w-5 h-5" />, category: 'ingenierie' },
   { id: '/tutoriel', label: 'Tutoriel', icon: <GraduationCap className="w-5 h-5" />, category: 'ingenierie' },
   
   // ANALYSE & PERFORMANCE
@@ -97,8 +95,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'analyse_rh', label: 'Ressources Humaines', icon: <HardHat className="w-5 h-5" />, category: 'analyse' },
   { id: 'analyse_logistique', label: 'Matériel & Historiques', icon: <Database className="w-5 h-5" />, category: 'analyse' },
   { id: 'boulonnage', label: 'Suivi Boulonnage', icon: <Hammer className="w-5 h-5" />, category: 'analyse' },
+  { id: '/volées-ratées', label: 'Volées Ratées', icon: <AlertTriangle className="w-5 h-5" />, category: 'analyse' },
 
   // ADMIN
+  { id: 'messages', label: 'Messages & Directives', icon: <Mail className="w-5 h-5" />, category: 'admin' },
   { id: 'admin', label: 'Administration', icon: <Users className="w-5 h-5" />, roles: ['admin'], category: 'admin' },
   { id: 'configuration', label: 'Configuration', icon: <Settings className="w-5 h-5" />, roles: ['admin', 'direction', 'chief', 'responsible', 'secretary', 'direction_technique'], category: 'admin' },
 ];
@@ -990,11 +990,11 @@ export const Layout: React.FC<{
   );
 
   const categories = [
-    { id: 'direction', label: 'Direction' },
-    { id: 'production', label: 'Opérations Chantier' },
-    { id: 'ingenierie', label: 'Ingénierie & Consignes' },
-    { id: 'analyse', label: 'Analyses & Performance' },
-    { id: 'admin', label: 'Administration' },
+    { id: 'direction', label: 'I. Direction & Pilotage' },
+    { id: 'production', label: 'II. Opérations & Saisies' },
+    { id: 'ingenierie', label: 'III. Technique & Supports Métier' },
+    { id: 'analyse', label: 'IV. Analyses & Intelligence' },
+    { id: 'admin', label: 'V. Administration & Configuration' },
   ];
 
   return (
