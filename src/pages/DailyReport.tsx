@@ -84,6 +84,7 @@ export const DailyReport: React.FC = () => {
 
   // Helper to determine sector group of a record robustly
   const getRecordSectorGroup = (rec: any) => {
+    if (!rec) return '';
     const row = rec.reel || rec;
     const plan = rec.plan || {};
     const sector = row.sector || plan.sector || rec.sector || rec.sectorGroup || rec.reel?.sectorGroup || rec.plan?.sectorGroup || plan.sectorGroup || '';
@@ -104,7 +105,8 @@ export const DailyReport: React.FC = () => {
   };
 
   const filterTargetSectorRows = (rows: any[]) => {
-    return rows.filter(r => isTargetSector(getRecordSectorGroup(r)));
+    if (!Array.isArray(rows)) return [];
+    return rows.filter(r => r && isTargetSector(getRecordSectorGroup(r)));
   };
 
   const getSectorChefInfo = (sectorName: string, sectorChefs: any) => {

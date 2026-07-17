@@ -3,6 +3,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, onSnapshot, getDoc, doc, writeBatch, setDoc } from 'firebase/firestore';
 import { getNextPost, getUpcomingMonday, ROTATION_FUNCTIONS } from '../lib/rotation';
+import { motion, AnimatePresence } from 'motion/react';
 
 // Helper function to convert OKLCH color strings to standard RGB(A)
 // html2canvas doesn't support parsing modern CSS color formulas like oklch or oklab.
@@ -221,6 +222,12 @@ export const RotationPoste: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [validated, setValidated] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
   
   // Custom states matching the 10 proposals
   const [nextPosts, setNextPosts] = useState<Record<string, 'Poste 1' | 'Poste 2' | 'Poste 3' | ''>>({});
@@ -324,7 +331,7 @@ export const RotationPoste: React.FC = () => {
       pdf.save(`Affectations-Hydromines-SMI-${targetDateStr}.pdf`);
     } catch (err) {
       console.error('Erreur téléchargement PDF:', err);
-      alert('Une erreur est survenue lors de la génération du fichier PDF.');
+      showToast('Une erreur est survenue lors de la génération du fichier PDF.', 'error');
     } finally {
       // ALWAYS restore the original getComputedStyle!
       window.getComputedStyle = originalGetComputedStyle;
@@ -517,7 +524,7 @@ export const RotationPoste: React.FC = () => {
 
   const handleBulkAssign = (post: 'Poste 1' | 'Poste 2' | 'Poste 3') => {
     if (selectedEmpIds.length === 0) {
-      alert("Veuillez d'abord sélectionner des employés par les cases à cocher.");
+      showToast("Veuillez d'abord sélectionner des employés par les cases à cocher.", 'error');
       return;
     }
     setNextPosts(prev => {
@@ -580,7 +587,7 @@ export const RotationPoste: React.FC = () => {
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
       console.error("Erreur enregistrement brouillon :", err);
-      alert("Erreur technique lors de l'archivage du brouillon.");
+      showToast("Erreur technique lors de l'archivage du brouillon.", "error");
     } finally {
       setIsSavingDraft(false);
     }
@@ -589,14 +596,14 @@ export const RotationPoste: React.FC = () => {
   // Final confirmation and validation of next posts
   const validateWeeklyRotation = async () => {
     if (validated) {
-      alert("La rotation pour cette semaine cible a déjà été validée définitivement.");
+      showToast("La rotation pour cette semaine cible a déjà été validée définitivement.", "error");
       return;
     }
 
     // List employee modifications
     const finalChangesList = employees.map(emp => {
       const current = emp.currentPost || 'Poste 1';
-      const to = nextPosts[emp.id] || 'Poste 1';
+      const to = nextPosts[emp.id] !== undefined ? nextPosts[emp.id] : getNextPost(emp.currentPost || '');
       return {
         id: emp.id,
         matricule: emp.matricule,
@@ -661,7 +668,7 @@ export const RotationPoste: React.FC = () => {
 
     } catch (err) {
       console.error("Erreur de sauvegarde de la rotation :", err);
-      alert("Une erreur technique s'est produite lors du basculement.");
+      showToast("Une erreur technique s'est produite lors du basculement.", "error");
     } finally {
       setLoading(false);
     }
@@ -1116,6 +1123,28 @@ export const RotationPoste: React.FC = () => {
 
   return (
     <div className="space-y-6 relative pb-12">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 shadow-xl rounded-xl border font-bold text-xs uppercase tracking-wider ${
+              toast.type === 'success' 
+                ? 'bg-slate-900 text-white border-emerald-500' 
+                : 'bg-white text-rose-700 border-rose-200'
+            }`}
+          >
+            {toast.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-450 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{toast.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Monday Notification alert block */}
       {isTodayMonday && !validated && (

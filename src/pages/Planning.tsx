@@ -169,11 +169,8 @@ const computeExplosives = (gallerySize: 9 | 12, plannedRounds: number, platformS
 };
 
 const isMinageRowActive = (row: any): boolean => {
-  const isVolee = row.remarks?.includes('(Volée');
-  if (isVolee) {
-    return !!(row.minerMatricule || row.assistantMatricule);
-  }
-  return !!(row.chantierId && (row.minerMatricule || row.assistantMatricule));
+  const hasTeam = !!(row.minerMatricule?.trim() || row.assistantMatricule?.trim());
+  return !!(row.chantierId && hasTeam);
 };
 
 const recalculateExplosivesIfNeeded = (row: any, platformSettings?: any) => {
@@ -820,7 +817,7 @@ export const Planning: React.FC = () => {
         equipier2: '',
         equipier3: '',
         equipier4: '',
-        wagonsTarget: platformSettings.defaultWagonsTarget ?? 48,
+        wagonsTarget: platformSettings?.defaultWagonsTarget ?? 48,
         wagonsActual: 0,
         sterileBureImiterEst: 0,
         startTime: defaults.start,
@@ -1118,7 +1115,7 @@ export const Planning: React.FC = () => {
           loadedMinageByPost[p] = ensureMinimumRows(pData?.minage || [], 'minage', p, chantiers, platformSettings);
           loadedDeblayageByPost[p] = ensureMinimumRows(pData?.deblayage || [], 'deblayage', p, chantiers, platformSettings);
           loadedBoulonnageByPost[p] = ensureMinimumRows(pData?.boulonnage || [], 'boulonnage', p, chantiers, platformSettings);
-          loadedExtractionByPost[p] = sanitizeExtractionRows(pData?.extraction, currentDefaults, platformSettings.defaultWagonsTarget ?? 48);
+          loadedExtractionByPost[p] = sanitizeExtractionRows(pData?.extraction, currentDefaults, platformSettings?.defaultWagonsTarget ?? 48);
           loadedMaintenanceByPost[p] = pData?.maintenance || [];
           if (loadedMaintenanceByPost[p].length === 0) {
             loadedMaintenanceByPost[p] = getDefaultMaintenanceRows(p);
@@ -1358,6 +1355,21 @@ export const Planning: React.FC = () => {
         const sizeVal: 9 | 12 = selectedChantier.galleryType === '9m2' ? 9 : 12;
         clone[index].gallerySize = sizeVal;
       }
+
+      // Automatically propagate chantierId and gallerySize to any subsequent child rows (sub-volées)
+      const parentRounds = clone[index].plannedRounds || 1;
+      if (parentRounds > 1) {
+        for (let i = index + 1; i < index + parentRounds; i++) {
+          if (clone[i] && clone[i].remarks && (clone[i].remarks.includes('(Volée 2)') || clone[i].remarks.includes('(Volée 3)'))) {
+            clone[i] = {
+              ...clone[i],
+              chantierId: value,
+              gallerySize: clone[index].gallerySize
+            };
+            clone[i] = recalculateExplosivesIfNeeded(clone[i], platformSettings);
+          }
+        }
+      }
     }
     if (field === 'chiefMatricule') {
       const emp = employees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
@@ -1527,13 +1539,13 @@ export const Planning: React.FC = () => {
       clone[index].engineCode = String(value);
       // Si des godets sont déjà saisies, recalculer le volume avec la nouvelle capacité
       if (Number(clone[index].godets) > 0) {
-        const bucketCapacity = getBucketCapacity(String(value), platformSettings.lhdBucketCapacities);
+        const bucketCapacity = getBucketCapacity(String(value), platformSettings?.lhdBucketCapacities);
         clone[index].volumeEstimated = Number(clone[index].godets) * bucketCapacity;
       }
     }
     if (field === 'godets') {
       const engineCode = clone[index].engineCode || '';
-      const bucketCapacity = getBucketCapacity(engineCode, platformSettings.lhdBucketCapacities);
+      const bucketCapacity = getBucketCapacity(engineCode, platformSettings?.lhdBucketCapacities);
       clone[index].volumeEstimated = Number(value) * bucketCapacity;
     }
     setDeblayageRowsByPost(prev => ({ ...prev, [post]: clone }));
@@ -1965,7 +1977,7 @@ export const Planning: React.FC = () => {
           clonedDeblayage[p] = ensureMinimumRows(clonedDeblayage[p], 'deblayage', p, chantiers, platformSettings);
 
           // Clone Extraction direct
-          clonedExtraction[p] = sanitizeExtractionRows(srcData.extraction, POST_HOURS[p], platformSettings.defaultWagonsTarget ?? 48);
+          clonedExtraction[p] = sanitizeExtractionRows(srcData.extraction, POST_HOURS[p], platformSettings?.defaultWagonsTarget ?? 48);
 
           // Clone Maintenance direct - safely preserving agent names
           clonedMaintenance[p] = (srcData.maintenance || []).map((row: ExcelMaintenance) => {
@@ -2486,7 +2498,7 @@ export const Planning: React.FC = () => {
           return finalRow;
         });
 
-        proposedExtraction = sanitizeExtractionRows(copiedExtraction, POST_HOURS[selectedPost], platformSettings.defaultWagonsTarget ?? 48).map(row => {
+        proposedExtraction = sanitizeExtractionRows(copiedExtraction, POST_HOURS[selectedPost], platformSettings?.defaultWagonsTarget ?? 48).map(row => {
           const finalRow = { ...row };
           finalRow.treuilliste = findActiveMatricule(row.treuilliste);
           finalRow.equipier1 = findActiveMatricule(row.equipier1);
@@ -4501,7 +4513,7 @@ export const Planning: React.FC = () => {
                                               className="w-full bg-transparent border-0 font-bold text-[11px] uppercase outline-none text-gray-800"
                                             >
                                               <option value="">(Machine LHD)</option>
-                                              {platformSettings.engines.map(eng => (
+                                              {(platformSettings?.engines || []).map(eng => (
                                                 <option key={eng} value={eng}>
                                                   {eng}
                                                 </option>
@@ -4520,7 +4532,7 @@ export const Planning: React.FC = () => {
                                               className="w-full bg-transparent text-center font-bold text-[11px] outline-none border-0 text-gray-800"
                                             />
                                             <div className="text-[8px] text-slate-400 mt-0.5 text-center select-none font-bold">
-                                              {getBucketCapacity(row.engineCode || '', platformSettings.lhdBucketCapacities).toFixed(1)} m³/godet
+                                              {getBucketCapacity(row.engineCode || '', platformSettings?.lhdBucketCapacities).toFixed(1)} m³/godet
                                             </div>
                                           </td>
 
@@ -4924,7 +4936,7 @@ export const Planning: React.FC = () => {
                                         className="w-full text-[11px] font-semibold border-0 outline-none bg-transparent p-0 text-slate-800"
                                       >
                                         <option value="">(Aucun engin repéré)</option>
-                                        {platformSettings.engines.map(eng => (
+                                        {(platformSettings?.engines || []).map(eng => (
                                           <option key={eng} value={eng}>
                                             {eng}
                                           </option>

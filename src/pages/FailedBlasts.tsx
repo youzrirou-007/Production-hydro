@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -453,17 +453,7 @@ export const FailedBlasts: React.FC = () => {
     setShowModal(true);
   };
 
-  // Sync chantier dropdown when form sector changes
-  useEffect(() => {
-    if (!editingBlast) {
-      const filtered = chantiers.filter(c => c.sector === formSector && c.status === 'ouvert');
-      if (filtered.length > 0) {
-        setFormChantierId(filtered[0].id);
-      } else {
-        setFormChantierId('');
-      }
-    }
-  }, [formSector, chantiers, editingBlast]);
+  // Sync chantier dropdown when form sector changes handled inline in the dropdown below
 
   // Form Submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1631,7 +1621,16 @@ export const FailedBlasts: React.FC = () => {
                     <label className="text-[9px] font-black uppercase text-slate-500 block">Secteur</label>
                     <select
                       value={formSector}
-                      onChange={(e) => setFormSector(e.target.value)}
+                      onChange={(e) => {
+                        const nextSector = e.target.value;
+                        setFormSector(nextSector);
+                        const filtered = chantiers.filter(c => c.sector === nextSector && c.status === 'ouvert');
+                        if (filtered.length > 0) {
+                          setFormChantierId(filtered[0].id);
+                        } else {
+                          setFormChantierId('');
+                        }
+                      }}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-bold focus:outline-none focus:border-red-800 text-slate-800"
                     >
                       {SECTORS.map(sec => <option key={sec} value={sec}>{sec}</option>)}

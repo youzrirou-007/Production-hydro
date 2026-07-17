@@ -195,7 +195,8 @@ export const Boulonnage: React.FC = () => {
     }> = {};
 
     allBoulonnageRows.forEach(({ row }) => {
-      const chantierId = row.reel.chantierId || row.plan.chantierId;
+      if (!row) return;
+      const chantierId = row.reel?.chantierId || row.plan?.chantierId;
       if (!chantierId) return;
 
       const name = chantiersMap[chantierId] || chantierId;
@@ -214,12 +215,12 @@ export const Boulonnage: React.FC = () => {
       }
 
       const item = stats[chantierId];
-      item.plannedBolts += Number(row.plan.plannedBolts) || 0;
-      item.realBolts += Number(row.reel.realBolts) || 0;
-      item.plannedGrillage += row.plan.hasGrillage ? (Number(row.plan.grillageQuantity) || 1) : 0;
-      item.realGrillage += Number(row.reel.grillageQuantity) || 0;
+      item.plannedBolts += Number(row.plan?.plannedBolts) || 0;
+      item.realBolts += Number(row.reel?.realBolts) || 0;
+      item.plannedGrillage += row.plan?.hasGrillage ? (Number(row.plan?.grillageQuantity) || 1) : 0;
+      item.realGrillage += Number(row.reel?.grillageQuantity) || 0;
       
-      if (row.reel.type === 'Soutenement' || row.plan.type === 'Soutenement') {
+      if (row.reel?.type === 'Soutenement' || row.plan?.type === 'Soutenement') {
         item.soutenementCount += 1;
       } else {
         item.boulonnageCount += 1;
@@ -242,10 +243,11 @@ export const Boulonnage: React.FC = () => {
     }> = {};
 
     allBoulonnageRows.forEach(({ row }) => {
-      const matricule = row.reel.minerMatricule || row.plan.minerMatricule;
+      if (!row) return;
+      const matricule = row.reel?.minerMatricule || row.plan?.minerMatricule;
       if (!matricule) return;
 
-      const name = row.reel.minerName || row.plan.minerName || 'Mineur ' + matricule;
+      const name = row.reel?.minerName || row.plan?.minerName || 'Mineur ' + matricule;
 
       if (!stats[matricule]) {
         stats[matricule] = {
@@ -260,10 +262,10 @@ export const Boulonnage: React.FC = () => {
       }
 
       const item = stats[matricule];
-      item.plannedBolts += Number(row.plan.plannedBolts) || 0;
-      const rBolts = Number(row.reel.realBolts) || 0;
+      item.plannedBolts += Number(row.plan?.plannedBolts) || 0;
+      const rBolts = Number(row.reel?.realBolts) || 0;
       item.realBolts += rBolts;
-      item.realGrillage += Number(row.reel.grillageQuantity) || 0;
+      item.realGrillage += Number(row.reel?.grillageQuantity) || 0;
       item.sessionsCount += 1;
       // 1.3 meters equivalent encouragement per bolt placed
       item.encouragementBonusMeters += rBolts * 1.3;
@@ -285,10 +287,11 @@ export const Boulonnage: React.FC = () => {
     }> = {};
 
     allBoulonnageRows.forEach(({ row }) => {
-      const matricule = row.reel.assistantMatricule || row.plan.assistantMatricule;
+      if (!row) return;
+      const matricule = row.reel?.assistantMatricule || row.plan?.assistantMatricule;
       if (!matricule) return;
 
-      const name = row.reel.assistantName || row.plan.assistantName || 'Aide ' + matricule;
+      const name = row.reel?.assistantName || row.plan?.assistantName || 'Aide ' + matricule;
 
       if (!stats[matricule]) {
         stats[matricule] = {
@@ -303,10 +306,10 @@ export const Boulonnage: React.FC = () => {
       }
 
       const item = stats[matricule];
-      item.plannedBolts += Number(row.plan.plannedBolts) || 0;
-      const rBolts = Number(row.reel.realBolts) || 0;
+      item.plannedBolts += Number(row.plan?.plannedBolts) || 0;
+      const rBolts = Number(row.reel?.realBolts) || 0;
       item.realBolts += rBolts;
-      item.realGrillage += Number(row.reel.grillageQuantity) || 0;
+      item.realGrillage += Number(row.reel?.grillageQuantity) || 0;
       item.sessionsCount += 1;
       // 1.3 meters equivalent encouragement per bolt placed
       item.encouragementBonusMeters += rBolts * 1.3;
@@ -327,10 +330,10 @@ export const Boulonnage: React.FC = () => {
   };
 
   // Overall sums
-  const totalPlannedBolts = allBoulonnageRows.reduce((acc, r) => acc + (Number(r.row.plan.plannedBolts) || 0), 0);
-  const totalRealBolts = allBoulonnageRows.reduce((acc, r) => acc + (Number(r.row.reel.realBolts) || 0), 0);
-  const totalPlannedGrillage = allBoulonnageRows.reduce((acc, r) => acc + (r.row.plan.hasGrillage ? (Number(r.row.plan.grillageQuantity) || 1) : 0), 0);
-  const totalRealGrillage = allBoulonnageRows.reduce((acc, r) => acc + (Number(r.row.reel.grillageQuantity) || 0), 0);
+  const totalPlannedBolts = allBoulonnageRows.reduce((acc, r) => acc + (Number(r.row?.plan?.plannedBolts) || 0), 0);
+  const totalRealBolts = allBoulonnageRows.reduce((acc, r) => acc + (Number(r.row?.reel?.realBolts) || 0), 0);
+  const totalPlannedGrillage = allBoulonnageRows.reduce((acc, r) => acc + (r.row?.plan?.hasGrillage ? (Number(r.row?.plan?.grillageQuantity) || 1) : 0), 0);
+  const totalRealGrillage = allBoulonnageRows.reduce((acc, r) => acc + (Number(r.row?.reel?.grillageQuantity) || 0), 0);
   const totalEncouragementMeters = totalRealBolts * 1.3;
 
   return (

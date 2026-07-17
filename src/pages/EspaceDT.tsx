@@ -2731,7 +2731,7 @@ export const EspaceDT: React.FC = () => {
                             ✅ AUDIT SIGNÉ & VALIDÉ
                           </span>
                           <span className="text-slate-400 text-[9px] font-semibold">
-                            Par Hamid EL YAAKOUBY le {currentAttachement.dateValidation ? new Date(currentAttachement.dateValidation).toLocaleDateString('fr-FR') : ''}
+                            Par {currentAttachement.validePar || 'Hamid EL YAAKOUBY'} le {currentAttachement.dateValidation ? new Date(currentAttachement.dateValidation).toLocaleDateString('fr-FR') : ''}
                           </span>
                         </div>
                       ) : (
@@ -2772,7 +2772,7 @@ export const EspaceDT: React.FC = () => {
                             await setDoc(doc(db, 'attachements', docId), {
                               ...currentAttachement,
                               valide: true,
-                              validePar: 'Hamid EL YAAKOUBY',
+                              validePar: profile?.name || 'Hamid EL YAAKOUBY',
                               dateValidation: new Date().toISOString(),
                             });
                           } catch (err) {

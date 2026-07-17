@@ -271,7 +271,7 @@ export const Analytics: React.FC = () => {
           if (!minerStats[key]) {
             minerStats[key] = {
               matricule: key,
-              name: employees.find(e => e.matricule === key)?.name || key,
+              name: (() => { const e = employees.find(emp => emp.matricule === key); return e ? `${e.nom} ${e.prenom}` : key; })(),
               totalMeterage: 0,
               totalRounds: 0,
               totalAnfo: 0,
@@ -1639,7 +1639,7 @@ export const Analytics: React.FC = () => {
                 if (!explosifStats.byMiner[key]) {
                   explosifStats.byMiner[key] = {
                     code: key,
-                    name: employees.find(e => e.matricule?.toUpperCase() === key || e.id?.toUpperCase() === key)?.name || key,
+                    name: (() => { const e = employees.find(emp => emp.matricule?.toUpperCase() === key || emp.id?.toUpperCase() === key); return e ? `${e.nom} ${e.prenom}` : key; })(),
                     anfo: 0,
                     tovex: 0,
                     amorces: 0,
