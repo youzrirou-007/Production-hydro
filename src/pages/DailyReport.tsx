@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { collection, query, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import { useSite } from '../contexts/SiteContext';
+import { getDocId } from '../lib/siteHelpers';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { format, subDays } from 'date-fns';
 import { ExcelExportButton } from '../components/ExcelExportButton';
@@ -33,6 +35,7 @@ import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
 
 export const DailyReport: React.FC = () => {
   const { user } = useAuth();
+  const { activeSiteId } = useSite();
   const [reportType, setReportType] = useState<'day' | 'month'>('day');
   const [filterDate, setFilterDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [filterMonth, setFilterMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -200,7 +203,7 @@ export const DailyReport: React.FC = () => {
   useEffect(() => {
     if (!filterDate) return;
     setLoading(true);
-    const docRef = doc(db, 'production', filterDate);
+    const docRef = doc(db, 'production', getDocId(activeSiteId, filterDate));
     const unsub = onSnapshot(docRef, (snap) => {
       if (snap.exists()) {
         setDayProduction(snap.data());
@@ -214,7 +217,7 @@ export const DailyReport: React.FC = () => {
     });
 
     return unsub;
-  }, [filterDate]);
+  }, [filterDate, activeSiteId]);
 
   // Helper name resolutions
   const getChantierName = (id: string) => {

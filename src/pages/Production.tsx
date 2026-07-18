@@ -1310,9 +1310,11 @@ export const Production: React.FC = () => {
     return () => window.removeEventListener('production-date-changed', handleDateChange);
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // employees/chantiers/engines volontairement exclus : non utilisés dans loadGlobalWorkbook, leur présence causait un écrasement de saisie en cours à chaque mise à jour de ces collections.
   useEffect(() => {
     loadGlobalWorkbook();
-  }, [selectedDate, employees, chantiers, engines, activeSiteId]);
+  }, [selectedDate, activeSiteId]);
 
   const buildTemplateForPost = (postName: string, yesterdayDateStr: string) => {
     const shiftPlans = plannings.filter(p => p.date === yesterdayDateStr && p.post === postName);

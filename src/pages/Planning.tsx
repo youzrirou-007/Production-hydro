@@ -32,6 +32,8 @@ import {
 import { collection, query, onSnapshot, setDoc, doc, getDocs, deleteDoc, where, writeBatch, addDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSite } from '../contexts/SiteContext';
+import { getDocId } from '../lib/siteHelpers';
 import { format, addDays } from 'date-fns';
 import { MatriculeAutocomplete } from '../components/MatriculeAutocomplete';
 import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
@@ -438,6 +440,7 @@ const ensureMinimumRows = (
 
 export const Planning: React.FC = () => {
   const { user, profile } = useAuth();
+  const { activeSiteId } = useSite();
 
   // App views: 'sheet' (Excel Mode) or 'history' (Consolidated lists)
   const [viewMode, setViewMode] = useState<'sheet' | 'history'>('sheet');
@@ -1011,7 +1014,7 @@ export const Planning: React.FC = () => {
       setModRequests([]);
       return;
     }
-    const q = collection(db, 'daily_planning_sheets', selectedDate, 'modification_requests');
+    const q = collection(db, 'daily_planning_sheets', getDocId(activeSiteId, selectedDate), 'modification_requests');
     const unsub = onSnapshot(q, (snapshot) => {
       const list: any[] = [];
       snapshot.forEach(docSnap => {
@@ -1022,12 +1025,12 @@ export const Planning: React.FC = () => {
       console.error("Error listening modification_requests subcollection :", err);
     });
     return () => unsub();
-  }, [selectedDate]);
+  }, [selectedDate, activeSiteId]);
 
   const loadPlanningWorkbook = async () => {
     setLoading(true);
     try {
-      const docRef = doc(db, 'daily_planning_sheets', selectedDate);
+      const docRef = doc(db, 'daily_planning_sheets', getDocId(activeSiteId, selectedDate));
       const docSnap = await getDoc(docRef);
 
       // Check for newer local draft
@@ -1900,7 +1903,7 @@ export const Planning: React.FC = () => {
     setIsDuplicationWarningModalOpen(false);
     setLoading(true);
     try {
-      const docRef = doc(db, 'daily_planning_sheets', yesterdayDateStr);
+      const docRef = doc(db, 'daily_planning_sheets', getDocId(activeSiteId, yesterdayDateStr));
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
@@ -2451,7 +2454,7 @@ export const Planning: React.FC = () => {
         const prevDateObj = addDays(currentDate, -1);
         const prevDateStr = format(prevDateObj, 'yyyy-MM-dd');
 
-        const docRef = doc(db, 'daily_planning_sheets', prevDateStr);
+        const docRef = doc(db, 'daily_planning_sheets', getDocId(activeSiteId, prevDateStr));
         const docSnap = await getDoc(docRef);
 
         let copiedMinage: ExcelMinage[] = [];
@@ -2806,7 +2809,7 @@ export const Planning: React.FC = () => {
     setPreSaveReport(null);
     setSaveStatus('saving');
     try {
-      const docRef = doc(db, 'daily_planning_sheets', selectedDate);
+      const docRef = doc(db, 'daily_planning_sheets', getDocId(activeSiteId, selectedDate));
       
       const docSnap = await getDoc(docRef);
       const docData = docSnap.exists() ? docSnap.data() : {};
@@ -3084,7 +3087,7 @@ export const Planning: React.FC = () => {
       async () => {
         try {
           setSaveStatus('saving');
-          const docRef = doc(db, 'daily_planning_sheets', selectedDate);
+          const docRef = doc(db, 'daily_planning_sheets', getDocId(activeSiteId, selectedDate));
           const validatorName = profile?.name || user?.displayName || user?.email || 'Planificateur de Direction SMI';
           const validatorUid = user?.uid || '';
           const nowStr = new Date().toISOString();
@@ -3165,7 +3168,7 @@ export const Planning: React.FC = () => {
 
     try {
       // 1. Delete main daily planning sheet document
-      const docRef = doc(db, 'daily_planning_sheets', recordDate);
+      const docRef = doc(db, 'daily_planning_sheets', getDocId(activeSiteId, recordDate));
       await deleteDoc(docRef);
 
       // Successfully deleted on server! We can immediately dismiss the modal so the user doesn't wait
@@ -3238,7 +3241,7 @@ export const Planning: React.FC = () => {
     }
 
     try {
-      const parentDocRef = doc(db, 'daily_planning_sheets', selectedDate);
+      const parentDocRef = doc(db, 'daily_planning_sheets', getDocId(activeSiteId, selectedDate));
       const subCollRef = collection(parentDocRef, 'modification_requests');
       
       const email = user?.email || 'Secrétaire';
