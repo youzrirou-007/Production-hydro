@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, enableIndexedDbPersistence, Firestore } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, enableIndexedDbPersistence, enableMultiTabIndexedDbPersistence, Firestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -36,15 +36,23 @@ const isPersistenceSafe = () => {
 };
 
 if (isPersistenceSafe()) {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Firestore offline persistence failed: Multiple tabs open.');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Firestore offline persistence is not supported by this browser.');
-    } else {
-      console.warn('Firestore offline persistence error:', err);
-    }
-  });
+  enableMultiTabIndexedDbPersistence(db)
+    .catch((err) => {
+      if (err.code === 'failed-precondition') {
+        // Fallback to single-tab persistence if multi-tab fails
+        return enableIndexedDbPersistence(db);
+      }
+      throw err;
+    })
+    .catch((err) => {
+      if (err.code === 'failed-precondition') {
+        console.warn('Firestore offline persistence failed: Multiple tabs open without multi-tab support.');
+      } else if (err.code === 'unimplemented') {
+        console.warn('Firestore offline persistence is not supported by this browser.');
+      } else {
+        console.warn('Firestore offline persistence error:', err);
+      }
+    });
 } else {
   console.info('Firestore offline persistence disabled (iframe or unsupported environment).');
 }

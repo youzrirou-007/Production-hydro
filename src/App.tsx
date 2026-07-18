@@ -82,6 +82,42 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('navigate-to-tab', handleNavigate);
   }, []);
 
+  // Underground Pre-caching mechanism: Preload all other lazy components in the background when online
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && 'navigator' in window && navigator.onLine) {
+      const preloadChunks = [
+        () => import('./pages/Production'),
+        () => import('./pages/Planning'),
+        () => import('./pages/DailyReport'),
+        () => import('./pages/Admin'),
+        () => import('./pages/Chantiers'),
+        () => import('./pages/RotationPoste'),
+        () => import('./pages/AnalyseDashboard'),
+        () => import('./pages/ExplicationNonRealise'),
+        () => import('./pages/Analytics'),
+        () => import('./pages/Messages'),
+        () => import('./pages/TechniqueMiniere'),
+        () => import('./pages/EspaceDT'),
+        () => import('./pages/Boulonnage'),
+        () => import('./pages/MineurParfait'),
+        () => import('./pages/FailedBlasts'),
+        () => import('./pages/Configuration'),
+        () => import('./pages/Tutoriel')
+      ];
+
+      // Staggered preload to not block the main threat and initial render
+      const timer = setTimeout(() => {
+        preloadChunks.forEach((importFn) => {
+          importFn().catch((err) => {
+            console.debug('Asynchronous route chunk preloading handled:', err);
+          });
+        });
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Route Rendering
   const renderContent = () => {
     switch (activeTab) {
