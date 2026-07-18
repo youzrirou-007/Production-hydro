@@ -52,6 +52,17 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const starPositions = [
+  { x: 50, y: 8, size: 20, delay: 0 },
+  { x: 18, y: 30, size: 16, delay: 130 },
+  { x: 82, y: 30, size: 16, delay: 260 },
+  { x: 30, y: 0, size: 14, delay: 390 },
+  { x: 70, y: 0, size: 14, delay: 520 },
+];
+
+const hydroChars = "HYDRO".split("");
+const minesChars = "MINES".split("");
+
 interface NavItem {
   id: string;
   label: string;
@@ -198,10 +209,29 @@ export const Layout: React.FC<{
   const [unexplainedCount, setUnexplainedCount] = React.useState(0);
   const [hoveredItem, setHoveredItem] = React.useState<{ label: string; top: number } | null>(null);
 
-  const [introPhase, setIntroPhase] = React.useState<'drop' | 'splash' | 'reveal' | 'text' | 'done'>('drop');
+  const [introPhase, setIntroPhase] = React.useState<
+    'drop' | 'splash' | 'reveal' | 'brand-hydro' | 'brand-mines' | 'tagline' | 'mission' | 'stars' | 'done'
+  >('drop');
+  const [showLoginText, setShowLoginText] = React.useState(false);
+  const [showLoginForm, setShowLoginForm] = React.useState(false);
   const [postAuthPhase, setPostAuthPhase] = React.useState<
     'hidden' | 'showing' | 'wiping' | 'done'
   >('hidden');
+
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+
+  const handleInitiateLogout = async () => {
+    setIsLoggingOut(true);
+    setTimeout(async () => {
+      try {
+        await logout();
+      } catch (err) {
+        console.error("Logout error:", err);
+      } finally {
+        setIsLoggingOut(false);
+      }
+    }, 2000);
+  };
 
   React.useEffect(() => {
     if (!user) {
@@ -210,8 +240,8 @@ export const Layout: React.FC<{
     }
     setPostAuthPhase('showing');
     const timers = [
-      setTimeout(() => setPostAuthPhase('wiping'), 3000),
-      setTimeout(() => setPostAuthPhase('done'), 3300),
+      setTimeout(() => setPostAuthPhase('wiping'), 2000),
+      setTimeout(() => setPostAuthPhase('done'), 2300),
     ];
     return () => timers.forEach(clearTimeout);
   }, [user]);
@@ -254,16 +284,38 @@ export const Layout: React.FC<{
       return;
     }
     const sequence: { phase: typeof introPhase; delay: number }[] = [
-      { phase: 'splash', delay: 257 },
-      { phase: 'reveal', delay: 1029 },
-      { phase: 'text', delay: 2571 },
-      { phase: 'done', delay: 6000 },
+      { phase: 'reveal', delay: 1200 },       // 1.2s - logo reveals directly after the drop falls
+      { phase: 'brand-hydro', delay: 2600 },  // 2.6s - HYDRO types
+      { phase: 'brand-mines', delay: 2950 },  // 2.95s - MINES types
+      { phase: 'tagline', delay: 3800 },      // 3.8s - line draw & tagline shows
+      { phase: 'mission', delay: 4400 },      // 4.4s - mission shows
+      { phase: 'stars', delay: 5100 },        // 5.1s - stars/caustics show (final result displays)
+      { phase: 'done', delay: 7100 },         // 7.1s - complete (holds for exactly 2 seconds of stars)
     ];
     const timers = sequence.map(s =>
       setTimeout(() => setIntroPhase(s.phase), s.delay)
     );
     return () => timers.forEach(clearTimeout);
   }, [user]);
+
+  React.useEffect(() => {
+    if (user) {
+      setShowLoginText(true);
+      setShowLoginForm(true);
+      return;
+    }
+    if (introPhase === 'done') {
+      const t1 = setTimeout(() => setShowLoginText(true), 1000);
+      const t2 = setTimeout(() => setShowLoginForm(true), 1800);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    } else {
+      setShowLoginText(false);
+      setShowLoginForm(false);
+    }
+  }, [introPhase, user]);
 
   // Unread alerts (System messages) states
   const [unreadAlerts, setUnreadAlerts] = React.useState<any[]>([]);
@@ -549,8 +601,8 @@ export const Layout: React.FC<{
         <motion.div
           initial={{ opacity: 0, y: 35 }}
           animate={{
-            opacity: (introPhase === 'text' || introPhase === 'done') ? 1 : 0,
-            y: (introPhase === 'text' || introPhase === 'done') ? 0 : 35
+            opacity: showLoginText ? 1 : 0,
+            y: showLoginText ? 0 : 35
           }}
           transition={{ type: 'spring', stiffness: 90, damping: 15 }}
           className="absolute bottom-12 left-10 md:left-16 lg:left-24 z-10 max-w-2xl select-none"
@@ -577,10 +629,10 @@ export const Layout: React.FC<{
           <motion.div
             initial={{ opacity: 0, x: 50, scale: 0.95 }}
             animate={{
-              opacity: introPhase === 'done' ? 1 : 0,
-              x: introPhase === 'done' ? mousePos.x * 12 : 50,
-              y: introPhase === 'done' ? mousePos.y * 12 : 0,
-              scale: introPhase === 'done' ? 1 : 0.95,
+              opacity: showLoginForm ? 1 : 0,
+              x: showLoginForm ? mousePos.x * 12 : 50,
+              y: showLoginForm ? mousePos.y * 12 : 0,
+              scale: showLoginForm ? 1 : 0.95,
             }}
             transition={{ type: 'spring', stiffness: 100, damping: 16 }}
             className="w-full bg-white border border-slate-100 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
@@ -657,99 +709,180 @@ export const Layout: React.FC<{
           </motion.div>
         </div>
 
-        {/* Logo qui apparaît et reste (phase reveal) */}
-        {(introPhase === 'reveal' || introPhase === 'text' || introPhase === 'done') && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.68, ease: [0.16, 1, 0.3, 1] }}
-            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 50 }}
-          >
-            <img src={logoImg} alt="HydroMines Logo" style={{ width: 220, height: 'auto' }} />
-          </motion.div>
-        )}
-
         {/* Cinematic Assembly Intro Overlay with White/Light Radial Background */}
         <AnimatePresence>
           {introPhase !== 'done' && (
             <motion.div
               className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none overflow-hidden"
-              style={{ background: 'radial-gradient(circle at center, #ffffff 0%, #f8fafc 100%)' }}
+              style={{ backgroundColor: '#ffffff' }}
               initial={{ opacity: 1 }}
-              animate={{
-                opacity: (introPhase === 'reveal' || introPhase === 'text') ? 0 : 1
-              }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: 'easeInOut' }}
             >
-              {/* FALLING DROPLET PHASE */}
-              {introPhase === 'drop' && (
-                <motion.div
-                  initial={{ y: -220, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.6, ease: [0.45, 0, 0.15, 1] }}
-                  style={{ position: 'absolute', zIndex: 80 }}
-                >
-                  <svg width="48" height="72" viewBox="0 0 48 72">
+              <div className="grain" />
+              
+              {/* Caustics drifting background */}
+              <div className={cn("caustics", ['stars', 'done'].includes(introPhase) && "on")} />
+              
+              {/* Stars Wrap */}
+              <div className={cn("stars-wrap", ['stars', 'done'].includes(introPhase) && "on")}>
+                {starPositions.map((pos, i) => (
+                  <div
+                    key={i}
+                    className={cn("star-item", ['stars', 'done'].includes(introPhase) && "on twinkle")}
+                    style={{
+                      left: `calc(${pos.x}% - ${pos.size / 2}px)`,
+                      top: `calc(${pos.y}% - ${pos.size / 2}px)`,
+                      transitionDelay: `${pos.delay}ms`,
+                    }}
+                  >
+                    <svg className="star-svg" width={pos.size} height={pos.size} viewBox="0 0 24 24" fill="none">
+                      <path d="M12 1.5L14.7 9.3L23 9.8L16.5 15.2L18.8 23L12 18.8L5.2 23L7.5 15.2L1 9.8L9.3 9.3L12 1.5Z" fill="white" stroke="rgba(2,132,199,0.2)" strokeWidth="0.5" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                ))}
+              </div>
+
+              {/* FALLING DROPLET */}
+              {['drop', 'reveal'].includes(introPhase) && (
+                <div className={cn("droplet-wrap", introPhase === 'drop' ? "fall" : "vanish")}>
+                  <div className="droplet-trail" />
+                  <svg className="droplet-svg w-12 h-[72px]" viewBox="0 0 48 72" xmlns="http://www.w3.org/2000/svg">
                     <defs>
-                      <radialGradient id="dropBody" cx="45%" cy="42%" r="68%">
-                        <stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.15" />
-                        <stop offset="35%" stopColor="#38BDF8" stopOpacity="0.3" />
-                        <stop offset="75%" stopColor="#0284C7" stopOpacity="0.42" />
-                        <stop offset="100%" stopColor="#0C4A6E" stopOpacity="0.5" />
+                      <radialGradient id="d-body" cx="45%" cy="42%" r="68%">
+                        <stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.08"/>
+                        <stop offset="35%" stopColor="#38BDF8" stopOpacity="0.2"/>
+                        <stop offset="75%" stopColor="#0284C7" stopOpacity="0.32"/>
+                        <stop offset="100%" stopColor="#0C4A6E" stopOpacity="0.42"/>
                       </radialGradient>
-                      <clipPath id="dropClip">
-                        <path d="M24 2 C24 2, 5 30, 5 48 C5 61.3, 13.2 71, 24 71 C34.8 71, 43 61.3, 43 48 C43 30, 24 2, 24 2Z" />
+                      <linearGradient id="d-flow" x1="50%" y1="0%" x2="50%" y2="100%">
+                        <stop offset="0%" stopColor="#E0F2FE" stopOpacity="0"/>
+                        <stop offset="25%" stopColor="#E0F2FE" stopOpacity="0.3"/>
+                        <stop offset="55%" stopColor="#BAE6FD" stopOpacity="0.2"/>
+                        <stop offset="85%" stopColor="#7DD3FC" stopOpacity="0.1"/>
+                        <stop offset="100%" stopColor="#38BDF8" stopOpacity="0"/>
+                      </linearGradient>
+                      <radialGradient id="d-caustic1" cx="32%" cy="38%" r="22%">
+                        <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.45"/>
+                        <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0"/>
+                      </radialGradient>
+                      <radialGradient id="d-caustic2" cx="62%" cy="52%" r="18%">
+                        <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.3"/>
+                        <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0"/>
+                      </radialGradient>
+                      <radialGradient id="d-caustic3" cx="48%" cy="68%" r="16%">
+                        <stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.35"/>
+                        <stop offset="100%" stopColor="#E0F2FE" stopOpacity="0"/>
+                      </radialGradient>
+                      <linearGradient id="d-rim" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#0EA5E9" stopOpacity="0.3"/>
+                        <stop offset="25%" stopColor="#38BDF8" stopOpacity="0.12"/>
+                        <stop offset="50%" stopColor="#7DD3FC" stopOpacity="0.06"/>
+                        <stop offset="75%" stopColor="#38BDF8" stopOpacity="0.12"/>
+                        <stop offset="100%" stopColor="#0EA5E9" stopOpacity="0.3"/>
+                      </linearGradient>
+                      <filter id="d-turb" x="-30%" y="-30%" width="160%" height="160%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.1" numOctaves="3" result="noise" />
+                        <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.2" xChannelSelector="R" yChannelSelector="G"/>
+                      </filter>
+                      <clipPath id="d-clip">
+                        <path d="M24 1.5 C23.6 1.5, 4 28, 4 46 C4 60.5, 12.8 70.5, 24 70.5 C35.2 70.5, 44 60.5, 44 46 C44 28, 24.4 1.5, 24 1.5 Z"/>
                       </clipPath>
                     </defs>
-                    <path
-                      d="M24 2 C24 2, 5 30, 5 48 C5 61.3, 13.2 71, 24 71 C34.8 71, 43 61.3, 43 48 C43 30, 24 2, 24 2Z"
-                      fill="url(#dropBody)"
-                      stroke="rgba(56,189,248,0.3)"
-                      strokeWidth="0.5"
-                    />
-                    {/* Reflet inversé et flouté du logo à l'intérieur de la goutte — effet lentille */}
-                    <g clipPath="url(#dropClip)" opacity="0.35" style={{ filter: 'blur(1.2px)' }}>
-                      <image
-                        href={logoImg}
-                        x="8" y="8" width="32" height="32"
-                        transform="scale(1,-1) translate(0,-40)"
-                        preserveAspectRatio="xMidYMid slice"
-                      />
+
+                    <path d="M24 1.5 C23.6 1.5, 4 28, 4 46 C4 60.5, 12.8 70.5, 24 70.5 C35.2 70.5, 44 60.5, 44 46 C44 28, 24.4 1.5, 24 1.5 Z" 
+                          fill="url(#d-body)" stroke="url(#d-rim)" strokeWidth="0.5"/>
+
+                    <g clipPath="url(#d-clip)">
+                      <path d="M18 6 Q21 22 19 36 Q17 50 21 62 Q22 66 24 69" 
+                            fill="none" stroke="url(#d-flow)" strokeWidth="7" strokeLinecap="round" opacity="0.5" />
+                      <path d="M28 8 Q25 24 27 38 Q29 52 25 64 Q24 67 24 70" 
+                            fill="none" stroke="url(#d-flow)" strokeWidth="4.5" strokeLinecap="round" opacity="0.35" />
+
+                      <ellipse cx="19" cy="26" rx="4.5" ry="6.5" fill="url(#d-caustic1)" className="droplet-caustic-pulse" />
+                      <ellipse cx="29" cy="44" rx="3.5" ry="4.5" fill="url(#d-caustic2)" className="droplet-caustic-pulse" />
+                      <ellipse cx="23" cy="56" rx="2.5" ry="3.5" fill="url(#d-caustic3)" className="droplet-caustic-pulse" />
+
+                      <ellipse cx="24" cy="38" rx="15" ry="24" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.4" filter="url(#d-turb)"/>
                     </g>
-                    <ellipse cx="18" cy="18" rx="6" ry="9" fill="rgba(255,255,255,0.18)" transform="rotate(-16 18 18)" />
+
+                    {/* Highly polished specular highlight curves on left and right borders of the droplet */}
+                    <path d="M11 30 C9.5 38, 11 48, 15 56" fill="none" stroke="rgba(255, 255, 255, 0.65)" strokeWidth="1.6" strokeLinecap="round" />
+                    <path d="M13 24 C11.5 32, 13 42, 17 48" fill="none" stroke="rgba(255, 255, 255, 0.25)" strokeWidth="0.8" strokeLinecap="round" />
+                    <path d="M37 30 C38.5 38, 37 48, 33 56" fill="none" stroke="rgba(56, 189, 248, 0.35)" strokeWidth="1.2" strokeLinecap="round" />
+
+                    <ellipse cx="18" cy="18" rx="6" ry="9" fill="rgba(255,255,255,0.15)" transform="rotate(-16 18 18)"/>
+                    <ellipse cx="20" cy="16" rx="2.5" ry="4" fill="rgba(255,255,255,0.25)" transform="rotate(-16 20 16)"/>
+                    <path d="M14 60 Q24 65 34 60" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.8" strokeLinecap="round"/>
                   </svg>
-                </motion.div>
+                </div>
               )}
 
-              {/* WATER SPLASH & DARK RED/SKY BLUE EXPLOSION PHASE */}
-              {introPhase === 'splash' && (
-                <>
-                  <motion.div
-                    className="absolute rounded-full"
-                    style={{
-                      border: '3px solid #8B1A1A',
-                      width: 30,
-                      height: 30,
-                      boxShadow: '0 0 30px rgba(139,26,26,0.6)',
-                    }}
-                    initial={{ scale: 0, opacity: 1 }}
-                    animate={{ scale: 28, opacity: 0 }}
-                    transition={{ duration: 1.0, ease: 'easeOut' }}
-                  />
-                  <motion.div
-                    className="absolute rounded-full"
-                    style={{
-                      border: '2px solid #00A0E3',
-                      width: 30,
-                      height: 30,
-                      boxShadow: '0 0 20px rgba(0,160,227,0.4)',
-                    }}
-                    initial={{ scale: 0, opacity: 0.8 }}
-                    animate={{ scale: 18, opacity: 0 }}
-                    transition={{ duration: 1.2, delay: 0.15, ease: 'easeOut' }}
-                  />
-                </>
+              {/* LOGO REVEAL */}
+              {['reveal', 'brand-hydro', 'brand-mines', 'tagline', 'mission', 'stars'].includes(introPhase) && (
+                <div className="logo-wrap-intro on breathe">
+                  <img src={logoImg} alt="HydroMines Logo" className="w-[170px] sm:w-[220px] h-auto" />
+                </div>
+              )}
+
+              {/* TYPOGRAPHY */}
+              {['brand-hydro', 'brand-mines', 'tagline', 'mission', 'stars'].includes(introPhase) && (
+                <div className="typo-wrap-intro on">
+                  <div className="flex gap-[3px] items-baseline line-height-none">
+                    <span className="flex">
+                      {hydroChars.map((char, index) => (
+                        <span
+                          key={index}
+                          className="typo-char show"
+                          style={{
+                            fontFamily: "'Space Grotesk', sans-serif",
+                            fontWeight: 900,
+                            fontSize: 'clamp(32px, 4.5vw, 52px)',
+                            letterSpacing: '-0.04em',
+                            color: '#0284C7',
+                            lineHeight: 1,
+                            transitionDelay: `${index * 55}ms`,
+                          }}
+                        >
+                          {char}
+                        </span>
+                      ))}
+                    </span>
+                    
+                    {['brand-mines', 'tagline', 'mission', 'stars'].includes(introPhase) && (
+                      <span className="flex ml-1">
+                        {minesChars.map((char, index) => (
+                          <span
+                            key={index}
+                            className="typo-char show"
+                            style={{
+                              fontFamily: "'Space Grotesk', sans-serif",
+                              fontWeight: 900,
+                              fontSize: 'clamp(32px, 4.5vw, 52px)',
+                              letterSpacing: '-0.04em',
+                              color: '#991B1B',
+                              lineHeight: 1,
+                              transitionDelay: `${index * 55}ms`,
+                            }}
+                          >
+                            {char}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className={cn("typo-line", ['tagline', 'mission', 'stars'].includes(introPhase) && "draw")} />
+                  
+                  <div className={cn("typo-tagline", ['tagline', 'mission', 'stars'].includes(introPhase) && "show")}>
+                    Mines · Eau · Environnement
+                  </div>
+                  
+                  <div className={cn("typo-mission", ['mission', 'stars'].includes(introPhase) && "show")}>
+                    Plateforme de Suivi et de Gestion des Opérations Minières
+                  </div>
+                </div>
               )}
             </motion.div>
           )}
@@ -833,7 +966,7 @@ export const Layout: React.FC<{
           </div>
 
           <button
-            onClick={logout}
+            onClick={handleInitiateLogout}
             className="w-full flex items-center justify-center gap-2 bg-red-950/40 hover:bg-red-900/30 border border-red-500/30 text-red-200 font-black uppercase text-xs tracking-wider py-3.5 px-6 rounded-2xl transition-all duration-300 shadow-lg cursor-pointer"
           >
             Se déconnecter
@@ -864,6 +997,80 @@ export const Layout: React.FC<{
 
   return (
     <div className="flex h-screen bg-[#FAFAF9] font-sans selection:bg-[#b8860b]/20 overflow-hidden">
+      <AnimatePresence>
+        {isLoggingOut && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-white text-slate-950 overflow-hidden"
+          >
+            {/* Ambient water vapor / bubbles drifting upwards with soft light colors */}
+            <div className="absolute inset-0 pointer-events-none opacity-40">
+              <div className="absolute bottom-0 left-1/4 w-1.5 h-1.5 bg-cyan-100 border border-cyan-200/50 rounded-full animate-bubble" style={{ animationDelay: '0.1s', animationDuration: '2.5s' }} />
+              <div className="absolute bottom-0 left-2/4 w-2 h-2 bg-sky-100 border border-sky-200/50 rounded-full animate-bubble" style={{ animationDelay: '0.5s', animationDuration: '1.8s' }} />
+              <div className="absolute bottom-0 left-3/4 w-1.5 h-1.5 bg-cyan-50 border border-cyan-100/50 rounded-full animate-bubble" style={{ animationDelay: '1.2s', animationDuration: '2.2s' }} />
+              <div className="absolute bottom-0 left-1/3 w-2.5 h-2.5 bg-sky-50 border border-sky-100/50 rounded-full animate-bubble" style={{ animationDelay: '0.8s', animationDuration: '3s' }} />
+              <div className="absolute bottom-0 left-2/3 w-1.5 h-1.5 bg-teal-50 border border-teal-100/50 rounded-full animate-bubble" style={{ animationDelay: '1.5s', animationDuration: '2s' }} />
+            </div>
+
+            {/* Soft glowing ring/pulse in the center */}
+            <div className="relative mb-6">
+              <motion.img
+                src={logoImg}
+                alt="HydroMines Logo"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                className="w-36 h-auto object-contain rounded-2xl shadow-[0_12px_32px_rgba(0,160,227,0.12)] border border-slate-100"
+              />
+              <div className="absolute -inset-4 bg-sky-500/5 rounded-full blur-xl animate-pulse pointer-events-none" />
+            </div>
+
+            {/* Title / Brand */}
+            <motion.h1
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.4 }}
+              className="text-2xl font-black tracking-widest text-center uppercase"
+            >
+              <span className="text-[#00A0E3] drop-shadow-[0_1px_2px_rgba(0,160,227,0.15)]">HYDRO</span>
+              <span className="text-[#8B1A1A] ml-1 drop-shadow-[0_1px_2px_rgba(139,26,26,0.15)]">MINES</span>
+            </motion.h1>
+
+            {/* Status texts */}
+            <motion.p
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4, duration: 0.4 }}
+              className="text-[10px] font-black tracking-[0.25em] text-slate-500 uppercase mt-4 text-center"
+            >
+              Sécurisation du Système de Pilotage...
+            </motion.p>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              transition={{ delay: 0.7, duration: 0.4 }}
+              className="text-[8px] font-bold tracking-widest text-slate-400 uppercase mt-2 max-w-xs text-center leading-relaxed"
+            >
+              Fermeture sécurisée des protocoles de communication avec SMI Imiter. Sauvegarde de la session de production.
+            </motion.p>
+
+            {/* Count-down Progress Bar (2 seconds) */}
+            <div className="w-48 h-[2px] bg-slate-100 rounded-full mt-8 overflow-hidden relative">
+              <motion.div
+                initial={{ width: '0%' }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 1.8, ease: 'linear' }}
+                className="h-full bg-gradient-to-r from-[#00A0E3] via-[#ffd700] to-[#8B1A1A]"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {(postAuthPhase === 'showing' || postAuthPhase === 'wiping') && (
         <motion.div
           className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white"
@@ -910,7 +1117,7 @@ export const Layout: React.FC<{
               className="h-full bg-gradient-to-r from-[#00A0E3] via-[#ffd700] to-[#8B1A1A] rounded-full"
               initial={{ width: '0%' }}
               animate={{ width: '100%' }}
-              transition={{ duration: 2, delay: 1, ease: 'linear' }}
+              transition={{ duration: 1.5, delay: 0.5, ease: 'linear' }}
             />
           </div>
         </motion.div>
@@ -1192,7 +1399,7 @@ export const Layout: React.FC<{
               )}
 
               <button
-                onClick={logout}
+                onClick={handleInitiateLogout}
                 className="p-2 hover:bg-red-50 text-slate-500 hover:text-red-600 rounded-lg transition-all border border-transparent hover:border-red-200/50 shadow-xs hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer"
                 title="Se déconnecter"
               >
