@@ -198,15 +198,40 @@ export const Layout: React.FC<{
   const [unexplainedCount, setUnexplainedCount] = React.useState(0);
   const [hoveredItem, setHoveredItem] = React.useState<{ label: string; top: number } | null>(null);
 
-  const [introPhase, setIntroPhase] = React.useState<'drop' | 'splash' | 'assemble' | 'reveal' | 'arch' | 'text' | 'done'>('drop');
+  const [introPhase, setIntroPhase] = React.useState<'drop' | 'splash' | 'reveal' | 'text' | 'done'>('drop');
+  const [postAuthPhase, setPostAuthPhase] = React.useState<
+    'hidden' | 'showing' | 'wiping' | 'done'
+  >('hidden');
+
+  React.useEffect(() => {
+    if (!user) {
+      setPostAuthPhase('hidden');
+      return;
+    }
+    setPostAuthPhase('showing');
+    const timers = [
+      setTimeout(() => setPostAuthPhase('wiping'), 3000),
+      setTimeout(() => setPostAuthPhase('done'), 3300),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [user]);
+
   const [bgLoaded, setBgLoaded] = React.useState(false);
   const [mousePos, setMousePos] = React.useState({ x: 0, y: 0 });
+  const [ripple, setRipple] = React.useState({ x: 0, y: 0 });
+  const lastRippleTime = React.useRef(0);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const { clientWidth, clientHeight } = e.currentTarget;
     const x = (e.clientX - clientWidth / 2) / (clientWidth / 2);
     const y = (e.clientY - clientHeight / 2) / (clientHeight / 2);
     setMousePos({ x, y });
+
+    const now = Date.now();
+    if (now - lastRippleTime.current > 60) {
+      setRipple({ x: e.clientX, y: e.clientY });
+      lastRippleTime.current = now;
+    }
   };
 
   const handleMouseLeave = () => {
@@ -229,12 +254,10 @@ export const Layout: React.FC<{
       return;
     }
     const sequence: { phase: typeof introPhase; delay: number }[] = [
-      { phase: 'splash', delay: 700 },
-      { phase: 'assemble', delay: 1500 },
-      { phase: 'reveal', delay: 6200 },
-      { phase: 'arch', delay: 6900 },
-      { phase: 'text', delay: 7300 },
-      { phase: 'done', delay: 7900 }
+      { phase: 'splash', delay: 257 },
+      { phase: 'reveal', delay: 1029 },
+      { phase: 'text', delay: 2571 },
+      { phase: 'done', delay: 6000 },
     ];
     const timers = sequence.map(s =>
       setTimeout(() => setIntroPhase(s.phase), s.delay)
@@ -477,6 +500,8 @@ export const Layout: React.FC<{
   }
 
   if (!user) {
+    const isMobile = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
     return (
       <div 
         className="min-h-screen w-full relative overflow-hidden flex items-center justify-center animate-fade-in"
@@ -488,7 +513,7 @@ export const Layout: React.FC<{
         <motion.div
           initial={{ opacity: 0, scale: 1.05 }}
           animate={{ 
-            opacity: (bgLoaded && (introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text' || introPhase === 'done')) ? 1 : 0,
+            opacity: (bgLoaded && (introPhase === 'reveal' || introPhase === 'text' || introPhase === 'done')) ? 1 : 0,
             x: mousePos.x * -15,
             y: mousePos.y * -15,
             scale: 1.05
@@ -508,6 +533,17 @@ export const Layout: React.FC<{
           {/* High-end linear shadow gradient overlay for text legibility */}
           <div className="absolute inset-0 bg-gradient-to-tr from-slate-950/80 via-slate-900/35 to-transparent" />
         </motion.div>
+
+        {/* Fond aquatique réactif à la souris */}
+        {!isMobile && (
+          <div
+            className="fixed inset-0 pointer-events-none z-[5]"
+            style={{
+              background: `radial-gradient(circle 180px at ${ripple.x}px ${ripple.y}px, rgba(0,160,227,0.06), transparent 70%)`,
+              transition: 'background 0.3s ease-out',
+            }}
+          />
+        )}
 
         {/* Dynamic bottom-left text (Typography pair with custom colors) */}
         <motion.div
@@ -621,6 +657,18 @@ export const Layout: React.FC<{
           </motion.div>
         </div>
 
+        {/* Logo qui apparaît et reste (phase reveal) */}
+        {(introPhase === 'reveal' || introPhase === 'text' || introPhase === 'done') && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.68, ease: [0.16, 1, 0.3, 1] }}
+            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 50 }}
+          >
+            <img src={logoImg} alt="HydroMines Logo" style={{ width: 220, height: 'auto' }} />
+          </motion.div>
+        )}
+
         {/* Cinematic Assembly Intro Overlay with White/Light Radial Background */}
         <AnimatePresence>
           {introPhase !== 'done' && (
@@ -629,7 +677,7 @@ export const Layout: React.FC<{
               style={{ background: 'radial-gradient(circle at center, #ffffff 0%, #f8fafc 100%)' }}
               initial={{ opacity: 1 }}
               animate={{
-                opacity: (introPhase === 'reveal' || introPhase === 'arch' || introPhase === 'text') ? 0 : 1
+                opacity: (introPhase === 'reveal' || introPhase === 'text') ? 0 : 1
               }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: 'easeInOut' }}
@@ -637,19 +685,41 @@ export const Layout: React.FC<{
               {/* FALLING DROPLET PHASE */}
               {introPhase === 'drop' && (
                 <motion.div
-                  initial={{ y: -350, scale: 0.6, opacity: 0 }}
-                  animate={{ y: 0, scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 15, duration: 0.8 }}
-                  style={{
-                    width: 48,
-                    height: 64,
-                    background: 'linear-gradient(180deg, #00A0E3 0%, #0077B6 100%)',
-                    borderRadius: '50% 50% 50% 0',
-                    transform: 'rotate(45deg)',
-                    boxShadow: '0 0 50px rgba(0,160,227,0.8)',
-                    position: 'absolute',
-                  }}
-                />
+                  initial={{ y: -220, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.6, ease: [0.45, 0, 0.15, 1] }}
+                  style={{ position: 'absolute', zIndex: 80 }}
+                >
+                  <svg width="48" height="72" viewBox="0 0 48 72">
+                    <defs>
+                      <radialGradient id="dropBody" cx="45%" cy="42%" r="68%">
+                        <stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.15" />
+                        <stop offset="35%" stopColor="#38BDF8" stopOpacity="0.3" />
+                        <stop offset="75%" stopColor="#0284C7" stopOpacity="0.42" />
+                        <stop offset="100%" stopColor="#0C4A6E" stopOpacity="0.5" />
+                      </radialGradient>
+                      <clipPath id="dropClip">
+                        <path d="M24 2 C24 2, 5 30, 5 48 C5 61.3, 13.2 71, 24 71 C34.8 71, 43 61.3, 43 48 C43 30, 24 2, 24 2Z" />
+                      </clipPath>
+                    </defs>
+                    <path
+                      d="M24 2 C24 2, 5 30, 5 48 C5 61.3, 13.2 71, 24 71 C34.8 71, 43 61.3, 43 48 C43 30, 24 2, 24 2Z"
+                      fill="url(#dropBody)"
+                      stroke="rgba(56,189,248,0.3)"
+                      strokeWidth="0.5"
+                    />
+                    {/* Reflet inversé et flouté du logo à l'intérieur de la goutte — effet lentille */}
+                    <g clipPath="url(#dropClip)" opacity="0.35" style={{ filter: 'blur(1.2px)' }}>
+                      <image
+                        href={logoImg}
+                        x="8" y="8" width="32" height="32"
+                        transform="scale(1,-1) translate(0,-40)"
+                        preserveAspectRatio="xMidYMid slice"
+                      />
+                    </g>
+                    <ellipse cx="18" cy="18" rx="6" ry="9" fill="rgba(255,255,255,0.18)" transform="rotate(-16 18 18)" />
+                  </svg>
+                </motion.div>
               )}
 
               {/* WATER SPLASH & DARK RED/SKY BLUE EXPLOSION PHASE */}
@@ -681,215 +751,7 @@ export const Layout: React.FC<{
                   />
                 </>
               )}
-
-              {/* LOGO PIECES ASSEMBLY PHASE (With custom crown, subtitle, celestial stars, larger logo, and absolute design precision) */}
-              {introPhase === 'assemble' && (
-                <div className="relative w-96 h-[400px] flex items-center justify-center">
-                  
-                  {/* Elegant Twinkling Premium Gold Stars ONLY during logo display */}
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    {[...Array(18)].map((_, i) => {
-                      const size = i % 3 === 0 ? 30 : i % 2 === 0 ? 22 : 15;
-                      const initialRotation = i * 20;
-                      const isEightPoint = i % 3 === 0;
-                      return (
-                        <motion.div
-                          key={i}
-                          className="absolute select-none flex items-center justify-center filter saturate-[2.5] brightness-[1.35] drop-shadow-[0_0_8px_rgba(255,255,255,0.95)] drop-shadow-[0_0_16px_rgba(212,175,55,0.85)]"
-                          style={{
-                            top: `${(i * 17 + 11) % 80 + 8}%`,
-                            left: `${(i * 23 + 7) % 80 + 8}%`,
-                            width: size,
-                            height: size,
-                          }}
-                          initial={{ opacity: 0, scale: 0, rotate: initialRotation }}
-                          animate={{
-                            opacity: [0, 1, 0.7, 1, 0],
-                            scale: [0, 1.25, 0.95, 1.35, 0],
-                            rotate: initialRotation + 270,
-                            y: [-(i % 3) * 6, (i % 3) * 6, -(i % 3) * 6],
-                          }}
-                          transition={{
-                            duration: 2.4 + (i % 3) * 0.4,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                            delay: i * 0.06,
-                          }}
-                        >
-                          <svg viewBox="0 0 24 24" className="w-full h-full filter drop-shadow-[0_1px_3px_rgba(184,134,11,0.6)]">
-                            <defs>
-                              <linearGradient id={`goldStar-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#FFFFFF" />
-                                <stop offset="25%" stopColor="#FFFEE0" />
-                                <stop offset="55%" stopColor="#FFE875" />
-                                <stop offset="85%" stopColor="#D4AF37" />
-                                <stop offset="100%" stopColor="#9E7815" />
-                              </linearGradient>
-                            </defs>
-                            {isEightPoint ? (
-                              <path 
-                                d="M12 0 L14.5 7.5 L20.5 4.5 L17.5 10.5 L24 12 L17.5 13.5 L20.5 19.5 L14.5 16.5 L12 24 L9.5 16.5 L3.5 19.5 L6.5 13.5 L0 12 L6.5 10.5 L3.5 4.5 L9.5 7.5 Z" 
-                                fill={`url(#goldStar-${i})`} 
-                              />
-                            ) : (
-                              <path 
-                                d="M12 0 L15.2 8.8 L24 12 L15.2 15.2 L12 24 L8.8 15.2 L0 12 L8.8 8.8 Z" 
-                                fill={`url(#goldStar-${i})`} 
-                              />
-                            )}
-                            
-                            {/* Super-bright sunlit glint at the very center of each star */}
-                            <path 
-                              d="M12 6 L13.2 10.8 L18 12 L13.2 13.2 L12 18 L10.8 13.2 L6 12 L10.8 10.8 Z" 
-                              fill="#FFFFFF" 
-                              opacity="0.95" 
-                            />
-                            <circle cx="12" cy="12" r="1.8" fill="#FFFFFF" />
-                          </svg>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Golden Crown sitting perfectly above the logo - Enters from top with bouncing motion */}
-                  <motion.div
-                    style={{
-                      position: 'absolute',
-                      top: 10,
-                      zIndex: 20,
-                    }}
-                    initial={{ y: -180, opacity: 0, scale: 0.3, rotate: -15 }}
-                    animate={{ y: 0, opacity: 1, scale: 1, rotate: 0 }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 85,
-                      damping: 12,
-                      delay: 0.55,
-                    }}
-                  >
-                    <div className="relative overflow-hidden rounded-lg animate-[gold-glow_3.5s_infinite_ease-in-out]">
-                      <svg viewBox="0 0 100 60" className="w-16 h-12 drop-shadow-[0_4px_6px_rgba(0,0,0,0.12)]">
-                        <defs>
-                          <linearGradient id="crownGold" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#FFF2B2" />
-                            <stop offset="50%" stopColor="#D4AF37" />
-                            <stop offset="100%" stopColor="#AA7C11" />
-                          </linearGradient>
-                        </defs>
-                        <path
-                          d="M 15 50 
-                             L 10 23 
-                             L 32 36 
-                             L 50 12 
-                             L 68 36 
-                             L 90 23 
-                             L 85 50 
-                             Z"
-                          fill="url(#crownGold)"
-                        />
-                        <rect x="15" y="50" width="70" height="6" rx="3" fill="url(#crownGold)" />
-                        {/* Detailed Gemstones matching brand colors */}
-                        <circle cx="10" cy="20" r="3.2" fill="#FFFFFF" />
-                        <circle cx="32" cy="33" r="2.2" fill="#00A0E3" />
-                        <circle cx="50" cy="9" r="4.0" fill="#8B1A1A" />
-                        <circle cx="68" cy="33" r="2.2" fill="#00A0E3" />
-                        <circle cx="90" cy="20" r="3.2" fill="#FFFFFF" />
-                        <circle cx="28" cy="53" r="1.6" fill="#8B1A1A" />
-                        <circle cx="50" cy="53" r="2.0" fill="#FFFFFF" />
-                        <circle cx="72" cy="53" r="1.6" fill="#00A0E3" />
-                      </svg>
-                      
-                      {/* White high-end sliding shine across the crown */}
-                      <div 
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none"
-                        style={{
-                          mixBlendMode: 'overlay',
-                          animation: 'shimmer-slow 4.0s infinite ease-in-out',
-                          clipPath: 'polygon(15% 90%, 10% 40%, 32% 65%, 50% 20%, 68% 65%, 90% 40%, 85% 90%)',
-                        }}
-                      />
-                    </div>
-                  </motion.div>
-
-                  {/* Left Fragment of real Logo image (Agrandit & clean without blue shadow glow) */}
-                  <motion.img
-                    src={logoImg}
-                    alt="Logo Fragment Left"
-                    style={{
-                      position: 'absolute',
-                      width: 210,
-                      height: 210,
-                      objectFit: 'contain',
-                      clipPath: 'polygon(0 0, 50% 0, 50% 100%, 0 100%)',
-                      top: 75,
-                    }}
-                    initial={{ x: -240, opacity: 0, rotate: -270, scale: 0.5 }}
-                    animate={{ x: 0, opacity: 1, rotate: 0, scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 75, damping: 13, duration: 1.3 }}
-                  />
-
-                  {/* Right Fragment of real Logo image (Agrandit & clean without blue shadow glow) */}
-                  <motion.img
-                    src={logoImg}
-                    alt="Logo Fragment Right"
-                    style={{
-                      position: 'absolute',
-                      width: 210,
-                      height: 210,
-                      objectFit: 'contain',
-                      clipPath: 'polygon(50% 0, 100% 0, 100% 100%, 50% 100%)',
-                      top: 75,
-                    }}
-                    initial={{ x: 240, opacity: 0, rotate: 270, scale: 0.5 }}
-                    animate={{ x: 0, opacity: 1, rotate: 0, scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 75, damping: 13, duration: 1.3 }}
-                  />
-
-                  {/* Shimmer sweep effect */}
-                  <motion.div
-                    className="absolute inset-x-0 h-[210px] bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none"
-                    style={{ mixBlendMode: 'overlay', transform: 'skewX(-25deg)', top: 75 }}
-                    initial={{ x: '-150%' }}
-                    animate={{ x: '150%' }}
-                    transition={{ delay: 1.2, duration: 1.0, ease: 'easeInOut' }}
-                  />
-
-                  {/* Elegant dynamic Subtitle: Mines - Eau - Environnement */}
-                  <motion.div
-                    style={{
-                      position: 'absolute',
-                      bottom: 35,
-                    }}
-                    initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 90,
-                      damping: 14,
-                      delay: 0.9,
-                    }}
-                    className="text-center"
-                  >
-                    <span className="text-sm font-extrabold tracking-[0.25em] bg-gradient-to-r from-[#00A0E3] via-slate-600 to-[#8B1A1A] bg-clip-text text-transparent uppercase select-none">
-                      Mines • Eau • Environnement
-                    </span>
-                  </motion.div>
-                </div>
-              )}
             </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Cinematic Pure White Light Burst (Sans ombre) transitioning from assemble to reveal */}
-        <AnimatePresence>
-          {(introPhase === 'reveal' || introPhase === 'arch') && (
-            <motion.div
-              className="fixed inset-0 z-[120] bg-white pointer-events-none"
-              initial={{ opacity: 1 }}
-              animate={{ opacity: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 2.0, ease: [0.16, 1, 0.3, 1] }}
-            />
           )}
         </AnimatePresence>
 
@@ -904,10 +766,6 @@ export const Layout: React.FC<{
             15% { transform: translateX(-150%) skewX(-20deg); }
             45% { transform: translateX(150%) skewX(-20deg); }
             100% { transform: translateX(150%) skewX(-20deg); }
-          }
-          @keyframes gold-glow {
-            0%, 100% { filter: drop-shadow(0 0 2px rgba(212,175,55,0.35)) brightness(1); }
-            50% { filter: drop-shadow(0 0 10px rgba(212,175,55,0.75)) brightness(1.18); }
           }
         `}} />
       </div>
@@ -989,6 +847,13 @@ export const Layout: React.FC<{
     !item.roles || (profile && item.roles.includes(profile.role))
   );
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    const firstName = user?.displayName?.split(' ')[0] || '';
+    const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+    return firstName ? `${greeting}, ${firstName}` : `${greeting}`;
+  };
+
   const categories = [
     { id: 'direction', label: 'I. Direction & Pilotage' },
     { id: 'production', label: 'II. Opérations & Saisies' },
@@ -998,8 +863,69 @@ export const Layout: React.FC<{
   ];
 
   return (
-    <div className="flex h-screen bg-[#FAFAF9] font-sans selection:bg-[#b8860b]/20">
-      {/* Sidebar */}
+    <div className="flex h-screen bg-[#FAFAF9] font-sans selection:bg-[#b8860b]/20 overflow-hidden">
+      {(postAuthPhase === 'showing' || postAuthPhase === 'wiping') && (
+        <motion.div
+          className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white"
+          animate={{ opacity: postAuthPhase === 'wiping' ? 0 : 1, y: postAuthPhase === 'wiping' ? -40 : 0 }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
+        >
+          {/* Halo d'eau discret, réutilisation atténuée */}
+          <div
+            className="fixed inset-0 pointer-events-none"
+            style={{
+              background: `radial-gradient(circle 180px at ${ripple.x}px ${ripple.y}px, rgba(0,160,227,0.03), transparent 70%)`,
+            }}
+          />
+
+          <motion.img
+            src={logoImg}
+            alt="HydroMines Logo"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            style={{ width: 180, height: 'auto' }}
+          />
+
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.6 }}
+            className="text-xs md:text-sm font-extrabold text-slate-700 tracking-wider uppercase mt-4"
+          >
+            Système de Commandement de la Production
+          </motion.p>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.9 }}
+            className="text-[11px] text-slate-400 font-medium tracking-wide mt-2"
+          >
+            {getGreeting()}
+          </motion.p>
+
+          <div className="w-40 h-[3px] bg-slate-100 rounded-full mt-6 overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-[#00A0E3] via-[#ffd700] to-[#8B1A1A] rounded-full"
+              initial={{ width: '0%' }}
+              animate={{ width: '100%' }}
+              transition={{ duration: 2, delay: 1, ease: 'linear' }}
+            />
+          </div>
+        </motion.div>
+      )}
+
+      <motion.div
+        initial={false}
+        animate={{
+          opacity: postAuthPhase === 'wiping' || postAuthPhase === 'done' ? 1 : 0,
+          y: postAuthPhase === 'wiping' || postAuthPhase === 'done' ? 0 : 20,
+        }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="flex-1 flex min-w-0 h-full w-full"
+      >
+        {/* Sidebar */}
       <motion.aside 
         initial={false}
         animate={{ 
@@ -1291,6 +1217,7 @@ export const Layout: React.FC<{
           </AnimatePresence>
         </div>
       </main>
+      </motion.div>
 
       {/* Real-time In-App Notification Modal Overlay (God Level) */}
       <AnimatePresence>
