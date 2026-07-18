@@ -22,6 +22,16 @@ const ai = new GoogleGenAI({
 });
 
 // Helper for retrying AI calls
+function sanitizeBannedWords(text: string): string {
+  return text
+    .replace(/jumbos/g, "perforateurs Montabert T23")
+    .replace(/Jumbos/g, "perforateurs Montabert T23")
+    .replace(/jumbo/g, "perforateur pneumatique Montabert T23")
+    .replace(/Jumbo/g, "perforateur pneumatique Montabert T23")
+    .replace(/JUMBOS/g, "PERFORATEURS MONTABERT T23")
+    .replace(/JUMBO/g, "PERFORATEUR PNEUMATIQUE MONTABERT T23");
+}
+
 async function generateWithRetry(modelName: string, prompt: string, schema: any, retries: number = 3) {
   for (let i = 0; i <= retries; i++) {
     try {
@@ -33,7 +43,7 @@ async function generateWithRetry(modelName: string, prompt: string, schema: any,
           responseSchema: schema
         }
       });
-      return JSON.parse(response.text);
+      return JSON.parse(sanitizeBannedWords(response.text));
     } catch (error: any) {
       const isUnavailable = error.message?.includes("503") || error.message?.includes("UNAVAILABLE");
       if (i === retries) throw error;
@@ -67,7 +77,7 @@ app.post("/api/ia/vision", async (req, res) => {
       `
     });
 
-    res.json({ result: response.text });
+    res.json({ result: sanitizeBannedWords(response.text) });
   } catch (error: any) {
     console.error("Vision IA Error:", error);
     res.status(500).json({ error: error.message });

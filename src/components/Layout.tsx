@@ -270,11 +270,15 @@ export const Layout: React.FC<{
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Preload background image
       const img = new Image();
       img.src = loginBgImg;
       img.onload = () => setBgLoaded(true);
-      // Fallback in case of caching or error
       img.onerror = () => setBgLoaded(true);
+
+      // Preload HydroMines Logo image
+      const logo = new Image();
+      logo.src = logoImg;
     }
   }, []);
 
@@ -1417,7 +1421,7 @@ export const Layout: React.FC<{
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="p-4 md:p-6 max-w-full w-full"
+              className="p-4 md:p-6 max-w-7xl mx-auto w-full"
             >
               {children}
             </motion.div>

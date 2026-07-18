@@ -182,6 +182,7 @@ const BASE_ANNUAL_DATA = [
 export const FailedBlasts: React.FC = () => {
   const { user, profile } = useAuth();
   const { activeSiteId } = useSite();
+  const isInitializingRef = useRef(false);
 
   // Firestore Data States
   const [failedBlasts, setFailedBlasts] = useState<FailedBlast[]>([]);
@@ -218,6 +219,8 @@ export const FailedBlasts: React.FC = () => {
   // Modal State
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingBlast, setEditingBlast] = useState<FailedBlast | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showConfirmDelete, setShowConfirmDelete] = useState<boolean>(false);
 
   // Form State
   const [formDate, setFormDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -390,6 +393,7 @@ export const FailedBlasts: React.FC = () => {
 
   // Setup reactive changes when selected cause change in modal
   useEffect(() => {
+    if (isInitializingRef.current) return;
     const selectedPreset = presets.find(p => p.name === formCause);
     if (selectedPreset) {
       setSelectedCausePreset(selectedPreset);
@@ -408,6 +412,7 @@ export const FailedBlasts: React.FC = () => {
       triggerToast("Autorisation insuffisante pour ajouter des données.", "error");
       return;
     }
+    isInitializingRef.current = true;
     setEditingBlast(null);
     setFormDate(format(new Date(), 'yyyy-MM-dd'));
     setFormSector('Imiter 1');
@@ -428,6 +433,7 @@ export const FailedBlasts: React.FC = () => {
     setFormComment('');
     setFormStatus('pending');
     setShowModal(true);
+    setTimeout(() => { isInitializingRef.current = false; }, 50);
   };
 
   // Open edit modal
@@ -436,6 +442,7 @@ export const FailedBlasts: React.FC = () => {
       triggerToast("Autorisation insuffisante pour modifier.", "error");
       return;
     }
+    isInitializingRef.current = true;
     setEditingBlast(blast);
     setFormDate(blast.date);
     setFormSector(blast.sector);
@@ -451,6 +458,7 @@ export const FailedBlasts: React.FC = () => {
     setFormComment(blast.comment || '');
     setFormStatus(blast.status);
     setShowModal(true);
+    setTimeout(() => { isInitializingRef.current = false; }, 50);
   };
 
   // Sync chantier dropdown when form sector changes handled inline in the dropdown below
@@ -520,22 +528,27 @@ export const FailedBlasts: React.FC = () => {
     }
   };
 
-  // Delete blast entry
-  const handleDelete = async (id: string) => {
+  // Delete blast entry (Bug 2 Fix)
+  const handleDelete = (id: string) => {
     if (!canDelete) {
       triggerToast("Seuls les administrateurs peuvent supprimer des entrées.", "error");
       return;
     }
-    if (!window.confirm("Êtes-vous absolument sûr de vouloir supprimer définitivement cette volée ratée ?")) {
-      return;
-    }
+    setDeleteId(id);
+    setShowConfirmDelete(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await deleteDoc(doc(db, 'failed_blasts', id));
+      await deleteDoc(doc(db, 'failed_blasts', deleteId));
       triggerToast("Volée ratée supprimée avec succès.", "success");
     } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `failed_blasts/${id}`);
+      handleFirestoreError(err, OperationType.DELETE, `failed_blasts/${deleteId}`);
       triggerToast("Erreur lors de la suppression.", "error");
+    } finally {
+      setDeleteId(null);
+      setShowConfirmDelete(false);
     }
   };
 
@@ -1794,6 +1807,49 @@ export const FailedBlasts: React.FC = () => {
                 </div>
 
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Confirmation Dialog for deletion (Bug 2 Fix) */}
+      <AnimatePresence>
+        {showConfirmDelete && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              <div className="bg-red-800 text-white px-6 py-4 flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                <h3 className="text-sm font-black uppercase tracking-wider">Alerte de Suppression de Volée</h3>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-xs font-semibold text-slate-600 leading-relaxed">
+                  Êtes-vous absolument sûr de vouloir supprimer définitivement cette volée ratée ? Cette action est irréversible et affectera immédiatement les statistiques d'audit de la direction.
+                </p>
+              </div>
+              <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfirmDelete(false);
+                    setDeleteId(null);
+                  }}
+                  className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="px-5 py-2 bg-red-800 hover:bg-red-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                >
+                  Supprimer Définitivement
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

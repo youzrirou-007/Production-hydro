@@ -68,8 +68,13 @@ const DEFAULT_ENGINES = [
 
 function calculateDuration(startTime: string, endTime: string): number {
   if (!startTime || !endTime) return 0;
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) return 0;
+  
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
+  
+  if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return 0;
   
   let startMinutes = startH * 60 + startM;
   let endMinutes = endH * 60 + endM;
@@ -314,8 +319,9 @@ const EmployeeCell: React.FC<EmployeeCellProps> = ({ matricule, name, onChange, 
       </div>
 
       {isInvalid && (
-        <div className="absolute left-0 right-0 top-full mt-1 bg-red-600 text-white font-black text-[8px] uppercase px-1.5 py-1 rounded shadow-lg z-50 animate-bounce border border-red-700 leading-tight select-none">
-          ⚠️ ABSENT DE L'EFFECTIF HYDROMINES SMI
+        <div className="text-[8px] text-red-800 bg-red-50 border border-red-200 font-extrabold mt-0.5 truncate px-1 py-0.5 rounded flex items-center gap-1 select-none">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 inline-block"></span>
+          <span className="truncate">⚠️ ABSENT DE L'EFFECTIF</span>
         </div>
       )}
 

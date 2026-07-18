@@ -12,6 +12,8 @@ import { ResponsiveContainer, ComposedChart, BarChart, Bar, Line, Cell, XAxis, Y
 
 export const Analytics: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'direction' | 'personnel' | 'secteurs' | 'equipements' | 'explosifs'>('direction');
+  const [printHtml, setPrintHtml] = useState<string | null>(null);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [productionHistory, setProductionHistory] = useState<any[]>([]);
   const [allProductionDocs, setAllProductionDocs] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -148,7 +150,11 @@ export const Analytics: React.FC = () => {
   }, [filteredHistory]);
 
   const todayObj = useMemo(() => new Date(), []);
-  const currentMonth = useMemo(() => todayObj.toISOString().slice(0, 7), [todayObj]);
+  const currentMonth = useMemo(() => {
+    const year = todayObj.getFullYear();
+    const month = String(todayObj.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  }, [todayObj]);
   const daysInMonth = useMemo(() => new Date(todayObj.getFullYear(), todayObj.getMonth() + 1, 0).getDate(), [todayObj]);
   const dayOfMonth = useMemo(() => todayObj.getDate(), [todayObj]);
   const daysRemaining = useMemo(() => daysInMonth - dayOfMonth, [daysInMonth, dayOfMonth]);
@@ -666,13 +672,8 @@ export const Analytics: React.FC = () => {
       </div>
     </body></html>`;
 
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-      setTimeout(() => win.print(), 500);
-    }
+    setPrintHtml(html);
+    setShowPrintPreview(true);
   };
 
   if (loadingData) {
@@ -2042,6 +2043,72 @@ export const Analytics: React.FC = () => {
           );
         })() : null}
       </div>
+
+      {/* Print Preview & Hidden Iframe printing (Bug 1 Fix) */}
+      {showPrintPreview && printHtml && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wider">Aperçu avant impression du Rapport Direction</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">SMI Imiter — Hydromines</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowPrintPreview(false);
+                  setPrintHtml(null);
+                }}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            
+            {/* Live scrollable container preview */}
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-100">
+              <div className="bg-white p-8 shadow-md rounded-2xl border border-slate-200 max-w-3xl mx-auto">
+                <div dangerouslySetInnerHTML={{ __html: printHtml }} />
+              </div>
+            </div>
+            
+            {/* Actions panel */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPrintPreview(false);
+                  setPrintHtml(null);
+                }}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const iframe = document.getElementById('print-iframe') as HTMLIFrameElement;
+                  if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                  }
+                }}
+                className="px-5 py-2 bg-[#ffd700] text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-yellow-400 transition-all shadow-md cursor-pointer"
+              >
+                🖨️ Imprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {printHtml && (
+        <iframe
+          id="print-iframe"
+          style={{ display: 'none' }}
+          srcDoc={printHtml}
+          title="Print Portal"
+        />
+      )}
     </div>
   );
 };
