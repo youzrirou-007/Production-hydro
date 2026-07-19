@@ -1,6 +1,13 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 
 const HistoryTrends = lazy(() => import('../components/HistoryTrends').then(m => ({ default: m.HistoryTrends })));
+const SectorsCompare = lazy(() => import('../components/SectorsCompare').then(m => ({ default: m.SectorsCompare })));
+const GlobalRankings = lazy(() => import('../components/GlobalRankings').then(m => ({ default: m.GlobalRankings })));
+const PredictiveIntelligencePremium = lazy(() => import('../components/PredictiveIntelligencePremium').then(m => ({ default: m.PredictiveIntelligencePremium })));
+const CausesChart = lazy(() => import('../components/CausesChart').then(m => ({ default: m.CausesChart })));
+const SmartAlertsCenter = lazy(() => import('../components/SmartAlertsCenter').then(m => ({ default: m.SmartAlertsCenter })));
+import { format } from 'date-fns';
+import { calculateAssistantMinerStats } from '../lib/rhCalculations';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -46,6 +53,7 @@ export const EspaceDT: React.FC = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<DTTab>('vue_ensemble');
   const [bureFocusPeriod, setBureFocusPeriod] = useState<'jour' | 'semaine' | 'mois'>('jour');
+  const [tickerIndex, setTickerIndex] = useState(0);
   const [bannerMouse, setBannerMouse] = useState({ x: 0, y: 0 });
   const [crownKey, setCrownKey] = useState(0);
 
@@ -170,6 +178,8 @@ export const EspaceDT: React.FC = () => {
   const [allProductionDocs, setAllProductionDocs] = useState<any[]>([]);
   const [allPlanningSheets, setAllPlanningSheets] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [engines, setEngines] = useState<any[]>([]);
+  const [globalCausesData, setGlobalCausesData] = useState<any[]>([]);
 
   const [journalDate, setJournalDate] = useState<string>(() =>
     new Date().toISOString().split('T')[0]
@@ -360,6 +370,36 @@ export const EspaceDT: React.FC = () => {
     );
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'engines'));
+    const unsub = onSnapshot(
+      q,
+      (snap) => setEngines(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      (err) => handleFirestoreError(err, OperationType.GET, 'engines')
+    );
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const startOfMonthDate = new Date(selectedMois + '-01');
+    const endOfMonthDate = new Date(startOfMonthDate.getFullYear(), startOfMonthDate.getMonth() + 1, 0);
+    const startStr = format(startOfMonthDate, 'yyyy-MM-dd');
+    const endStr = format(endOfMonthDate, 'yyyy-MM-dd');
+
+    const q = query(collection(db, 'non_realisation_explanations'), where('status', '==', 'explained'));
+    const unsub = onSnapshot(q, (snap) => {
+      const explanations = snap.docs.map(d => d.data()).filter((e: any) => e.date >= startStr && e.date <= endStr);
+      const grouped = explanations.reduce((acc: any, exp: any) => {
+        const cause = exp.cause;
+        if (!acc[cause]) acc[cause] = { name: exp.causeLabel || cause, value: 0, color: '#94A3B8' };
+        acc[cause].value++;
+        return acc;
+      }, {});
+      setGlobalCausesData(Object.values(grouped).sort((a: any, b: any) => b.value - a.value));
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'non_realisation_explanations'));
+    return () => unsub();
+  }, [selectedMois]);
 
   useEffect(() => {
     const q = query(
@@ -1420,6 +1460,12 @@ export const EspaceDT: React.FC = () => {
   const overviewExplosifs = getExplosifsStats();
   const overviewSectorHealth = getSectorHealth();
   const bureFocusData = getBureFocusData(bureFocusPeriod);
+  const aideMineurRanking = employees
+    .filter((e: any) => e.role === 'Aide Mineur' && e.active !== false)
+    .map((e: any) => ({ ...calculateAssistantMinerStats(e.matricule, allProductionDocs), name: e.name }))
+    .filter((s: any) => s.totalMetersAssisted > 0)
+    .sort((a: any, b: any) => b.totalMetersAssisted - a.totalMetersAssisted)
+    .slice(0, 5);
   const deblayageVolumeData = getDeblayageVolumeDaily();
 
   const overviewAlerts: { type: 'critique' | 'attention'; text: string; source: DTTab }[] = [];
@@ -1454,6 +1500,12 @@ export const EspaceDT: React.FC = () => {
 
   const overviewStatusGlobal: 'nominal' | 'attention' =
     overviewAlerts.some(a => a.type === 'critique') ? 'attention' : 'nominal';
+
+  useEffect(() => {
+    if (overviewAlerts.length <= 1) return;
+    const interval = setInterval(() => setTickerIndex(i => (i + 1) % overviewAlerts.length), 5000);
+    return () => clearInterval(interval);
+  }, [overviewAlerts.length]);
 
   const overviewLastAnalysis = savedAnalyses.length > 0
     ? savedAnalyses[savedAnalyses.length - 1]
@@ -1802,6 +1854,20 @@ export const EspaceDT: React.FC = () => {
         {activeTab === 'vue_ensemble' && (
           <div className="space-y-6">
 
+            {overviewAlerts.length > 0 && (() => {
+              const current = overviewAlerts[tickerIndex % overviewAlerts.length];
+              const c = current.type === 'critique' ? STATUS_COLORS.critique : STATUS_COLORS.attention;
+              return (
+                <button
+                  onClick={() => setActiveTab(current.source)}
+                  className={`w-full text-left rounded-xl border px-4 py-2.5 flex items-center gap-3 transition-colors ${c.bg} ${c.border}`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${c.dot}`} />
+                  <span className={`text-[11px] font-bold ${c.text}`}>{current.text}</span>
+                </button>
+              );
+            })()}
+
             {/* PANNEAU DE BIENVENUE */}
             <div className="mb-8 animate-in fade-in slide-in-from-top-2 duration-500">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b8860b] mb-1">
@@ -2030,6 +2096,25 @@ export const EspaceDT: React.FC = () => {
               </Suspense>
             </div>
 
+            {/* PRÉDICTIF & CAUSES */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6">
+                <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement...</div>}>
+                  <PredictiveIntelligencePremium
+                    chantiers={allChantiers}
+                    allProductionDocs={allProductionDocs}
+                    allPlanningSheets={allPlanningSheets}
+                    reportType="day"
+                    filterDate={journalDate}
+                    filterMonth={selectedMois}
+                  />
+                </Suspense>
+              </div>
+              <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement...</div>}>
+                <CausesChart data={globalCausesData} title={`Causes des volées ratées — ${selectedMois}`} />
+              </Suspense>
+            </div>
+
             {/* GRAPHIQUE M³ DÉBLAYÉS — BURE IMITER EST */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
               <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4">
@@ -2044,6 +2129,66 @@ export const EspaceDT: React.FC = () => {
                   <Line type="monotone" dataKey="volume" stroke="#00A0E3" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+
+            {/* EXPLOSIFS — COMPARAISON SECTEURS */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
+              <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement...</div>}>
+                <SectorsCompare
+                  allProductionDocs={allProductionDocs}
+                  allPlanningSheets={allPlanningSheets}
+                  chantiers={allChantiers}
+                  employees={employees}
+                  reportType="day"
+                  filterDate={journalDate}
+                  filterMonth={selectedMois}
+                />
+              </Suspense>
+            </div>
+
+            {/* RH — CLASSEMENTS */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
+              <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement...</div>}>
+                <GlobalRankings
+                  allProductionDocs={allProductionDocs}
+                  allPlanningSheets={allPlanningSheets}
+                  chantiers={allChantiers}
+                  employees={employees}
+                  engines={engines}
+                  reportType="day"
+                  filterDate={journalDate}
+                  filterMonth={selectedMois}
+                />
+              </Suspense>
+
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">Top 5 — Aide Mineur</p>
+                {aideMineurRanking.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">Aucune donnée pour le moment.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {aideMineurRanking.map((a: any, i: number) => (
+                      <div key={a.matricule} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                        <span className="text-[12px] font-bold text-slate-700">#{i + 1} {a.name}</span>
+                        <span className="text-[11px] text-slate-500">{a.totalMetersAssisted.toFixed(1)} m · {a.roundsAssisted} volées</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* CENTRE D'ALERTES SMART */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
+              <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement...</div>}>
+                <SmartAlertsCenter
+                  allProductionDocs={allProductionDocs}
+                  allPlanningSheets={allPlanningSheets}
+                  chantiers={allChantiers}
+                  employees={employees}
+                  engines={engines}
+                />
+              </Suspense>
             </div>
 
             {/* TWO-COLUMN GRID FOR PREMIUM INFORMATION & DIRECTEUR ENGAGEMENT */}
@@ -2090,7 +2235,7 @@ export const EspaceDT: React.FC = () => {
                 {/* ANALYSE IA */}
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 delay-[360ms] fill-mode-both">
                   <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
-                    Dernière analyse IA
+                    Assistant DT
                   </p>
                   <button
                     onClick={() => setActiveTab('ia')}
@@ -2138,43 +2283,7 @@ export const EspaceDT: React.FC = () => {
               {/* RIGHT COLUMN: Director's Carnet and Mine Operational Status / Météo */}
               <div className="lg:col-span-5 space-y-6">
                 
-                {/* 1. PREMIUM PERSISTENT NOTEBOOK */}
-                <div 
-                  className="bg-[#fcfaf2] border border-amber-500/20 rounded-2xl p-5 shadow-[0_4px_15px_-3px_rgba(184,134,11,0.06)] relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300"
-                  style={{
-                    backgroundImage: 'radial-gradient(#b8860b10 1px, transparent 1px)',
-                    backgroundSize: '16px 16px'
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-amber-500/10">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">✍️</span>
-                      <h3 className="text-[11px] font-black uppercase tracking-wider text-[#b8860b]">
-                        Carnet du Directeur Technique
-                      </h3>
-                    </div>
-                    <span className="text-[8px] font-mono text-amber-500/70 font-bold uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-md border border-amber-500/10">
-                      Local & Privé
-                    </span>
-                  </div>
-                  
-                  <textarea
-                    value={dtNotes}
-                    onChange={(e) => setDtNotes(e.target.value)}
-                    placeholder="Saisissez vos directives de poste, remarques géologiques ou objectifs ici..."
-                    className="w-full h-40 bg-transparent text-xs text-slate-800 focus:outline-none resize-none font-medium leading-relaxed font-sans placeholder-slate-400"
-                    style={{
-                      lineHeight: '1.75rem',
-                    }}
-                  />
-                  
-                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-amber-500/10 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    <span>Sauvegarde auto</span>
-                    <span className="text-[#b8860b]/80">🔒 Mémoire locale sécurisée</span>
-                  </div>
-                </div>
-
-                {/* 2. SITE STATUS & ENVIRONMENTAL WIDGET */}
+                {/* SITE STATUS WIDGET */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06)] transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-[360ms]">
                   <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-2">
@@ -2211,36 +2320,6 @@ export const EspaceDT: React.FC = () => {
                       <span>{currentShiftInfo.hours}</span>
                       <span>Progression : {currentShiftInfo.progress}%</span>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                    <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-3 flex flex-col justify-between">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Météo Imiter</span>
-                        <span className="text-xs">☀️</span>
-                      </div>
-                      <div>
-                        <p className="text-lg font-black text-slate-800">28°C</p>
-                        <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Ciel Dégagé • Vent 12km/h</p>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-3 flex flex-col justify-between">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aérage d'Asse</span>
-                        <span className="text-xs">🌪️</span>
-                      </div>
-                      <div>
-                        <p className="text-lg font-black text-emerald-600">Nominal</p>
-                        <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Qualité d'air : Excellente</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 text-center bg-amber-500/5 rounded-xl py-2 px-3 border border-amber-500/10">
-                    <p className="text-[9px] font-black text-[#b8860b] uppercase tracking-wider">
-                      ⚡ Conditions d'exploitation minière idéales
-                    </p>
                   </div>
                 </div>
 
