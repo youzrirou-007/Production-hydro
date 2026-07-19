@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+
+const HistoryTrends = lazy(() => import('../components/HistoryTrends').then(m => ({ default: m.HistoryTrends })));
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -43,6 +45,7 @@ const STATUS_COLORS = {
 export const EspaceDT: React.FC = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<DTTab>('vue_ensemble');
+  const [bureFocusPeriod, setBureFocusPeriod] = useState<'jour' | 'semaine' | 'mois'>('jour');
   const [bannerMouse, setBannerMouse] = useState({ x: 0, y: 0 });
   const [crownKey, setCrownKey] = useState(0);
 
@@ -592,6 +595,91 @@ export const EspaceDT: React.FC = () => {
     });
 
     return withStatus;
+  };
+
+  const isBureSector = (sector: string) => {
+    const s = (sector || '').trim().toLowerCase();
+    return s === 'bure imiter est' || s === 'imiter est bure' || s === 'bure';
+  };
+
+  const getBureFocusData = (period: 'jour' | 'semaine' | 'mois') => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentMonth = todayStr.substring(0, 7);
+    const sevenDaysAgoObj = new Date();
+    sevenDaysAgoObj.setDate(sevenDaysAgoObj.getDate() - 6);
+    const sevenDaysAgoStr = sevenDaysAgoObj.toISOString().split('T')[0];
+
+    const relevantDocs = allProductionDocs.filter(doc => {
+      const dateStr = doc.id;
+      if (!dateStr) return false;
+      if (period === 'jour') return dateStr === todayStr;
+      if (period === 'semaine') return dateStr >= sevenDaysAgoStr && dateStr <= todayStr;
+      return dateStr.substring(0, 7) === currentMonth;
+    });
+
+    let meterage = 0;
+    let wagonsActual = 0;
+    let wagonsTarget = 0;
+    const engineGodets: Record<string, number> = { 'ST2G 1': 0, 'ST2G 3': 0 };
+
+    relevantDocs.forEach(doc => {
+      ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+        const pData = doc.postes?.[pKey];
+
+        (pData?.minage || []).forEach((r: any) => {
+          const row = r.reel || r;
+          if (isBureSector(row?.sectorGroup || row?.sector)) {
+            meterage += Number(row.realMeterage || 0);
+          }
+        });
+
+        (pData?.deblayage || []).forEach((r: any) => {
+          const row = r.reel || r;
+          if (isBureSector(row?.sectorGroup || row?.sector)) {
+            const eng = (row.engineId || row.engineCode || '').trim();
+            if (engineGodets[eng] !== undefined) {
+              engineGodets[eng] += Number(row.godets || 0);
+            }
+          }
+        });
+
+        (pData?.extraction || []).forEach((r: any) => {
+          const row = r.reel || r;
+          wagonsActual += Number(row?.wagonsActual || 0);
+          wagonsTarget += Number(row?.wagonsTarget || 0);
+        });
+      });
+    });
+
+    return { meterage, wagonsActual, wagonsTarget, engineGodets };
+  };
+
+  const getDeblayageVolumeDaily = () => {
+    const cutoffObj = new Date();
+    cutoffObj.setDate(cutoffObj.getDate() - 29);
+    const cutoffStr = cutoffObj.toISOString().split('T')[0];
+
+    const byDate: Record<string, number> = {};
+
+    allProductionDocs
+      .filter(doc => doc.id && doc.id >= cutoffStr)
+      .forEach(doc => {
+        let dayVolume = 0;
+        ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+          const pData = doc.postes?.[pKey];
+          (pData?.deblayage || []).forEach((r: any) => {
+            const row = r.reel || r;
+            if (isBureSector(row?.sectorGroup || row?.sector)) {
+              dayVolume += Number(row.volumeEstimated || 0);
+            }
+          });
+        });
+        byDate[doc.id] = dayVolume;
+      });
+
+    return Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, volume]) => ({ date: date.slice(5), volume: Number(volume.toFixed(1)) }));
   };
 
   const getMonthlyConsolidatedStats = () => {
@@ -1331,6 +1419,8 @@ export const EspaceDT: React.FC = () => {
   const overviewBilan = getBilanJournal();
   const overviewExplosifs = getExplosifsStats();
   const overviewSectorHealth = getSectorHealth();
+  const bureFocusData = getBureFocusData(bureFocusPeriod);
+  const deblayageVolumeData = getDeblayageVolumeDaily();
 
   const overviewAlerts: { type: 'critique' | 'attention'; text: string; source: DTTab }[] = [];
 
@@ -1877,6 +1967,83 @@ export const EspaceDT: React.FC = () => {
                   )}
                 </button>
               ))}
+            </div>
+
+            {/* FOCUS BURE IMITER EST */}
+            <div className="bg-white border border-[#b8860b]/30 rounded-2xl p-6 mb-8">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-black uppercase tracking-wide text-slate-800">Focus Bure Imiter Est</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">(2 engins — ST2G 1 / ST2G 3)</span>
+                </div>
+                <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+                  {(['jour', 'semaine', 'mois'] as const).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setBureFocusPeriod(p)}
+                      className={`text-[10px] font-bold px-3 py-1.5 rounded-md transition-colors ${
+                        bureFocusPeriod === p ? 'bg-[#141c2b] text-[#ffd700]' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {p === 'jour' ? 'Dernier jour' : p === 'semaine' ? 'Semaine' : 'Mois en cours'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400 mb-4">
+                Métrage arraché secteur — <span className="font-bold text-slate-700">{bureFocusData.meterage.toFixed(1)} m</span>
+              </p>
+
+              <table className="w-full text-[12px] mb-4">
+                <thead>
+                  <tr>
+                    <td className="pb-2 text-[9px] uppercase tracking-wide text-slate-400 border-b border-[#b8860b]/20">Engin</td>
+                    <td className="pb-2 text-[9px] uppercase tracking-wide text-slate-400 border-b border-[#b8860b]/20 text-right">Godets déblayés</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(bureFocusData.engineGodets).map(([eng, godets]) => (
+                    <tr key={eng}>
+                      <td className="py-1.5 text-slate-700">{eng}</td>
+                      <td className="py-1.5 text-right text-slate-700 font-semibold">{godets}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Extraction (équipe dédiée)</span>
+                <span className="text-[13px] font-black text-slate-800">
+                  {bureFocusData.wagonsActual} <span className="text-slate-400 font-normal">/ {bureFocusData.wagonsTarget || 48} wagons</span>
+                </span>
+              </div>
+            </div>
+
+            {/* COMPARATIF MENSUEL */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
+              <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement du comparatif...</div>}>
+                <HistoryTrends
+                  allProductionDocs={allProductionDocs}
+                  allPlanningSheets={allPlanningSheets}
+                />
+              </Suspense>
+            </div>
+
+            {/* GRAPHIQUE M³ DÉBLAYÉS — BURE IMITER EST */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
+              <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4">
+                Volume déblayé — Bure Imiter Est (30 derniers jours)
+              </p>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={deblayageVolumeData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1eee5" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} unit=" m³" />
+                  <Tooltip formatter={(v: number) => [`${v} m³`, 'Volume']} />
+                  <Line type="monotone" dataKey="volume" stroke="#00A0E3" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
 
             {/* TWO-COLUMN GRID FOR PREMIUM INFORMATION & DIRECTEUR ENGAGEMENT */}
