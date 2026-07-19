@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { db } from '../lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 
@@ -15,25 +15,27 @@ export interface SiteConfig {
   createdAt?: string;
 }
 
+// Cette plateforme HydroMines Production est dédiée exclusivement au site SMI Imiter.
+// Le site actif est figé volontairement : aucune bascule vers un autre chantier n'est possible.
+// Les autres chantiers disposeront de leurs propres applications clonées.
+const ACTIVE_SITE_ID = 'SMI';
+
 const SiteContext = React.createContext<{
   activeSiteId: string;
-  setActiveSiteId: (id: string) => void;
   siteConfig: SiteConfig | null;
   loadingSite: boolean;
 }>({
-  activeSiteId: 'SMI',
-  setActiveSiteId: () => {},
+  activeSiteId: ACTIVE_SITE_ID,
   siteConfig: null,
   loadingSite: true,
 });
 
 export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeSiteId, setActiveSiteId] = useState<string>('SMI');
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
   const [loadingSite, setLoadingSite] = useState(true);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'sites', activeSiteId), (snap) => {
+    const unsub = onSnapshot(doc(db, 'sites', ACTIVE_SITE_ID), (snap) => {
       if (snap.exists()) {
         setSiteConfig({ id: snap.id, ...snap.data() } as SiteConfig);
       } else {
@@ -42,10 +44,10 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoadingSite(false);
     }, () => setLoadingSite(false));
     return () => unsub();
-  }, [activeSiteId]);
+  }, []);
 
   return (
-    <SiteContext.Provider value={{ activeSiteId, setActiveSiteId, siteConfig, loadingSite }}>
+    <SiteContext.Provider value={{ activeSiteId: ACTIVE_SITE_ID, siteConfig, loadingSite }}>
       {children}
     </SiteContext.Provider>
   );

@@ -33,6 +33,13 @@ interface Attachement {
   totalMetrage12m2: number;
 }
 
+// Palette de statut officielle HydroMines — utilisée pour tout indicateur de santé (secteurs, alertes, KPI)
+const STATUS_COLORS = {
+  nominal:  { text: 'text-[#00A0E3]', bg: 'bg-[#00A0E3]/10', border: 'border-[#00A0E3]/30', dot: 'bg-[#00A0E3]' },
+  attention:{ text: 'text-[#b8860b]', bg: 'bg-[#b8860b]/10', border: 'border-[#b8860b]/30', dot: 'bg-[#ffd700]' },
+  critique: { text: 'text-[#8B1A1A]', bg: 'bg-[#8B1A1A]/10', border: 'border-[#8B1A1A]/30', dot: 'bg-[#8B1A1A]' },
+};
+
 export const EspaceDT: React.FC = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<DTTab>('vue_ensemble');
@@ -158,6 +165,8 @@ export const EspaceDT: React.FC = () => {
   const [savingAttachement, setSavingAttachement] = useState(false);
   const [historiqueAttachements, setHistoriqueAttachements] = useState<Attachement[]>([]);
   const [allProductionDocs, setAllProductionDocs] = useState<any[]>([]);
+  const [allPlanningSheets, setAllPlanningSheets] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
 
   const [journalDate, setJournalDate] = useState<string>(() =>
     new Date().toISOString().split('T')[0]
@@ -321,6 +330,30 @@ export const EspaceDT: React.FC = () => {
         setAllProductionDocs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       },
       (err) => handleFirestoreError(err, OperationType.GET, 'production')
+    );
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'daily_planning_sheets'));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setAllPlanningSheets(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, 'daily_planning_sheets')
+    );
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'personnel'));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      (err) => handleFirestoreError(err, OperationType.GET, 'personnel')
     );
     return () => unsub();
   }, []);
@@ -526,6 +559,39 @@ export const EspaceDT: React.FC = () => {
       totalAnfo,
       totalNonRealises
     };
+  };
+
+  const getSectorHealth = () => {
+    const sectors: Record<string, { reel: number; plan: number }> = {
+      'Imiter 1': { reel: 0, plan: 0 },
+      'Imiter 2': { reel: 0, plan: 0 },
+      'Imiter Est': { reel: 0, plan: 0 },
+    };
+    const normalizeSector = (s: string) => (s === 'Bure Imiter Est' ? 'Imiter Est' : s);
+
+    ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+      const pData = journalProduction?.postes?.[pKey];
+      const plData = journalPlanning?.postes?.[pKey];
+
+      (pData?.minage || []).forEach((r: any) => {
+        const row = r.reel || r;
+        const sec = normalizeSector(row?.sector || '');
+        if (sectors[sec]) sectors[sec].reel += Number(row.realMeterage || 0);
+      });
+
+      (plData?.minage || []).forEach((r: any) => {
+        const sec = normalizeSector(r?.sector || '');
+        if (sectors[sec]) sectors[sec].plan += Number(r.meterage || r.plannedMeterage || 0);
+      });
+    });
+
+    const withStatus = Object.entries(sectors).map(([name, v]) => {
+      const pct = v.plan > 0 ? (v.reel / v.plan) * 100 : 100;
+      const status: 'nominal' | 'attention' | 'critique' = pct >= 90 ? 'nominal' : pct >= 70 ? 'attention' : 'critique';
+      return { name, reel: v.reel, plan: v.plan, pct, status };
+    });
+
+    return withStatus;
   };
 
   const getMonthlyConsolidatedStats = () => {
@@ -1264,6 +1330,7 @@ export const EspaceDT: React.FC = () => {
 
   const overviewBilan = getBilanJournal();
   const overviewExplosifs = getExplosifsStats();
+  const overviewSectorHealth = getSectorHealth();
 
   const overviewAlerts: { type: 'critique' | 'attention'; text: string; source: DTTab }[] = [];
 
@@ -1661,22 +1728,68 @@ export const EspaceDT: React.FC = () => {
             {/* STATUS GLOBAL */}
             <div className={`mb-8 rounded-2xl border p-5 flex items-center justify-between
               animate-in fade-in slide-in-from-top-2 duration-500 delay-75
-              ${overviewStatusGlobal === 'nominal'
-                ? 'bg-emerald-50/50 border-emerald-200'
-                : 'bg-rose-50/50 border-rose-200'
-              }`}
+              ${overviewStatusGlobal === 'nominal' ? `${STATUS_COLORS.nominal.bg} ${STATUS_COLORS.nominal.border}` : `${STATUS_COLORS.critique.bg} ${STATUS_COLORS.critique.border}`}`}
             >
               <div className="flex items-center gap-3">
                 <span className={`w-2.5 h-2.5 rounded-full ${
-                  overviewStatusGlobal === 'nominal' ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'
+                  overviewStatusGlobal === 'nominal' ? STATUS_COLORS.nominal.dot : `${STATUS_COLORS.critique.dot} animate-pulse`
                 }`} />
                 <span className={`text-[13px] font-black uppercase tracking-wider ${
-                  overviewStatusGlobal === 'nominal' ? 'text-emerald-700' : 'text-rose-700'
+                  overviewStatusGlobal === 'nominal' ? STATUS_COLORS.nominal.text : STATUS_COLORS.critique.text
                 }`}>
                   {overviewStatusGlobal === 'nominal' ? 'Tout est nominal' : `${overviewAlerts.length} point${overviewAlerts.length > 1 ? 's' : ''} d'attention`}
                 </span>
               </div>
-              <div className="h-1 w-16 rounded-full bg-gradient-to-r from-[#b8860b] via-[#ffd700] to-[#b8860b] opacity-70" />
+              <div className="h-1 w-16 rounded-full bg-gradient-to-r from-[#00A0E3] via-[#ffd700] to-[#8B1A1A] opacity-70" />
+            </div>
+
+            {/* CARTE VIVANTE DES 3 SECTEURS */}
+            <div className="bg-white border border-[#b8860b]/20 rounded-2xl p-6 mb-8">
+              <svg viewBox="0 0 340 220" className="w-full max-w-md mx-auto">
+                {overviewSectorHealth.map((s, i) => {
+                  const colors = STATUS_COLORS[s.status];
+                  const positions = [
+                    { cx: 80, cy: 70, rx: 66, ry: 52, labelY: 66, valY: 84 },
+                    { cx: 80, cy: 160, rx: 66, ry: 52, labelY: 156, valY: 174 },
+                    { cx: 235, cy: 115, rx: 95, ry: 90, labelY: 45, valY: null },
+                  ][i];
+                  return (
+                    <g key={s.name} onClick={() => setActiveTab('journal')} className="cursor-pointer">
+                      <ellipse cx={positions.cx} cy={positions.cy} rx={positions.rx} ry={positions.ry}
+                        className={colors.bg.replace('bg-', 'fill-')} opacity="0.5" />
+                      <ellipse cx={positions.cx} cy={positions.cy} rx={positions.rx} ry={positions.ry}
+                        fill="none" className={colors.border.replace('border-', 'stroke-')} strokeWidth="1.5" />
+                      <text x={positions.cx} y={positions.labelY} textAnchor="middle"
+                        className={`text-[13px] font-black ${colors.text}`} style={{ fontSize: '13px' }}>
+                        {s.name}
+                      </text>
+                      {positions.valY && (
+                        <text x={positions.cx} y={positions.valY} textAnchor="middle"
+                          className={`font-bold ${colors.text}`} style={{ fontSize: '11px' }}>
+                          {s.pct.toFixed(0)}%
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+                {(() => {
+                  const bure = overviewSectorHealth.find(s => s.name === 'Imiter Est');
+                  if (!bure) return null;
+                  const colors = STATUS_COLORS[bure.status];
+                  return (
+                    <g onClick={() => setActiveTab('journal')} className="cursor-pointer">
+                      <circle cx="245" cy="140" r="42" className={colors.bg.replace('bg-', 'fill-')} opacity="0.6">
+                        {bure.status === 'critique' && (
+                          <animate attributeName="opacity" values="0.5;0.85;0.5" dur="2.2s" repeatCount="indefinite" />
+                        )}
+                      </circle>
+                      <circle cx="245" cy="140" r="42" fill="none" className={colors.border.replace('border-', 'stroke-')} strokeWidth="1.5" />
+                      <text x="245" y="136" textAnchor="middle" className={`font-black ${colors.text}`} style={{ fontSize: '11px' }}>Bure</text>
+                      <text x="245" y="150" textAnchor="middle" className={`font-bold ${colors.text}`} style={{ fontSize: '9px' }}>{bure.pct.toFixed(0)}%</text>
+                    </g>
+                  );
+                })()}
+              </svg>
             </div>
 
             {/* GRILLE DES 4 KPI CARDS */}
