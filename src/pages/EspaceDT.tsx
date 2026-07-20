@@ -3,7 +3,6 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 const HistoryTrends = lazy(() => import('../components/HistoryTrends').then(m => ({ default: m.HistoryTrends })));
 const SectorsCompare = lazy(() => import('../components/SectorsCompare').then(m => ({ default: m.SectorsCompare })));
 const GlobalRankings = lazy(() => import('../components/GlobalRankings').then(m => ({ default: m.GlobalRankings })));
-const PredictiveIntelligencePremium = lazy(() => import('../components/PredictiveIntelligencePremium').then(m => ({ default: m.PredictiveIntelligencePremium })));
 const CausesChart = lazy(() => import('../components/CausesChart').then(m => ({ default: m.CausesChart })));
 const SmartAlertsCenter = lazy(() => import('../components/SmartAlertsCenter').then(m => ({ default: m.SmartAlertsCenter })));
 import { format } from 'date-fns';
@@ -44,15 +43,18 @@ interface Attachement {
 
 // Palette de statut officielle HydroMines — utilisée pour tout indicateur de santé (secteurs, alertes, KPI)
 const STATUS_COLORS = {
-  nominal:  { text: 'text-[#00A0E3]', bg: 'bg-[#00A0E3]/10', border: 'border-[#00A0E3]/30', dot: 'bg-[#00A0E3]' },
-  attention:{ text: 'text-[#b8860b]', bg: 'bg-[#b8860b]/10', border: 'border-[#b8860b]/30', dot: 'bg-[#ffd700]' },
-  critique: { text: 'text-[#8B1A1A]', bg: 'bg-[#8B1A1A]/10', border: 'border-[#8B1A1A]/30', dot: 'bg-[#8B1A1A]' },
+  nominal:  { text: 'text-[#00A0E3]', bg: 'bg-[#00A0E3]/10', border: 'border-[#00A0E3]/30', dot: 'bg-[#00A0E3]', hex: '#00A0E3' },
+  attention:{ text: 'text-[#b8860b]', bg: 'bg-[#b8860b]/10', border: 'border-[#b8860b]/30', dot: 'bg-[#ffd700]', hex: '#b8860b' },
+  critique: { text: 'text-[#8B1A1A]', bg: 'bg-[#8B1A1A]/10', border: 'border-[#8B1A1A]/30', dot: 'bg-[#8B1A1A]', hex: '#8B1A1A' },
 };
 
 export const EspaceDT: React.FC = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<DTTab>('vue_ensemble');
   const [bureFocusPeriod, setBureFocusPeriod] = useState<'jour' | 'semaine' | 'mois'>('jour');
+  const [patternRole, setPatternRole] = useState<'mineurs' | 'chefs' | 'aides'>('mineurs');
+  const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
+  const [expandedSector, setExpandedSector] = useState<string | null>(null);
   const [tickerIndex, setTickerIndex] = useState(0);
   const [bannerMouse, setBannerMouse] = useState({ x: 0, y: 0 });
   const [crownKey, setCrownKey] = useState(0);
@@ -180,6 +182,7 @@ export const EspaceDT: React.FC = () => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [engines, setEngines] = useState<any[]>([]);
   const [globalCausesData, setGlobalCausesData] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   const [journalDate, setJournalDate] = useState<string>(() =>
     new Date().toISOString().split('T')[0]
@@ -248,45 +251,65 @@ export const EspaceDT: React.FC = () => {
     name: string;
     hours: string;
     progress: number;
-    supervisor: string;
-  }>({ name: 'Poste A', hours: '06h00 - 14h00', progress: 50, supervisor: 'Y. BENZAKOUR' });
+    postKey: 'Poste 1' | 'Poste 2' | 'Poste 3';
+  }>({ name: '1ère Poste', hours: '06h00 - 14h00', progress: 50, postKey: 'Poste 1' });
 
   useEffect(() => {
     const updateShift = () => {
       const now = new Date();
       const hour = now.getHours();
-      let shift = { name: 'Poste C', hours: '22h00 - 06h00', progress: 0, supervisor: 'H. OUTALHA' };
+      let shift: typeof currentShiftInfo = { name: '3ème Poste (Nuit)', hours: '22h00 - 06h00', progress: 0, postKey: 'Poste 3' };
       if (hour >= 6 && hour < 14) {
         const elapsedMinutes = (hour - 6) * 60 + now.getMinutes();
         shift = {
-          name: 'Poste A (Matin)',
+          name: '1ère Poste',
           hours: '06h00 - 14h00',
           progress: Math.min(100, Math.round((elapsedMinutes / 480) * 100)),
-          supervisor: 'Y. BENZAKOUR'
+          postKey: 'Poste 1'
         };
       } else if (hour >= 14 && hour < 22) {
         const elapsedMinutes = (hour - 14) * 60 + now.getMinutes();
         shift = {
-          name: 'Poste B (Après-midi)',
+          name: '2ème Poste',
           hours: '14h00 - 22h00',
           progress: Math.min(100, Math.round((elapsedMinutes / 480) * 100)),
-          supervisor: 'M. EL IDRISSI'
+          postKey: 'Poste 2'
         };
       } else {
         const elapsedMinutes = (hour >= 22 ? hour - 22 : hour + 2) * 60 + now.getMinutes();
         shift = {
-          name: 'Poste C (Nuit)',
+          name: '3ème Poste (Nuit)',
           hours: '22h00 - 06h00',
           progress: Math.min(100, Math.round((elapsedMinutes / 480) * 100)),
-          supervisor: 'H. OUTALHA'
+          postKey: 'Poste 3'
         };
       }
       setCurrentShiftInfo(shift);
     };
     updateShift();
-    const interval = setInterval(updateShift, 60000); // update every minute
+    const interval = setInterval(updateShift, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  const getChefsForCurrentPost = () => {
+    const normalizeEmpSector = (s: string) => {
+      const low = (s || '').toLowerCase();
+      if (low.includes('imiter 2')) return 'Imiter 2';
+      if (low.includes('imiter 1')) return 'Imiter 1';
+      if (low.includes('imiter est') || low.includes('bure')) return 'Imiter Est';
+      return '';
+    };
+    const sectors = ['Imiter 1', 'Imiter 2', 'Imiter Est'];
+    return sectors.map(sec => {
+      const chef = employees.find((e: any) =>
+        e.fonction === 'CHEF' &&
+        e.status === 'actif' &&
+        normalizeEmpSector(e.sector) === sec &&
+        e.currentPost === currentShiftInfo.postKey
+      );
+      return { sector: sec, chefName: chef ? `${chef.prenom || ''} ${chef.nom || ''}`.trim() : 'Aucun' };
+    });
+  };
 
   // Comparison & Simulation Tab States
   const [comparisonMetric, setComparisonMetric] = useState<'meters' | 'explosives' | 'efficiency' | 'extraction'>('meters');
@@ -392,14 +415,25 @@ export const EspaceDT: React.FC = () => {
       const explanations = snap.docs.map(d => d.data()).filter((e: any) => e.date >= startStr && e.date <= endStr);
       const grouped = explanations.reduce((acc: any, exp: any) => {
         const cause = exp.cause;
-        if (!acc[cause]) acc[cause] = { name: exp.causeLabel || cause, value: 0, color: '#94A3B8' };
+        if (!acc[cause]) acc[cause] = { name: exp.causeLabel || cause, value: 0, lastDate: exp.date };
         acc[cause].value++;
+        if (exp.date > acc[cause].lastDate) acc[cause].lastDate = exp.date;
         return acc;
       }, {});
       setGlobalCausesData(Object.values(grouped).sort((a: any, b: any) => b.value - a.value));
     }, (err) => handleFirestoreError(err, OperationType.GET, 'non_realisation_explanations'));
     return () => unsub();
   }, [selectedMois]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(500));
+    const unsub = onSnapshot(
+      q,
+      (snap) => setAuditLogs(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      (err) => handleFirestoreError(err, OperationType.GET, 'audit_logs')
+    );
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const q = query(
@@ -604,13 +638,20 @@ export const EspaceDT: React.FC = () => {
     };
   };
 
+  const normalizeSectorEspaceDT = (s: string) => {
+    const low = (s || '').toLowerCase();
+    if (low.includes('bure') || low.includes('imiter est')) return 'Imiter Est';
+    if (low.includes('imiter 2')) return 'Imiter 2';
+    if (low.includes('imiter 1')) return 'Imiter 1';
+    return '';
+  };
+
   const getSectorHealth = () => {
-    const sectors: Record<string, { reel: number; plan: number }> = {
-      'Imiter 1': { reel: 0, plan: 0 },
-      'Imiter 2': { reel: 0, plan: 0 },
-      'Imiter Est': { reel: 0, plan: 0 },
+    const sectors: Record<string, { reel: number; plan: number; byChantier: Record<string, number> }> = {
+      'Imiter 1': { reel: 0, plan: 0, byChantier: {} },
+      'Imiter 2': { reel: 0, plan: 0, byChantier: {} },
+      'Imiter Est': { reel: 0, plan: 0, byChantier: {} },
     };
-    const normalizeSector = (s: string) => (s === 'Bure Imiter Est' ? 'Imiter Est' : s);
 
     ['poste1', 'poste2', 'poste3'].forEach(pKey => {
       const pData = journalProduction?.postes?.[pKey];
@@ -618,23 +659,33 @@ export const EspaceDT: React.FC = () => {
 
       (pData?.minage || []).forEach((r: any) => {
         const row = r.reel || r;
-        const sec = normalizeSector(row?.sector || '');
-        if (sectors[sec]) sectors[sec].reel += Number(row.realMeterage || 0);
+        const sec = normalizeSectorEspaceDT(row?.sectorGroup || row?.sector || '');
+        if (sectors[sec]) {
+          const meterage = Number(row.realMeterage || 0);
+          sectors[sec].reel += meterage;
+          const chantier = allChantiers.find((c: any) => c.id === row.chantierId);
+          const label = chantier?.name || row.chantierId || 'Chantier inconnu';
+          sectors[sec].byChantier[label] = (sectors[sec].byChantier[label] || 0) + meterage;
+        }
       });
 
       (plData?.minage || []).forEach((r: any) => {
-        const sec = normalizeSector(r?.sector || '');
+        const sec = normalizeSectorEspaceDT(r?.sectorGroup || r?.sector || '');
         if (sectors[sec]) sectors[sec].plan += Number(r.meterage || r.plannedMeterage || 0);
       });
     });
 
-    const withStatus = Object.entries(sectors).map(([name, v]) => {
+    const totalReel = Object.values(sectors).reduce((sum, v) => sum + v.reel, 0);
+
+    return Object.entries(sectors).map(([name, v]) => {
       const pct = v.plan > 0 ? (v.reel / v.plan) * 100 : 100;
       const status: 'nominal' | 'attention' | 'critique' = pct >= 90 ? 'nominal' : pct >= 70 ? 'attention' : 'critique';
-      return { name, reel: v.reel, plan: v.plan, pct, status };
+      const contribution = totalReel > 0 ? (v.reel / totalReel) * 100 : 0;
+      const chantierBreakdown = Object.entries(v.byChantier)
+        .map(([chantier, meterage]) => ({ chantier, meterage }))
+        .sort((a, b) => b.meterage - a.meterage);
+      return { name, reel: v.reel, plan: v.plan, pct, status, contribution, chantierBreakdown };
     });
-
-    return withStatus;
   };
 
   const isBureSector = (sector: string) => {
@@ -720,6 +771,108 @@ export const EspaceDT: React.FC = () => {
     return Object.entries(byDate)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, volume]) => ({ date: date.slice(5), volume: Number(volume.toFixed(1)) }));
+  };
+
+  const getBureEngineDailyTrend = () => {
+    const cutoffObj = new Date();
+    cutoffObj.setDate(cutoffObj.getDate() - 29);
+    const cutoffStr = cutoffObj.toISOString().split('T')[0];
+
+    const byDate: Record<string, { st2g1: number; st2g3: number }> = {};
+
+    allProductionDocs
+      .filter(doc => doc.id && doc.id >= cutoffStr)
+      .forEach(doc => {
+        const day = { st2g1: 0, st2g3: 0 };
+        ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+          const pData = doc.postes?.[pKey];
+          (pData?.deblayage || []).forEach((r: any) => {
+            const row = r.reel || r;
+            if (isBureSector(row?.sectorGroup || row?.sector)) {
+              const eng = (row.engineId || row.engineCode || '').trim();
+              if (eng === 'ST2G 1') day.st2g1 += Number(row.godets || 0);
+              if (eng === 'ST2G 3') day.st2g3 += Number(row.godets || 0);
+            }
+          });
+        });
+        byDate[doc.id] = day;
+      });
+
+    return Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, v]) => ({ date: date.slice(5), 'ST2G 1': v.st2g1, 'ST2G 3': v.st2g3 }));
+  };
+
+  const getExtractionDailyTrend = () => {
+    const cutoffObj = new Date();
+    cutoffObj.setDate(cutoffObj.getDate() - 29);
+    const cutoffStr = cutoffObj.toISOString().split('T')[0];
+
+    const byDate: Record<string, number> = {};
+
+    allProductionDocs
+      .filter(doc => doc.id && doc.id >= cutoffStr)
+      .forEach(doc => {
+        let dayWagons = 0;
+        ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+          const pData = doc.postes?.[pKey];
+          (pData?.extraction || []).forEach((r: any) => {
+            const row = r.reel || r;
+            dayWagons += Number(row?.wagonsActual || 0);
+          });
+        });
+        byDate[doc.id] = dayWagons;
+      });
+
+    return Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, wagons]) => ({ date: date.slice(5), wagons }));
+  };
+
+  const getVoleeRateePatterns = () => {
+    const currentMonth = selectedMois; // format 'YYYY-MM'
+    const byMineur: Record<string, { name: string; count: number; details: any[] }> = {};
+    const byChef: Record<string, { name: string; count: number; details: any[] }> = {};
+    const byAide: Record<string, { name: string; count: number; details: any[] }> = {};
+
+    allProductionDocs
+      .filter(doc => doc.id && doc.id.startsWith(currentMonth))
+      .forEach(doc => {
+        ['poste1', 'poste2', 'poste3'].forEach((pKey, idx) => {
+          const pData = doc.postes?.[pKey];
+          (pData?.minage || []).forEach((r: any) => {
+            const row = r.reel || r;
+            if (!row.volee_ratee) return;
+
+            const chantier = allChantiers.find((c: any) => c.id === row.chantierId);
+            const detail = {
+              date: doc.id,
+              chantier: chantier?.name || row.chantierId || 'Inconnu',
+              poste: `Poste ${idx + 1}`,
+              chef: row.chiefName || 'Inconnu',
+            };
+
+            if (row.minerMatricule) {
+              if (!byMineur[row.minerMatricule]) byMineur[row.minerMatricule] = { name: row.minerName || row.minerMatricule, count: 0, details: [] };
+              byMineur[row.minerMatricule].count++;
+              byMineur[row.minerMatricule].details.push(detail);
+            }
+            if (row.chiefMatricule) {
+              if (!byChef[row.chiefMatricule]) byChef[row.chiefMatricule] = { name: row.chiefName || row.chiefMatricule, count: 0, details: [] };
+              byChef[row.chiefMatricule].count++;
+              byChef[row.chiefMatricule].details.push(detail);
+            }
+            if (row.assistantMatricule) {
+              if (!byAide[row.assistantMatricule]) byAide[row.assistantMatricule] = { name: row.assistantName || row.assistantMatricule, count: 0, details: [] };
+              byAide[row.assistantMatricule].count++;
+              byAide[row.assistantMatricule].details.push(detail);
+            }
+          });
+        });
+      });
+
+    const toSorted = (obj: Record<string, any>) => Object.values(obj).sort((a: any, b: any) => b.count - a.count);
+    return { mineurs: toSorted(byMineur), chefs: toSorted(byChef), aides: toSorted(byAide) };
   };
 
   const getMonthlyConsolidatedStats = () => {
@@ -1460,13 +1613,44 @@ export const EspaceDT: React.FC = () => {
   const overviewExplosifs = getExplosifsStats();
   const overviewSectorHealth = getSectorHealth();
   const bureFocusData = getBureFocusData(bureFocusPeriod);
+  const voleeRateePatterns = getVoleeRateePatterns();
+
+  const getUserEngagement = () => {
+    const currentMonth = selectedMois;
+    const byUser: Record<string, { count: number; lastTimestamp: string; lastAction: string; actions: Record<string, number> }> = {};
+
+    auditLogs
+      .filter((log: any) => log.date && log.date.startsWith(currentMonth))
+      .forEach((log: any) => {
+        const user = log.user || 'Inconnu';
+        if (!byUser[user]) byUser[user] = { count: 0, lastTimestamp: '', lastAction: '', actions: {} };
+        byUser[user].count++;
+        byUser[user].actions[log.action] = (byUser[user].actions[log.action] || 0) + 1;
+        if (!byUser[user].lastTimestamp || log.timestamp > byUser[user].lastTimestamp) {
+          byUser[user].lastTimestamp = log.timestamp;
+          byUser[user].lastAction = log.action;
+        }
+      });
+
+    return Object.entries(byUser)
+      .map(([user, v]) => ({ user, ...v }))
+      .sort((a, b) => b.count - a.count);
+  };
+
+  const userEngagement = getUserEngagement();
+  const chefsForCurrentPost = getChefsForCurrentPost();
   const aideMineurRanking = employees
-    .filter((e: any) => e.role === 'Aide Mineur' && e.active !== false)
-    .map((e: any) => ({ ...calculateAssistantMinerStats(e.matricule, allProductionDocs), name: e.name }))
+    .filter((e: any) => e.fonction === 'AIDE_MINEUR' && e.status === 'actif')
+    .map((e: any) => ({
+      ...calculateAssistantMinerStats(e.matricule, allProductionDocs),
+      name: `${e.prenom || ''} ${e.nom || ''}`.trim()
+    }))
     .filter((s: any) => s.totalMetersAssisted > 0)
     .sort((a: any, b: any) => b.totalMetersAssisted - a.totalMetersAssisted)
     .slice(0, 5);
   const deblayageVolumeData = getDeblayageVolumeDaily();
+  const bureEngineDailyTrend = getBureEngineDailyTrend();
+  const extractionDailyTrend = getExtractionDailyTrend();
 
   const overviewAlerts: { type: 'critique' | 'attention'; text: string; source: DTTab }[] = [];
 
@@ -1910,18 +2094,18 @@ export const EspaceDT: React.FC = () => {
                     { cx: 235, cy: 115, rx: 95, ry: 90, labelY: 45, valY: null },
                   ][i];
                   return (
-                    <g key={s.name} onClick={() => setActiveTab('journal')} className="cursor-pointer">
+                    <g key={s.name} onClick={() => setExpandedSector(expandedSector === s.name ? null : s.name)} className="cursor-pointer">
                       <ellipse cx={positions.cx} cy={positions.cy} rx={positions.rx} ry={positions.ry}
-                        className={colors.bg.replace('bg-', 'fill-')} opacity="0.5" />
+                        style={{ fill: colors.hex, fillOpacity: 0.18 }} />
                       <ellipse cx={positions.cx} cy={positions.cy} rx={positions.rx} ry={positions.ry}
-                        fill="none" className={colors.border.replace('border-', 'stroke-')} strokeWidth="1.5" />
+                        fill="none" style={{ stroke: colors.hex, strokeOpacity: 0.5 }} strokeWidth="1.5" />
                       <text x={positions.cx} y={positions.labelY} textAnchor="middle"
                         className={`text-[13px] font-black ${colors.text}`} style={{ fontSize: '13px' }}>
                         {s.name}
                       </text>
                       {positions.valY && (
                         <text x={positions.cx} y={positions.valY} textAnchor="middle"
-                          className={`font-bold ${colors.text}`} style={{ fontSize: '11px' }}>
+                           className={`font-bold ${colors.text}`} style={{ fontSize: '11px' }}>
                           {s.pct.toFixed(0)}%
                         </text>
                       )}
@@ -1933,19 +2117,44 @@ export const EspaceDT: React.FC = () => {
                   if (!bure) return null;
                   const colors = STATUS_COLORS[bure.status];
                   return (
-                    <g onClick={() => setActiveTab('journal')} className="cursor-pointer">
-                      <circle cx="245" cy="140" r="42" className={colors.bg.replace('bg-', 'fill-')} opacity="0.6">
+                    <g onClick={() => setExpandedSector(expandedSector === 'Imiter Est' ? null : 'Imiter Est')} className="cursor-pointer">
+                      <circle cx="245" cy="140" r="42" style={{ fill: colors.hex, fillOpacity: 0.28 }}>
                         {bure.status === 'critique' && (
-                          <animate attributeName="opacity" values="0.5;0.85;0.5" dur="2.2s" repeatCount="indefinite" />
+                          <animate attributeName="fill-opacity" values="0.2;0.45;0.2" dur="2.2s" repeatCount="indefinite" />
                         )}
                       </circle>
-                      <circle cx="245" cy="140" r="42" fill="none" className={colors.border.replace('border-', 'stroke-')} strokeWidth="1.5" />
+                      <circle cx="245" cy="140" r="42" fill="none" style={{ stroke: colors.hex, strokeOpacity: 0.6 }} strokeWidth="1.5" />
                       <text x="245" y="136" textAnchor="middle" className={`font-black ${colors.text}`} style={{ fontSize: '11px' }}>Bure</text>
                       <text x="245" y="150" textAnchor="middle" className={`font-bold ${colors.text}`} style={{ fontSize: '9px' }}>{bure.pct.toFixed(0)}%</text>
                     </g>
                   );
                 })()}
               </svg>
+
+              {expandedSector && (() => {
+                const sector = overviewSectorHealth.find(s => s.name === expandedSector);
+                if (!sector) return null;
+                return (
+                  <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[12px] font-black text-slate-800">{sector.name}</span>
+                      <span className="text-[11px] font-bold text-[#b8860b]">{sector.contribution.toFixed(0)}% de la production totale</span>
+                    </div>
+                    {sector.chantierBreakdown.length === 0 ? (
+                      <p className="text-[11px] text-slate-400">Aucune donnée de chantier pour aujourd'hui.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {sector.chantierBreakdown.map((c: any) => (
+                          <div key={c.chantier} className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-600">{c.chantier}</span>
+                            <span className="font-bold text-slate-800">{c.meterage.toFixed(1)} m</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* GRILLE DES 4 KPI CARDS */}
@@ -2078,12 +2287,53 @@ export const EspaceDT: React.FC = () => {
                 </tbody>
               </table>
 
-              <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+              <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 mb-6">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Extraction (équipe dédiée)</span>
                 <span className="text-[13px] font-black text-slate-800">
                   {bureFocusData.wagonsActual} <span className="text-slate-400 font-normal">/ {bureFocusData.wagonsTarget || 48} wagons</span>
                 </span>
               </div>
+
+              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">
+                Déblayage journalier — ST2G 1 / ST2G 3 (30 derniers jours)
+              </p>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={bureEngineDailyTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1eee5" />
+                  <XAxis dataKey="date" tick={{ fontSize: 9 }} />
+                  <YAxis tick={{ fontSize: 9 }} unit=" g" />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  <Line type="monotone" dataKey="ST2G 1" stroke="#00A0E3" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="ST2G 3" stroke="#b8860b" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+
+              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2 mt-6">
+                Volume déblayé (m³) — 30 derniers jours
+              </p>
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={deblayageVolumeData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1eee5" />
+                  <XAxis dataKey="date" tick={{ fontSize: 9 }} />
+                  <YAxis tick={{ fontSize: 9 }} unit=" m³" />
+                  <Tooltip formatter={(v: number) => [`${v} m³`, 'Volume']} />
+                  <Line type="monotone" dataKey="volume" stroke="#8B1A1A" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+
+              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2 mt-6">
+                Extraction journalière — wagons (30 derniers jours)
+              </p>
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={extractionDailyTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1eee5" />
+                  <XAxis dataKey="date" tick={{ fontSize: 9 }} />
+                  <YAxis tick={{ fontSize: 9 }} unit=" wagons" />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="wagons" stroke="#141c2b" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
 
             {/* COMPARATIF MENSUEL */}
@@ -2096,39 +2346,104 @@ export const EspaceDT: React.FC = () => {
               </Suspense>
             </div>
 
-            {/* PRÉDICTIF & CAUSES */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6">
-                <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement...</div>}>
-                  <PredictiveIntelligencePremium
-                    chantiers={allChantiers}
-                    allProductionDocs={allProductionDocs}
-                    allPlanningSheets={allPlanningSheets}
-                    reportType="day"
-                    filterDate={journalDate}
-                    filterMonth={selectedMois}
-                  />
-                </Suspense>
+            {/* COGNITIVE LAYER — PATTERNS VOLÉES RATÉES */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              <div className="lg:col-span-2 bg-white border border-slate-200/80 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
+                    Patterns volées ratées — {selectedMois}
+                  </p>
+                  <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+                    {(['mineurs', 'chefs', 'aides'] as const).map(r => (
+                      <button
+                        key={r}
+                        onClick={() => { setPatternRole(r); setExpandedPerson(null); }}
+                        className={`text-[10px] font-bold px-3 py-1.5 rounded-md transition-colors ${
+                          patternRole === r ? 'bg-[#141c2b] text-[#ffd700]' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        {r === 'mineurs' ? 'Mineurs' : r === 'chefs' ? 'Chefs de poste' : 'Aide-mineurs'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {voleeRateePatterns[patternRole].length === 0 ? (
+                  <p className="text-[11px] text-slate-400">Aucune volée ratée ce mois pour cette catégorie.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {voleeRateePatterns[patternRole].map((p: any) => (
+                      <div key={p.name} className="border border-slate-100 rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setExpandedPerson(expandedPerson === p.name ? null : p.name)}
+                          className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 transition-colors"
+                        >
+                          <span className="text-[12px] font-bold text-slate-700">{p.name}</span>
+                          <span className={`text-[11px] font-black ${p.count >= 3 ? 'text-[#8B1A1A]' : 'text-slate-500'}`}>
+                            {p.count} volée{p.count > 1 ? 's' : ''} ratée{p.count > 1 ? 's' : ''} ce mois
+                          </span>
+                        </button>
+                        {expandedPerson === p.name && (
+                          <div className="bg-slate-50 px-3 py-2 space-y-1 border-t border-slate-100">
+                            {p.details.map((d: any, i: number) => (
+                              <div key={i} className="text-[10px] text-slate-500 flex justify-between">
+                                <span>{d.date.slice(5).split('-').reverse().join('/')} · {d.chantier} · {d.poste}</span>
+                                <span className="text-slate-400">Chef : {d.chef}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement...</div>}>
-                <CausesChart data={globalCausesData} title={`Causes des volées ratées — ${selectedMois}`} />
-              </Suspense>
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
+                  Causes des volées ratées — {selectedMois}
+                </p>
+                {globalCausesData.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">Aucune volée ratée expliquée ce mois.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {globalCausesData.map((c: any) => (
+                      <div key={c.name} className="flex items-center justify-between text-[12px]">
+                        <span className="font-bold text-slate-700 truncate pr-2">{c.name}</span>
+                        <span className="text-slate-500 whitespace-nowrap">{c.value} fois · {c.lastDate?.slice(5).split('-').reverse().join('/')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* GRAPHIQUE M³ DÉBLAYÉS — BURE IMITER EST */}
+            {/* AUDIT D'ENGAGEMENT — BASÉ SUR LES ACTIONS RÉELLES */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
-              <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4">
-                Volume déblayé — Bure Imiter Est (30 derniers jours)
+              <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">
+                Engagement réel — {selectedMois}
               </p>
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={deblayageVolumeData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1eee5" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} unit=" m³" />
-                  <Tooltip formatter={(v: number) => [`${v} m³`, 'Volume']} />
-                  <Line type="monotone" dataKey="volume" stroke="#00A0E3" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              <p className="text-[10px] text-slate-400 mb-4">
+                Basé sur les actions enregistrées (sauvegarde, validation, suppression de planning). Pas de temps de connexion simulé.
+              </p>
+              {userEngagement.length === 0 ? (
+                <p className="text-[11px] text-slate-400">Aucune action enregistrée ce mois.</p>
+              ) : (
+                <div className="space-y-2">
+                  {userEngagement.map((u: any) => (
+                    <div key={u.user} className="flex items-center justify-between border border-slate-100 rounded-xl px-4 py-2.5">
+                      <div>
+                        <p className="text-[12px] font-bold text-slate-700">{u.user}</p>
+                        <p className="text-[9px] text-slate-400">
+                          Dernière action : {u.lastAction} · {new Date(u.lastTimestamp).toLocaleDateString('fr-FR')} à {new Date(u.lastTimestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <span className={`text-[13px] font-black ${u.count >= 10 ? 'text-[#00A0E3]' : u.count >= 3 ? 'text-[#b8860b]' : 'text-slate-400'}`}>
+                        {u.count} action{u.count > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* EXPLOSIFS — COMPARAISON SECTEURS */}
@@ -2306,7 +2621,7 @@ export const EspaceDT: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Superviseur de poste</p>
-                        <span className="text-[11px] font-black text-[#b8860b] uppercase tracking-wide">{currentShiftInfo.supervisor}</span>
+                        <span className="text-[11px] font-black text-[#b8860b] uppercase tracking-wide">{currentShiftInfo.hours}</span>
                       </div>
                     </div>
 
@@ -2319,6 +2634,17 @@ export const EspaceDT: React.FC = () => {
                     <div className="flex justify-between items-center mt-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                       <span>{currentShiftInfo.hours}</span>
                       <span>Progression : {currentShiftInfo.progress}%</span>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
+                      {chefsForCurrentPost.map(c => (
+                        <div key={c.sector} className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 font-semibold">{c.sector}</span>
+                          <span className={`font-bold ${c.chefName === 'Aucun' ? 'text-slate-300 italic' : 'text-slate-700'}`}>
+                            {c.chefName}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
