@@ -59,6 +59,7 @@ export const EspaceDT: React.FC = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<DTTab>('vue_ensemble');
   const [bureFocusPeriod, setBureFocusPeriod] = useState<'jour' | 'semaine' | 'mois'>('jour');
+  const [presentationMode, setPresentationMode] = useState(false);
   const [patternRole, setPatternRole] = useState<'mineurs' | 'chefs' | 'aides'>('mineurs');
   const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
   const [expandedSector, setExpandedSector] = useState<string | null>(null);
@@ -1619,6 +1620,39 @@ export const EspaceDT: React.FC = () => {
   const overviewBilan = getBilanJournal();
   const overviewExplosifs = getExplosifsStats();
   const overviewSectorHealth = getSectorHealth();
+  const getHeroSynthesis = () => {
+    const currentMonth = selectedMois;
+    let totalReel = 0;
+    let totalPlan = 0;
+
+    allProductionDocs
+      .filter(doc => doc.id && doc.id.startsWith(currentMonth))
+      .forEach(doc => {
+        ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+          (doc.postes?.[pKey]?.minage || []).forEach((r: any) => {
+            const row = r.reel || r;
+            totalReel += Number(row.realMeterage || 0);
+          });
+        });
+      });
+
+    allPlanningSheets
+      .filter(doc => doc.id && doc.id.startsWith(currentMonth))
+      .forEach(doc => {
+        ['poste1', 'poste2', 'poste3'].forEach(pKey => {
+          (doc.postes?.[pKey]?.minage || []).forEach((r: any) => {
+            totalPlan += Number(r.meterage || r.plannedMeterage || 0);
+          });
+        });
+      });
+
+    const pct = totalPlan > 0 ? Math.round((totalReel / totalPlan) * 100) : 0;
+    const bestSector = [...overviewSectorHealth].sort((a, b) => b.contribution - a.contribution)[0];
+
+    return { pct, totalReel, totalPlan, bestSector };
+  };
+
+  const heroSynthesis = getHeroSynthesis();
   const bureFocusData = getBureFocusData(bureFocusPeriod);
   const voleeRateePatterns = getVoleeRateePatterns();
 
@@ -2043,7 +2077,16 @@ export const EspaceDT: React.FC = () => {
 
       <div className="p-6">
         {activeTab === 'vue_ensemble' && (
-          <div className="space-y-6">
+          <div className={presentationMode ? 'fixed inset-0 z-[300] bg-white overflow-y-auto p-8 space-y-6' : 'space-y-6'}>
+
+            {presentationMode && (
+              <button
+                onClick={() => setPresentationMode(false)}
+                className="fixed top-4 right-4 z-[310] flex items-center gap-2 bg-[#141c2b] text-[#ffd700] px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-[#1c2740] transition-colors shadow-lg"
+              >
+                Quitter le mode présentation
+              </button>
+            )}
 
             {overviewAlerts.length > 0 && (() => {
               const current = overviewAlerts[tickerIndex % overviewAlerts.length];
@@ -2060,17 +2103,38 @@ export const EspaceDT: React.FC = () => {
             })()}
 
             {/* PANNEAU DE BIENVENUE */}
-            <div className="mb-8 animate-in fade-in slide-in-from-top-2 duration-500">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b8860b] mb-1">
-                {new Date().getHours() < 12 ? 'Bonjour' : new Date().getHours() < 18 ? 'Bon après-midi' : 'Bonsoir'}
-              </p>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                {profile?.name || 'Hamid El Yaakouby'}
-              </h2>
-              <p className="text-[11px] font-semibold text-slate-400 mt-1 capitalize">
-                {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
+            <div className="mb-8 flex items-start justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b8860b] mb-1">
+                  {new Date().getHours() < 12 ? 'Bonjour' : new Date().getHours() < 18 ? 'Bon après-midi' : 'Bonsoir'}
+                </p>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                  {profile?.name || 'Hamid El Yaakouby'}
+                </h2>
+                <p className="text-[11px] font-semibold text-slate-400 mt-1 capitalize">
+                  {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+              {!presentationMode && (
+                <button
+                  onClick={() => setPresentationMode(true)}
+                  className="flex-shrink-0 flex items-center gap-2 bg-[#141c2b] text-[#ffd700] px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-[#1c2740] transition-colors"
+                >
+                  Mode Présentation
+                </button>
+              )}
             </div>
+
+            {heroSynthesis.totalPlan > 0 && heroSynthesis.bestSector && (
+              <div className="mb-6 flex items-center gap-2">
+                <span className="text-[15px] font-medium text-slate-700">
+                  Production à <span className="font-black text-[#b8860b]">{heroSynthesis.pct}%</span> de l'objectif ce mois
+                  {heroSynthesis.bestSector.contribution > 0 && (
+                    <> — <span className="font-black text-[#00A0E3]">{heroSynthesis.bestSector.name}</span> en tête avec <span className="font-black text-[#00A0E3]">{heroSynthesis.bestSector.contribution.toFixed(0)}%</span> de la contribution totale</>
+                  )}
+                </span>
+              </div>
+            )}
 
             {/* STATUS GLOBAL */}
             <div className={`mb-8 rounded-2xl border p-5 flex items-center justify-between
