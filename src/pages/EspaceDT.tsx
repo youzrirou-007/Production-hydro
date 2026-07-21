@@ -48,6 +48,13 @@ const STATUS_COLORS = {
   critique: { text: 'text-[#8B1A1A]', bg: 'bg-[#8B1A1A]/10', border: 'border-[#8B1A1A]/30', dot: 'bg-[#8B1A1A]', hex: '#8B1A1A' },
 };
 
+// Palette "pierres précieuses" — couleur fixe par secteur, indépendante du statut de performance
+const SECTOR_GEMS: Record<string, { gradient: string; stroke: string; text: string }> = {
+  'Imiter 1':   { gradient: 'url(#gemRuby)',     stroke: '#5a1414', text: '#ffffff' },
+  'Imiter 2':   { gradient: 'url(#gemSapphire)', stroke: '#0a4a75', text: '#ffffff' },
+  'Imiter Est': { gradient: 'url(#gemSilver)',   stroke: '#5c6572', text: '#3d4652' },
+};
+
 export const EspaceDT: React.FC = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<DTTab>('vue_ensemble');
@@ -2086,8 +2093,38 @@ export const EspaceDT: React.FC = () => {
             {/* CARTE VIVANTE DES 3 SECTEURS */}
             <div className="bg-white border border-[#b8860b]/20 rounded-2xl p-6 mb-8">
               <svg viewBox="0 0 340 220" className="w-full max-w-md mx-auto">
+                <defs>
+                  <radialGradient id="gemRuby" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#e8626a" />
+                    <stop offset="55%" stopColor="#a83232" />
+                    <stop offset="100%" stopColor="#6e1a1a" />
+                  </radialGradient>
+                  <radialGradient id="gemSapphire" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#7fd4f7" />
+                    <stop offset="55%" stopColor="#1a8fd1" />
+                    <stop offset="100%" stopColor="#0a5f96" />
+                  </radialGradient>
+                  <radialGradient id="gemSilver" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#f1f4f7" />
+                    <stop offset="55%" stopColor="#aab4c0" />
+                    <stop offset="100%" stopColor="#727d8a" />
+                  </radialGradient>
+                  <radialGradient id="gemGold" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#fff3c4" />
+                    <stop offset="45%" stopColor="#f0c34a" />
+                    <stop offset="100%" stopColor="#a8790f" />
+                  </radialGradient>
+                  <filter id="goldGlow" x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="9" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+
                 {overviewSectorHealth.map((s, i) => {
-                  const colors = STATUS_COLORS[s.status];
+                  const gem = SECTOR_GEMS[s.name] || SECTOR_GEMS['Imiter 1'];
                   const positions = [
                     { cx: 80, cy: 70, rx: 66, ry: 52, labelY: 66, valY: 84 },
                     { cx: 80, cy: 160, rx: 66, ry: 52, labelY: 156, valY: 174 },
@@ -2096,36 +2133,31 @@ export const EspaceDT: React.FC = () => {
                   return (
                     <g key={s.name} onClick={() => setExpandedSector(expandedSector === s.name ? null : s.name)} className="cursor-pointer">
                       <ellipse cx={positions.cx} cy={positions.cy} rx={positions.rx} ry={positions.ry}
-                        style={{ fill: colors.hex, fillOpacity: 0.18 }} />
-                      <ellipse cx={positions.cx} cy={positions.cy} rx={positions.rx} ry={positions.ry}
-                        fill="none" style={{ stroke: colors.hex, strokeOpacity: 0.5 }} strokeWidth="1.5" />
+                        fill={gem.gradient} stroke={gem.stroke} strokeWidth="1" />
                       <text x={positions.cx} y={positions.labelY} textAnchor="middle"
-                        className={`text-[13px] font-black ${colors.text}`} style={{ fontSize: '13px' }}>
+                        style={{ fontSize: '13px', fontWeight: 500, fill: gem.text }}>
                         {s.name}
                       </text>
                       {positions.valY && (
                         <text x={positions.cx} y={positions.valY} textAnchor="middle"
-                           className={`font-bold ${colors.text}`} style={{ fontSize: '11px' }}>
+                          style={{ fontSize: '11px', fill: gem.text }}>
                           {s.pct.toFixed(0)}%
                         </text>
                       )}
                     </g>
                   );
                 })}
+
                 {(() => {
                   const bure = overviewSectorHealth.find(s => s.name === 'Imiter Est');
                   if (!bure) return null;
-                  const colors = STATUS_COLORS[bure.status];
                   return (
                     <g onClick={() => setExpandedSector(expandedSector === 'Imiter Est' ? null : 'Imiter Est')} className="cursor-pointer">
-                      <circle cx="245" cy="140" r="42" style={{ fill: colors.hex, fillOpacity: 0.28 }}>
-                        {bure.status === 'critique' && (
-                          <animate attributeName="fill-opacity" values="0.2;0.45;0.2" dur="2.2s" repeatCount="indefinite" />
-                        )}
-                      </circle>
-                      <circle cx="245" cy="140" r="42" fill="none" style={{ stroke: colors.hex, strokeOpacity: 0.6 }} strokeWidth="1.5" />
-                      <text x="245" y="136" textAnchor="middle" className={`font-black ${colors.text}`} style={{ fontSize: '11px' }}>Bure</text>
-                      <text x="245" y="150" textAnchor="middle" className={`font-bold ${colors.text}`} style={{ fontSize: '9px' }}>{bure.pct.toFixed(0)}%</text>
+                      <g filter="url(#goldGlow)">
+                        <circle cx="245" cy="140" r="42" fill="url(#gemGold)" stroke="#7a5809" strokeWidth="1" />
+                      </g>
+                      <text x="245" y="136" textAnchor="middle" style={{ fontSize: '11px', fontWeight: 500, fill: '#4a3406' }}>Bure</text>
+                      <text x="245" y="150" textAnchor="middle" style={{ fontSize: '9px', fill: '#4a3406' }}>{bure.pct.toFixed(0)}%</text>
                     </g>
                   );
                 })()}
@@ -2245,7 +2277,7 @@ export const EspaceDT: React.FC = () => {
             </div>
 
             {/* FOCUS BURE IMITER EST */}
-            <div className="bg-white border border-[#b8860b]/30 rounded-2xl p-6 mb-8">
+            <div className="bg-[#f4f5f7] border border-[#dcdfe4] rounded-2xl p-6 mb-8">
               <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-black uppercase tracking-wide text-slate-800">Focus Bure Imiter Est</span>
@@ -2337,7 +2369,7 @@ export const EspaceDT: React.FC = () => {
             </div>
 
             {/* COMPARATIF MENSUEL */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
+            <div className="bg-[#fdfaf2] border border-[#e8dfc0] rounded-2xl p-6 mb-8">
               <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement du comparatif...</div>}>
                 <HistoryTrends
                   allProductionDocs={allProductionDocs}
@@ -2348,7 +2380,7 @@ export const EspaceDT: React.FC = () => {
 
             {/* COGNITIVE LAYER — PATTERNS VOLÉES RATÉES */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              <div className="lg:col-span-2 bg-white border border-slate-200/80 rounded-2xl p-6">
+              <div className="lg:col-span-2 bg-[#eef7fc] border border-[#c9e4f2] rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
                     Patterns volées ratées — {selectedMois}
@@ -2398,7 +2430,7 @@ export const EspaceDT: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-5">
+              <div className="bg-[#eef7fc] border border-[#c9e4f2] rounded-2xl p-5">
                 <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3">
                   Causes des volées ratées — {selectedMois}
                 </p>
@@ -2418,7 +2450,7 @@ export const EspaceDT: React.FC = () => {
             </div>
 
             {/* AUDIT D'ENGAGEMENT — BASÉ SUR LES ACTIONS RÉELLES */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
+            <div className="bg-[#eef7fc] border border-[#c9e4f2] rounded-2xl p-6 mb-8">
               <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">
                 Engagement réel — {selectedMois}
               </p>
@@ -2447,7 +2479,7 @@ export const EspaceDT: React.FC = () => {
             </div>
 
             {/* EXPLOSIFS — COMPARAISON SECTEURS */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
+            <div className="bg-[#fdfaf2] border border-[#e8dfc0] rounded-2xl p-6 mb-8">
               <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement...</div>}>
                 <SectorsCompare
                   allProductionDocs={allProductionDocs}
@@ -2462,7 +2494,7 @@ export const EspaceDT: React.FC = () => {
             </div>
 
             {/* RH — CLASSEMENTS */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 mb-8">
+            <div className="bg-[#eef7fc] border border-[#c9e4f2] rounded-2xl p-6 mb-8">
               <Suspense fallback={<div className="text-[11px] text-slate-400 text-center py-8">Chargement...</div>}>
                 <GlobalRankings
                   allProductionDocs={allProductionDocs}
@@ -2620,7 +2652,7 @@ export const EspaceDT: React.FC = () => {
                         <h4 className="text-[13px] font-black text-slate-800 uppercase tracking-wide">{currentShiftInfo.name}</h4>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Superviseur de poste</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Horaires du poste</p>
                         <span className="text-[11px] font-black text-[#b8860b] uppercase tracking-wide">{currentShiftInfo.hours}</span>
                       </div>
                     </div>
