@@ -175,7 +175,7 @@ export const Step8FailedBlasts: React.FC<Step8Props> = ({
                 <div className="border-b border-slate-100 pb-3 flex items-center gap-2">
                   <ClipboardCheck className="w-5 h-5 text-emerald-600" />
                   <div>
-                    <h5 className="text-[10px] font-black uppercase text-slate-400 font-mono tracking-widest">SMI HYDROMINES REGISTRY</h5>
+                    <h5 className="text-[10px] font-black uppercase text-slate-400 font-mono tracking-widest">SMI EXCELLENCE REGISTRY</h5>
                     <h4 className="text-xs font-black uppercase tracking-wide text-slate-900">Récépissé de Saisie de Sûreté</h4>
                   </div>
                 </div>

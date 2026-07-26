@@ -82,7 +82,7 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
       })),
       nbChantiers: (chantiers || []).filter(c => c.status === 'ouvert').length,
       sectors: ['Imiter 1', 'Imiter 2', 'Imiter Est'],
-      site: 'SMI Imiter — Mine souterraine d\'argent'
+      site: 'CHANTIER MINIER (X) — Mine souterraine d\'argent'
     };
   };
 
@@ -92,7 +92,7 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
     setError(null);
 
     const dataContext = getProductionData();
-    const safetyData = { site: 'SMI Imiter', type: 'mine souterraine argent' };
+    const safetyData = { site: 'CHANTIER MINIER (X)', type: 'mine souterraine argent' };
     const maintenanceData = { engines: 'LHD ST2D, LHD ST2G, Perforateur Montabert T23' };
 
     try {
@@ -114,7 +114,7 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
         endpoint = '/api/ia/assistant';
         body = {
           skillId: 'metier',
-          customPrompt: customPrompt || 'Quelles sont les 5 améliorations les plus impactantes pour augmenter le métrage mensuel à SMI Imiter ?',
+          customPrompt: customPrompt || 'Quelles sont les 5 améliorations les plus impactantes pour augmenter le métrage mensuel au CHANTIER MINIER (X) ?',
           appContext: JSON.stringify(dataContext)
         };
       } else if (activeMode === 'expert') {
@@ -166,11 +166,11 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
   const dataContext = getProductionData();
 
   return (
-    <div className="w-full bg-slate-950 rounded-3xl border border-slate-800 p-6 shadow-2xl text-slate-100 flex flex-col gap-6" id="hydromines-ia-panel">
+    <div className="w-full bg-slate-950 rounded-3xl border border-slate-800 p-6 shadow-2xl text-slate-100 flex flex-col gap-6" id="excellence-ia-panel">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div className="space-y-1">
           <h2 className="text-base md:text-lg font-black tracking-wider text-white flex items-center gap-2">
-            🤖 HYDROMINES INTELLIGENCE ARTIFICIELLE
+            🤖 EXCELLENCE INTELLIGENCE ARTIFICIELLE
           </h2>
           <p className="text-xs font-black text-[#ffd700] uppercase tracking-wide">
             Powered by Gemini — Analyse en temps réel
@@ -339,14 +339,14 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                   <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
                   <h3 className="text-sm font-black uppercase text-slate-900 tracking-wide">
-                    🔭 Analyse Vision HydroMines
+                    🔭 Analyse Vision Excellence
                   </h3>
                 </div>
                 <p className="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed font-semibold">
                   {result.result || result}
                 </p>
                 <div className="pt-3 border-t border-slate-100 text-[10px] text-slate-400 font-black uppercase tracking-wider">
-                  Généré par Gemini 2.0 Flash — Données réelles SMI Imiter
+                  Généré par Gemini 2.0 Flash — Données réelles CHANTIER MINIER (X)
                 </div>
               </div>
             )}

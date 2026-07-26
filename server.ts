@@ -63,7 +63,7 @@ app.post("/api/ia/vision", async (req, res) => {
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: `
-        You are the HydroMines Vision IA, a strategic brain for a mining subcontractor.
+        You are the EXCELLENCE Vision IA, a strategic brain for a mining subcontractor.
         Analyze the following data and answer the request:
         
         Production Data: ${JSON.stringify(productionData)}
@@ -152,7 +152,7 @@ app.post("/api/ia/assistant", async (req, res) => {
     };
 
     const prompt = `
-        You are the HydroMines Strategy Expert.
+        You are the EXCELLENCE Strategy Expert.
         Application Context: ${appContext}
         Strategic Focus: ${systemPrompt}
         User specific request: ${customPrompt}
@@ -188,7 +188,7 @@ app.post("/api/ia/expert-analysis", async (req, res) => {
 
     const prompt = `
         You are ${expertName}, a top-tier world expert with the following profile: ${profile}.
-        Your goal is to analyze the following mining operational data for HydroMines:
+        Your goal is to analyze the following mining operational data for EXCELLENCE:
         
         Data: ${JSON.stringify(dataContext)}
         

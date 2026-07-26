@@ -40,7 +40,7 @@ export const Step6KPIsReading: React.FC<Step6Props> = ({
       <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-md relative">
         <div className="bg-slate-900 p-3.5 text-white flex justify-between text-[10px] font-black uppercase tracking-widest font-mono">
           <span className="flex items-center gap-1.5"><Table className="w-4 h-4 text-[#b8860b]" /> Fiche Journalière de Production (Cliquer sur la ligne défectueuse) :</span>
-          <span className="text-[#b8860b]">SMI HydroMines</span>
+          <span className="text-[#b8860b]">SMI Excellence</span>
         </div>
 
         <div className="overflow-x-auto">

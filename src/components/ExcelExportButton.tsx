@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileSpreadsheet } from 'lucide-react';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 
 interface ExcelMinage {
   chantierId: string;
@@ -128,7 +128,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
       });
     } else {
       // Direct text fallback for logo
-      logoRow.getCell('A').value = '🏗️ HYDROMINES';
+      logoRow.getCell('A').value = '🏗️ EXCELLENCE';
       sheet.mergeCells(`A${logoRow.number}:C${logoRow.number}`);
       const logoCell = logoRow.getCell('A');
       logoCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: '00BFFF' } };
@@ -317,7 +317,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
 
         const sectorMap: Record<string, ExcelMinage[]> = {};
         validRows.forEach(r => {
-          const sec = r.sectorGroup || 'Hydromines Fond';
+          const sec = r.sectorGroup || 'Excellence Fond';
           if (!sectorMap[sec]) sectorMap[sec] = [];
           sectorMap[sec].push(r);
         });
@@ -439,7 +439,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
 
         const sectorMap: Record<string, ExcelDeblayage[]> = {};
         validRows.forEach(r => {
-          const sec = r.sectorGroup || 'Hydromines Fond';
+          const sec = r.sectorGroup || 'Excellence Fond';
           if (!sectorMap[sec]) sectorMap[sec] = [];
           sectorMap[sec].push(r);
         });
@@ -516,7 +516,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
         { key: 'colF', width: 18 }, // Objectif Wagons
         { key: 'colG', width: 45 }  // Directives
       ];
-      createCorpHeader(sheetExtraction, 'ORDRE DE SERVICE JOURNALIER - BURES & LOGISTIQUE EXTRACTION UNITE HYDROMINES', themeColors.extraction.headerBg, 'G', imageId);
+      createCorpHeader(sheetExtraction, 'ORDRE DE SERVICE JOURNALIER - BURES & LOGISTIQUE EXTRACTION UNITE EXCELLENCE', themeColors.extraction.headerBg, 'G', imageId);
 
       posts.forEach(post => {
         const validRows = extractionRowsByPost[post].filter(r => 
@@ -567,7 +567,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
             getEmployeeName(r.equipier2),
             [getEmployeeName(r.equipier3), getEmployeeName(r.equipier4)].filter(Boolean).join(', ') || 'N/A',
             `${r.wagonsTarget} wagons`,
-            r.remarks || 'Extraction minerai prioritaire HYDROMINES'
+            r.remarks || 'Extraction minerai prioritaire EXCELLENCE'
           ]);
           added.height = 18;
           added.eachCell((c, colIdx) => {
@@ -648,7 +648,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
             r.engineCode || r.engineId || 'ST2G 4',
             `${r.hoursSpent} heures`,
             r.workDescription || 'Maintenance préventive systématique de niveau 1-2',
-            'HYDROMINES PRIORITAIRE'
+            'EXCELLENCE PRIORITAIRE'
           ]);
           added.height = 18;
           added.eachCell((c, colIdx) => {
@@ -667,7 +667,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `HYDROMINES-planification_${selectedDate}.xlsx`;
+      link.download = `EXCELLENCE-planification_${selectedDate}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -683,7 +683,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
     <button
       onClick={exportToExcel}
       className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:translate-y-px cursor-pointer border border-emerald-500/30"
-      title="Exporter la planification au format excel sans grille pour HYDROMINES"
+      title="Exporter la planification au format excel sans grille pour EXCELLENCE"
     >
       <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
       <span>Exporter Planning</span>

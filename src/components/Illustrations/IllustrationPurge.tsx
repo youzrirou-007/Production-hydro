@@ -15,7 +15,7 @@ export const IllustrationPurge: React.FC<{ className?: string }> = ({ className 
         </filter>
         
         {/* Gradients */}
-        <linearGradient id="hydromines-brand-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient id="excellence-brand-grad" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="#38bdf8" />
           <stop offset="50%" stopColor="#6366f1" />
           <stop offset="100%" stopColor="#b91c1c" />
@@ -183,12 +183,12 @@ export const IllustrationPurge: React.FC<{ className?: string }> = ({ className 
       <rect x="55" y="125" width="85" height="15" rx="3" fill="#1e293b" opacity="0.85" />
       <text x="97.5" y="135" fill="#38bdf8" fontSize="6.5" fontWeight="black" textAnchor="middle" fontFamily="sans-serif">PINCE À PURGER (SMI)</text>
 
-      {/* MANDATORY HYDROMINES BRANDING */}
+      {/* MANDATORY EXCELLENCE BRANDING */}
       {/* Top horizontal band (height 4px) */}
-      <rect x="0" y="0" width="400" height="4" fill="url(#hydromines-brand-grad)" opacity="0.7" />
+      <rect x="0" y="0" width="400" height="4" fill="url(#excellence-brand-grad)" opacity="0.7" />
 
       {/* Right vertical band (width 20px) */}
-      <rect x="380" y="0" width="20" height="240" fill="url(#hydromines-brand-grad)" opacity="0.92" />
+      <rect x="380" y="0" width="20" height="240" fill="url(#excellence-brand-grad)" opacity="0.92" />
       
       {/* Brand text read vertically downward */}
       <text 
@@ -202,7 +202,7 @@ export const IllustrationPurge: React.FC<{ className?: string }> = ({ className 
         transform="rotate(90, 390, 120)"
         fontFamily="sans-serif"
       >
-        HYDROMINES
+        EXCELLENCE
       </text>
     </svg>
   );

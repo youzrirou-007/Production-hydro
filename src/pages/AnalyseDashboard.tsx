@@ -46,7 +46,7 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 
 const SectorsCompare = lazy(() => import('../components/SectorsCompare').then(m => ({ default: m.SectorsCompare })));
 const GlobalRankings = lazy(() => import('../components/GlobalRankings').then(m => ({ default: m.GlobalRankings })));
@@ -1382,7 +1382,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
           <div className="shrink-0 flex items-center justify-center">
             <img 
               src={logoImg} 
-              alt="HydroMines Logo" 
+              alt="Excellence Logo" 
               className="h-24 w-24 md:h-28 md:w-28 object-contain hover:scale-105 transition-transform duration-300 select-none rounded-2xl" 
               referrerPolicy="no-referrer" 
             />
@@ -1395,7 +1395,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
             </h1>
             <div className="subtle-glow-line w-2/3 opacity-60" />
             <p className="uppercase tracking-[0.15em] text-[8.5px] font-extrabold text-[#b8860b]">
-              SMI HydroMines • Analyse des données d'exploitation : {renderPeriodLabel()}
+              SMI Excellence • Analyse des données d'exploitation : {renderPeriodLabel()}
             </p>
           </div>
 
@@ -1893,7 +1893,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
 
                       {/* Micro-briefing credit */}
                       <div className="text-[8px] text-slate-400 font-bold uppercase mt-3 pt-2 border-t border-slate-100 flex justify-between items-center">
-                        <span>Hydromines Decision Engine v2.0</span>
+                        <span>Excellence Decision Engine v2.0</span>
                         <span>Dernière mise à jour : {filterMonth}</span>
                       </div>
                     </div>

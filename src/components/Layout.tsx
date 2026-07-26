@@ -45,7 +45,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, collectionGroup, query, where, onSnapshot, updateDoc, orderBy } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { getUpcomingSaturday } from '../lib/rotation';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 import loginBgImg from '../assets/images/login-background-smi.jpg';
 
 function cn(...inputs: ClassValue[]) {
@@ -60,8 +60,7 @@ const starPositions = [
   { x: 70, y: 0, size: 14, delay: 520 },
 ];
 
-const hydroChars = "HYDRO".split("");
-const minesChars = "MINES".split("");
+const excellenceChars = "EXCELLENCE".split("");
 
 interface NavItem {
   id: string;
@@ -596,18 +595,17 @@ export const Layout: React.FC<{
           className="absolute bottom-12 left-10 md:left-16 lg:left-24 z-10 max-w-2xl select-none"
         >
           <div className="flex flex-col gap-0.5">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-none text-white drop-shadow-xl mt-1.5">
-              <span className="text-[#00A0E3]">HYDRO</span>
-              <span className="text-[#8B1A1A]">MINES</span>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-none text-white drop-shadow-xl mt-1.5 flex items-center">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ffd700] via-[#f59e0b] to-[#b8860b] drop-shadow-[0_2px_12px_rgba(255,215,0,0.5)]">EXCELLENCE</span>
             </h1>
             
-            <div className="h-1 w-24 bg-gradient-to-r from-[#00A0E3] to-[#8B1A1A] rounded-full my-3" />
+            <div className="h-1 w-32 bg-gradient-to-r from-[#ffd700] via-[#b8860b] to-[#78350f] rounded-full my-3 shadow-[0_0_12px_rgba(255,215,0,0.5)]" />
             
-            <p className="text-xs md:text-sm font-extrabold text-slate-100 tracking-wider uppercase drop-shadow-md">
-              Système de Commandement de la Production
+            <p className="text-xs md:text-sm font-extrabold text-[#ffd700] tracking-wider uppercase drop-shadow-md">
+              Système de Commandement Minier de Haute Précision
             </p>
-            <p className="text-[10px] text-slate-300/80 font-medium tracking-wider mt-1 max-w-sm drop-shadow-md uppercase">
-              Abattage, géologie & chantiers actifs SMI Imiter.
+            <p className="text-[10px] text-slate-200 font-medium tracking-wider mt-1 max-w-sm drop-shadow-md uppercase">
+              Abattage, géologie & chantiers actifs CHANTIER MINIER (X).
             </p>
           </div>
         </motion.div>
@@ -623,34 +621,36 @@ export const Layout: React.FC<{
               scale: showLoginForm ? 1 : 0.95,
             }}
             transition={{ type: 'spring', stiffness: 100, damping: 16 }}
-            className="w-full bg-white border border-slate-100 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+            className="w-full bg-white border border-amber-200/80 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
           >
-            {/* Elegant multi-brand border stripe */}
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#00A0E3] via-[#ffd700] to-[#8B1A1A]" />
+            {/* Elegant gold border stripe */}
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#b8860b] via-[#ffd700] to-[#d97706]" />
             
             {/* Visual internal gradient overlays to enrich the form look */}
-            <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#00A0E3]/5 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-[#8B1A1A]/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#ffd700]/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-[#b8860b]/10 rounded-full blur-2xl pointer-events-none" />
 
-            <div className="flex justify-center mb-6">
+            <div className="flex justify-center mb-5">
               <img
                 src={logoImg}
-                alt="SMI Logo"
-                className="h-16 w-auto object-contain rounded-xl shadow-md"
+                alt="Excellence Logo"
+                className="h-16 w-auto object-contain rounded-xl shadow-md p-1 bg-gradient-to-b from-amber-50 to-white border border-amber-300/40"
               />
             </div>
 
-            <div className="text-center mb-8">
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 8 }}>
-                <span style={{ color: '#00A0E3', fontWeight: 900, fontSize: 20, letterSpacing: '0.05em' }}>
-                  HYDRO
+            <div className="text-center mb-7">
+              <div className="flex items-center justify-center mb-2">
+                <span className="text-2.5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#b8860b] via-[#ffd700] to-[#b8860b] tracking-wider uppercase text-center drop-shadow-sm">
+                  EXCELLENCE
                 </span>
-                <span style={{ color: '#8B1A1A', fontWeight: 900, fontSize: 20, letterSpacing: '0.05em' }}>
-                  MINES
+              </div>
+              <div className="inline-block px-3 py-0.5 bg-amber-500/10 border border-amber-500/30 rounded-full mb-2">
+                <span className="text-[9px] font-black text-amber-700 uppercase tracking-widest">
+                  PLATEFORME D'EXCELLENCE OPÉRATIONNELLE
                 </span>
               </div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Suivi & Gestion des Opérations Minières
+                Commandement & Gestion des Opérations Minières
               </p>
             </div>
 
@@ -660,19 +660,19 @@ export const Layout: React.FC<{
             >
               <button
                 onClick={signIn}
-                className="group relative w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#ffd700] via-[#ea580c] to-[#8B1A1A] hover:from-[#ffe033] hover:via-[#ff6b00] hover:to-[#a31a1a] text-white font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-[transform,shadow,border-color,opacity] duration-300 cursor-pointer overflow-hidden border border-[#ffd700]/30 bg-no-repeat bg-clip-padding [transform:translateZ(0)]"
+                className="group relative w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#b8860b] via-[#ffd700] to-[#b8860b] hover:from-[#d97706] hover:via-[#ffe066] hover:to-[#d97706] text-slate-950 font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-[transform,shadow,border-color,opacity] duration-300 cursor-pointer overflow-hidden border border-[#ffd700]/50 shadow-[0_4px_20px_rgba(184,134,11,0.25)]"
               >
                 {/* Micro-shimmer sweep line on hover */}
                 <div 
-                  className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none"
+                  className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none"
                   style={{
                     transform: 'translateX(-200%) skewX(-25deg)',
                     animation: 'shimmer-fast 1.6s infinite linear'
                   }}
                 />
                 
-                {/* Discrete white border glow */}
-                <div className="absolute inset-0 border border-white/20 rounded-2xl pointer-events-none" />
+                {/* Discrete gold border glow */}
+                <div className="absolute inset-0 border border-amber-300/40 rounded-2xl pointer-events-none" />
 
                 <div className="bg-white p-1 rounded-lg shadow-sm group-hover:scale-110 transition-transform duration-300 z-10">
                   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -687,11 +687,11 @@ export const Layout: React.FC<{
             </motion.div>
 
             <div className="mt-8 text-center border-t border-slate-200/50 pt-6">
-              <span className="inline-block px-2.5 py-0.5 bg-[#b8860b]/10 border border-[#b8860b]/20 rounded-full text-[8px] font-black text-[#b8860b] uppercase tracking-widest">
-                ISO/IEC 27001 : Authentification Sécurisée
+              <span className="inline-block px-2.5 py-0.5 bg-[#b8860b]/10 border border-[#b8860b]/30 rounded-full text-[8px] font-black text-[#b8860b] uppercase tracking-widest">
+                EXCELLENCE — ACCÈS SÉCURISÉ ISO 27001
               </span>
               <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">
-                Accès réservé exclusivement au personnel habilité
+                Accès réservé exclusivement au personnel habilité du chantier
               </p>
             </div>
           </motion.div>
@@ -810,7 +810,7 @@ export const Layout: React.FC<{
               {/* LOGO REVEAL */}
               {['reveal', 'brand-hydro', 'brand-mines', 'tagline', 'mission', 'stars'].includes(introPhase) && (
                 <div className="logo-wrap-intro on breathe">
-                  <img src={logoImg} alt="HydroMines Logo" className="w-[170px] sm:w-[220px] h-auto" />
+                  <img src={logoImg} alt="Excellence Logo" className="w-[170px] sm:w-[220px] h-auto" />
                 </div>
               )}
 
@@ -819,56 +819,35 @@ export const Layout: React.FC<{
                 <div className="typo-wrap-intro on">
                   <div className="flex gap-[3px] items-baseline line-height-none">
                     <span className="flex">
-                      {hydroChars.map((char, index) => (
+                      {excellenceChars.map((char, index) => (
                         <span
                           key={index}
                           className="typo-char show"
                           style={{
                             fontFamily: "'Space Grotesk', sans-serif",
                             fontWeight: 900,
-                            fontSize: 'clamp(32px, 4.5vw, 52px)',
+                            fontSize: 'clamp(28px, 4vw, 48px)',
                             letterSpacing: '-0.04em',
-                            color: '#0284C7',
+                            color: '#b8860b',
+                            textShadow: '0 2px 10px rgba(184, 134, 11, 0.3)',
                             lineHeight: 1,
-                            transitionDelay: `${index * 55}ms`,
+                            transitionDelay: `${index * 45}ms`,
                           }}
                         >
                           {char}
                         </span>
                       ))}
                     </span>
-                    
-                    {['brand-mines', 'tagline', 'mission', 'stars'].includes(introPhase) && (
-                      <span className="flex ml-1">
-                        {minesChars.map((char, index) => (
-                          <span
-                            key={index}
-                            className="typo-char show"
-                            style={{
-                              fontFamily: "'Space Grotesk', sans-serif",
-                              fontWeight: 900,
-                              fontSize: 'clamp(32px, 4.5vw, 52px)',
-                              letterSpacing: '-0.04em',
-                              color: '#991B1B',
-                              lineHeight: 1,
-                              transitionDelay: `${index * 55}ms`,
-                            }}
-                          >
-                            {char}
-                          </span>
-                        ))}
-                      </span>
-                    )}
                   </div>
 
-                  <div className={cn("typo-line", ['tagline', 'mission', 'stars'].includes(introPhase) && "draw")} />
+                  <div className={cn("typo-line", ['tagline', 'mission', 'stars'].includes(introPhase) && "draw")} style={{ background: 'linear-gradient(to right, #b8860b, #ffd700)' }} />
                   
-                  <div className={cn("typo-tagline", ['tagline', 'mission', 'stars'].includes(introPhase) && "show")}>
-                    Mines · Eau · Environnement
+                  <div className={cn("typo-tagline", ['tagline', 'mission', 'stars'].includes(introPhase) && "show")} style={{ color: '#b8860b' }}>
+                    EXCELLENCE
                   </div>
                   
                   <div className={cn("typo-mission", ['mission', 'stars'].includes(introPhase) && "show")}>
-                    Plateforme de Suivi et de Gestion des Opérations Minières
+                    Plateforme d'Excellence Opérationnelle & Commandement Minier
                   </div>
                 </div>
               )}
@@ -919,7 +898,7 @@ export const Layout: React.FC<{
             Accès Suspendu
           </h2>
           <p className="text-[10px] font-black text-red-500/70 uppercase tracking-widest mb-6">
-            Sécurité & Administration SMI HydroMines
+            Sécurité & Administration SMI Excellence
           </p>
 
           <div className="bg-red-950/10 border border-red-500/20 rounded-2xl p-5 mb-8 text-left space-y-4">
@@ -1007,7 +986,7 @@ export const Layout: React.FC<{
             <div className="relative mb-6">
               <motion.img
                 src={logoImg}
-                alt="HydroMines Logo"
+                alt="Excellence Logo"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -1023,8 +1002,7 @@ export const Layout: React.FC<{
               transition={{ delay: 0.2, duration: 0.4 }}
               className="text-2xl font-black tracking-widest text-center uppercase"
             >
-              <span className="text-[#00A0E3] drop-shadow-[0_1px_2px_rgba(0,160,227,0.15)]">HYDRO</span>
-              <span className="text-[#8B1A1A] ml-1 drop-shadow-[0_1px_2px_rgba(139,26,26,0.15)]">MINES</span>
+              <span className="text-[#00A0E3] drop-shadow-[0_1px_2px_rgba(0,160,227,0.15)]">EXCELLENCE</span>
             </motion.h1>
 
             {/* Status texts */}
@@ -1043,7 +1021,7 @@ export const Layout: React.FC<{
               transition={{ delay: 0.7, duration: 0.4 }}
               className="text-[8px] font-bold tracking-widest text-slate-400 uppercase mt-2 max-w-xs text-center leading-relaxed"
             >
-              Fermeture sécurisée des protocoles de communication avec SMI Imiter. Sauvegarde de la session de production.
+              Fermeture sécurisée des protocoles de communication avec CHANTIER MINIER (X). Sauvegarde de la session de production.
             </motion.p>
 
             {/* Count-down Progress Bar (2 seconds) */}
@@ -1075,7 +1053,7 @@ export const Layout: React.FC<{
 
           <motion.img
             src={logoImg}
-            alt="HydroMines Logo"
+            alt="Excellence Logo"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -1136,7 +1114,7 @@ export const Layout: React.FC<{
           <div className="flex items-center gap-2.5">
             <img 
               src={logoImg} 
-              alt="HydroMines logo" 
+              alt="Excellence logo" 
               className={cn(
                 "object-contain rounded-lg shrink-0 transition-all duration-300",
                 isOpen ? "w-[72px] h-[72px]" : "w-10 h-10"
@@ -1145,9 +1123,8 @@ export const Layout: React.FC<{
             />
             {isOpen && (
               <div className="flex flex-col">
-                <h1 className="text-sm font-black tracking-tighter leading-none uppercase animate-fade-in">
-                  <span className="text-[#00BFFF]">Hydro</span>
-                  <span className="text-[#8B0000]">Mines</span>
+                <h1 className="text-sm font-black tracking-tighter leading-none uppercase animate-fade-in flex items-center">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b8860b] via-[#ffd700] to-[#b8860b]">EXCELLENCE</span>
                 </h1>
               </div>
             )}
@@ -1339,7 +1316,7 @@ export const Layout: React.FC<{
           </div>
           <div className="flex items-center gap-4">
             <div className="bg-slate-800 border border-slate-700 text-[#ffd700] text-[11px] font-black uppercase tracking-wider rounded-lg px-3 py-1.5">
-              🏔️ {siteConfig?.name || 'SMI Imiter'}
+              🏔️ {siteConfig?.name || 'CHANTIER MINIER (X)'}
             </div>
 
             <div className="h-6 w-px bg-slate-200" />
@@ -1347,7 +1324,7 @@ export const Layout: React.FC<{
             <div className="flex items-center gap-3">
               <div className="hidden md:flex flex-col text-right">
                 <span className="text-xs font-black text-slate-800 uppercase tracking-tight leading-none">
-                  {profile?.name || user?.displayName || 'Agent HydroMines'}
+                  {profile?.name || user?.displayName || 'Agent Excellence'}
                 </span>
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
                   {profile?.role === 'admin' ? 'Administrateur' : profile?.role === 'manager' ? 'Directeur' : profile?.role === 'engineer' ? 'Ingénieur Chantier' : 'Agent'}

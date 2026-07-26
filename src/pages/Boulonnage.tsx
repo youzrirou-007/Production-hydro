@@ -339,7 +339,7 @@ export const Boulonnage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6 font-sans">
       
-      {/* Premium Hydromines Gold Banner */}
+      {/* Premium Excellence Gold Banner */}
       <div className="bg-[#1e293b] text-white p-6 sm:p-8 rounded-3xl border border-amber-500/20 shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
         {/* Background Subtle Shimmer */}
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-amber-500/5 animate-pulse" />

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Crown, ArrowRight } from 'lucide-react';
-import logoImg from '../../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../../assets/images/Excellence_logo.webp';
 import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL, HOLES_DATA_9_INTL } from './data';
 import { GabaritType } from './types';
 import { getExplosifsData } from './explosifsCalc';
@@ -36,10 +36,10 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-amber-400/10 rounded-2xl border border-amber-400/20">
-            <img src={logoImg} alt="HydroMines Logo" className="w-12 h-12 object-contain" />
+            <img src={logoImg} alt="Excellence Logo" className="w-12 h-12 object-contain" />
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest block">SMI Imiter</span>
+            <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest block">CHANTIER MINIER (X)</span>
             <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-slate-900">
               TECHNIQUE MINIÈRE
             </h1>
@@ -78,7 +78,7 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
                 12 m²
               </h2>
               <p className="text-xs font-bold uppercase text-amber-600 tracking-widest mt-1">
-                Configuration terrain SMI Imiter
+                Configuration terrain CHANTIER MINIER (X)
               </p>
             </div>
 
@@ -396,7 +396,7 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
 
       <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 max-w-4xl mx-auto w-full space-y-3">
         <p className="text-[10px] font-black uppercase text-slate-500 text-center tracking-widest">
-          Code couleur officiel du plan de tir — SMI Imiter Souterrain
+          Code couleur officiel du plan de tir — CHANTIER MINIER (X) Souterrain
         </p>
         <div className="flex flex-wrap items-center justify-center gap-y-2 gap-x-5 text-[10px] font-bold uppercase text-slate-600">
           <div className="flex items-center gap-1.5">

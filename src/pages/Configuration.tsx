@@ -264,7 +264,7 @@ export const Configuration: React.FC = () => {
 
   // --- SOC TERMINAL REAL-TIME LOGS ---
   const [firestoreEvents, setFirestoreEvents] = useState<{ id: string; timestamp: string; type: 'info' | 'success' | 'warn' | 'error'; message: string }[]>([
-    { id: 'init-1', timestamp: new Date().toLocaleTimeString('fr-FR'), type: 'info', message: 'SOC HydroMines : Surveillance et Pare-feu opérationnels.' },
+    { id: 'init-1', timestamp: new Date().toLocaleTimeString('fr-FR'), type: 'info', message: 'SOC Excellence : Surveillance et Pare-feu opérationnels.' },
     { id: 'init-2', timestamp: new Date().toLocaleTimeString('fr-FR'), type: 'success', message: 'Raccordement réussi à la base de données Firestore.' }
   ]);
 
@@ -506,7 +506,7 @@ export const Configuration: React.FC = () => {
       if (list.length > 0) {
         setRecentIpRequests(list);
       } else {
-        const activeUserEmail = currentUser?.email || 'admin@hydromines.com';
+        const activeUserEmail = currentUser?.email || 'admin@excellence.com';
         setRecentIpRequests([
           { ip: myIp, user: activeUserEmail, role: profile?.role || 'admin', location: 'SMI Intranet (Imiter)', userAgent: 'Chrome / macOS', path: '/api/configuration', status: 'secure' },
           { ip: '196.200.14.105', user: 'Zineb Belkhayat', role: 'secretary', location: 'SMI Intranet (Imiter)', userAgent: 'Safari / iPadOS', path: '/api/production', status: 'secure' },
@@ -1188,7 +1188,7 @@ export const Configuration: React.FC = () => {
                     </h3>
                   </div>
                   <p className="text-[9px] text-slate-500 font-bold uppercase mt-2 leading-relaxed">
-                    Surveillance en temps réel de l'intégrité opérationnelle, de la sécurité réseau et de la traçabilité d'HydroMines.
+                    Surveillance en temps réel de l'intégrité opérationnelle, de la sécurité réseau et de la traçabilité d'Excellence.
                   </p>
                 </div>
 
@@ -2405,7 +2405,7 @@ export const Configuration: React.FC = () => {
                       <Globe className="w-5 h-5 text-rose-600" />
                       <h2 className="text-sm font-black uppercase tracking-wider text-slate-900">IPs Bannies Activement ({bannedIps.length})</h2>
                     </div>
-                    <span className="text-[8px] font-black uppercase px-2 py-0.5 bg-rose-100 text-rose-700 rounded-md">Pare-feu HydroMines</span>
+                    <span className="text-[8px] font-black uppercase px-2 py-0.5 bg-rose-100 text-rose-700 rounded-md">Pare-feu Excellence</span>
                   </div>
 
                   {loadingBannedIps ? (
@@ -2807,7 +2807,7 @@ export const Configuration: React.FC = () => {
                       <span className="font-black uppercase text-xs text-rose-700 block">ERREUR CRITIQUE : BANNISSEMENT DE SOI-MÊME INTERDIT</span>
                       <p className="text-[11px]">
                         L'adresse IP que vous tentez de bloquer est votre propre adresse IP active actuelle (<span className="font-mono font-bold">{myIp}</span>). 
-                        Si vous bannissez cette IP, vous perdrez instantanément votre connexion au panneau de contrôle HydroMines.
+                        Si vous bannissez cette IP, vous perdrez instantanément votre connexion au panneau de contrôle Excellence.
                       </p>
                       <p className="text-[11px] font-bold text-rose-800">
                         Pour votre sécurité, cette action est bloquée par le pare-feu administratif.

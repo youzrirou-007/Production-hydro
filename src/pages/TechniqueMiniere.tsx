@@ -83,7 +83,7 @@ export const TechniqueMiniere: React.FC = () => {
               <div>
                 <span className="inline-flex items-center gap-1.5 bg-slate-900 text-[#ffd700] text-[9px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg border border-[#ffd700]/30 shadow-sm">
                   <Crown className="w-3.5 h-3.5" />
-                  SMI Imiter — Bureau d'études
+                  CHANTIER MINIER (X) — Bureau d'études
                 </span>
               </div>
             </div>

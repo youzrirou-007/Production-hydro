@@ -320,7 +320,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                     Validation des connaissances de forage & tir
                   </span>
                   <h3 className="text-base font-black uppercase text-white tracking-tight">
-                    Examen d'Aptitude de Chef de Poste SMI Imiter
+                    Examen d'Aptitude de Chef de Poste CHANTIER MINIER (X)
                   </h3>
                   <p className="text-[11px] font-semibold text-slate-300 leading-relaxed">
                     Cet examen évalue vos aptitudes sur la physique des explosifs, l'alignement géométrique, le bourrage des trous et les retards de séquence. Répondez correctement aux 5 questions techniques pour obtenir votre <strong>Brevet d'Aptitude d'Ingénierie de Volée SMI</strong>.
@@ -431,7 +431,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
 
                         <div className="space-y-4">
                           <p className="text-[9px] font-black uppercase text-amber-600 tracking-widest">
-                            SMI Imiter — Comité de Certification Souterraine
+                            CHANTIER MINIER (X) — Comité de Certification Souterraine
                           </p>
                           <h4 className="text-lg font-black uppercase text-slate-900 tracking-wider">
                             BREVET D'EXCELLENCE EN TIR CONTRÔLÉ
@@ -454,12 +454,12 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                         <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase pt-4 border-t border-slate-100">
                           <div>
                             <p>Bureau de contrôle</p>
-                            <p className="text-slate-800 font-extrabold mt-0.5">SMI Imiter</p>
+                            <p className="text-slate-800 font-extrabold mt-0.5">CHANTIER MINIER (X)</p>
                           </div>
                           <span className="w-8 h-8 rounded-full border-2 border-amber-400 flex items-center justify-center text-amber-500 font-black text-xs">SMI</span>
                           <div>
                             <p>Directeur Technique</p>
-                            <p className="text-slate-800 font-extrabold mt-0.5">Hydromines S.A.</p>
+                            <p className="text-slate-800 font-extrabold mt-0.5">Excellence S.A.</p>
                           </div>
                         </div>
                       </motion.div>

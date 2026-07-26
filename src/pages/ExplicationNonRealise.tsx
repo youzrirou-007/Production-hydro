@@ -20,7 +20,7 @@ import { collection, query, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 
 // Types inside the page
 interface Chantier {
@@ -511,7 +511,7 @@ export const ExplicationNonRealise: React.FC = () => {
           <div className="flex-shrink-0 flex items-center justify-center self-center lg:self-stretch">
             <img 
               src={logoImg} 
-              alt="HydroMines Logo" 
+              alt="Excellence Logo" 
               className="h-24 w-24 sm:h-28 sm:w-28 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer"
             />

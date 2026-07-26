@@ -454,7 +454,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
       <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 space-y-4">
         <h3 className="text-xs font-black uppercase text-slate-900 flex items-center gap-1.5 border-b border-slate-200 pb-3">
           <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
-          Impact Opérationnel de l'insuffisance de Bourrage à SMI Imiter
+          Impact Opérationnel de l'insuffisance de Bourrage au CHANTIER MINIER (X)
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hydromines-cache-v1';
+const CACHE_NAME = 'excellence-cache-v1';
 
 // Assets to pre-cache immediately on service worker installation
 const PRECACHE_ASSETS = [

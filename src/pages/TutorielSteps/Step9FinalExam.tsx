@@ -236,7 +236,7 @@ export const Step9FinalExam: React.FC<Step9Props> = ({
                 <path d={generateGuillochePath()} stroke="#b8860b" strokeWidth="0.3" fill="none" transform="rotate(45,100,100)" />
                 {/* Official Stamp circle */}
                 <circle cx="100" cy="100" r="45" fill="none" stroke="#b8860b" strokeWidth="1.5" strokeDasharray="3,3" />
-                <text x="100" y="94" textAnchor="middle" fill="#b8860b" className="text-[8px] font-sans font-black uppercase tracking-widest">SMI IMITER</text>
+                <text x="100" y="94" textAnchor="middle" fill="#b8860b" className="text-[8px] font-sans font-black uppercase tracking-widest">CHANTIER MINIER (X)</text>
                 <text x="100" y="105" textAnchor="middle" fill="#b8860b" className="text-[10px] font-sans font-black uppercase tracking-widest">SÛRETÉ</text>
                 <text x="100" y="115" textAnchor="middle" fill="#b8860b" className="text-[8px] font-sans font-black uppercase tracking-widest">VALIDÉ ✓</text>
               </svg>
@@ -255,7 +255,7 @@ export const Step9FinalExam: React.FC<Step9Props> = ({
                 <h4 className="text-[10px] font-sans font-black uppercase tracking-[0.25em] text-[#b8860b] flex items-center justify-center gap-1.5">
                   <Landmark className="w-4 h-4" /> Société Métallurgique d'Imiter (SMI)
                 </h4>
-                <p className="text-[11px] font-sans text-slate-400 font-bold uppercase tracking-widest">Groupe HydroMines S.A.</p>
+                <p className="text-[11px] font-sans text-slate-400 font-bold uppercase tracking-widest">Groupe Excellence S.A.</p>
               </div>
 
               <div className="space-y-2 pt-4">

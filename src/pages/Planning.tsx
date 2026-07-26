@@ -36,7 +36,7 @@ import { useSite } from '../contexts/SiteContext';
 import { getDocId } from '../lib/siteHelpers';
 import { format, addDays } from 'date-fns';
 import { MatriculeAutocomplete } from '../components/MatriculeAutocomplete';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 import { ExcelExportButton } from '../components/ExcelExportButton';
 import { GapReportModal } from '../components/GapReportModal';
 import { AuditLogsDrawer, logPlanningAction } from '../components/AuditLogsDrawer';
@@ -1002,11 +1002,14 @@ export const Planning: React.FC = () => {
   }, [profile]);
 
   // Sync Excel grid content whenever selected date, shift, or catalogs change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // employees/engines volontairement exclus : non utilisés dans loadPlanningWorkbook, leur présence
+  // causait un écrasement silencieux de la saisie en cours à chaque mise à jour de ces collections ailleurs dans l'app.
   useEffect(() => {
     setDuplicatedFromDayData(null);
     setIsEcartAccepted(false);
     loadPlanningWorkbook();
-  }, [selectedDate, selectedPost, employees, chantiers, engines, platformSettings]);
+  }, [selectedDate, selectedPost, chantiers, platformSettings]);
 
   // Realtime subscription to modification requests subcollection for the selected day
   useEffect(() => {
@@ -1889,7 +1892,7 @@ export const Planning: React.FC = () => {
     
     // Check if the selected target date is a Monday (1)
     if (sourceDateObj.getDay() === 1) {
-      safeAlert("⚠️ Les lundis, la composition des équipes et la rotation des postes changent de manière réglementaire à SMI Imiter. La planification du lundi doit impérativement être configurée manuellement. La duplication du dimanche vers le lundi est désactivée.", "Planification SMI", "info");
+      safeAlert("⚠️ Les lundis, la composition des équipes et la rotation des postes changent de manière réglementaire au CHANTIER MINIER (X). La planification du lundi doit impérativement être configurée manuellement. La duplication du dimanche vers le lundi est désactivée.", "Planification SMI", "info");
       return;
     }
 
@@ -2338,32 +2341,9 @@ export const Planning: React.FC = () => {
         const activeStaff = employees.filter(e => e.status === 'actif' && e.currentPost === selectedPost);
         const sectors: ('Imiter 2' | 'Imiter 1' | 'Imiter Est')[] = ['Imiter 2', 'Imiter 1', 'Imiter Est'];
 
-        const findSectorChiefByPost1Rules = (sName: string, staff: any[]) => {
-          return staff.find(e => {
-            if (e.fonction !== 'CHEF') return false;
-            const fullName = `${e.nom || ''} ${e.prenom || ''}`.toLowerCase();
-            if (sName === 'Imiter 2') {
-              return fullName.includes('ben amar') || (fullName.includes('amar') && fullName.includes('mohamed'));
-            }
-            if (sName === 'Imiter 1') {
-              return fullName.includes('ouissadine') || fullName.includes('abdessalam');
-            }
-            if (sName === 'Imiter Est') {
-              return fullName.includes('sadik') || fullName.includes('said');
-            }
-            return false;
-          });
-        };
-
         // Group chefs
         sectors.forEach(sec => {
-          let matchingChef;
-          if (selectedPost === 'Poste 1') {
-            matchingChef = findSectorChiefByPost1Rules(sec, activeStaff);
-          }
-          if (!matchingChef) {
-            matchingChef = activeStaff.find(e => e.fonction === 'CHEF' && isSectorMatching(e.sector || '', sec));
-          }
+          const matchingChef = activeStaff.find(e => e.fonction === 'CHEF' && isSectorMatching(e.sector || '', sec));
           if (matchingChef) {
             newSectorChiefs[sec] = matchingChef.matricule;
           }
@@ -3492,7 +3472,7 @@ export const Planning: React.FC = () => {
             <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
               <img 
                 src={logoImg} 
-                alt="HydroMines Logo" 
+                alt="Excellence Logo" 
                 className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
                 referrerPolicy="no-referrer" 
               />
@@ -4845,7 +4825,7 @@ export const Planning: React.FC = () => {
                                 </strong>
                               </div>
                               <span className="text-slate-400 text-[9px]">
-                                Bure N340 Imiter Est • SMI HydroMines
+                                Bure N340 Imiter Est • SMI Excellence
                               </span>
                             </div>
                           </div>
@@ -5273,7 +5253,17 @@ export const Planning: React.FC = () => {
               // Helper to check if a sector has active minage rows in a post
               const isSectorActiveForMinage = (post: 'Poste 1' | 'Poste 2' | 'Poste 3', sector: string) => {
                 const rows = minageRowsByPost[post] || [];
-                return rows.some(r => r.chantierId && (r.sectorGroup === sector));
+                const isEst = (s: string) => {
+                  const low = (s || '').toLowerCase().trim();
+                  return low.includes('imiter est') || low.includes('bure');
+                };
+                return rows.some(r => {
+                  if (!r.chantierId) return false;
+                  if (isEst(sector) && isEst(r.sectorGroup || '')) return true;
+                  const chantier = chantiers.find((c: any) => c.id === r.chantierId);
+                  if (isEst(sector) && isEst(chantier?.sector || '')) return true;
+                  return (r.sectorGroup || '') === sector;
+                });
               };
 
               const sectorsList = ['Imiter 2', 'Imiter 1', 'Imiter Est'] as const;
@@ -5710,7 +5700,7 @@ export const Planning: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-extrabold uppercase tracking-wider text-[12px] text-white">RELIQUAT D'ORDONNANCEMENT</h3>
-                <p className="text-[9px] text-[#00BFFF] font-black uppercase tracking-widest">SMI - HydroMines Planificateur</p>
+                <p className="text-[9px] text-[#00BFFF] font-black uppercase tracking-widest">SMI - Excellence Planificateur</p>
               </div>
             </div>
 
@@ -5780,7 +5770,7 @@ export const Planning: React.FC = () => {
             <CheckCircle className="w-5 h-5 text-[#00BFFF]" />
           </div>
           <div className="flex-1">
-            <h4 className="text-[10px] font-black text-[#00BFFF] uppercase tracking-wider">HydroMines - Validation</h4>
+            <h4 className="text-[10px] font-black text-[#00BFFF] uppercase tracking-wider">Excellence - Validation</h4>
             <p className="text-[9.5px] text-gray-200 font-bold mt-0.5 leading-relaxed">
               La planification du <span className="underline font-extrabold text-[#00BFFF]">{deletionNotification.date}</span> a été supprimée définitivement par <span className="font-extrabold text-[#00BFFF]">{deletionNotification.deletedBy}</span>.
             </p>

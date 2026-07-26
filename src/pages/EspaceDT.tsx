@@ -242,8 +242,8 @@ export const EspaceDT: React.FC = () => {
   const [activeReportTab, setActiveReportTab] = useState<'synthese' | 'anomalies' | 'recommandations' | 'logique'>('synthese');
 
   const [dtNotes, setDtNotes] = useState<string>(() => {
-    return localStorage.getItem('hydromines_dt_notes') || 
-      "✍️ CARNET DU DIRECTEUR - HAMID EL YAAKOUBY\n\n" +
+    return localStorage.getItem('excellence_dt_notes') || localStorage.getItem('hydromines_dt_notes') || 
+      "✍️ CARNET DU DIRECTEUR - MR. LE DIRECTEUR TECHNIQUE\n\n" +
       "• Suivi ANFO : Veiller à ce que le ratio d'explosifs reste sous la barre nominale.\n" +
       "• Sécurité Boulonnage : Rappeler au chef du Poste B d'accentuer le contrôle géologique au niveau -1200m.\n" +
       "• Taux de Réalisation : Atteindre l'objectif de 95% de tirs qualifiés ce mois-ci.\n" +
@@ -251,6 +251,7 @@ export const EspaceDT: React.FC = () => {
   });
 
   useEffect(() => {
+    localStorage.setItem('excellence_dt_notes', dtNotes);
     localStorage.setItem('hydromines_dt_notes', dtNotes);
   }, [dtNotes]);
 
@@ -725,9 +726,13 @@ export const EspaceDT: React.FC = () => {
       ['poste1', 'poste2', 'poste3'].forEach(pKey => {
         const pData = doc.postes?.[pKey];
 
+        // Le Bure Imiter Est regroupe plusieurs chantiers de minage — identifiables via leur
+        // propre champ `sector` dans la collection chantiers (allChantiers), pas via sectorGroup
+        // sur la ligne (qui ne connaît que 3 cases génériques).
         (pData?.minage || []).forEach((r: any) => {
           const row = r.reel || r;
-          if (isBureSector(row?.sectorGroup || row?.sector)) {
+          const chantier = allChantiers.find((c: any) => c.id === row.chantierId);
+          if ((chantier?.sector || '').toLowerCase().trim() === 'bure imiter est') {
             meterage += Number(row.realMeterage || 0);
           }
         });
@@ -1219,7 +1224,7 @@ export const EspaceDT: React.FC = () => {
     <html lang="fr">
     <head>
       <meta charset="UTF-8">
-      <title>Rapport Production — SMI Imiter — ${monthLabel}</title>
+      <title>Rapport Production — CHANTIER MINIER (X) — ${monthLabel}</title>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
       <script>
         function downloadPDF() {
@@ -1318,7 +1323,7 @@ export const EspaceDT: React.FC = () => {
           <span style="font-size:16px;">📄</span>
           <div>
             <div style="color:#ffffff; font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:0.5px;">Aperçu du Rapport Mensuel</div>
-            <div style="color:#94a3b8; font-size:10px; font-weight:500;">SMI Imiter — Hydromines</div>
+            <div style="color:#94a3b8; font-size:10px; font-weight:500;">CHANTIER MINIER (X) — Excellence</div>
           </div>
         </div>
         <button id="download-btn" onclick="downloadPDF()" style="background:linear-gradient(135deg, #b8860b, #ffd700); color:#0f172a; border:none; padding:8px 18px; border-radius:8px; font-weight:900; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 2px 4px rgba(0,0,0,0.15); transition:all 0.2s; text-transform:uppercase; letter-spacing:0.5px;">
@@ -1329,12 +1334,12 @@ export const EspaceDT: React.FC = () => {
       <div class="report-container">
         <div class="header">
           <div class="header-left">
-            <h1>⛏️ HYDROMINES — SMI IMITER</h1>
+            <h1>⛏️ EXCELLENCE — CHANTIER MINIER (X)</h1>
             <p>Rapport Mensuel de Production — Confidentiel</p>
             <p style="color:#475569; margin-top:4px;">
               Généré le ${new Date().toLocaleDateString('fr-MA', {
                 day: 'numeric', month: 'long', year: 'numeric'
-              })} par El yaakouby Hamid
+              })} par MR. LE DIRECTEUR TECHNIQUE
             </p>
           </div>
           <div class="header-right">
@@ -1439,10 +1444,10 @@ export const EspaceDT: React.FC = () => {
       </table>
 
       <div class="footer">
-        <div>HYDROMINES | SMI Imiter | Document Confidentiel</div>
+        <div>EXCELLENCE | CHANTIER MINIER (X) | Document Confidentiel</div>
         <div class="signature-box">
           Directeur Technique<br/>
-          <strong>El yaakouby Hamid</strong>
+          <strong>MR. LE DIRECTEUR TECHNIQUE</strong>
         </div>
       </div>
       </div>
@@ -1542,7 +1547,7 @@ export const EspaceDT: React.FC = () => {
       meterage: d.totalMeterageRealised,
       wagons: d.totalWagonsRealised,
     })),
-    site: 'SMI Imiter — Mine souterraine d\'argent',
+    site: 'CHANTIER MINIER (X) — Mine souterraine d\'argent',
     secteurs: ['Imiter 1', 'Imiter 2', 'Imiter Est'],
   };
 
@@ -1559,8 +1564,8 @@ export const EspaceDT: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          expertName: 'M. ELYAAKOUBY HAMID',
-          profile: `Directeur technique hydromines avec une expertise chevronnée dans les mines souterraines d'argent au Maroc. Expert en optimisation de production, gestion des explosifs, rendement des équipes de foreurs et analyse des performances de chantier. Il répond toujours de manière directe, avec des chiffres précis et des décisions concrètes. Il identifie le problème et donne la solution.`,
+          expertName: 'MR. LE DIRECTEUR TECHNIQUE',
+          profile: `Directeur technique excellence avec une expertise chevronnée dans les mines souterraines d'argent au Maroc. Expert en optimisation de production, gestion des explosifs, rendement des équipes de foreurs et analyse des performances de chantier. Il répond toujours de manière directe, avec des chiffres précis et des décisions concrètes. Il identifie le problème et donne la solution.`,
           dataContext: dtProductionData,
           customQuestion: questionToUse,
         }),
@@ -2016,7 +2021,7 @@ export const EspaceDT: React.FC = () => {
             </h1>
             <div className="subtle-glow-line w-full mt-2 mb-2.5 opacity-80" />
             <p className="text-[10px] sm:text-xs font-black uppercase text-slate-500 tracking-widest">
-              SMI IMITER — MR. EL YAAKOUBY HAMID • DIRECTION TECHNIQUE & COMMANDEMENT D'EXPLOITATION
+              CHANTIER MINIER (X) — MR. LE DIRECTEUR TECHNIQUE • DIRECTION TECHNIQUE & COMMANDEMENT D'EXPLOITATION
             </p>
           </div>
         </div>
@@ -2034,7 +2039,7 @@ export const EspaceDT: React.FC = () => {
             Session Haute Direction
           </div>
           <div className="text-slate-800 text-[12px] font-black uppercase flex items-center gap-1.5 mt-1.5">
-            Mr. HAMID EL YAAKOUBY
+            MR. LE DIRECTEUR TECHNIQUE
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
@@ -2109,7 +2114,7 @@ export const EspaceDT: React.FC = () => {
                   {new Date().getHours() < 12 ? 'Bonjour' : new Date().getHours() < 18 ? 'Bon après-midi' : 'Bonsoir'}
                 </p>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                  {profile?.name || 'Hamid El Yaakouby'}
+                  {profile?.name || 'MR. LE DIRECTEUR TECHNIQUE'}
                 </h2>
                 <p className="text-[11px] font-semibold text-slate-400 mt-1 capitalize">
                   {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -2363,7 +2368,7 @@ export const EspaceDT: React.FC = () => {
               </div>
 
               <p className="text-[11px] text-slate-400 mb-4">
-                Métrage arraché secteur — <span className="font-bold text-slate-700">{bureFocusData.meterage.toFixed(1)} m</span>
+                Métrage arraché — chantiers du Bure Imiter Est — <span className="font-bold text-slate-700">{bureFocusData.meterage.toFixed(1)} m</span>
               </p>
 
               <table className="w-full text-[12px] mb-4">
@@ -2784,7 +2789,7 @@ export const EspaceDT: React.FC = () => {
                 </div>
               </div>
 
-              {/* Ruban de performance journalier en haut pour M. ELYAAKOUBY HAMID */}
+              {/* Ruban de performance journalier en haut pour MR. LE DIRECTEUR TECHNIQUE */}
               <div className="flex flex-wrap gap-2.5">
                 <div className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-sm">
                   <span className="text-sm">⛏️</span>
@@ -2926,14 +2931,19 @@ export const EspaceDT: React.FC = () => {
                           <div className="space-y-3">
                             <h4 className="text-slate-400 text-[9px] font-black uppercase tracking-wider mb-2">Avancement Minage</h4>
                             {['Imiter 1', 'Imiter 2', 'Imiter Est'].map(secteur => {
+                              const matchSector = (raw: string) => {
+                                const s = (raw || '').toLowerCase();
+                                if (secteur === 'Imiter Est') return s.includes('imiter est') || s.includes('bure');
+                                return s === secteur.toLowerCase();
+                              };
                               const minageRows = posteData?.minage?.filter((r: any) => {
                                 const sGroup = r.reel?.sectorGroup || r.sectorGroup || r.reel?.sector || r.sector || r.reel?.secteur || r.secteur || '';
-                                return sGroup.toLowerCase() === secteur.toLowerCase();
+                                return matchSector(sGroup);
                               }) || [];
 
                               const planRows = planData?.minage?.filter((r: any) => {
                                 const sGroup = r.sectorGroup || r.sector || r.secteur || '';
-                                return sGroup.toLowerCase() === secteur.toLowerCase();
+                                return matchSector(sGroup);
                               }) || [];
 
                               const totalReel = minageRows.reduce((s: number, r: any) => {
@@ -3061,7 +3071,7 @@ export const EspaceDT: React.FC = () => {
                     <div className="bg-amber-50/50 border border-amber-200 p-3.5 rounded-xl text-center col-span-2 md:col-span-1">
                       <span className="text-amber-700 text-[9px] uppercase font-black tracking-widest">Rapport Posté</span>
                       <div className="text-slate-800 text-[11px] font-black uppercase mt-1">
-                        SMI Imiter
+                        CHANTIER MINIER (X)
                       </div>
                       <p className="text-[9px] text-slate-500 uppercase font-bold mt-1">
                         {journalDate}
@@ -3101,9 +3111,9 @@ export const EspaceDT: React.FC = () => {
                       const totalPlan = planData?.minage?.reduce((s: number, r: any) => s + (Number(r.meterage || r.plannedMeterage || 0)), 0) || 0;
                       const rate = totalPlan > 0 ? (totalReel / totalPlan) * 100 : 0;
                       
-                      const wagons = posteData?.minage?.reduce((s: number, r: any) => {
+                      const wagons = posteData?.extraction?.reduce((s: number, r: any) => {
                         const rowData = r.reel || r;
-                        return s + (Number(rowData.wagons || 0));
+                        return s + (Number(rowData.wagonsActual || 0));
                       }, 0) || 0;
 
                       return (
@@ -3476,7 +3486,7 @@ export const EspaceDT: React.FC = () => {
                       Écart Global
                     </div>
                     <div className={`text-2xl font-black mt-1 ${
-                      globalEcartPct > 25 ? 'text-rose-600' : globalEcartPct > 10 ? 'text-amber-600' : 'text-emerald-600'
+                      Math.abs(globalEcartPct) > 25 ? 'text-rose-600' : Math.abs(globalEcartPct) > 10 ? 'text-amber-600' : 'text-emerald-600'
                     }`}>
                       {ecartGlobal > 0 ? `+${ecartGlobal.toFixed(1)}` : ecartGlobal.toFixed(1)} m ({globalEcartPct > 0 ? `+${globalEcartPct.toFixed(1)}` : globalEcartPct.toFixed(1)}%)
                     </div>
@@ -3512,7 +3522,7 @@ export const EspaceDT: React.FC = () => {
                             ✅ AUDIT SIGNÉ & VALIDÉ
                           </span>
                           <span className="text-slate-400 text-[9px] font-semibold">
-                            Par {currentAttachement.validePar || 'Hamid EL YAAKOUBY'} le {currentAttachement.dateValidation ? new Date(currentAttachement.dateValidation).toLocaleDateString('fr-FR') : ''}
+                            Par {currentAttachement.validePar || 'MR. LE DIRECTEUR TECHNIQUE'} le {currentAttachement.dateValidation ? new Date(currentAttachement.dateValidation).toLocaleDateString('fr-FR') : ''}
                           </span>
                         </div>
                       ) : (
@@ -3553,14 +3563,14 @@ export const EspaceDT: React.FC = () => {
                             await setDoc(doc(db, 'attachements', docId), {
                               ...currentAttachement,
                               valide: true,
-                              validePar: profile?.name || 'Hamid EL YAAKOUBY',
+                              validePar: profile?.name || 'MR. LE DIRECTEUR TECHNIQUE',
                               dateValidation: new Date().toISOString(),
                             });
                           } catch (err) {
                             console.error(err);
                           }
                         }}
-                        className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-650 hover:from-emerald-600 hover:to-teal-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                        className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm"
                       >
                         ✍️ Signer & Valider l'Audit
                       </button>
@@ -3594,8 +3604,8 @@ export const EspaceDT: React.FC = () => {
                               isSuspect 
                                 ? 'bg-rose-100 text-rose-700' 
                                 : Math.abs(ecartPct) <= 10 
-                                ? 'bg-emerald-100 text-emerald-850' 
-                                : 'bg-amber-100 text-amber-850'
+                                ? 'bg-emerald-100 text-emerald-800' 
+                                : 'bg-amber-100 text-amber-800'
                             }`}>
                               {ecartPct > 0 ? `+${ecartPct.toFixed(0)}%` : `${ecartPct.toFixed(0)}%`}
                             </span>
@@ -3622,7 +3632,7 @@ export const EspaceDT: React.FC = () => {
                 </div>
 
                 {suspectChantiers.length > 0 && (
-                  <div className="bg-rose-50 border border-rose-200 text-rose-850 p-4 rounded-xl mb-6 flex items-start gap-3 shadow-sm">
+                  <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl mb-6 flex items-start gap-3 shadow-sm">
                     <span className="text-xl">⚠️</span>
                     <div>
                       <h3 className="text-xs font-black uppercase tracking-wider text-rose-700">
@@ -3718,7 +3728,7 @@ export const EspaceDT: React.FC = () => {
                 {systematicAnomalies.length > 0 && (
                   <div className="space-y-3 mb-6">
                     {systematicAnomalies.map((anom, idx) => (
-                      <div key={idx} className="bg-rose-50 border border-rose-350 text-rose-800 p-4 rounded-xl flex items-start gap-3 shadow-sm">
+                      <div key={idx} className="bg-rose-50 border border-rose-300 text-rose-800 p-4 rounded-xl flex items-start gap-3 shadow-sm">
                         <span className="text-xl">🚨</span>
                         <div>
                           <h3 className="text-xs font-black uppercase tracking-wider text-rose-700">
@@ -3830,7 +3840,7 @@ export const EspaceDT: React.FC = () => {
                   <div className="text-emerald-600 text-lg font-black mt-1">
                     {(() => {
                       const totalShots = expStats.monthlyRounds;
-                      const abortedShots = rapportHistory.filter(d => (d.totalNonRealises || 0) > 0).length;
+                      const abortedShots = rapportHistory.reduce((sum, d) => sum + (d.totalNonRealises || 0), 0);
                       const successRate = totalShots > 0 ? ((totalShots - abortedShots) / totalShots) * 100 : 100;
                       return `${successRate.toFixed(1)}%`;
                     })()}
@@ -3905,7 +3915,7 @@ export const EspaceDT: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Écart de consommation :</span>
-                    <span className={`font-black ${expStats.ecart > 0 ? 'text-rose-600' : 'text-emerald-650'}`}>
+                    <span className={`font-black ${expStats.ecart > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {expStats.ecart > 0 ? `+${expStats.ecart.toFixed(0)}` : expStats.ecart.toFixed(0)} kg ({expStats.ecartPct > 0 ? `+${expStats.ecartPct.toFixed(1)}` : expStats.ecartPct.toFixed(1)}%)
                     </span>
                   </div>
@@ -4047,7 +4057,7 @@ export const EspaceDT: React.FC = () => {
                   </span>
                 </div>
                 {rapportAttachement && (
-                  <div className="flex justify-between text-emerald-750 text-[10px] uppercase font-black">
+                  <div className="flex justify-between text-emerald-700 text-[10px] uppercase font-black">
                     <span>Métrage officiel géomètre :</span>
                     <span>{rapportAttachement.totalMetrageGeometre.toFixed(1)} m</span>
                   </div>
@@ -4179,10 +4189,10 @@ export const EspaceDT: React.FC = () => {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-white text-base font-black uppercase tracking-wider">
-                        M. ELYAAKOUBY HAMID
+                        MR. LE DIRECTEUR TECHNIQUE
                       </h3>
                       <span className="bg-amber-400/10 text-amber-300 border border-amber-400/20 px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-widest">
-                        Directeur technique hydromines
+                        Directeur technique excellence
                       </span>
                     </div>
                     <p className="text-slate-300 text-[11px] font-medium mt-1 leading-relaxed">
@@ -4213,6 +4223,9 @@ export const EspaceDT: React.FC = () => {
             </div>
 
             {/* 2. Tableau de bord opérationnel immédiat (KPI pré-calculés) */}
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Indicateurs pour {rapportMonth} — modifiable depuis l'onglet Rapport Mensuel
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-[#ffd700]" />
@@ -4364,7 +4377,7 @@ export const EspaceDT: React.FC = () => {
                   <div>
                     <h4 className="text-[#b8860b] text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                       <span className="w-1.5 h-3 bg-[#b8860b] rounded-full"></span>
-                      Raccourcis Décisionnels d'un Clic (M. ELYAAKOUBY HAMID)
+                      Raccourcis Décisionnels d'un Clic (MR. LE DIRECTEUR TECHNIQUE)
                     </h4>
                     <p className="text-slate-400 text-[9px] font-bold mt-1 uppercase tracking-wider">
                       Cliquez sur une macro-commande pour lancer une analyse profonde instantanée des données
@@ -4571,7 +4584,7 @@ export const EspaceDT: React.FC = () => {
                 <div className="flex justify-center items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
                   <p className="text-[#ffd700] text-[10px] font-black uppercase tracking-widest">
-                    MOTEUR DE SYNTHÈSE M. ELYAAKOUBY HAMID ACTIF
+                    MOTEUR DE SYNTHÈSE MR. LE DIRECTEUR TECHNIQUE ACTIF
                   </p>
                 </div>
                 
@@ -4633,7 +4646,7 @@ export const EspaceDT: React.FC = () => {
                     <span className="text-3xl">🛡️</span>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] text-[#ffd700] font-black uppercase tracking-widest">SMI Imiter — Groupe Managem</span>
+                        <span className="text-[9px] text-[#ffd700] font-black uppercase tracking-widest">CHANTIER MINIER (X)</span>
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                         <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Direction Technique</span>
                       </div>
@@ -4707,7 +4720,7 @@ export const EspaceDT: React.FC = () => {
                   {/* Filigrane CONFIDENTIEL en arrière-plan */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none select-none">
                     <span className="text-[120px] font-black uppercase tracking-widest border-[20px] border-amber-950 p-10 rotate-12">
-                      SMI IMITER
+                      CHANTIER MINIER (X)
                     </span>
                   </div>
 
@@ -4803,13 +4816,13 @@ export const EspaceDT: React.FC = () => {
                 {/* Pied de page du rapport avec actions de partage / copie */}
                 <div className="bg-slate-50 border-t border-slate-200 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="text-slate-400 text-[8.5px] uppercase font-black tracking-widest font-mono">
-                    Document généré électroniquement par M. ELYAAKOUBY HAMID twin
+                    Document généré électroniquement par MR. LE DIRECTEUR TECHNIQUE twin
                   </div>
                   
                   <div className="flex gap-2 w-full sm:w-auto">
                     <button
                       onClick={() => {
-                        const plainText = `RAPPORT DE DIAGNOSTIC - DIRECTION TECHNIQUE SMI\nMois: ${rapportMonth}\n\nSYNTHÈSE TECHNIQUE:\n${structuredResponse.analysis}\n\nANOMALIES DÉTECTÉES:\n${structuredResponse.anomalies.map((a, i) => `${i+1}. ${a}`).join('\n')}\n\nRECOMMANDATIONS:\n${structuredResponse.suggestions.map((s, i) => `${i+1}. ${s}`).join('\n')}\n\nSMI IMITER - DOCUMENT CONFIDENTIEL`;
+                        const plainText = `RAPPORT DE DIAGNOSTIC - DIRECTION TECHNIQUE SMI\nMois: ${rapportMonth}\n\nSYNTHÈSE TECHNIQUE:\n${structuredResponse.analysis}\n\nANOMALIES DÉTECTÉES:\n${structuredResponse.anomalies.map((a, i) => `${i+1}. ${a}`).join('\n')}\n\nRECOMMANDATIONS:\n${structuredResponse.suggestions.map((s, i) => `${i+1}. ${s}`).join('\n')}\n\nCHANTIER MINIER (X) - DOCUMENT CONFIDENTIEL`;
                         navigator.clipboard.writeText(plainText);
                         alert('Rapport copié dans le presse-papiers sous format e-mail professionnel !');
                       }}
@@ -5065,7 +5078,7 @@ export const EspaceDT: React.FC = () => {
                               {hasHighGap ? '⚠️ ALERTE DE DÉRIVE DÉTECTÉE' : '✅ COHÉRENCE CONFORME'}
                             </div>
                             <p className="text-[11px] leading-relaxed">
-                              Le mois de <strong>{lastMonth.month}</strong> affiche un écart de <strong>{lastMonth.gapPct.toFixed(1)}%</strong> ({lastMonth.gap.toFixed(1)} m en surcharge déclarée). 
+                              Le mois de <strong>{lastMonth.month}</strong> affiche un écart de <strong>{lastMonth.gapPct.toFixed(1)}%</strong> ({lastMonth.gap > 0 ? `+${lastMonth.gap.toFixed(1)}` : lastMonth.gap.toFixed(1)} m, {lastMonth.gap > 0 ? 'surcharge déclarée' : 'sous-déclaration'}). 
                               {hasHighGap 
                                 ? " L'écart dépasse le seuil critique toléré de 5%. Une dérive de déclaration ou un problème de sur-mesure au chantier est à suspecter." 
                                 : " L'écart est parfaitement sous contrôle. Les déclarations chantiers concordent de manière fiable avec le relevé officiel."}

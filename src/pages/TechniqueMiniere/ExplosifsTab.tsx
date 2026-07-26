@@ -260,7 +260,7 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
       <div className="bg-slate-900 text-white rounded-2xl p-6 space-y-4">
         <h3 className="text-sm font-black uppercase text-[#ffd700] tracking-widest flex items-center gap-2">
           <ShieldAlert className="w-5 h-5" />
-          Règles strictes de gestion et stockage SMI Imiter
+          Règles strictes de gestion et stockage CHANTIER MINIER (X)
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-300 font-medium">
           <div className="space-y-2 leading-relaxed">

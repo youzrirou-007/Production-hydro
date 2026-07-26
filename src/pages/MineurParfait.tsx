@@ -297,7 +297,7 @@ export const MineurParfait: React.FC = () => {
           </button>
         </div>
 
-        {/* Premium Hydromines Gold Banner - Identical to EspaceDT */}
+        {/* Premium Excellence Gold Banner - Identical to EspaceDT */}
         <div 
           className="bg-white p-6 sm:p-8 rounded-3xl border border-[#b8860b]/15 shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6 mt-6"
           style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
@@ -363,7 +363,7 @@ export const MineurParfait: React.FC = () => {
             </div>
           </div>
 
-          {/* Welcome Card & Bilan summary on the right side - representing the 25% Hydromines Touch */}
+          {/* Welcome Card & Bilan summary on the right side - representing the 25% Excellence Touch */}
           <div className="bg-slate-50 border border-amber-500/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center z-10 w-full md:w-56 shrink-0 shadow-xs">
             <div className="text-[#b8860b] text-[8px] font-black uppercase tracking-wider">
               {t[lang].targetYield}

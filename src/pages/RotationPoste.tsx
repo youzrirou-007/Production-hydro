@@ -136,7 +136,7 @@ function replaceModernColors(str: string): string {
 
   return result;
 }
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 import { logPlanningAction } from '../components/AuditLogsDrawer';
 import { 
   RefreshCw, 
@@ -328,7 +328,7 @@ export const RotationPoste: React.FC = () => {
       
       pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight, undefined, 'FAST');
       
-      pdf.save(`Affectations-Hydromines-SMI-${targetDateStr}.pdf`);
+      pdf.save(`Affectations-Excellence-SMI-${targetDateStr}.pdf`);
     } catch (err) {
       console.error('Erreur téléchargement PDF:', err);
       showToast('Une erreur est survenue lors de la génération du fichier PDF.', 'error');
@@ -1055,13 +1055,13 @@ export const RotationPoste: React.FC = () => {
               <div className="flex items-center gap-3">
                 <img 
                   src={logoImg} 
-                  alt="Hydromines logo" 
+                  alt="Excellence logo" 
                   className="h-10 w-10 object-contain rounded" 
                   referrerPolicy="no-referrer"
                 />
                 <div>
                   <h1 className="text-lg font-black uppercase text-slate-900 tracking-wider">
-                    Hydromines
+                    Excellence
                   </h1>
                   <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
                     Secrétariat de planification site SMI
@@ -1176,7 +1176,7 @@ export const RotationPoste: React.FC = () => {
           <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
-              alt="HydroMines Logo" 
+              alt="Excellence Logo" 
               className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer" 
             />
@@ -1200,7 +1200,7 @@ export const RotationPoste: React.FC = () => {
               className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
               style={{ color: '#64748b', letterSpacing: '0.2em' }}
             >
-              HydroMines (SMI) • Équipes Tournantes & Alignement des Ordres d'Exploitation
+              Excellence (SMI) • Équipes Tournantes & Alignement des Ordres d'Exploitation
             </p>
 
             {/* Centered information/shift capsule */}

@@ -15,7 +15,7 @@ export interface SiteConfig {
   createdAt?: string;
 }
 
-// Cette plateforme HydroMines Production est dédiée exclusivement au site SMI Imiter.
+// Cette plateforme Excellence Production est dédiée exclusivement au site SMI Imiter.
 // Le site actif est figé volontairement : aucune bascule vers un autre chantier n'est possible.
 // Les autres chantiers disposeront de leurs propres applications clonées.
 const ACTIVE_SITE_ID = 'SMI';

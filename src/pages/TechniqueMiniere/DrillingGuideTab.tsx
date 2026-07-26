@@ -504,7 +504,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
         {
           id: 'bouchon',
           title: '1. Le Bouchon Brûlé SMI (Core)',
-          desc: 'Configuration terrain SMI Imiter : 3 trous vides de décharge (Ø38mm, non chargés) et 6 trous de mine chargés au TOVEX tirés à 0ms simultanément.',
+          desc: 'Configuration terrain CHANTIER MINIER (X) : 3 trous vides de décharge (Ø38mm, non chargés) et 6 trous de mine chargés au TOVEX tirés à 0ms simultanément.',
           types: ['vide', 'charge'],
           color: 'from-amber-500 to-yellow-400',
           badge: 'Étape 1 : Le Bouchon'
@@ -697,7 +697,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
     return 'not_drilled';
   };
 
-  // Distance computation helper (Curated real physical dimensions of SMI Imiter)
+  // Distance computation helper (Curated real physical dimensions of CHANTIER MINIER (X))
   const getReferenceHole = (hole: HoleInfo, holesList: HoleInfo[]): { refHole: HoleInfo; label: string; distCm: number } | null => {
     if (hole.type === 'vide') {
       if (hole.id === 'v2' || hole.id === 'v9_1') {
@@ -986,7 +986,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border border-amber-400/20">
-              MODULE HYDROMINES
+              MODULE EXCELLENCE
             </span>
             <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border border-emerald-400/20">
               SIMULATEUR MONTABERT T23
@@ -996,7 +996,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
             Guide de Forage & Implantation d'Arche ({is9m2 ? '9 m²' : '12 m²'})
           </h2>
           <p className="text-xs text-slate-400 max-w-3xl leading-relaxed">
-            Pour la mine souterraine de <strong className="text-slate-200">SMI Imiter (Maroc)</strong>, la régularité spatiale est le premier facteur d'arrachement. 
+            Pour la mine souterraine de <strong className="text-slate-200">CHANTIER MINIER (X) (Maroc)</strong>, la régularité spatiale est le premier facteur d'arrachement. 
             Ce guide interactif instruit pas-à-pas sur la séquence de perforation, les distances inter-trous critiques et la géométrie des semelles, parements et voûtes.
           </p>
         </div>

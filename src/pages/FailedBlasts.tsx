@@ -559,19 +559,17 @@ export const FailedBlasts: React.FC = () => {
     const margin = 15;
     let y = 20;
 
-    // Logo stylized (Hydromines Signature colors)
+    // Logo stylized (Excellence Signature colors)
     docPdf.setFont("Helvetica", "bold");
     docPdf.setFontSize(22);
     docPdf.setTextColor(2, 132, 199); // Sky blue #0284c7
-    docPdf.text("HYDRO", margin, y);
-    docPdf.setTextColor(153, 27, 27); // Dark Red #991b1b
-    docPdf.text("MINES", margin + 28, y);
+    docPdf.text("EXCELLENCE", margin, y);
     
     y += 5;
     docPdf.setFont("Helvetica", "normal");
     docPdf.setFontSize(9);
     docPdf.setTextColor(100, 100, 100);
-    docPdf.text("Système de Commandement Minier — SMI Imiter", margin, y);
+    docPdf.text("Système de Commandement Minier — CHANTIER MINIER (X)", margin, y);
 
     // Divider
     y += 5;
@@ -1363,14 +1361,14 @@ export const FailedBlasts: React.FC = () => {
               {/* Logo SMI & Header of Report */}
               <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-6 gap-4">
                 <div className="flex items-center gap-3">
-                  {/* High end vector HydroMines Logo */}
+                  {/* High end vector Excellence Logo */}
                   <div className="w-12 h-12 rounded-xl bg-slate-950 flex items-center justify-center border border-[#ffd700]/30 shadow-md">
-                    <span className="text-sky-400 font-black text-xs">H</span>
-                    <span className="text-red-600 font-black text-xs">M</span>
+                    <span className="text-sky-400 font-black text-xs">E</span>
+                    <span className="text-red-600 font-black text-xs">X</span>
                   </div>
                   <div>
                     <h2 className="text-lg font-black uppercase tracking-widest text-slate-950 flex items-center gap-2">
-                      SMI HYDROMINES
+                      SMI EXCELLENCE
                     </h2>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       Système d'Audit Opérationnel & Forage-Minage SMI
@@ -1396,7 +1394,7 @@ export const FailedBlasts: React.FC = () => {
                   {activeReportTab === 'annuel' && "Rapport Stratégique Annuel d'Audit des Pertes Opérationnelles"}
                 </h3>
                 <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">
-                  Émis le {format(new Date(), 'dd MMMM yyyy')} — SMI Imiter
+                  Émis le {format(new Date(), 'dd MMMM yyyy')} — CHANTIER MINIER (X)
                 </p>
               </div>
 

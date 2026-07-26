@@ -41,7 +41,7 @@ export const Tutoriel: React.FC = () => {
   // Load initial progress from localStorage
   const [progress, setProgress] = useState<TutorialProgress>(() => {
     try {
-      const saved = localStorage.getItem('hydromines_tutorial_progress');
+      const saved = localStorage.getItem('excellence_tutorial_progress') || localStorage.getItem('hydromines_tutorial_progress');
       if (saved) {
         return JSON.parse(saved);
       }
@@ -57,6 +57,7 @@ export const Tutoriel: React.FC = () => {
   const saveProgress = (newProgress: TutorialProgress) => {
     setProgress(newProgress);
     try {
+      localStorage.setItem('excellence_tutorial_progress', JSON.stringify(newProgress));
       localStorage.setItem('hydromines_tutorial_progress', JSON.stringify(newProgress));
     } catch (e) {
       console.error("Failed to save progress", e);
@@ -431,7 +432,7 @@ export const Tutoriel: React.FC = () => {
 
   const currentStepTitle = [
     "",
-    "Bienvenue dans la famille SMI Imiter",
+    "Bienvenue dans la famille CHANTIER MINIER (X)",
     "Le Gabarit 12m² — Le Standard SMI",
     "Forer Correctement — La Clé du Métrage",
     "Bourrer Correctement — Le Secret de l'Énergie",
@@ -458,7 +459,7 @@ export const Tutoriel: React.FC = () => {
           <div className="space-y-1">
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b8860b] flex items-center gap-1.5">
               <GraduationCap className="w-4 h-4" />
-              Académie de Formation SCM • HydroMines
+              Académie de Formation SCM • Excellence
             </span>
             <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900 leading-none">
               Module d'Habilitation Secrétaire de Chantier
@@ -709,7 +710,7 @@ export const Tutoriel: React.FC = () => {
 
               <div className="space-y-4 relative">
                 <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide leading-relaxed">
-                  Chaque étape vous initie de manière pratique à un aspect de la saisie technique HydroMines :
+                  Chaque étape vous initie de manière pratique à un aspect de la saisie technique Excellence :
                 </p>
 
                 <ul className="space-y-3 text-[10.5px] text-slate-300 font-semibold uppercase tracking-wide">
@@ -734,7 +735,7 @@ export const Tutoriel: React.FC = () => {
 
               <div className="border-t border-slate-800 pt-4 text-center">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 block">
-                  HydroMines • SMI Imiter 2026
+                  Excellence • CHANTIER MINIER (X) 2026
                 </span>
               </div>
             </div>

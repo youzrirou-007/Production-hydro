@@ -24,7 +24,7 @@ import { collection, query, onSnapshot, addDoc, deleteDoc, doc, getDoc, getDocs,
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { SMI_SEED, SEED_EMPLOYEES } from '../config/siteSeed';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 
 interface Employee {
   id: string;
@@ -97,7 +97,7 @@ export const Admin: React.FC = () => {
     try {
       await setDoc(doc(db, 'sites', 'SMI'), SMI_SEED);
       setSmiSite(SMI_SEED);
-      alert("Site SMI Imiter initialisé avec succès !");
+      alert("Site CHANTIER MINIER (X) initialisé avec succès !");
     } catch (err) {
       console.error(err);
       alert("Une erreur est survenue lors de l'initialisation.");
@@ -729,7 +729,7 @@ export const Admin: React.FC = () => {
           <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
-              alt="HydroMines Logo" 
+              alt="Excellence Logo" 
               className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer" 
             />
@@ -753,7 +753,7 @@ export const Admin: React.FC = () => {
               className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
               style={{ color: '#64748b', letterSpacing: '0.2em' }}
             >
-              Classification, affectation territoriale et registre d'effectifs • HydroMines
+              Classification, affectation territoriale et registre d'effectifs • Excellence
             </p>
           </div>
 
@@ -1419,7 +1419,7 @@ export const Admin: React.FC = () => {
           </div>
           
           <div className="mt-4 text-center">
-            <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-widest">Hydromines S.A. Digital Fleet Registry</span>
+            <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-widest">Excellence S.A. Digital Fleet Registry</span>
             <span className="text-[8px] font-semibold text-slate-400 block">Calculé en temps réel depuis le cloud firestore</span>
           </div>
         </div>
@@ -1898,13 +1898,13 @@ export const Admin: React.FC = () => {
                     onClick={handleInitSmiSite}
                     className="px-5 py-2.5 bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 font-black text-[10px] uppercase tracking-wider rounded shadow-md cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
                   >
-                    🚀 Initialiser le site SMI Imiter
+                    🚀 Initialiser le site CHANTIER MINIER (X)
                   </button>
                 </div>
               ) : (
                 <div className="border border-slate-200 rounded overflow-hidden">
                   <div className="bg-[#0f172a] text-white px-4 py-3 flex items-center justify-between">
-                    <span className="font-black text-xs uppercase tracking-wider">Fiche Technique : {smiSite.name || 'SMI Imiter'}</span>
+                    <span className="font-black text-xs uppercase tracking-wider">Fiche Technique : {smiSite.name || 'CHANTIER MINIER (X)'}</span>
                     <span className="bg-[#ffd700] text-slate-950 text-[9px] font-black uppercase px-2 py-0.5 tracking-wider rounded">SMI</span>
                   </div>
                   <div className="bg-white p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

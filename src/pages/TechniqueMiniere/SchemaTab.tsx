@@ -248,7 +248,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
       ? '5 trous (1 vide + 4 chargés TOVEX + ANFO) — Bouchon cylindrique'
       : isIntl
       ? '9 trous (6 vides + 3 chargés TOVEX + ANFO) — Standard Langefors-Kihlström'
-      : '9 trous (3 vides + 6 chargés TOVEX + ANFO) — Configuration SMI Imiter';
+      : '9 trous (3 vides + 6 chargés TOVEX + ANFO) — Configuration CHANTIER MINIER (X)';
 
     const explosifs = getExplosifsData(gabarit, ficheData.barreType);
     const totalTrous = explosifs.totalHoles;
@@ -293,7 +293,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Fiche de Tir ${ficheData.numeroTir} — SMI Imiter</title>
+  <title>Fiche de Tir ${ficheData.numeroTir} — CHANTIER MINIER (X)</title>
   <style>
     @page { margin: 15mm; size: A4; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -379,7 +379,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 
   <div class="header-band">
     <div>
-      <div class="header-title">⛏️ HYDROMINES — SMI IMITER</div>
+      <div class="header-title">⛏️ EXCELLENCE — CHANTIER MINIER (X)</div>
       <div class="header-sub">Fiche Officielle de Tir Souterrain — Document Réglementaire ONHYM</div>
     </div>
     <div class="header-badge">
@@ -488,7 +488,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
 
   <div class="footer-band">
     <div class="footer-text">
-      HydroMines SMI Imiter · Fiche N° ${ficheData.numeroTir || '—'} · ${dateFormatted}
+      Excellence CHANTIER MINIER (X) · Fiche N° ${ficheData.numeroTir || '—'} · ${dateFormatted}
     </div>
     <div class="footer-conf">⛏ Document Confidentiel — Usage Interne</div>
   </div>
@@ -1981,7 +1981,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                 <div className="text-slate-600 font-medium text-xs leading-relaxed uppercase tracking-wide">
                   {gabarit === '12m2' && (
                     <p>
-                      Le gabarit 12m² SMI est la configuration de référence du terrain de SMI Imiter. Optimisé pour les roches hautement silicifiées de la mine, il utilise un bouchon en triangle à 3 trous vides (décompression) pour guider l'énergie du tir. Ce design historique permet un avancement fiable de 2.1m par volée avec un taux de réussite de 94% dans nos conditions géologiques spécifiques.
+                      Le gabarit 12m² SMI est la configuration de référence du terrain du CHANTIER MINIER (X). Optimisé pour les roches hautement silicifiées de la mine, il utilise un bouchon en triangle à 3 trous vides (décompression) pour guider l'énergie du tir. Ce design historique permet un avancement fiable de 2.1m par volée avec un taux de réussite de 94% dans nos conditions géologiques spécifiques.
                     </p>
                   )}
                   {gabarit === '12m2_intl' && (
@@ -2037,7 +2037,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
                   ✕
                 </button>
                 <h3 className="text-sm font-black tracking-widest text-[#ffd700] flex items-center gap-2">
-                  📄 FICHE DE TIR — SMI IMITER
+                  📄 FICHE DE TIR — CHANTIER MINIER (X)
                 </h3>
                 <p className="text-[10px] text-slate-300 uppercase font-bold tracking-wider mt-1">
                   {is9m2 ? 'Traçage 9m²' : 'Galerie 12m²'}

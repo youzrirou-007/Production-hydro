@@ -1,5 +1,5 @@
 export const SMI_SEED: any = {
-  name: "SMI Imiter",
+  name: "CHANTIER MINIER (X)",
   minerai: "Argent",
   type: "souterrain",
   roche: { coefficient: "6-8", description: "Moyenne — ni trop dure ni trop fragile" },

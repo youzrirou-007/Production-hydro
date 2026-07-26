@@ -10,7 +10,7 @@ export const IllustrationPortanole: React.FC<{ className?: string }> = ({ classN
     >
       <defs>
         {/* Gradients */}
-        <linearGradient id="hydromines-brand-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient id="excellence-brand-grad" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="#38bdf8" />
           <stop offset="50%" stopColor="#6366f1" />
           <stop offset="100%" stopColor="#b91c1c" />
@@ -156,8 +156,8 @@ export const IllustrationPortanole: React.FC<{ className?: string }> = ({ classN
       <rect x="5" y="10" width="95" height="13" rx="2.5" fill="#1e293b" opacity="0.85" />
       <text x="52.5" y="19" fill="#eab308" fontSize="5.5" fontWeight="black" textAnchor="middle" fontFamily="sans-serif">PORTANOLE PORTATIVE</text>
 
-      {/* MANDATORY HYDROMINES BRANDING BAR (Right rail) */}
-      <rect x="200" y="0" width="20" height="160" fill="url(#hydromines-brand-grad)" opacity="0.92" />
+      {/* MANDATORY EXCELLENCE BRANDING BAR (Right rail) */}
+      <rect x="200" y="0" width="20" height="160" fill="url(#excellence-brand-grad)" opacity="0.92" />
       
       <text 
         x="210" 
@@ -170,7 +170,7 @@ export const IllustrationPortanole: React.FC<{ className?: string }> = ({ classN
         transform="rotate(90, 210, 80)"
         fontFamily="sans-serif"
       >
-        HYDROMINES
+        EXCELLENCE
       </text>
     </svg>
   );

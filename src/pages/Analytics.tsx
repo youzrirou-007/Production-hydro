@@ -604,7 +604,7 @@ export const Analytics: React.FC = () => {
       <div class="header">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <h1>🏔️ HYDROMINES — SMI IMITER</h1>
+            <h1>🏔️ EXCELLENCE — CHANTIER MINIER (X)</h1>
             <div class="subtitle">⛏️ Rapport Analytique Direction — Période ${filterPeriod}</div>
             <div class="date">Généré le ${today}</div>
           </div>
@@ -666,8 +666,8 @@ export const Analytics: React.FC = () => {
       </table>
 
       <div class="footer">
-        Document confidentiel — HYDROMINES | SMI Imiter |
-        Système HydroMines Production Platform |
+        Document confidentiel — EXCELLENCE | CHANTIER MINIER (X) |
+        Système Excellence Production Platform |
         Généré automatiquement — ${new Date().toISOString()}
       </div>
     </body></html>`;
@@ -690,7 +690,7 @@ export const Analytics: React.FC = () => {
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight">📊 Analytique SMI Imiter</h1>
+            <h1 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight">📊 Analytique CHANTIER MINIER (X)</h1>
             <span className="bg-[#ffd700] text-slate-950 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-xs animate-pulse">
               GOD LEVEL ANALYTICS
             </span>
@@ -2051,7 +2051,7 @@ export const Analytics: React.FC = () => {
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-black uppercase tracking-wider">Aperçu avant impression du Rapport Direction</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">SMI Imiter — Hydromines</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">CHANTIER MINIER (X) — Excellence</p>
               </div>
               <button 
                 onClick={() => {

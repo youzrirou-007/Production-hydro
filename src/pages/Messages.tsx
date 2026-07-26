@@ -54,7 +54,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 
 interface ReadReceipt {
   userEmail: string;
@@ -86,12 +86,12 @@ interface SystemMessage {
   archivedBy?: string[];
 }
 
-// Extended high-fidelity preset templates for HydroMines SMI
+// Extended high-fidelity preset templates for Excellence SMI
 const DIRECTIVE_PRESETS = [
   {
     id: 'arr_urg_travaux',
     title: "🚨 ECO-REAL : Écarts critiques Planifié vs Réalisé (Action d'Urgence)",
-    body: "Les écarts récents constatés entre le planifié et le réalisé sur le chantier de SMI Imiter ne témoignent pas d'un engagement de votre part sur l'avancement des travaux. Veuillez soumettre immédiatement un plan d'action d'urgence pour rattraper ce retard de production, et consigner les explications techniques requises.",
+    body: "Les écarts récents constatés entre le planifié et le réalisé sur le chantier de CHANTIER MINIER (X) ne témoignent pas d'un engagement de votre part sur l'avancement des travaux. Veuillez soumettre immédiatement un plan d'action d'urgence pour rattraper ce retard de production, et consigner les explications techniques requises.",
     urgency: 'critical' as const,
     category: 'exploitation',
     targetRole: 'responsible',
@@ -100,7 +100,7 @@ const DIRECTIVE_PRESETS = [
   {
     id: 'cons_expl',
     title: "📋 Consigne d'Exploitation : Objectifs du Poste",
-    body: "Pour le poste en cours à SMI Imiter, l'objectif de traitement est fixé à 850 tonnes. Veuillez ajuster le débit d'injection des réactifs chimiques et veiller au maintien des pressions hydrauliques nominales sur les broyeurs secondaires.",
+    body: "Pour le poste en cours au CHANTIER MINIER (X), l'objectif de traitement est fixé à 850 tonnes. Veuillez ajuster le débit d'injection des réactifs chimiques et veiller au maintien des pressions hydrauliques nominales sur les broyeurs secondaires.",
     urgency: 'medium' as const,
     category: 'exploitation',
     targetRole: 'responsible',
@@ -109,7 +109,7 @@ const DIRECTIVE_PRESETS = [
   {
     id: 'maint_prev',
     title: "🔧 Maintenance Préventive : Filtre-Presse & Tambours",
-    body: "Intervention programmée sur le filtre-presse de la laverie à SMI Imiter aujourd'hui. Les responsables de chantiers doivent coordonner l'arrêt temporaire de l'alimentation avec l'équipe technique pour éviter tout engorgement des circuits.",
+    body: "Intervention programmée sur le filtre-presse de la laverie au CHANTIER MINIER (X) aujourd'hui. Les responsables de chantiers doivent coordonner l'arrêt temporaire de l'alimentation avec l'équipe technique pour éviter tout engorgement des circuits.",
     urgency: 'medium' as const,
     category: 'maintenance',
     targetRole: 'responsible',
@@ -118,7 +118,7 @@ const DIRECTIVE_PRESETS = [
   {
     id: 'alerte_meteo',
     title: "⚠️ Alerte Sécurité HSE : Risque d'Inondation / Orages violents",
-    body: "Bulletins météo reçus. Risques d'orages violents sur le secteur SMI Imiter. Consignes : évacuation préventive des galeries basses, sécurisation des pompes de drainage de fond et contrôle immédiat des raccordements électriques extérieurs.",
+    body: "Bulletins météo reçus. Risques d'orages violents sur le secteur CHANTIER MINIER (X). Consignes : évacuation préventive des galeries basses, sécurisation des pompes de drainage de fond et contrôle immédiat des raccordements électriques extérieurs.",
     urgency: 'critical' as const,
     category: 'securite',
     targetRole: 'responsible',
@@ -741,7 +741,7 @@ export const Messages: React.FC = () => {
           <div className="flex-shrink-0 flex items-center justify-center self-center lg:self-stretch">
             <img 
               src={logoImg} 
-              alt="HydroMines Logo" 
+              alt="Excellence Logo" 
               className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer"
             />
@@ -892,7 +892,7 @@ export const Messages: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               Mine Principale SMI
             </span>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">Secteur SMI Imiter</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">Secteur CHANTIER MINIER (X)</h4>
             <p className="text-[10px] text-slate-400">Télémétrie active sur tous les terminaux de SMI.</p>
           </div>
         </div>
@@ -938,7 +938,7 @@ export const Messages: React.FC = () => {
               )}
 
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200">
-                SMI Imiter
+                CHANTIER MINIER (X)
               </span>
             </div>
           </div>
@@ -1263,7 +1263,7 @@ export const Messages: React.FC = () => {
                   </span>
                   <div className="flex items-center gap-2 text-slate-400 text-xs">
                     <Filter className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-bold uppercase">SMI Imiter</span>
+                    <span className="text-[10px] font-bold uppercase">CHANTIER MINIER (X)</span>
                   </div>
                 </div>
 
@@ -1501,7 +1501,7 @@ export const Messages: React.FC = () => {
                     type="email"
                     value={composeTargetEmail}
                     onChange={(e) => setComposeTargetEmail(e.target.value)}
-                    placeholder="Ex: responsable.smi@hydromines.com"
+                    placeholder="Ex: responsable.smi@excellence.com"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-[#b8860b] focus:border-[#b8860b]"
                   />
                   <p className="text-[9px] text-slate-400 font-semibold italic">

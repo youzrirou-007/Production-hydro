@@ -202,7 +202,7 @@ export const GapReportModal: React.FC<GapReportModalProps> = ({
         {/* Modal Footer / Actions */}
         <div className="border-t border-gray-150 p-4 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <p className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">
-            SMI - HydroMines Système d'Aide à la Décision
+            SMI - Excellence Système d'Aide à la Décision
           </p>
           <div className="flex gap-2 justify-end">
             <button

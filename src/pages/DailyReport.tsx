@@ -31,7 +31,7 @@ import { getDocId } from '../lib/siteHelpers';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { format, subDays } from 'date-fns';
 import { ExcelExportButton } from '../components/ExcelExportButton';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 
 export const DailyReport: React.FC = () => {
   const { user } = useAuth();
@@ -743,7 +743,7 @@ export const DailyReport: React.FC = () => {
           <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
-              alt="HydroMines Logo" 
+              alt="Excellence Logo" 
               className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer" 
             />

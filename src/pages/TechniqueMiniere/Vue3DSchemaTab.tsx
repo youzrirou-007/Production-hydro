@@ -1726,7 +1726,7 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
                   Caméra : Orbite Yaw 35° | Pitch -20°
                 </p>
                 <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-                  Analyse Géotechnique interactive · SMI Imiter CAD
+                  Analyse Géotechnique interactive · CHANTIER MINIER (X) CAD
                 </p>
               </div>
             </div>

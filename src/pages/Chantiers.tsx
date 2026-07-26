@@ -22,7 +22,7 @@ import {
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, orderBy, where } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useSite } from '../contexts/SiteContext';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 
 interface Chantier {
   id: string;
@@ -235,7 +235,7 @@ export const Chantiers: React.FC = () => {
   };
 
   const deleteChantier = async (id: string) => {
-    if (confirm("Supprimer définitivement ce chantier de la plateforme HydroMines ?")) {
+    if (confirm("Supprimer définitivement ce chantier de la plateforme Excellence ?")) {
       try {
         await deleteDoc(doc(db, 'chantiers', id));
         showToast("Le chantier a été définitivement supprimé.", 'success');
@@ -383,7 +383,7 @@ export const Chantiers: React.FC = () => {
                   <div className="h-44 bg-slate-50/70 border-b border-gray-150 flex flex-col items-center justify-center p-4 text-center">
                     <img 
                       src={logoImg} 
-                      alt="HydroMines Logo Placeholder" 
+                      alt="Excellence Logo Placeholder" 
                       className="w-14 h-14 object-contain rounded-lg opacity-40 mb-2 mix-blend-multiply" 
                       referrerPolicy="no-referrer" 
                     />
@@ -541,7 +541,7 @@ export const Chantiers: React.FC = () => {
           <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
-              alt="HydroMines Logo" 
+              alt="Excellence Logo" 
               className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer" 
             />
@@ -565,7 +565,7 @@ export const Chantiers: React.FC = () => {
               className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
               style={{ color: '#64748b', letterSpacing: '0.2em' }}
             >
-              Suivi d'avancement des projets • HydroMines
+              Suivi d'avancement des projets • Excellence
             </p>
 
             {/* Centered information/shift capsule */}

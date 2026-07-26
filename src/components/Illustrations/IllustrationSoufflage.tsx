@@ -10,7 +10,7 @@ export const IllustrationSoufflage: React.FC<{ className?: string }> = ({ classN
     >
       <defs>
         {/* Gradients */}
-        <linearGradient id="hydromines-brand-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient id="excellence-brand-grad" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="#38bdf8" />
           <stop offset="50%" stopColor="#6366f1" />
           <stop offset="100%" stopColor="#b91c1c" />
@@ -131,12 +131,12 @@ export const IllustrationSoufflage: React.FC<{ className?: string }> = ({ classN
         <text x="82.5" y="23" fill="#a7f3d0" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">Sans résidus de silice | Sans eau résiduelle</text>
       </g>
 
-      {/* MANDATORY HYDROMINES BRANDING */}
+      {/* MANDATORY EXCELLENCE BRANDING */}
       {/* Top horizontal band (height 4px) */}
-      <rect x="0" y="0" width="260" height="4" fill="url(#hydromines-brand-grad)" opacity="0.7" />
+      <rect x="0" y="0" width="260" height="4" fill="url(#excellence-brand-grad)" opacity="0.7" />
 
       {/* Right vertical band (width 20px) */}
-      <rect x="240" y="0" width="20" height="320" fill="url(#hydromines-brand-grad)" opacity="0.92" />
+      <rect x="240" y="0" width="20" height="320" fill="url(#excellence-brand-grad)" opacity="0.92" />
       
       {/* Brand text read vertically downward */}
       <text 
@@ -150,7 +150,7 @@ export const IllustrationSoufflage: React.FC<{ className?: string }> = ({ classN
         transform="rotate(90, 250, 160)"
         fontFamily="sans-serif"
       >
-        HYDROMINES
+        EXCELLENCE
       </text>
     </svg>
   );

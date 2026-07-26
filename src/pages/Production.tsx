@@ -39,7 +39,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
 import { getDocId } from '../lib/siteHelpers';
 import { format, subDays } from 'date-fns';
-import logoImg from '../assets/images/hydromines_logo_1781337889277.jpg';
+import logoImg from '../assets/images/Excellence_logo.webp';
 
 // ----------------------------------------------------
 // DEFAULT SECTORS & FALLBACK DATA FOR INDUSTRIAL EDGE
@@ -4859,7 +4859,7 @@ export const Production: React.FC = () => {
           <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
-              alt="HydroMines Logo" 
+              alt="Excellence Logo" 
               className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
               referrerPolicy="no-referrer" 
             />
@@ -6835,7 +6835,7 @@ export const Production: React.FC = () => {
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between gap-4">
                   <h4 className="text-[11px] font-black uppercase text-slate-950 tracking-widest">
-                    SMI HYDROMINES
+                    SMI EXCELLENCE
                   </h4>
                   <button 
                     onClick={() => setShowSuccessToast(false)}
