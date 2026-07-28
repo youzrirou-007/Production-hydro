@@ -35,7 +35,6 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
 import { format } from 'date-fns';
-import logoImg from '../assets/images/excellence_logo.png';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 import carteKpisImg from '../assets/images/cartes_kpis.jpg';
 import { 
@@ -874,15 +873,7 @@ export const FailedBlasts: React.FC = () => {
           style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
         />
 
-        <div className="relative z-10 w-full flex flex-col lg:flex-row items-center justify-between gap-6">
-          <div className="shrink-0 flex items-center justify-center">
-            <img 
-              src={logoImg} 
-              alt="Excellence Logo" 
-              className="h-24 w-24 md:h-28 md:w-28 object-contain hover:scale-105 transition-transform duration-300 select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
-              referrerPolicy="no-referrer" 
-            />
-          </div>
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-center justify-center gap-6">
 
           <div className="flex-1 flex flex-col items-center text-center space-y-2.5 w-full">
             <div className="subtle-glow-line w-full opacity-80" />

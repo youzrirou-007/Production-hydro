@@ -8,7 +8,6 @@ import {
   limit, 
   doc 
 } from 'firebase/firestore';
-import logoImg from '../assets/images/excellence_logo.png';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 import carteKpisImg from '../assets/images/cartes_kpis.jpg';
 import { ResponsiveContainer, ComposedChart, BarChart, Bar, Line, Cell, XAxis, YAxis, Tooltip, Legend, RadialBarChart, RadialBar } from 'recharts';
@@ -703,7 +702,6 @@ export const Analytics: React.FC = () => {
 
         <div className="relative z-10 w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <img src={logoImg} alt="Excellence Logo" className="w-14 h-14 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" />
             <div className="space-y-1">
               <div className="flex items-center gap-3">
                 <h1 className="gold-title text-xl md:text-2xl font-black uppercase tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">📊 ANALYTIQUE CHANTIER MINIER (X)</h1>

@@ -39,7 +39,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
 import { getDocId } from '../lib/siteHelpers';
 import { format, subDays } from 'date-fns';
-import logoImg from '../assets/images/excellence_logo.png';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 
 // ----------------------------------------------------
@@ -4860,17 +4859,7 @@ export const Production: React.FC = () => {
           style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
         />
 
-        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-between gap-6">
-          {/* Left Column: Logo */}
-          <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
-            <img 
-              src={logoImg} 
-              alt="Excellence Logo" 
-              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
-              referrerPolicy="no-referrer" 
-            />
-          </div>
-
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-center gap-6">
           {/* Centered Column: Header Title on One Line, Subtitle, Date selectors */}
           <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
             {/* Upper Decorative Gold Line */}

@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Crown, ArrowRight } from 'lucide-react';
-import logoImg from '../../assets/images/excellence_logo.png';
 import bannerExcellenceImg from '../../assets/images/Banner excellence.jpg';
 import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL, HOLES_DATA_9_INTL } from './data';
 import { GabaritType } from './types';
@@ -47,7 +46,6 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
 
         <div className="relative z-10 w-full flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <img src={logoImg} alt="Excellence Logo" className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] select-none shrink-0" />
             <div>
               <span className="text-[10px] font-black uppercase text-amber-200 tracking-widest block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">CHANTIER MINIER (X)</span>
               <h1 className="gold-title text-xl md:text-2xl font-black uppercase tracking-widest drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">

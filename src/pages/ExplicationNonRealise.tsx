@@ -20,7 +20,6 @@ import { collection, query, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
-import logoImg from '../assets/images/excellence_logo.png';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 import carteKpisImg from '../assets/images/cartes_kpis.jpg';
 
@@ -515,17 +514,8 @@ export const ExplicationNonRealise: React.FC = () => {
           style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
         />
 
-        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-between gap-6">
-          <div className="flex-shrink-0 flex items-center justify-center self-center lg:self-stretch">
-            <img 
-              src={logoImg} 
-              alt="Excellence Logo" 
-              className="h-24 w-24 sm:h-28 sm:w-28 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
-              referrerPolicy="no-referrer"
-            />
-          </div>
-
-          <div className="flex-1 flex flex-col justify-center text-center items-center lg:items-start">
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-center gap-6">
+          <div className="flex-1 flex flex-col justify-center text-center items-center">
             <div className="subtle-glow-line w-full opacity-80 mb-1" />
             <span className="text-[10px] font-black tracking-[0.3em] text-amber-200 uppercase mb-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               SOCIÉTÉ METALLURGIQUE D'IMITER

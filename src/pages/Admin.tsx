@@ -24,7 +24,6 @@ import { collection, query, onSnapshot, addDoc, deleteDoc, doc, getDoc, getDocs,
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { SMI_SEED, SEED_EMPLOYEES } from '../config/siteSeed';
-import logoImg from '../assets/images/excellence_logo.png';
 
 interface Employee {
   id: string;
@@ -724,16 +723,7 @@ export const Admin: React.FC = () => {
         className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
         style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
       >
-        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
-          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
-          <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
-            <img 
-              src={logoImg} 
-              alt="Excellence Logo" 
-              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
-              referrerPolicy="no-referrer" 
-            />
-          </div>
+        <div className="flex flex-col lg:flex-row items-stretch justify-center gap-6">
 
           {/* Centered Column: Header Title on One Line, Subtitle, Info tags */}
           <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
