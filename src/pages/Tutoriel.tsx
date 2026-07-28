@@ -24,6 +24,8 @@ import { Step7ChecklistValidation } from './TutorielSteps/Step7ChecklistValidati
 import { Step8FailedBlasts } from './TutorielSteps/Step8FailedBlasts';
 import { Step9FinalExam } from './TutorielSteps/Step9FinalExam';
 
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+
 // Persistence interface
 interface TutorialProgress {
   currentStep: number;
@@ -444,47 +446,56 @@ export const Tutoriel: React.FC = () => {
   ][currentStep];
 
   return (
-    <div className="min-h-screen bg-white text-slate-800 py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-800 py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden font-sans">
       
       {/* Confetti Overlay Canvas */}
       {certificateEarned && (
-        <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-50 w-full h-full" />
+        <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-50 w-full h-full" />
       )}
 
       {/* Main Container */}
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto relative z-10">
         
-        {/* Header Block with high-end, borderless layout and clean spacing */}
-        <div className="mb-10 pb-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b8860b] flex items-center gap-1.5">
-              <GraduationCap className="w-4 h-4" />
+        {/* Header Block Banner with Banner excellence image */}
+        <div className="mb-10 p-6 md:p-10 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+          {/* Banner Image Background (100% original, untouched) */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+            style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+          />
+
+          {/* Banner Text Content directly on the image */}
+          <div className="space-y-1.5 relative z-10 max-w-2xl">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#ffd700] flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              <GraduationCap className="w-4 h-4 text-[#ffd700]" />
               Académie de Formation SCM • Excellence
             </span>
-            <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900 leading-none">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               Module d'Habilitation Secrétaire de Chantier
             </h1>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+            <p className="text-xs text-amber-100 font-bold uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Devenez un maillon essentiel de la traçabilité et de la performance minière de la SMI
             </p>
           </div>
-          <div className="flex gap-2.5 items-center shrink-0">
+
+          {/* Header Action Buttons directly on banner */}
+          <div className="flex gap-2.5 items-center shrink-0 relative z-10">
             {certificateEarned && (
-              <span className="bg-[#b8860b]/10 text-[#b8860b] border border-[#b8860b]/20 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-2xs">
+              <span className="bg-amber-500 text-slate-950 font-black uppercase tracking-widest text-[10px] px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg border border-amber-300">
                 <Trophy className="w-4 h-4" /> Habilité SMI
               </span>
             )}
-            <button 
+            <button
               onClick={handleResetProgress}
-              className="px-4 py-2 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-3xs"
+              className="px-4 py-2.5 bg-slate-900/90 hover:bg-slate-900 text-white border border-slate-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer shadow-lg"
             >
               Réinitialiser
             </button>
           </div>
         </div>
 
-        {/* Permanent 9-Step Progress Bar redesigned to be sleek & modern */}
-        <div className="bg-white border border-slate-200/60 rounded-3xl p-6 shadow-xs mb-10">
+        {/* Permanent 9-Step Progress Bar */}
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xl mb-10">
           <div className="flex items-center justify-between text-slate-400 text-[10px] font-black uppercase tracking-wider mb-4 px-1">
             <span>Progression du cursus d'habilitation</span>
             <span className="text-[#b8860b]">Étape {currentStep} sur 9</span>
@@ -497,7 +508,7 @@ export const Tutoriel: React.FC = () => {
               const maxUnlocked = Math.max(1, ...completedSteps) + 1;
               const isUnlocked = stepNum <= maxUnlocked || completedSteps.includes(stepNum);
 
-              let barColor = "bg-slate-150";
+              let barColor = "bg-slate-100";
               if (isActive) barColor = "bg-[#b8860b]";
               else if (isCompleted) barColor = "bg-emerald-500";
 
@@ -755,7 +766,7 @@ export const Tutoriel: React.FC = () => {
               </div>
               <button
                 onClick={() => alert("Lecture du tutoriel vidéo SCM SMI_V1.mp4")}
-                className="w-full py-3 bg-slate-900 hover:bg-slate-850 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer hover:scale-[1.01] shadow-2xs"
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer hover:scale-[1.01] shadow-2xs"
               >
                 Visionner le support vidéo
               </button>

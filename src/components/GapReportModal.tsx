@@ -55,7 +55,7 @@ export const GapReportModal: React.FC<GapReportModalProps> = ({
         <div className="bg-gray-950 p-4 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-            <span className="text-xs font-black uppercase tracking-widest text-amber-450">Assistant de Planification</span>
+            <span className="text-xs font-black uppercase tracking-widest text-amber-400">Assistant de Planification</span>
           </div>
           <button 
             onClick={onClose}
@@ -66,7 +66,7 @@ export const GapReportModal: React.FC<GapReportModalProps> = ({
         </div>
 
         {/* Modal Sub-Header */}
-        <div className="border-b border-gray-150 p-5 bg-gradient-to-r from-gray-50 to-neutral-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="border-b border-gray-100 p-5 bg-gradient-to-r from-gray-50 to-neutral-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg md:text-xl font-black uppercase tracking-tight text-gray-900">
               📊 Rapport d'écarts & Contrôle
@@ -105,7 +105,7 @@ export const GapReportModal: React.FC<GapReportModalProps> = ({
               ) : (
                 <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
                   {inactiveAssigned.map((item, idx) => (
-                    <div key={idx} className="bg-white p-2 border border-red-150 rounded-lg text-[10px] flex items-center justify-between">
+                    <div key={idx} className="bg-white p-2 border border-red-100 rounded-lg text-[10px] flex items-center justify-between">
                       <div>
                         <span className="font-extrabold text-gray-900">{item.name}</span>
                         <span className="text-neutral-405 font-mono ml-1.5">({item.matricule})</span>
@@ -132,16 +132,16 @@ export const GapReportModal: React.FC<GapReportModalProps> = ({
               ) : (
                 <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
                   {unassignedPersonnel.map((item, idx) => (
-                    <div key={idx} className="bg-white p-2 border border-slate-150 rounded-lg text-[10px] flex items-center justify-between">
+                    <div key={idx} className="bg-white p-2 border border-slate-100 rounded-lg text-[10px] flex items-center justify-between">
                       <div>
                         <span className="font-extrabold text-gray-900">{item.name}</span>
-                        <span className="text-neutral-450 font-mono ml-1">{item.matricule}</span>
+                        <span className="text-neutral-400 font-mono ml-1">{item.matricule}</span>
                       </div>
                       <div className="flex gap-1">
                         <span className="text-[7.5px] font-black uppercase bg-slate-100 text-slate-600 px-1.5 py-0.5">
                           {item.sector}
                         </span>
-                        <span className="text-[7.5px] font-mono bg-blue-50 text-blue-850 px-1.5 py-0.5">
+                        <span className="text-[7.5px] font-mono bg-blue-50 text-blue-800 px-1.5 py-0.5">
                           {item.fonction}
                         </span>
                       </div>
@@ -160,7 +160,7 @@ export const GapReportModal: React.FC<GapReportModalProps> = ({
             </h3>
 
             {teamChanges.length === 0 ? (
-              <div className="bg-emerald-50/40 border border-emerald-150 p-4 rounded-xl text-center">
+              <div className="bg-emerald-50/40 border border-emerald-100 p-4 rounded-xl text-center">
                 <p className="text-xs text-emerald-800 font-bold uppercase tracking-wide">
                   ✓ Reconduction identique du plan précédent. Aucun changement opérationnel détecté.
                 </p>
@@ -177,7 +177,7 @@ export const GapReportModal: React.FC<GapReportModalProps> = ({
                       <th className="px-3 py-2.5">Nouvelle Affectation</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-150 text-[10px]">
+                  <tbody className="divide-y divide-gray-100 text-[10px]">
                     {teamChanges.map((change, index) => (
                       <tr key={index} className="hover:bg-gray-50/50">
                         <td className="px-3 py-2.5 font-bold text-gray-900">{change.chantierName}</td>
@@ -186,7 +186,7 @@ export const GapReportModal: React.FC<GapReportModalProps> = ({
                             {change.role}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-red-650 font-bold">{change.oldName || '(Inoccupé)'}</td>
+                        <td className="px-3 py-2.5 text-red-600 font-bold">{change.oldName || '(Inoccupé)'}</td>
                         <td className="px-2 py-2.5 text-gray-400">➔</td>
                         <td className="px-3 py-2.5 text-emerald-700 font-extrabold">{change.newName || '(Laissé vacant)'}</td>
                       </tr>
@@ -200,7 +200,7 @@ export const GapReportModal: React.FC<GapReportModalProps> = ({
         </div>
 
         {/* Modal Footer / Actions */}
-        <div className="border-t border-gray-150 p-4 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="border-t border-gray-100 p-4 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <p className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">
             SMI - Excellence Système d'Aide à la Décision
           </p>

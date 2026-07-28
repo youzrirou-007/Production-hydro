@@ -115,7 +115,7 @@ export const AuditLogsDrawer: React.FC<AuditLogsDrawerProps> = ({
           </div>
 
           {/* Subheader info block */}
-          <div className="p-4 border-b border-gray-150 bg-gradient-to-r from-gray-50 to-neutral-50 flex items-center gap-2.5">
+          <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-neutral-50 flex items-center gap-2.5">
             <Terminal className="w-4 h-4 text-sky-600 flex-shrink-0" />
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
               Traçabilité complète des ordres de planifications journaliers.
@@ -123,7 +123,7 @@ export const AuditLogsDrawer: React.FC<AuditLogsDrawerProps> = ({
           </div>
 
           {/* Filters & Search bars */}
-          <div className="p-4 border-b border-gray-150 space-y-3 bg-neutral-50/50">
+          <div className="p-4 border-b border-gray-100 space-y-3 bg-neutral-50/50">
             {/* Search Input */}
             <div className="relative">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
@@ -206,12 +206,12 @@ export const AuditLogsDrawer: React.FC<AuditLogsDrawerProps> = ({
                         </div>
 
                         {/* Details content card */}
-                        <div className="bg-gray-50 border border-gray-150 p-2.5 rounded-lg text-[9.5px] leading-relaxed text-gray-600 space-y-1.5 shadow-sm">
+                        <div className="bg-gray-50 border border-gray-100 p-2.5 rounded-lg text-[9.5px] leading-relaxed text-gray-600 space-y-1.5 shadow-sm">
                           <p>{log.details}</p>
                           <div className="flex flex-wrap gap-1.5 text-[8px] font-black uppercase tracking-wider text-gray-400 pt-0.5 border-t border-gray-100">
                             <span>Saisi par : <strong className="text-gray-500">{log.user.split('@')[0]}</strong></span>
                             <span>•</span>
-                            <span>Vol : <strong className="text-sky-750">{log.post}</strong></span>
+                            <span>Vol : <strong className="text-sky-700">{log.post}</strong></span>
                             {log.date && (
                               <>
                                 <span>•</span>
@@ -229,7 +229,7 @@ export const AuditLogsDrawer: React.FC<AuditLogsDrawerProps> = ({
           </div>
 
           {/* Drawer Footer Status indicator */}
-          <div className="bg-neutral-50 p-3 border-t border-gray-150 text-center flex items-center justify-center gap-1.5 text-[8.5px] font-black uppercase tracking-wide text-gray-400">
+          <div className="bg-neutral-50 p-3 border-t border-gray-100 text-center flex items-center justify-center gap-1.5 text-[8.5px] font-black uppercase tracking-wide text-gray-400">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             <span>Serveur d'audit opérationnel • SMI - Imiter</span>
           </div>

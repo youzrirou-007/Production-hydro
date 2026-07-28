@@ -115,7 +115,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-6"
             >
-              <div className="bg-slate-50 border border-slate-150 p-6 rounded-2xl grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+              <div className="bg-slate-50 border border-slate-100 p-6 rounded-2xl grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
                 <div className="md:col-span-8 space-y-2">
                   <h3 className="text-sm font-black uppercase text-slate-800 tracking-tight">
                     Optimisation de l'équipement : Passez de la tige 1.8m à 2.4m
@@ -217,7 +217,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                       <span className="font-black text-[#ffd700] text-base">+{(longRodPayout - shortRodPayout).toFixed(0)} MAD / mois</span>
                     </div>
                   </div>
-                  <div className="bg-slate-850 p-3 rounded-lg border border-slate-800 text-[10px] text-slate-300 font-semibold leading-relaxed uppercase">
+                  <div className="bg-slate-800 p-3 rounded-lg border border-slate-800 text-[10px] text-slate-300 font-semibold leading-relaxed uppercase">
                     🚀 Augmentez de 35% votre rendement sans forer plus de trous par front !
                   </div>
                 </div>
@@ -326,7 +326,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                     Cet examen évalue vos aptitudes sur la physique des explosifs, l'alignement géométrique, le bourrage des trous et les retards de séquence. Répondez correctement aux 5 questions techniques pour obtenir votre <strong>Brevet d'Aptitude d'Ingénierie de Volée SMI</strong>.
                   </p>
                 </div>
-                <div className="bg-slate-850 px-4 py-3 rounded-xl border border-slate-800 text-center shrink-0">
+                <div className="bg-slate-800 px-4 py-3 rounded-xl border border-slate-800 text-center shrink-0">
                   <p className="text-[9px] font-bold text-slate-400 uppercase">Aptitude minimale</p>
                   <p className="text-lg font-black text-amber-500">5 / 5 Correct</p>
                 </div>
@@ -409,7 +409,7 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                 ) : (
                   <div className="space-y-6 w-full max-w-2xl text-center">
                     
-                    <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 text-xs font-semibold text-slate-700">
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs font-semibold text-slate-700">
                       <p className="text-[10px] font-black uppercase text-slate-400">Résultat Examen</p>
                       <p className="text-xl font-black text-slate-900 mt-1">
                         Votre Score : <span className={score === 5 ? 'text-emerald-500' : 'text-rose-500'}>{score} / 5</span>

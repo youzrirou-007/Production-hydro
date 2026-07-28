@@ -45,8 +45,8 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, collectionGroup, query, where, onSnapshot, updateDoc, orderBy } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { getUpcomingSaturday } from '../lib/rotation';
-import logoImg from '../assets/images/Excellence_logo.webp';
-import loginBgImg from '../assets/images/login-background-smi.jpg';
+import logoImg from '../assets/images/excellence_logo.webp';
+import loginBgImg from '../assets/images/login_background_smi.webp';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

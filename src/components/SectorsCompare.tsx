@@ -60,14 +60,15 @@ export const SectorsCompare: React.FC<SectorsCompareProps> = ({
   const getRecordSectorGroup = (rec: any) => {
     const row = rec.reel || rec;
     const plan = rec.plan || {};
-    const sector = row.sector || plan.sector || rec.sector || rec.sectorGroup || rec.reel?.sectorGroup || rec.plan?.sectorGroup || plan.sectorGroup || '';
-    if (sector) return sector;
     const chantierId = row.chantierId || rec.chantierId || plan.chantierId;
+    // Le chantier porte la classification la plus fine (ex: "Bure Imiter Est") —
+    // on la privilégie si elle existe, avant de retomber sur le sector générique de la ligne.
     if (chantierId) {
       const matched = chantiers.find(c => c.id === chantierId);
       if (matched && matched.sector) return matched.sector;
     }
-    return '';
+    const sector = row.sector || plan.sector || rec.sector || rec.sectorGroup || rec.reel?.sectorGroup || rec.plan?.sectorGroup || plan.sectorGroup || '';
+    return sector || '';
   };
 
   const isTargetSector = (sector: string) => {

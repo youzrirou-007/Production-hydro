@@ -289,7 +289,7 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
       )}
 
       {isOpen && (hasPrimarySuggestions || hasSecondarySuggestions) && (
-        <div className={`absolute left-0 right-0 max-h-60 overflow-y-auto bg-white border-2 border-slate-900 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)] z-[999] divide-y divide-slate-150 ${direction === 'up' ? 'bottom-full mb-1.5' : 'top-full mt-1'}`}>
+        <div className={`absolute left-0 right-0 max-h-60 overflow-y-auto bg-white border-2 border-slate-900 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)] z-[999] divide-y divide-slate-100 ${direction === 'up' ? 'bottom-full mb-1.5' : 'top-full mt-1'}`}>
           
           {/* PRIMARY SUGGESTIONS SECTION */}
           {hasPrimarySuggestions && (
@@ -313,7 +313,7 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                       <User className="w-3 h-3 text-emerald-600 shrink-0" />
                       {emp.nom} {emp.prenom}
                     </div>
-                    <div className="text-[9px] text-slate-550 font-medium">
+                    <div className="text-[9px] text-slate-500 font-medium">
                       {emp.fonction} • {emp.sector} • <span className="text-emerald-700 font-bold">{emp.currentPost}</span>
                     </div>
                   </div>
@@ -328,7 +328,7 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
           {/* OTHER PRIMARY ROLE EMPLOYEES (Global search before alternative functions) */}
           {hasOtherRolesGlobal && (
             <div>
-              <div className="bg-slate-100/90 px-2 py-1 text-[8.5px] font-black text-slate-600 uppercase tracking-wider border-b border-slate-150">
+              <div className="bg-slate-100/90 px-2 py-1 text-[8.5px] font-black text-slate-600 uppercase tracking-wider border-b border-slate-100">
                 <span>Autres {fonctions ? fonctions.join('/') : 'profils'} (Recherche globale)</span>
               </div>
               {[...groupB, ...groupC].slice(0, 10).map((emp) => (
@@ -342,14 +342,14 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                   className="w-full text-left px-2.5 py-1.5 hover:bg-slate-100 transition-colors flex items-center justify-between text-[11px] group"
                 >
                   <div className="truncate pr-2 opacity-90 group-hover:opacity-100">
-                    <div className="font-bold text-slate-750 group-hover:text-slate-900 uppercase truncate">
+                    <div className="font-bold text-slate-700 group-hover:text-slate-900 uppercase truncate">
                       {emp.nom} {emp.prenom} {emp.status !== 'actif' && ' (INACTIF)'}
                     </div>
                     <div className="text-[9px] text-slate-500 font-medium">
                       {emp.fonction} • {emp.sector || 'Sans Secteur'} • <span className="text-slate-500">{emp.currentPost || 'Pas de poste'}</span>
                     </div>
                   </div>
-                  <span className="font-mono text-[9.5px] font-black bg-slate-50 group-hover:bg-slate-200 text-slate-550 px-1.5 py-0.5 rounded shrink-0">
+                  <span className="font-mono text-[9.5px] font-black bg-slate-50 group-hover:bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
                     {emp.matricule}
                   </span>
                 </button>
@@ -375,14 +375,14 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                 >
                   <div className="truncate pr-2">
                     <div className="font-bold text-amber-900 uppercase truncate flex items-center gap-1.5">
-                      <User className="w-3 h-3 text-amber-650 shrink-0" />
+                      <User className="w-3 h-3 text-amber-600 shrink-0" />
                       {emp.nom} {emp.prenom}
                     </div>
                     <div className="text-[9px] text-amber-700/80 font-medium">
                       {emp.fonction} • {emp.sector || 'SMI'} • <span className="text-slate-500">{emp.currentPost || 'Libre'}</span>
                     </div>
                   </div>
-                  <span className="font-mono text-[9.5px] font-black bg-amber-100 group-hover:bg-amber-250 text-amber-900 px-1.5 py-0.5 rounded shrink-0">
+                  <span className="font-mono text-[9.5px] font-black bg-amber-100 group-hover:bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded shrink-0">
                     {emp.matricule}
                   </span>
                 </button>
@@ -414,7 +414,7 @@ export const MatriculeAutocomplete: React.FC<MatriculeAutocompleteProps> = ({
                       {emp.fonction}
                     </div>
                   </div>
-                  <span className="font-mono text-[9.5px] font-black bg-slate-50 group-hover:bg-slate-200 text-slate-550 px-1.5 py-0.5 rounded shrink-0">
+                  <span className="font-mono text-[9.5px] font-black bg-slate-50 group-hover:bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
                     {emp.matricule}
                   </span>
                 </button>

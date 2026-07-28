@@ -29,6 +29,7 @@ import { format, parseISO, subDays } from 'date-fns';
 interface HistoryTrendsProps {
   allProductionDocs: any[];
   allPlanningSheets: any[];
+  chantiers?: any[];
 }
 
 type TimeframeOption = '30' | '90' | '180' | '365' | 'all';
@@ -36,7 +37,8 @@ type MetricOption = 'forage' | 'deblayage' | 'extraction' | 'rendement' | 'explo
 
 export const HistoryTrends: React.FC<HistoryTrendsProps> = ({
   allProductionDocs,
-  allPlanningSheets
+  allPlanningSheets,
+  chantiers = []
 }) => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>('30');
   const [metricTab, setMetricTab] = useState<MetricOption>('forage');
@@ -56,6 +58,11 @@ export const HistoryTrends: React.FC<HistoryTrendsProps> = ({
   const getRecordSectorGroup = (rec: any) => {
     const row = rec.reel || rec;
     const plan = rec.plan || {};
+    const chantierId = row.chantierId || rec.chantierId || plan.chantierId;
+    if (chantierId) {
+      const matched = chantiers.find((c: any) => c.id === chantierId);
+      if (matched && matched.sector) return matched.sector;
+    }
     return row.sector || plan.sector || rec.sector || rec.sectorGroup || rec.reel?.sectorGroup || '';
   };
 
@@ -243,7 +250,7 @@ export const HistoryTrends: React.FC<HistoryTrendsProps> = ({
         movingAvgPresence: Number((sumPres / count).toFixed(1))
       };
     });
-  }, [allProductionDocs, allPlanningSheets, maWindow]);
+  }, [allProductionDocs, allPlanningSheets, maWindow, chantiers]);
 
   // Filter history based on timeframe
   const filteredHistory = useMemo(() => {
@@ -465,7 +472,7 @@ export const HistoryTrends: React.FC<HistoryTrendsProps> = ({
           )}
 
           {/* Dynamic helper alert */}
-          <div className="bg-slate-50 border border-slate-150 p-3 rounded-xl text-[9px] font-medium text-slate-500 leading-normal">
+          <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl text-[9px] font-medium text-slate-500 leading-normal">
             ⚙️ <strong className="font-extrabold text-slate-800 uppercase">Analyse :</strong> Le lissage par moyenne mobile lissé à {maWindow} jours filtre les micro-variations quotidiennes pour faire ressortir les grandes tendances structurelles de la SMI.
           </div>
         </div>

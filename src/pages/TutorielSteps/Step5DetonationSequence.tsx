@@ -117,7 +117,7 @@ export const Step5DetonationSequence: React.FC<Step5Props> = ({
                       <button
                         onClick={() => moveSequenceItem(idx, 'up')}
                         disabled={idx === 0 || isPlayingAnimation}
-                        className="p-1.5 hover:bg-slate-100 border border-slate-200 hover:border-slate-350 rounded-lg text-slate-500 cursor-pointer transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                        className="p-1.5 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-lg text-slate-500 cursor-pointer transition-colors disabled:opacity-30 disabled:pointer-events-none"
                         title="Monter"
                       >
                         <ArrowUp className="w-3.5 h-3.5" />
@@ -125,7 +125,7 @@ export const Step5DetonationSequence: React.FC<Step5Props> = ({
                       <button
                         onClick={() => moveSequenceItem(idx, 'down')}
                         disabled={idx === step5Sequence.length - 1 || isPlayingAnimation}
-                        className="p-1.5 hover:bg-slate-100 border border-slate-200 hover:border-slate-350 rounded-lg text-slate-500 cursor-pointer transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                        className="p-1.5 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-lg text-slate-500 cursor-pointer transition-colors disabled:opacity-30 disabled:pointer-events-none"
                         title="Descendre"
                       >
                         <ArrowDown className="w-3.5 h-3.5" />

@@ -184,7 +184,7 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-slate-850 pb-4">
+      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-4">
         {[
           { id: 'vision', label: '🔭 Vision Stratégique' },
           { id: 'audit', label: '🔍 Audit & Fraude' },
@@ -249,7 +249,7 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
                 className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                   selectedExpert === exp.id
                     ? 'border-[#ffd700] bg-[#ffd700]/10 shadow-lg'
-                    : 'border-slate-800 bg-slate-900 hover:bg-slate-850'
+                    : 'border-slate-800 bg-slate-900 hover:bg-slate-800'
                 }`}
               >
                 <div className="text-xs font-black uppercase text-white leading-tight">
@@ -312,7 +312,7 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="p-5 rounded-2xl bg-red-950/40 border border-red-850 flex flex-col items-start gap-3"
+            className="p-5 rounded-2xl bg-red-950/40 border border-red-800 flex flex-col items-start gap-3"
           >
             <div className="flex items-center gap-2 text-red-400 font-black uppercase text-xs">
               <XCircle className="w-5 h-5 text-red-500" />
@@ -377,7 +377,7 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="text-xs font-black uppercase text-slate-450 tracking-wider">
+                  <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">
                     Justification de l'Audit:
                   </h4>
                   <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-semibold">
@@ -423,7 +423,7 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
                           : 'border-l-[6px] border-l-slate-400 border-y-slate-200 border-r-slate-200'
                       }`}>
                         <div className="flex items-start justify-between gap-4 mb-2">
-                          <span className="px-2 py-1 bg-slate-150 text-slate-700 text-[9px] font-black uppercase rounded-md">
+                          <span className="px-2 py-1 bg-slate-100 text-slate-700 text-[9px] font-black uppercase rounded-md">
                             {sug.category || 'GÉNÉRAL'}
                           </span>
                           <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
@@ -439,7 +439,7 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
                         <h4 className="text-xs font-black uppercase text-slate-900 mb-1">
                           {sug.title}
                         </h4>
-                        <p className="text-xs text-slate-650 leading-relaxed font-semibold">
+                        <p className="text-xs text-slate-600 leading-relaxed font-semibold">
                           {sug.description_fr || sug.description}
                         </p>
                       </div>
@@ -469,17 +469,17 @@ export const HydroMinesIA: React.FC<HydroMinesIAProps> = ({
                   <div className="space-y-4">
                     <div className="space-y-1">
                       <h4 className="text-xs font-black uppercase text-slate-500 flex items-center gap-1.5">
-                        <FileText className="w-4 h-4 text-slate-450" /> Analyse de l'expert :
+                        <FileText className="w-4 h-4 text-slate-400" /> Analyse de l'expert :
                       </h4>
-                      <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 p-4 rounded-xl border border-slate-150 font-semibold">
+                      <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50 p-4 rounded-xl border border-slate-100 font-semibold">
                         {result.analysis}
                       </p>
                     </div>
                     <div className="space-y-1">
-                      <h4 className="text-xs font-black uppercase text-slate-450 flex items-center gap-1.5">
+                      <h4 className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5">
                         <Brain className="w-4 h-4 text-[#ffd700]" /> Logique d'analyse :
                       </h4>
-                      <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap italic bg-slate-50 p-4 rounded-xl border border-slate-150 font-semibold">
+                      <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap italic bg-slate-50 p-4 rounded-xl border border-slate-100 font-semibold">
                         {result.logic}
                       </p>
                     </div>

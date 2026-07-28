@@ -37,7 +37,7 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* STAT 1 */}
-        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-150 flex items-center justify-between">
+        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
           <div>
             <span className="text-[9px] font-black uppercase text-slate-400 block">Agent de Charge Principal</span>
             <p className="text-2xl font-black text-slate-800 mt-1">ANFO (Bulk)</p>
@@ -47,7 +47,7 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
         </div>
 
         {/* STAT 2 */}
-        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-150 flex items-center justify-between">
+        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
           <div>
             <span className="text-[9px] font-black uppercase text-slate-400 block">Amorceur de Fond</span>
             <p className="text-2xl font-black text-slate-800 mt-1">Tovex (Hydrogel)</p>
@@ -57,7 +57,7 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
         </div>
 
         {/* STAT 3 */}
-        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-150 flex items-center justify-between">
+        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
           <div>
             <span className="text-[9px] font-black uppercase text-slate-400 block">Allumage Séquentiel</span>
             <p className="text-2xl font-black text-slate-800 mt-1">Amorces</p>

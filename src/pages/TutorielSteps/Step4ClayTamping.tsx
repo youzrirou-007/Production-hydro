@@ -66,7 +66,7 @@ export const Step4ClayTamping: React.FC<Step4Props> = ({
             <select 
               value={draggedSlots.fond}
               onChange={(e) => assignSlot('fond', e.target.value)}
-              className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-250 rounded-xl p-3 text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 transition-all cursor-pointer"
+              className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl p-3 text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 transition-all cursor-pointer"
             >
               <option value="">-- Choisir --</option>
               <option value="ANFO">ANFO (Nitrate)</option>
@@ -85,7 +85,7 @@ export const Step4ClayTamping: React.FC<Step4Props> = ({
             <select 
               value={draggedSlots.colonne}
               onChange={(e) => assignSlot('colonne', e.target.value)}
-              className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-250 rounded-xl p-3 text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 transition-all cursor-pointer"
+              className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl p-3 text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 transition-all cursor-pointer"
             >
               <option value="">-- Choisir --</option>
               <option value="ANFO">ANFO (Nitrate)</option>
@@ -104,7 +104,7 @@ export const Step4ClayTamping: React.FC<Step4Props> = ({
             <select 
               value={draggedSlots.bourrage}
               onChange={(e) => assignSlot('bourrage', e.target.value)}
-              className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-250 rounded-xl p-3 text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 transition-all cursor-pointer"
+              className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl p-3 text-xs font-black uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 transition-all cursor-pointer"
             >
               <option value="">-- Choisir --</option>
               <option value="ANFO">ANFO (Nitrate)</option>
@@ -119,7 +119,7 @@ export const Step4ClayTamping: React.FC<Step4Props> = ({
         <div className="flex justify-end gap-2 pt-2">
           <button
             onClick={handleStep4VerifyOrder}
-            className="px-5 py-3 bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-slate-850 cursor-pointer shadow-sm active:scale-98 transition-all"
+            className="px-5 py-3 bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-slate-800 cursor-pointer shadow-sm active:scale-98 transition-all"
           >
             Vérifier le chargement du trou
           </button>
@@ -168,7 +168,7 @@ export const Step4ClayTamping: React.FC<Step4Props> = ({
         </p>
 
         {/* Dynamic SVG Drawing of Borehole Cross-section */}
-        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4 overflow-x-auto relative">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto relative">
           <span className="absolute top-2 left-4 text-[8px] font-mono font-bold text-slate-500 uppercase tracking-widest">
             Schéma technique 2D (Vue en coupe latérale)
           </span>

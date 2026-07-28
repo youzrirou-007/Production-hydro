@@ -136,7 +136,9 @@ function replaceModernColors(str: string): string {
 
   return result;
 }
-import logoImg from '../assets/images/Excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import carteKpisImg from '../assets/images/cartes_kpis.webp';
 import { logPlanningAction } from '../components/AuditLogsDrawer';
 import { 
   RefreshCw, 
@@ -817,7 +819,7 @@ export const RotationPoste: React.FC = () => {
                                 {pair.aide ? (
                                   <span>{pair.aide.nom} {pair.aide.prenom} <span className="font-mono text-slate-400 text-[8px]">({pair.aide.matricule})</span></span>
                                 ) : (
-                                  <span className="text-slate-450 italic">À pourvoir</span>
+                                  <span className="text-slate-400 italic">À pourvoir</span>
                                 )}
                               </div>
                             </div>
@@ -929,13 +931,13 @@ export const RotationPoste: React.FC = () => {
                             <div className="space-y-1 text-[9.5px]">
                               {/* Treuilliste */}
                               <div>
-                                <span className="text-slate-450 italic text-[8px]">Treuilliste:</span>
+                                <span className="text-slate-400 italic text-[8px]">Treuilliste:</span>
                                 {treuillisteList.length > 0 ? (
                                   <span className="font-extrabold text-slate-800 uppercase ml-1 block">
                                     {treuillisteList[0].nom} {treuillisteList[0].prenom} <span className="font-mono text-slate-400 text-[8px]">({treuillisteList[0].matricule})</span>
                                   </span>
                                 ) : (
-                                  <span className="text-slate-450 italic ml-1 select-none">À pourvoir</span>
+                                  <span className="text-slate-400 italic ml-1 select-none">À pourvoir</span>
                                 )}
                               </div>
 
@@ -1005,7 +1007,7 @@ export const RotationPoste: React.FC = () => {
 
   // Sector visual helper
   const getSectorColor = (sec?: string) => {
-    if (!sec) return 'bg-gray-100/75 text-gray-750 border-gray-200';
+    if (!sec) return 'bg-gray-100/75 text-gray-700 border-gray-200';
     if (sec.includes('Imiter 2')) return 'bg-purple-50 text-purple-700 border-purple-200';
     if (sec.includes('Imiter 1')) return 'bg-sky-50 text-sky-700 border-sky-200';
     if (sec.includes('Imiter Est')) return 'bg-teal-50 text-teal-700 border-teal-200';
@@ -1137,7 +1139,7 @@ export const RotationPoste: React.FC = () => {
             }`}
           >
             {toast.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-450 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             ) : (
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
             )}
@@ -1165,19 +1167,24 @@ export const RotationPoste: React.FC = () => {
         </div>
       )}
 
-      {/* Unified Elegant Header Banner with Enlarged Logo and Centered Title */}
+      {/* Unified Header Banner with Banner excellence image */}
       <div 
         id="unified-planning-banner" 
-        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
-        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
       >
-        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
-          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          {/* Left Column: Logo */}
           <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="Excellence Logo" 
-              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
               referrerPolicy="no-referrer" 
             />
           </div>
@@ -1187,33 +1194,30 @@ export const RotationPoste: React.FC = () => {
             {/* Upper Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
             
-            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+            {/* Premium Gold Shimmer Title */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               CHANGEMENT DE POSTE HEBDOMADAIRE
             </h1>
             
             {/* Lower Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
 
-            {/* Elegant Subtitle with precise spacing */}
-            <p 
-              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
-              style={{ color: '#64748b', letterSpacing: '0.2em' }}
-            >
+            {/* Subtitle directly on banner */}
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Excellence (SMI) • Équipes Tournantes & Alignement des Ordres d'Exploitation
             </p>
 
             {/* Centered information/shift capsule */}
             <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
-              <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs">
-                <CalendarDays className="w-4 h-4 text-amber-700" />
-                <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
+              <div className="inline-flex items-center gap-2 bg-slate-900/80 backdrop-blur-md border border-amber-400/40 px-3 py-1.5 rounded-xl shadow-md">
+                <CalendarDays className="w-4 h-4 text-[#ffd700]" />
+                <span className="text-[10px] font-black uppercase text-[#ffd700] tracking-wider">
                   Cible d'application : <strong>Lundi {targetDateStr}</strong>
                 </span>
               </div>
 
               {hasDraft && (
-                <span className="inline-flex items-center gap-1.5 bg-amber-55 text-amber-800 border border-amber-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-xl shadow-xs">
+                <span className="inline-flex items-center gap-1.5 bg-amber-500/80 backdrop-blur-md text-slate-950 font-black uppercase tracking-wider px-2.5 py-1.5 rounded-xl shadow-md border border-amber-300">
                   📝 Brouillon en cours chargé
                 </span>
               )}
@@ -1228,17 +1232,17 @@ export const RotationPoste: React.FC = () => {
               disabled={loading || validated}
               className={`flex items-center gap-2 px-4 py-3 rounded-xl border border-gray-200 shadow-sm text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                 validated 
-                  ? 'bg-gray-150 text-gray-400 cursor-not-allowed border-gray-200' 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' 
                   : 'bg-white hover:bg-gray-50 text-gray-855'
               }`}
               title="Enregistrer les modifications actuelles comme brouillon"
             >
-              <Save className="w-4 h-4 text-sky-650" />
+              <Save className="w-4 h-4 text-sky-600" />
               {isSavingDraft ? 'Sauvegarde...' : 'Sauvegarder Brouillon'}
             </button>
 
             {validated ? (
-              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-250 text-emerald-800 px-4 py-3.5 rounded-xl shadow-xs font-black uppercase tracking-wide text-[10px]">
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3.5 rounded-xl shadow-xs font-black uppercase tracking-wide text-[10px]">
                 <Check className="w-4.5 h-4.5 text-emerald-600 fill-emerald-100" />
                 <span>Rotation Validée & active</span>
               </div>
@@ -1248,7 +1252,7 @@ export const RotationPoste: React.FC = () => {
                 disabled={loading || employees.length === 0}
                 className={`flex items-center gap-2 px-5 py-3.5 rounded-xl shadow-md text-xs font-black uppercase tracking-widest transition-all cursor-pointer border ${
                   loading || employees.length === 0
-                    ? 'bg-neutral-100 text-neutral-450 border-neutral-200 cursor-not-allowed'
+                    ? 'bg-neutral-100 text-neutral-400 border-neutral-200 cursor-not-allowed'
                     : 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 border border-[#b8860b]/30'
                 }`}
               >
@@ -1262,50 +1266,66 @@ export const RotationPoste: React.FC = () => {
 
       {/* Counters & statistics summary bar */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-xs">
-          <div className="w-12 h-12 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600">
+        <div className="p-4 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center gap-4 group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-sky-400/40 flex items-center justify-center text-sky-400 shadow-md">
             <Users className="w-6 h-6" />
           </div>
-          <div>
-            <p className="text-xl font-black leading-none text-gray-950">{employees.length}</p>
-            <p className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Agents en rotation</p>
+          <div className="relative z-10">
+            <p className="text-xl font-black leading-none text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{employees.length}</p>
+            <p className="text-[9px] font-black uppercase text-amber-200 tracking-wider mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Agents en rotation</p>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-xs">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+        <div className="p-4 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center gap-4 group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-amber-400/40 flex items-center justify-center text-[#ffd700] shadow-md">
             <Sliders className="w-6 h-6" />
           </div>
-          <div>
-            <p className="text-xl font-black leading-none text-gray-950">{getManualOverridesCount()}</p>
-            <p className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Ajustements Manuels</p>
+          <div className="relative z-10">
+            <p className="text-xl font-black leading-none text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{getManualOverridesCount()}</p>
+            <p className="text-[9px] font-black uppercase text-amber-200 tracking-wider mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Ajustements Manuels</p>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-xs">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+        <div className="p-4 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center gap-4 group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-md">
             <CheckCircle2 className="w-6 h-6" />
           </div>
-          <div>
-            <p className="text-xl font-black leading-none text-gray-950">
+          <div className="relative z-10">
+            <p className="text-xl font-black leading-none text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               {employees.filter(e => e.currentPost === 'Poste 1').length} / {employees.filter(e => e.currentPost === 'Poste 2').length} / {employees.filter(e => e.currentPost === 'Poste 3').length}
             </p>
-            <p className="text-[9px] font-black uppercase text-gray-400 tracking-wider">Répartition Actuelle (P1/P2/P3)</p>
+            <p className="text-[9px] font-black uppercase text-amber-200 tracking-wider mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Répartition Actuelle (P1/P2/P3)</p>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-xs">
-          <div className="w-12 h-12 rounded-xl bg-[#8B0000]/10 border border-[#8B0000]/20 flex items-center justify-center text-[#8B0000]">
+        <div className="p-4 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center gap-4 group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-amber-400/40 flex items-center justify-center text-[#ffd700] shadow-md">
             <Printer className="w-6 h-6" />
           </div>
-          <div>
+          <div className="relative z-10">
             <button 
               onClick={() => setIsPrintPreview(true)} 
-              className="text-xs font-black uppercase text-[#8B0000] hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 outline-none"
+              className="text-xs font-black uppercase text-[#ffd700] hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 outline-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
             >
               📄 Mode d'Impression
             </button>
-            <p className="text-[9px] font-bold uppercase text-gray-400 tracking-wider">Générer note d'information</p>
+            <p className="text-[9px] font-bold uppercase text-amber-100 tracking-wider mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Générer note d'information</p>
           </div>
         </div>
       </div>
@@ -1335,7 +1355,7 @@ export const RotationPoste: React.FC = () => {
             const postTally = tallies[pk] || { chefs: 0, mineurs: 0, aides: 0, conducteurs: 0, treuillistes: 0, total: 0 };
             
             return (
-              <div key={postKey} className="border border-gray-150 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-xs">
+              <div key={postKey} className="border border-gray-100 rounded-xl p-4 bg-gray-50/50 space-y-3 shadow-xs">
                 <div className="flex items-center justify-between border-b border-gray-200 pb-2">
                   <span className="text-xs font-black uppercase text-gray-950 tracking-wider">{postKey}</span>
                   <span className="text-xs font-mono font-black text-sky-600 bg-sky-50 border border-sky-200/50 rounded px-2">
@@ -1390,7 +1410,7 @@ export const RotationPoste: React.FC = () => {
                     <span className="font-semibold text-gray-600 uppercase">⚓ Treuillistes</span>
                     <span className={`font-mono font-black border text-[10px] py-0.5 px-2 rounded ${
                       postTally.treuillistes === 0 
-                        ? 'bg-slate-50 text-slate-450 border-slate-150' 
+                        ? 'bg-slate-50 text-slate-400 border-slate-100' 
                         : 'bg-slate-50 text-slate-800 border-slate-200'
                     }`}>
                       {postTally.treuillistes}
@@ -1400,7 +1420,7 @@ export const RotationPoste: React.FC = () => {
 
                 {/* Soft Warning - non-blocking visual prompt */}
                 {(postTally.chefs === 0 || postTally.conducteurs === 0 || postTally.mineurs === 0) && (
-                  <div className="mt-2 text-[9px] font-bold uppercase text-amber-650 bg-amber-50/55 p-2 rounded-lg border border-amber-200 flex items-start gap-1.5 leading-relaxed">
+                  <div className="mt-2 text-[9px] font-bold uppercase text-amber-600 bg-amber-50/55 p-2 rounded-lg border border-amber-200 flex items-start gap-1.5 leading-relaxed">
                     <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-600" />
                     <span>Poste actif sans rôle critique. Rééquilibrage manuel recommandé.</span>
                   </div>
@@ -1437,7 +1457,7 @@ export const RotationPoste: React.FC = () => {
 
       {activeTab === 'board' ? (
         <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-150 pb-4 gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-100 pb-4 gap-4">
             <div>
               <h3 className="text-base font-black uppercase text-slate-900 tracking-wider">
                 📋 Tableau des Affectations par Secteurs • {targetDateStr}
@@ -1465,7 +1485,7 @@ export const RotationPoste: React.FC = () => {
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
         
         {/* Interactive Filters Bar */}
-        <div className="p-4 bg-gray-50/70 border-b border-gray-150 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-4 bg-gray-50/70 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-1 flex-wrap items-center gap-3">
             {/* Search */}
             <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -1500,7 +1520,7 @@ export const RotationPoste: React.FC = () => {
             <select
               value={selectedRoleFilter}
               onChange={e => setSelectedRoleFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-black uppercase text-gray-750 bg-white focus:outline-none cursor-pointer"
+              className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-black uppercase text-gray-700 bg-white focus:outline-none cursor-pointer"
             >
               <option value="ALL">👔 Toutes Fonctions</option>
               {rolesInList.map(role => (
@@ -1613,7 +1633,7 @@ export const RotationPoste: React.FC = () => {
 
                       {/* Fonction */}
                       <td className="p-3 text-xs">
-                        <span className="font-semibold text-gray-600 bg-gray-100/70 border border-gray-150 px-2 py-0.5 rounded text-[9.5px] uppercase">
+                        <span className="font-semibold text-gray-600 bg-gray-100/70 border border-gray-100 px-2 py-0.5 rounded text-[9.5px] uppercase">
                           {getRoleLabel(employee.fonction)}
                         </span>
                       </td>

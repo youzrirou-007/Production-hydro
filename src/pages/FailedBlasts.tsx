@@ -35,6 +35,9 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
 import { format } from 'date-fns';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import carteKpisImg from '../assets/images/cartes_kpis.webp';
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -860,40 +863,58 @@ export const FailedBlasts: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* HEADER SECTION (IMMACULATE WHITE INTERFACE) */}
-      <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 pb-6">
-        <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-[#b8860b]">
-            Division Forage & Minage SMI
-          </span>
-          <h1 className="text-3xl font-black uppercase tracking-wider text-slate-900 mt-1 flex items-center gap-3">
-            <Activity className="w-7 h-7 text-[#b8860b]" />
-            Suivi & Qualification des Volées Ratées
-          </h1>
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5">
-            Analyse rigoureuse des écarts de production — Concept validé par le Comité de Direction SMI
-          </p>
-        </div>
+      {/* HEADER SECTION with Banner excellence image */}
+      <div 
+        id="failed-blasts-banner" 
+        className="max-w-7xl mx-auto mb-8 p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
+      >
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
 
-        {/* Action buttons */}
-        <div className="flex flex-wrap items-center gap-3">
-          {canAdd && (
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div className="shrink-0 flex items-center justify-center">
+            <img 
+              src={logoImg} 
+              alt="Excellence Logo" 
+              className="h-24 w-24 md:h-28 md:w-28 object-contain hover:scale-105 transition-transform duration-300 select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
+              referrerPolicy="no-referrer" 
+            />
+          </div>
+
+          <div className="flex-1 flex flex-col items-center text-center space-y-2.5 w-full">
+            <div className="subtle-glow-line w-full opacity-80" />
+            <h1 className="gold-title text-base sm:text-lg md:text-xl lg:text-2xl tracking-[0.06em] font-black leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+              SUIVI & QUALIFICATION DES VOLÉES RATÉES
+            </h1>
+            <div className="subtle-glow-line w-full opacity-80" />
+            <p className="uppercase tracking-[0.18em] text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              Analyse rigoureuse des écarts de production • Concept validé par le Comité de Direction SMI
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="shrink-0 flex flex-col sm:flex-row lg:flex-col items-center gap-2.5 w-full lg:w-auto">
+            {canAdd && (
+              <button
+                onClick={openCreateModal}
+                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 font-black rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-[10px] uppercase tracking-wider shadow-md cursor-pointer border border-[#b8860b]/30"
+              >
+                <Plus className="w-4 h-4 text-slate-950" />
+                Déclarer une déviation
+              </button>
+            )}
+
             <button
-              onClick={openCreateModal}
-              className="px-4 py-2.5 bg-gradient-to-r from-[#b8860b] to-[#d4af37] text-slate-950 font-black rounded-xl hover:scale-[1.03] active:scale-[0.98] transition-all flex items-center gap-2 text-[10.5px] uppercase tracking-wider shadow-md cursor-pointer"
+              onClick={handleDownloadPDF}
+              className="w-full sm:w-auto px-4 py-2 bg-slate-900/90 hover:bg-slate-900 text-[#ffd700] font-black rounded-xl border border-amber-500/30 flex items-center justify-center gap-2 text-[10px] uppercase tracking-wider shadow-sm cursor-pointer transition-all"
             >
-              <Plus className="w-4 h-4 text-slate-950" />
-              Déclarer une déviation (Volée ratée)
+              <Download className="w-4 h-4" />
+              Télécharger le registre PDF
             </button>
-          )}
-
-          <button
-            onClick={handleDownloadPDF}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-[#ffd700] font-black rounded-xl border border-slate-800 flex items-center gap-2 text-[10.5px] uppercase tracking-wider shadow-sm cursor-pointer transition-all"
-          >
-            <Download className="w-4 h-4" />
-            Télécharger le registre PDF
-          </button>
+          </div>
         </div>
       </div>
 
@@ -935,68 +956,92 @@ export const FailedBlasts: React.FC = () => {
         {/* --- VIEW 1: REGISTRE & DECLARATIONS --- */}
         {activeSubTab === 'registre' && (
           <div className="space-y-8 animate-fade-in">
-            {/* KPI Cards styled with sky blue and dark red representing the corporate identity */}
+            {/* KPI Cards styled with background image carteKpisImg */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
-              {/* Card 1: Total Failed Blasts in Dark Red representing Critical events */}
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-red-800">Volées Ratées Totales</span>
-                  <AlertTriangle className="w-5 h-5 text-red-800" />
+              {/* Card 1: Total Failed Blasts */}
+              <div className="p-6 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex flex-col justify-between group">
+                <div 
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                  style={{ backgroundImage: `url(${carteKpisImg})` }}
+                />
+                <div className="relative z-10 flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-rose-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Volées Ratées Totales</span>
+                  <div className="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-rose-400/40">
+                    <AlertTriangle className="w-5 h-5 text-rose-400" />
+                  </div>
                 </div>
-                <div className="mt-4">
-                  <div className="text-4xl font-black text-slate-900 font-mono">
+                <div className="relative z-10 mt-4">
+                  <div className="text-4xl font-black text-white font-mono drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
                     {totalCount}
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1 text-red-700 font-bold text-[10px] uppercase">
+                  <div className="flex items-center gap-1.5 mt-1 text-rose-300 font-bold text-[10px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                     <span>Impact critique sur le cycle</span>
                   </div>
                 </div>
               </div>
 
-              {/* Card 2: Cumulative Loss Meterage in Sky Blue representing flow optimization */}
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-sky-600">Métrage total perdu</span>
-                  <TrendingDown className="w-5 h-5 text-sky-500" />
-                </div>
-                <div className="mt-4">
-                  <div className="text-4xl font-black text-slate-900 font-mono">
-                    {totalMeterageLost.toFixed(1)} <span className="text-xl font-bold">m</span>
+              {/* Card 2: Cumulative Loss Meterage */}
+              <div className="p-6 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex flex-col justify-between group">
+                <div 
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                  style={{ backgroundImage: `url(${carteKpisImg})` }}
+                />
+                <div className="relative z-10 flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Métrage total perdu</span>
+                  <div className="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-sky-400/40">
+                    <TrendingDown className="w-5 h-5 text-sky-400" />
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1 text-sky-600 font-bold text-[10px] uppercase">
+                </div>
+                <div className="relative z-10 mt-4">
+                  <div className="text-4xl font-black text-white font-mono drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                    {totalMeterageLost.toFixed(1)} <span className="text-xl font-bold text-amber-200">m</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1 text-amber-200 font-bold text-[10px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                     <span>Manque-à-gagner linéaire</span>
                   </div>
                 </div>
               </div>
 
               {/* Card 3: Cause Fréquente */}
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Cause Majoritaire</span>
-                  <HelpCircle className="w-5 h-5 text-amber-500" />
+              <div className="p-6 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex flex-col justify-between group">
+                <div 
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                  style={{ backgroundImage: `url(${carteKpisImg})` }}
+                />
+                <div className="relative z-10 flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Cause Majoritaire</span>
+                  <div className="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-amber-400/40">
+                    <HelpCircle className="w-5 h-5 text-[#ffd700]" />
+                  </div>
                 </div>
-                <div className="mt-4">
-                  <div className="text-sm font-black text-slate-900 truncate" title={mostFrequentCause}>
+                <div className="relative z-10 mt-4">
+                  <div className="text-sm font-black text-white truncate drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]" title={mostFrequentCause}>
                     {mostFrequentCause}
                   </div>
-                  <p className="text-[10px] text-amber-600 font-black uppercase mt-1">
+                  <p className="text-[10px] text-[#ffd700] font-black uppercase mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                     {totalCount > 0 ? `${mostFrequentCausePercent}% des anomalies` : 'Aucune donnée'}
                   </p>
                 </div>
               </div>
 
               {/* Card 4: Worst Sector affected */}
-              <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Secteur le plus impacté</span>
-                  <MapPin className="w-5 h-5 text-indigo-500" />
+              <div className="p-6 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex flex-col justify-between group">
+                <div 
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                  style={{ backgroundImage: `url(${carteKpisImg})` }}
+                />
+                <div className="relative z-10 flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Secteur le plus impacté</span>
+                  <div className="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-indigo-400/40">
+                    <MapPin className="w-5 h-5 text-indigo-300" />
+                  </div>
                 </div>
-                <div className="mt-4">
-                  <div className="text-base font-black text-slate-900">
+                <div className="relative z-10 mt-4">
+                  <div className="text-base font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
                     {mostFrequentSector}
                   </div>
-                  <p className="text-[10px] text-indigo-600 font-black uppercase mt-1">
+                  <p className="text-[10px] text-amber-200 font-black uppercase mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                     {totalCount > 0 ? `${mostFrequentSectorPercent}% des signalements` : 'Aucune donnée'}
                   </p>
                 </div>

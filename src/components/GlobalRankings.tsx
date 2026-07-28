@@ -52,14 +52,15 @@ export const GlobalRankings: React.FC<GlobalRankingsProps> = ({
   const getRecordSectorGroup = (rec: any) => {
     const row = rec.reel || rec;
     const plan = rec.plan || {};
-    const sector = row.sector || plan.sector || rec.sector || rec.sectorGroup || rec.reel?.sectorGroup || rec.plan?.sectorGroup || plan.sectorGroup || '';
-    if (sector) return sector;
     const chantierId = row.chantierId || rec.chantierId || plan.chantierId;
+    // Le chantier porte la classification la plus fine (ex: "Bure Imiter Est") —
+    // on la privilégie si elle existe, avant de retomber sur le sector générique de la ligne.
     if (chantierId) {
       const matched = chantiers.find(c => c.id === chantierId);
       if (matched && matched.sector) return matched.sector;
     }
-    return '';
+    const sector = row.sector || plan.sector || rec.sector || rec.sectorGroup || rec.reel?.sectorGroup || rec.plan?.sectorGroup || plan.sectorGroup || '';
+    return sector || '';
   };
 
   const getPersonnelName = (matricule: string) => {
@@ -418,7 +419,7 @@ export const GlobalRankings: React.FC<GlobalRankingsProps> = ({
       </div>
 
       {/* Leaderboard subtabs navigation */}
-      <div className="flex flex-wrap gap-1.5 border-b border-gray-150 pb-px">
+      <div className="flex flex-wrap gap-1.5 border-b border-gray-100 pb-px">
         {[
           { id: 'mineurs', label: 'Mineurs (Tirées)', icon: <HardHat className="w-4 h-4" /> },
           { id: 'conducteurs', label: 'Conducteurs (LHD)', icon: <Tractor className="w-4 h-4" /> },

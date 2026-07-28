@@ -1888,7 +1888,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                       className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer border transition-all ${
                         angleX === 0 && angleY === 0 && !isRotating
                           ? 'bg-amber-500 text-slate-950 border-amber-500 font-black'
-                          : 'bg-slate-900 hover:bg-slate-850 text-slate-300 border-slate-800'
+                          : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
                       }`}
                       title="Profil Face par Défaut"
                     >
@@ -1906,7 +1906,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                       className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer border transition-all ${
                         angleX === 18 && angleY === -25
                           ? 'bg-amber-500 text-slate-950 border-amber-500 font-black'
-                          : 'bg-slate-900 hover:bg-slate-850 text-slate-300 border-slate-800'
+                          : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
                       }`}
                       title="Perspective 3D Inclinée"
                     >
@@ -1992,7 +1992,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                               ? 'bg-amber-400 text-slate-950 font-black border-amber-500 scale-110 shadow-md ring-4 ring-amber-500/25'
                               : status === 'drilled'
                               ? 'bg-slate-900 text-emerald-400 border-emerald-500/30 font-extrabold'
-                              : 'bg-slate-900 hover:bg-slate-850 text-slate-500 border-slate-800'
+                              : 'bg-slate-900 hover:bg-slate-800 text-slate-500 border-slate-800'
                           }`}
                           title={hole.name}
                         >
@@ -2062,7 +2062,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
                           {((drillProgress / 100) * targetDepth).toFixed(2)} m / {targetDepth} m ({Math.round(drillProgress)}%)
                         </span>
                       </div>
-                      <div className="w-full bg-slate-900 border border-slate-850 rounded-full h-3 overflow-hidden">
+                      <div className="w-full bg-slate-900 border border-slate-800 rounded-full h-3 overflow-hidden">
                         <div 
                           className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-400 transition-all duration-75 relative"
                           style={{ width: `${drillProgress}%` }}

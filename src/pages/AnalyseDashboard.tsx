@@ -46,7 +46,8 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import logoImg from '../assets/images/Excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
 
 const SectorsCompare = lazy(() => import('../components/SectorsCompare').then(m => ({ default: m.SectorsCompare })));
 const GlobalRankings = lazy(() => import('../components/GlobalRankings').then(m => ({ default: m.GlobalRankings })));
@@ -1371,30 +1372,34 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16 font-sans bg-white p-2 sm:p-4 rounded-3xl">
       
-      {/* BANNER HEADER */}
+      {/* BANNER HEADER with Banner excellence image */}
       <div 
         id="analyse-dashboard-header" 
-        className="bg-white p-6 md:p-8 border border-[#d4af37]/45 rounded-[20px] w-full shadow-xs relative overflow-hidden"
-        style={{ boxShadow: '0 4px 24px -2px rgba(184, 134, 11, 0.05)' }}
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
       >
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0ea5e9] to-[#ef4444]" />
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-center justify-between gap-6">
           <div className="shrink-0 flex items-center justify-center">
             <img 
               src={logoImg} 
               alt="Excellence Logo" 
-              className="h-24 w-24 md:h-28 md:w-28 object-contain hover:scale-105 transition-transform duration-300 select-none rounded-2xl" 
+              className="h-24 w-24 md:h-28 md:w-28 object-contain hover:scale-105 transition-transform duration-300 select-none rounded-2xl drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
               referrerPolicy="no-referrer" 
             />
           </div>
 
           <div className="flex-1 flex flex-col items-center text-center space-y-2 w-full">
             <div className="subtle-glow-line w-2/3 opacity-60" />
-            <h1 className="gold-title text-base sm:text-lg md:text-xl tracking-[0.08em] font-black leading-none py-1">
+            <h1 className="gold-title text-base sm:text-lg md:text-xl tracking-[0.08em] font-black leading-none py-1 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               CENTRE DE PILOTAGE DIRECTION GÉNÉRALE
             </h1>
             <div className="subtle-glow-line w-2/3 opacity-60" />
-            <p className="uppercase tracking-[0.15em] text-[8.5px] font-extrabold text-[#b8860b]">
+            <p className="uppercase tracking-[0.15em] text-[8.5px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               SMI Excellence • Analyse des données d'exploitation : {renderPeriodLabel()}
             </p>
           </div>
@@ -1621,7 +1626,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                     onClick={() => setActiveTab(t.id as any)}
                     className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-[10.5px] uppercase tracking-wide transition-all cursor-pointer ${
                       isSubTabActive 
-                        ? 'bg-white border border-slate-200/80 text-slate-850 shadow-3xs font-black' 
+                        ? 'bg-white border border-slate-200/80 text-slate-800 shadow-3xs font-black' 
                         : 'border border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/40'
                     }`}
                   >
@@ -1736,6 +1741,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                 <HistoryTrends 
                   allProductionDocs={allProductionDocs}
                   allPlanningSheets={allPlanningSheets}
+                  chantiers={chantiers}
                 />
               )}
 
@@ -1877,7 +1883,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                             <div className="space-y-2 animate-fade-in text-slate-800">
                               <div className="flex items-center gap-1.5 mb-1">
                                 <span className="text-xs font-black uppercase text-amber-700">Expert Process & IA</span>
-                                <span className="text-[7.5px] font-bold bg-amber-150 text-amber-800 px-1.5 py-0.2 rounded uppercase">Analytique & Arbitrage</span>
+                                <span className="text-[7.5px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded uppercase">Analytique & Arbitrage</span>
                               </div>
                               <p className="leading-relaxed">
                                 « L'analyse approfondie des données cliniques montre une corrélation forte entre le taux de présence des mineurs certifiés (<strong className="text-slate-950">{metrics.realPresence} présents</strong>) et la régularité linéaire de forage. Les tirs défaillants s'expliquent à 80% par des variations d'effectifs sur les shifts 2 et 3. »
@@ -2201,6 +2207,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                 <BureImiterEstPremium 
                   allProductionDocs={allProductionDocs}
                   allPlanningSheets={allPlanningSheets}
+                  chantiers={chantiers}
                 />
               )}
 
@@ -2238,7 +2245,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                   </div>
 
                   {/* Poste drilldown selector */}
-                  <div className="bg-slate-50 border border-slate-150 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div className="flex items-center gap-2">
                       <Filter className="w-4 h-4 text-slate-500" />
                       <span className="text-xs font-black uppercase text-slate-800">Filtrer par poste de travail :</span>
@@ -2555,7 +2562,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
 
                       if (!hasMinerData && !hasDriverData && !hasChiefData && !hasAssistantData) {
                         return (
-                          <div className="bg-slate-800/40 border border-slate-750 p-4 rounded-xl text-center text-slate-400 text-[10px] uppercase font-black">
+                          <div className="bg-slate-800/40 border border-slate-700 p-4 rounded-xl text-center text-slate-400 text-[10px] uppercase font-black">
                             Aucune activité de production brute détectée pour le matricule {mat} sur la période sélectionnée.
                           </div>
                         );
@@ -2565,8 +2572,8 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                           {/* Miner Card */}
                           {hasMinerData && (
-                            <div className="bg-slate-800 border border-slate-750 rounded-xl p-4.5 space-y-3.5">
-                              <span className="text-[9px] font-black text-[#ffd700] uppercase tracking-wide block border-b border-slate-750 pb-1.5">Profil : Mineur de Tir</span>
+                            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4.5 space-y-3.5">
+                              <span className="text-[9px] font-black text-[#ffd700] uppercase tracking-wide block border-b border-slate-700 pb-1.5">Profil : Mineur de Tir</span>
                               <div className="grid grid-cols-2 gap-3.5">
                                 <div>
                                   <span className="text-[8px] text-slate-400 uppercase font-bold">Mètres Forés</span>
@@ -2590,8 +2597,8 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
 
                           {/* Driver Card */}
                           {hasDriverData && (
-                            <div className="bg-slate-800 border border-slate-750 rounded-xl p-4.5 space-y-3.5">
-                              <span className="text-[9px] font-black text-sky-400 uppercase tracking-wide block border-b border-slate-750 pb-1.5">Profil : Conducteur LHD</span>
+                            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4.5 space-y-3.5">
+                              <span className="text-[9px] font-black text-sky-400 uppercase tracking-wide block border-b border-slate-700 pb-1.5">Profil : Conducteur LHD</span>
                               <div className="grid grid-cols-2 gap-3.5">
                                 <div>
                                   <span className="text-[8px] text-slate-400 uppercase font-bold">Volume Déblayé</span>
@@ -2615,8 +2622,8 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
 
                           {/* Chief Card */}
                           {hasChiefData && (
-                            <div className="bg-slate-800 border border-slate-750 rounded-xl p-4.5 space-y-3.5">
-                              <span className="text-[9px] font-black text-purple-400 uppercase tracking-wide block border-b border-slate-750 pb-1.5">Profil : Chef d'Équipe</span>
+                            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4.5 space-y-3.5">
+                              <span className="text-[9px] font-black text-purple-400 uppercase tracking-wide block border-b border-slate-700 pb-1.5">Profil : Chef d'Équipe</span>
                               <div className="grid grid-cols-2 gap-3.5">
                                 <div>
                                   <span className="text-[8px] text-slate-400 uppercase font-bold">Shifts Dirigés</span>
@@ -2636,8 +2643,8 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
 
                           {/* Assistant Miner Card */}
                           {hasAssistantData && (
-                            <div className="bg-slate-800 border border-slate-750 rounded-xl p-4.5 space-y-3.5">
-                              <span className="text-[9px] font-black text-teal-400 uppercase tracking-wide block border-b border-slate-750 pb-1.5">Profil : Aide-Mineur</span>
+                            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4.5 space-y-3.5">
+                              <span className="text-[9px] font-black text-teal-400 uppercase tracking-wide block border-b border-slate-700 pb-1.5">Profil : Aide-Mineur</span>
                               <div className="grid grid-cols-2 gap-3.5">
                                 <div>
                                   <span className="text-[8px] text-slate-400 uppercase font-bold">Rondes Assistées</span>
@@ -2653,7 +2660,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                         </div>
                       );
                     })() : (
-                      <div className="bg-slate-800/40 border border-slate-750 p-4 rounded-xl text-center text-slate-400 text-[10px] uppercase font-black">
+                      <div className="bg-slate-800/40 border border-slate-700 p-4 rounded-xl text-center text-slate-400 text-[10px] uppercase font-black">
                         Veuillez sélectionner un collaborateur pour compiler son dossier d'activité consolidé.
                       </div>
                     )}
@@ -2748,7 +2755,7 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
                   </div>
 
                   {/* Technical Maintenance Registry */}
-                  <div className="bg-white border border-gray-150 rounded-2xl p-5 space-y-4 shadow-2xs">
+                  <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4 shadow-2xs">
                     <h3 className="text-xs font-black uppercase text-slate-800">Registre Clinique des Interventions de Maintenance</h3>
                     <div className="overflow-x-auto border border-gray-100 rounded-xl">
                       <table className="w-full text-left border-collapse text-[10.5px]">

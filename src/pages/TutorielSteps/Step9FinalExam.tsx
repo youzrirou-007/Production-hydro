@@ -93,7 +93,7 @@ export const Step9FinalExam: React.FC<Step9Props> = ({
               placeholder="Saisissez votre nom complet..."
               value={step9Data.userName}
               onChange={(e) => setStep9Data(prev => ({ ...prev, userName: e.target.value }))}
-              className="w-full bg-slate-50 border border-slate-250 focus:border-[#b8860b] rounded-xl p-3.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/15 focus:bg-white transition-all text-slate-800"
+              className="w-full bg-slate-50 border border-slate-200 focus:border-[#b8860b] rounded-xl p-3.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/15 focus:bg-white transition-all text-slate-800"
             />
           </div>
 
@@ -122,7 +122,7 @@ export const Step9FinalExam: React.FC<Step9Props> = ({
                 placeholder="Ex: 40"
                 value={step9Data.buckets}
                 onChange={(e) => setStep9Data(prev => ({ ...prev, buckets: e.target.value }))}
-                className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 focus:bg-white"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 focus:bg-white"
               />
               <span className="text-[9px] text-slate-400 font-bold uppercase block">(Indice : 45 godets)</span>
             </div>
@@ -138,7 +138,7 @@ export const Step9FinalExam: React.FC<Step9Props> = ({
                 placeholder="Ex: 30"
                 value={step9Data.gasoil}
                 onChange={(e) => setStep9Data(prev => ({ ...prev, gasoil: e.target.value }))}
-                className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 focus:bg-white"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 focus:bg-white"
               />
               <span className="text-[9px] text-slate-400 font-bold uppercase block">(Indice : 35 litres)</span>
             </div>
@@ -151,7 +151,7 @@ export const Step9FinalExam: React.FC<Step9Props> = ({
               <select
                 value={step9Data.checklistTamping}
                 onChange={(e) => setStep9Data(prev => ({ ...prev, checklistTamping: e.target.value }))}
-                className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
               >
                 <option value="CONFORME">CONFORME (Norme SMI)</option>
                 <option value="NON CONFORME">NON CONFORME (Incident)</option>
@@ -166,7 +166,7 @@ export const Step9FinalExam: React.FC<Step9Props> = ({
               <select
                 value={step9Data.failedBlastCause}
                 onChange={(e) => setStep9Data(prev => ({ ...prev, failedBlastCause: e.target.value }))}
-                className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
               >
                 <option value="">-- Choisir --</option>
                 <option value="Bourrage insuffisant">Bourrage insuffisant (Coup soufflé)</option>
@@ -191,7 +191,7 @@ export const Step9FinalExam: React.FC<Step9Props> = ({
               rows={3}
               value={step9Data.failedBlastComment}
               onChange={(e) => setStep9Data(prev => ({ ...prev, failedBlastComment: e.target.value }))}
-              className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 focus:bg-white resize-none"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 focus:bg-white resize-none"
             />
           </div>
 
@@ -278,7 +278,7 @@ export const Step9FinalExam: React.FC<Step9Props> = ({
               </div>
 
               {/* Technical credentials summary in elegant box */}
-              <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 max-w-md mx-auto text-left grid grid-cols-2 gap-4 text-[11px] font-mono leading-relaxed">
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 max-w-md mx-auto text-left grid grid-cols-2 gap-4 text-[11px] font-mono leading-relaxed">
                 <div>
                   <span className="text-slate-400 block uppercase font-black text-[8px]">Habilitation</span>
                   <span className="font-bold text-slate-800 uppercase">Secrétaire de Chantier</span>

@@ -86,7 +86,7 @@ export const Step3PrecisionForage: React.FC<Step3Props> = ({
         </p>
 
         {/* Ex 1 */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-150 space-y-2.5 shadow-2xs">
+        <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-2.5 shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black uppercase tracking-widest bg-slate-900 text-amber-400 px-2.5 py-1 rounded-md">
               Exercice 1
@@ -117,7 +117,7 @@ export const Step3PrecisionForage: React.FC<Step3Props> = ({
         </div>
 
         {/* Ex 2 */}
-        <div className={`bg-white rounded-2xl p-4 border border-slate-150 space-y-2.5 shadow-2xs transition-all ${
+        <div className={`bg-white rounded-2xl p-4 border border-slate-100 space-y-2.5 shadow-2xs transition-all ${
           step3Ex1 !== 'success' ? 'opacity-50 pointer-events-none' : ''
         }`}>
           <div className="flex items-center justify-between">
@@ -150,7 +150,7 @@ export const Step3PrecisionForage: React.FC<Step3Props> = ({
         </div>
 
         {/* Ex 3 */}
-        <div className={`bg-white rounded-2xl p-4 border border-slate-150 space-y-3 shadow-2xs transition-all ${
+        <div className={`bg-white rounded-2xl p-4 border border-slate-100 space-y-3 shadow-2xs transition-all ${
           step3Ex2 !== 'success' ? 'opacity-50 pointer-events-none' : ''
         }`}>
           <div className="flex items-center justify-between">

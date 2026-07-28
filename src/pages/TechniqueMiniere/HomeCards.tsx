@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Crown, ArrowRight } from 'lucide-react';
-import logoImg from '../../assets/images/Excellence_logo.webp';
+import logoImg from '../../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../../assets/images/banner_excellence.webp';
 import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL, HOLES_DATA_9_INTL } from './data';
 import { GabaritType } from './types';
 import { getExplosifsData } from './explosifsCalc';
@@ -33,26 +34,36 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
 
   return (
     <div className="bg-white min-h-screen p-6 md:p-8 space-y-8 flex flex-col justify-between">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-amber-400/10 rounded-2xl border border-amber-400/20">
-            <img src={logoImg} alt="Excellence Logo" className="w-12 h-12 object-contain" />
+      {/* Unified Header Banner with Banner excellence image */}
+      <div 
+        id="technique-header-banner" 
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
+      >
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+
+        <div className="relative z-10 w-full flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <img src={logoImg} alt="Excellence Logo" className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] select-none shrink-0" />
+            <div>
+              <span className="text-[10px] font-black uppercase text-amber-200 tracking-widest block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">CHANTIER MINIER (X)</span>
+              <h1 className="gold-title text-xl md:text-2xl font-black uppercase tracking-widest drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                TECHNIQUE MINIÈRE
+              </h1>
+              <p className="text-xs text-amber-100 font-bold uppercase tracking-wider mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                Optimisation du forage & tir contrôlé souterrain
+              </p>
+            </div>
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest block">CHANTIER MINIER (X)</span>
-            <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-slate-900">
-              TECHNIQUE MINIÈRE
-            </h1>
-            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
-              Optimisation du forage & tir contrôlé souterrain
-            </p>
+            <span className="inline-flex items-center gap-2 bg-slate-900/80 backdrop-blur-md text-[#ffd700] text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl border border-[#ffd700]/40 shadow-lg">
+              <Crown className="w-4 h-4 text-[#ffd700]" />
+              Accès réservé — Chefs de poste & Ingénieurs
+            </span>
           </div>
-        </div>
-        <div>
-          <span className="inline-flex items-center gap-2 bg-slate-900 text-[#ffd700] text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl border border-[#ffd700]/30 shadow-[0_4px_12px_rgba(255,215,0,0.1)]">
-            <Crown className="w-4 h-4 text-[#ffd700]" />
-            Accès réservé — Chefs de poste & Ingénieurs
-          </span>
         </div>
       </div>
 

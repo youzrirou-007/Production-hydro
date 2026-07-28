@@ -8,6 +8,9 @@ import {
   limit, 
   doc 
 } from 'firebase/firestore';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import carteKpisImg from '../assets/images/cartes_kpis.webp';
 import { ResponsiveContainer, ComposedChart, BarChart, Bar, Line, Cell, XAxis, YAxis, Tooltip, Legend, RadialBarChart, RadialBar } from 'recharts';
 
 export const Analytics: React.FC = () => {
@@ -687,32 +690,47 @@ export const Analytics: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight">📊 Analytique CHANTIER MINIER (X)</h1>
-            <span className="bg-[#ffd700] text-slate-950 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-xs animate-pulse">
-              GOD LEVEL ANALYTICS
-            </span>
-          </div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tableaux de bord opérationnels et réglementaires</p>
-        </div>
+      {/* Header Banner with Banner excellence image */}
+      <div 
+        id="analytics-header-banner" 
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6"
+      >
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
 
-        <div className="flex items-center gap-1.5 bg-slate-950/50 p-1 rounded-xl border border-slate-700/30">
-          {(['7j', '30j', '90j'] as const).map((period) => (
-            <button
-              key={period}
-              type="button"
-              onClick={() => setFilterPeriod(period)}
-              className={`px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                filterPeriod === period
-                  ? 'bg-[#1a5276] text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {period}
-            </button>
-          ))}
+        <div className="relative z-10 w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <img src={logoImg} alt="Excellence Logo" className="w-14 h-14 object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" />
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <h1 className="gold-title text-xl md:text-2xl font-black uppercase tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">📊 ANALYTIQUE CHANTIER MINIER (X)</h1>
+                <span className="bg-[#ffd700] text-slate-950 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-md animate-pulse">
+                  GOD LEVEL ANALYTICS
+                </span>
+              </div>
+              <p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Tableaux de bord opérationnels et réglementaires</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-amber-400/40 shadow-lg">
+            {(['7j', '30j', '90j'] as const).map((period) => (
+              <button
+                key={period}
+                type="button"
+                onClick={() => setFilterPeriod(period)}
+                className={`px-3.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  filterPeriod === period
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm'
+                    : 'text-amber-200 hover:text-white'
+                }`}
+              >
+                {period}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -744,7 +762,7 @@ export const Analytics: React.FC = () => {
       <div className="min-h-[300px]">
         {activeTab === 'direction' ? (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-150 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
               <div>
                 <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Vue d'ensemble de la performance</h2>
               </div>
@@ -760,19 +778,25 @@ export const Analytics: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {kpiCards.map((card, idx) => (
-                <div key={idx} className={`bg-white p-5 border-l-4 ${card.color} rounded-2xl shadow-sm space-y-2`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl">{card.icon}</span>
+                <div key={idx} className="p-5 border border-amber-500/30 rounded-2xl shadow-lg relative overflow-hidden flex flex-col justify-between group">
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                    style={{ backgroundImage: `url(${carteKpisImg})` }}
+                  />
+                  <div className="relative z-10 flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{card.label}</span>
+                    <div className="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-amber-400/40 shadow-md text-xl">
+                      {card.icon}
+                    </div>
                   </div>
-                  <div className="space-y-0.5">
-                    <p className="text-3xl font-black tracking-tight text-slate-900">{card.value}</p>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{card.label}</p>
+                  <div className="relative z-10 mt-3">
+                    <p className="text-3xl font-black text-white font-mono drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{card.value}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm space-y-4">
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
                   📈 Évolution Métrage & Wagons — {filterPeriod.toUpperCase()}
@@ -881,7 +905,7 @@ export const Analytics: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm space-y-4">
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
                 🚨 Alertes Opérationnelles
               </h3>
@@ -1094,7 +1118,7 @@ export const Analytics: React.FC = () => {
               })}
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm space-y-4">
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
                 📊 Performance de Production par Poste (moyens)
               </h3>
@@ -1139,7 +1163,7 @@ export const Analytics: React.FC = () => {
                   </ResponsiveContainer>
                 </div>
                 <div className="flex flex-col justify-center">
-                  <div className="border border-gray-150 rounded-2xl overflow-hidden">
+                  <div className="border border-gray-100 rounded-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead className="bg-[#0f172a] text-white text-[9px] font-black uppercase tracking-wider">
                         <tr>
@@ -1433,7 +1457,7 @@ export const Analytics: React.FC = () => {
                 })}
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm space-y-4">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
                   📈 Évolution du Volume Journalier par Moteur (m³)
                 </h3>
@@ -1486,7 +1510,7 @@ export const Analytics: React.FC = () => {
                   ⚠️ Corrélation Maintenance → Wagons Perdus
                 </h3>
                 {correlations.length === 0 ? (
-                  <div className="p-6 text-center text-xs font-bold text-slate-500 bg-white border border-gray-150 rounded-2xl">
+                  <div className="p-6 text-center text-xs font-bold text-slate-500 bg-white border border-gray-100 rounded-2xl">
                     ✅ Aucune maintenance prolongée détectée sur la période
                   </div>
                 ) : (
@@ -1817,25 +1841,25 @@ export const Analytics: React.FC = () => {
           return (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-gray-150 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">ANFO Consommé</span>
                     <p className="text-3xl font-black mt-1 text-slate-900">{explosifStats.totalAnfo.toFixed(0)} kg</p>
                   </div>
                 </div>
-                <div className="bg-white border border-gray-150 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Tovex Consommé</span>
                     <p className="text-3xl font-black mt-1 text-slate-900">{explosifStats.totalTovex.toFixed(2)} kg</p>
                   </div>
                 </div>
-                <div className="bg-white border border-gray-150 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Amorces Utilisées</span>
                     <p className="text-3xl font-black mt-1 text-slate-900">{explosifStats.totalAmorces} u.</p>
                   </div>
                 </div>
-                <div className="bg-white border border-gray-150 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Ratio ANFO / Mètre</span>
                     <p className="text-3xl font-black mt-1 text-slate-900">{globalRatioAnfoPerMeter.toFixed(2)} kg/m</p>
@@ -1864,7 +1888,7 @@ export const Analytics: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm space-y-4">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
                   📈 Consommation d'Explosifs et Ratio Journalier
                 </h3>
@@ -2000,7 +2024,7 @@ export const Analytics: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                 <div className="space-y-4">
                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Efficacité opérationnelle</span>
                   <h3 className="text-3xl font-black text-slate-900">Efficacité de tir : {globalEfficaciteTir.toFixed(1)}%</h3>

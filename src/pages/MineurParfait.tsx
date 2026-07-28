@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { t } from '../data/mineurParfaitTranslations';
 import { IllustrationPurge, IllustrationForage, IllustrationSoufflage, IllustrationPortanole } from '../components/Illustrations';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ChevronDown, 
@@ -297,17 +298,19 @@ export const MineurParfait: React.FC = () => {
           </button>
         </div>
 
-        {/* Premium Excellence Gold Banner - Identical to EspaceDT */}
+        {/* Premium Excellence Gold Banner with Banner excellence image */}
         <div 
-          className="bg-white p-6 sm:p-8 rounded-3xl border border-[#b8860b]/15 shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6 mt-6"
-          style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+          className="p-6 sm:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6 mt-6"
         >
-          {/* Background Subtle Shimmer */}
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-amber-500/5 animate-pulse pointer-events-none" />
-          
+          {/* Banner Image Background (100% original, untouched) */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+            style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+          />
+
           <div className={`flex items-center gap-5 z-10 text-center ${lang === 'ar' ? 'md:text-right' : 'md:text-left'} flex-col md:flex-row`}>
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-[#b8860b] flex items-center justify-center shadow-md shrink-0 relative overflow-hidden">
-              <svg viewBox="0 0 100 100" className="w-12 h-12 drop-shadow-md">
+            <div className="w-16 h-16 shrink-0 relative flex items-center justify-center drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">
+              <svg viewBox="0 0 100 100" className="w-16 h-16">
                 {/* White safety helmet contours */}
                 <path 
                   d="M 15 55 C 15 28, 85 28, 85 55 C 85 57, 87 59, 83 59 L 17 59 C 13 59, 15 57, 15 55 Z" 
@@ -353,26 +356,26 @@ export const MineurParfait: React.FC = () => {
             </div>
             <div>
               <div className={`subtle-glow-line w-24 mb-1.5 ${lang === 'ar' ? 'mr-0' : 'ml-0'} mx-auto md:mx-0 opacity-80`} />
-              <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase">
+              <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
                 {t[lang].title}
               </h1>
               <div className="subtle-glow-line w-full mt-2 mb-2.5 opacity-80" />
-              <p className="text-[10px] sm:text-xs font-black uppercase text-slate-500 tracking-widest">
+              <p className="text-[10px] sm:text-xs font-black uppercase text-amber-100 tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                 {t[lang].subtitle}
               </p>
             </div>
           </div>
 
           {/* Welcome Card & Bilan summary on the right side - representing the 25% Excellence Touch */}
-          <div className="bg-slate-50 border border-amber-500/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center z-10 w-full md:w-56 shrink-0 shadow-xs">
-            <div className="text-[#b8860b] text-[8px] font-black uppercase tracking-wider">
+          <div className="bg-slate-900/80 backdrop-blur-md border border-amber-400/40 rounded-2xl p-4 flex flex-col items-center justify-center text-center z-10 w-full md:w-56 shrink-0 shadow-lg">
+            <div className="text-[#ffd700] text-[8px] font-black uppercase tracking-wider">
               {t[lang].targetYield}
             </div>
-            <div className="text-slate-800 text-[12px] font-black uppercase flex items-center gap-1.5 mt-1">
+            <div className="text-white text-[12px] font-black uppercase flex items-center gap-1.5 mt-1">
               {t[lang].excellence}
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             </div>
-            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+            <p className="text-[9px] text-amber-200 font-bold uppercase tracking-widest mt-1">
               {t[lang].fromBouchon}
             </p>
           </div>

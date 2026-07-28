@@ -36,7 +36,8 @@ import { useSite } from '../contexts/SiteContext';
 import { getDocId } from '../lib/siteHelpers';
 import { format, addDays } from 'date-fns';
 import { MatriculeAutocomplete } from '../components/MatriculeAutocomplete';
-import logoImg from '../assets/images/Excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
 import { ExcelExportButton } from '../components/ExcelExportButton';
 import { GapReportModal } from '../components/GapReportModal';
 import { AuditLogsDrawer, logPlanningAction } from '../components/AuditLogsDrawer';
@@ -263,30 +264,30 @@ const getSectorBadgeStyles = (sec: string) => {
   const norm = (sec || '').toLowerCase().trim();
   if (norm.includes('imiter 1')) {
     return {
-      bg: 'bg-sky-50 border border-sky-250 text-sky-800 shadow-xs ring-1 ring-sky-300/30',
+      bg: 'bg-sky-50 border border-sky-200 text-sky-800 shadow-xs ring-1 ring-sky-300/30',
       dot: 'bg-sky-500'
     };
   }
   if (norm.includes('imiter 2')) {
     return {
-      bg: 'bg-rose-50 border border-rose-250 text-rose-800 shadow-xs ring-1 ring-rose-300/30',
+      bg: 'bg-rose-50 border border-rose-200 text-rose-800 shadow-xs ring-1 ring-rose-300/30',
       dot: 'bg-rose-500'
     };
   }
   if (norm.includes('est') && norm.includes('bure')) {
     return {
-      bg: 'bg-indigo-50 border border-indigo-250 text-indigo-800 shadow-xs ring-1 ring-indigo-300/30',
+      bg: 'bg-indigo-50 border border-indigo-200 text-indigo-800 shadow-xs ring-1 ring-indigo-300/30',
       dot: 'bg-indigo-500'
     };
   }
   if (norm.includes('est')) {
     return {
-      bg: 'bg-emerald-50 border border-emerald-250 text-emerald-800 shadow-xs ring-1 ring-emerald-300/30',
+      bg: 'bg-emerald-50 border border-emerald-200 text-emerald-800 shadow-xs ring-1 ring-emerald-300/30',
       dot: 'bg-emerald-500'
     };
   }
   return {
-    bg: 'bg-slate-50 border border-slate-250 text-slate-700 shadow-xs ring-1 ring-slate-300/30',
+    bg: 'bg-slate-50 border border-slate-200 text-slate-700 shadow-xs ring-1 ring-slate-300/30',
     dot: 'bg-slate-500'
   };
 };
@@ -3380,7 +3381,7 @@ export const Planning: React.FC = () => {
                     setRequestReason('');
                     setIsRequestModalOpen(true);
                   }}
-                  className="bg-red-650 hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider shadow-sm hover:shadow active:translate-y-px transition-all cursor-pointer flex items-center justify-center gap-2"
+                  className="bg-red-600 hover:bg-red-700 text-white font-black px-4 py-2 rounded-xl text-[10px] uppercase tracking-wider shadow-sm hover:shadow active:translate-y-px transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   📝 Demander une modification
                 </button>
@@ -3459,45 +3460,46 @@ export const Planning: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* Unified Elegant Header Banner with Premium Styling, Single Line Gold Title & Optimized Flex Layout */}
+      {/* Unified Header Banner with Banner excellence image */}
       <div 
         id="unified-planning-banner" 
-        className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-[18px] w-full shadow-sm"
-        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
       >
-        <div className="bg-white p-6 md:p-8 rounded-[16.5px] w-full h-full">
-          <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          
+          {/* Left Column: Logo */}
+          <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
+            <img 
+              src={logoImg} 
+              alt="Excellence Logo" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
+              referrerPolicy="no-referrer" 
+            />
+          </div>
+
+          {/* Centered Column: Header Title on One Line, Subtitle, Date & Shift controls */}
+          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+            {/* Upper Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
             
-            {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
-            <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
-              <img 
-                src={logoImg} 
-                alt="Excellence Logo" 
-                className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
-                referrerPolicy="no-referrer" 
-              />
-            </div>
+            {/* Premium Gold Shimmer Title */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-xl lg:text-[23px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+              PLANIFICATION — ORDONNANCEMENT SMI
+            </h1>
+            
+            {/* Lower Decorative Gold Line */}
+            <div className="subtle-glow-line w-full opacity-80" />
 
-            {/* Centered Column: Header Title on One Line, Subtitle, Date & Shift controls */}
-            <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
-              {/* Upper Decorative Gold Line */}
-              <div className="subtle-glow-line w-full opacity-80" />
-              
-              {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
-              <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-xl lg:text-[23px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
-                PLANIFICATION — ORDONNANCEMENT SMI
-              </h1>
-              
-              {/* Lower Decorative Gold Line */}
-              <div className="subtle-glow-line w-full opacity-80" />
-
-              {/* Elegant Subtitle with precise spacing */}
-              <p 
-                className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
-                style={{ color: '#64748b', letterSpacing: '0.2em' }}
-              >
-                Cahier de chargement théorique • Exploitation Minière Souterraine Imiter
-              </p>
+            {/* Subtitle directly on banner */}
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              Cahier de chargement théorique • Exploitation Minière Souterraine Imiter
+            </p>
 
               {/* Centered shift and date options paired inside harmonized Amber/Gold capsules */}
               <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
@@ -3592,7 +3594,7 @@ export const Planning: React.FC = () => {
                   <button
                     onClick={triggerDuplicatePreviousDay}
                     disabled={isLockedByNiveau2 || isMonthClosedForPlanning}
-                    className={`border px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 shadow-xs font-sans ${isLockedByNiveau2 || isMonthClosedForPlanning ? 'bg-gray-100 text-gray-450 border-gray-200 cursor-not-allowed opacity-60' : 'bg-amber-50 hover:bg-amber-100/70 text-amber-800 border-amber-200/80 cursor-pointer'}`}
+                    className={`border px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-1 shadow-xs font-sans ${isLockedByNiveau2 || isMonthClosedForPlanning ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60' : 'bg-amber-50 hover:bg-amber-100/70 text-amber-800 border-amber-200/80 cursor-pointer'}`}
                     title="Dupliquer la planification complète du jour précédent J-1"
                   >
                     <Copy className="w-3 h-3 text-amber-600" /> Dupliquer J-1
@@ -3610,7 +3612,7 @@ export const Planning: React.FC = () => {
                     disabled={saveStatus === 'saving' || isLockedByNiveau2 || isMonthClosedForPlanning}
                     className={`font-black px-4 py-1.5 rounded-lg text-[9.5px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:translate-y-px hover:scale-[1.02] active:scale-[0.98] ${
                       isLockedByNiveau2 || isMonthClosedForPlanning
-                        ? 'bg-gray-200 text-gray-400 border border-gray-250 cursor-not-allowed opacity-60' 
+                        ? 'bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60' 
                         : 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] hover:from-[#a07409] hover:to-[#e5bf4e] text-slate-950 cursor-pointer border border-[#b8860b]/30'
                     }`}
                     title="Enregistrer durablement ce document"
@@ -3629,7 +3631,7 @@ export const Planning: React.FC = () => {
                     </button>
                   )}
                   {validationInfo?.status === 'valide' && (
-                    <div className="bg-emerald-50 text-emerald-850 border border-emerald-250 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1.5 shadow-sm select-none">
+                    <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1.5 shadow-sm select-none">
                       <Check className="w-3.5 h-3.5 text-emerald-600" />
                       <span>
                         ✓ Validée {validationInfo.validatedAt ? (() => {
@@ -3647,7 +3649,6 @@ export const Planning: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
 
       {loading ? (
         <div className="py-20 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest animate-pulse">
@@ -3852,7 +3853,7 @@ export const Planning: React.FC = () => {
                                 <th className="p-2.5 min-w-[124px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider">Chantier</th>
                                 <th className="p-2.5 min-w-[144px] border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700] font-bold tracking-wider">Mineur (Matricule / Nom)</th>
                                 <th className="p-2.5 min-w-[144px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 font-bold tracking-wider">Aide-Mineur</th>
-                                <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-gradient-to-b from-red-950/40 to-red-950/20 text-rose-250 font-bold">Section</th>
+                                <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-gradient-to-b from-red-950/40 to-red-950/20 text-rose-200 font-bold">Section</th>
                                 <th className="p-2.5 border-r border-slate-700/50 w-24 text-center bg-slate-900/60 text-slate-300 font-bold">Type Barre</th>
                                 <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-gradient-to-b from-amber-950/15 to-transparent text-amber-200 font-bold">Métrage planifié</th>
                                 <th className="p-2.5 border-r border-slate-700/50 w-16 text-center bg-slate-900/60 text-slate-300 font-bold">Trous prévus</th>
@@ -3931,7 +3932,7 @@ export const Planning: React.FC = () => {
                                             {sec !== 'Autres / Non classés' && (
                                               p !== 'Poste 3' ? (
                                                 <div className="flex items-center gap-2 bg-amber-50/75 border border-amber-200 px-3 py-1 rounded-lg shadow-sm">
-                                                  <span className="text-[9px] font-black text-amber-850 uppercase tracking-widest flex items-center gap-1 select-none">
+                                                  <span className="text-[9px] font-black text-amber-800 uppercase tracking-widest flex items-center gap-1 select-none">
                                                     💣 Boutefeu :
                                                   </span>
                                                   <div className="w-56 text-black font-semibold text-[10.5px]">
@@ -4149,7 +4150,7 @@ export const Planning: React.FC = () => {
                                                   <div className="font-extrabold text-[#00BFFF] uppercase tracking-wider text-[9px] mb-1">
                                                     ℹ️ Spécifications de Tir & Forage
                                                   </div>
-                                                  <p className="font-semibold leading-relaxed text-slate-250">
+                                                  <p className="font-semibold leading-relaxed text-slate-200">
                                                     {row.gallerySize === 12 ? (
                                                       <>Le gabarit de foration théorique pour <strong className="text-white">12m²</strong> est de <strong className="text-white font-black">38 trous</strong>, mais seuls <strong className="text-[#00BFFF] font-black">32 trous sont chargés</strong> (ce qui explique pourquoi <strong className="text-white font-black">32</strong> s\'affiche pour le chargement et les amorces).</>
                                                     ) : (
@@ -4395,7 +4396,7 @@ export const Planning: React.FC = () => {
                                             <button
                                               type="button"
                                               onClick={() => addStockRowToDeblayageSector(p, sec)}
-                                              className="text-[9px] font-black text-amber-950 hover:bg-amber-200 bg-amber-100 border border-amber-250 px-2.5 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 uppercase tracking-wider"
+                                              className="text-[9px] font-black text-amber-950 hover:bg-amber-200 bg-amber-100 border border-amber-200 px-2.5 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 uppercase tracking-wider"
                                               title={`Ajouter un déblayage de stock à ${sec}`}
                                             >
                                               📦 + Stock Manuel
@@ -4636,7 +4637,7 @@ export const Planning: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               {/* Left Block: Personnel Assignations */}
                               <div className="space-y-4">
-                                <div className="border-b border-gray-150 pb-1.5">
+                                <div className="border-b border-gray-100 pb-1.5">
                                   <h4 className="text-[11px] font-extrabold uppercase text-gray-600 tracking-wider select-none">
                                     Assignations de l'équipe
                                   </h4>
@@ -4655,7 +4656,7 @@ export const Planning: React.FC = () => {
                                     post={p}
                                     placeholder="Saisir matricule..."
                                   />
-                                  <span className="text-[11px] text-sky-750 block truncate max-w-full font-extrabold mt-1.5">
+                                  <span className="text-[11px] text-sky-700 block truncate max-w-full font-extrabold mt-1.5">
                                     {tName || '❌ Aucun treuilliste affecté (Libre)'}
                                   </span>
                                 </div>
@@ -4674,7 +4675,7 @@ export const Planning: React.FC = () => {
                                       post={p}
                                       placeholder="Matricule..."
                                     />
-                                    <span className="text-[10px] text-slate-650 block truncate max-w-full font-bold mt-1">
+                                    <span className="text-[10px] text-slate-600 block truncate max-w-full font-bold mt-1">
                                       {eq1Name || '(Vide)'}
                                     </span>
                                   </div>
@@ -4691,7 +4692,7 @@ export const Planning: React.FC = () => {
                                       post={p}
                                       placeholder="Matricule..."
                                     />
-                                    <span className="text-[10px] text-slate-650 block truncate max-w-full font-bold mt-1">
+                                    <span className="text-[10px] text-slate-600 block truncate max-w-full font-bold mt-1">
                                       {eq2Name || '(Vide)'}
                                     </span>
                                   </div>
@@ -4708,7 +4709,7 @@ export const Planning: React.FC = () => {
                                       post={p}
                                       placeholder="Matricule..."
                                     />
-                                    <span className="text-[10px] text-slate-650 block truncate max-w-full font-bold mt-1">
+                                    <span className="text-[10px] text-slate-600 block truncate max-w-full font-bold mt-1">
                                       {eq3Name || '(Vide)'}
                                     </span>
                                   </div>
@@ -4725,7 +4726,7 @@ export const Planning: React.FC = () => {
                                       post={p}
                                       placeholder="Matricule..."
                                     />
-                                    <span className="text-[10px] text-slate-650 block truncate max-w-full font-bold mt-1">
+                                    <span className="text-[10px] text-slate-600 block truncate max-w-full font-bold mt-1">
                                       {eq4Name || '(Vide)'}
                                     </span>
                                   </div>
@@ -4734,7 +4735,7 @@ export const Planning: React.FC = () => {
 
                               {/* Right Block: Metrics & Schedule */}
                               <div className="space-y-4">
-                                <div className="border-b border-gray-150 pb-1.5">
+                                <div className="border-b border-gray-100 pb-1.5">
                                   <h4 className="text-[11px] font-extrabold uppercase text-gray-600 tracking-wider select-none">
                                     Objectifs & Horaires
                                   </h4>
@@ -4816,7 +4817,7 @@ export const Planning: React.FC = () => {
                             </div>
 
                             {/* Footer analysis info */}
-                            <div className="border-t border-gray-250 pt-4 flex flex-wrap items-center justify-between gap-4 select-none text-[10px] font-mono font-black uppercase">
+                            <div className="border-t border-gray-200 pt-4 flex flex-wrap items-center justify-between gap-4 select-none text-[10px] font-mono font-black uppercase">
                               <div className="flex items-center gap-1.5 text-emerald-700">
                                 <ClipboardList className="w-3.5 h-3.5 text-emerald-600" />
                                 <span>Intervalle ciblé :</span>
@@ -4869,7 +4870,7 @@ export const Planning: React.FC = () => {
                           <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-[#b8860b]/35 to-transparent mt-1.5" />
                         </div>
 
-                        <div className="overflow-x-auto text-[11px] border border-gray-250 rounded-xl bg-white shadow-sm">
+                        <div className="overflow-x-auto text-[11px] border border-gray-200 rounded-xl bg-white shadow-sm">
                           <table className="w-full text-left border-collapse">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase">
@@ -4940,7 +4941,7 @@ export const Planning: React.FC = () => {
                                         placeholder="Visite périodique des 250h, graissage, vidange pont..."
                                         value={row.workDescription}
                                         onChange={e => updateMaintenanceCell(p, idx, 'workDescription', e.target.value)}
-                                        className="w-full text-[11px] border-0 outline-none bg-transparent p-0 uppercase text-slate-750 font-medium"
+                                        className="w-full text-[11px] border-0 outline-none bg-transparent p-0 uppercase text-slate-700 font-medium"
                                       />
                                     </td>
                                     <td className="p-2 text-center">
@@ -5010,7 +5011,7 @@ export const Planning: React.FC = () => {
                           <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-amber-500/35 to-transparent mt-1.5" />
                         </div>
 
-                        <div className="overflow-x-auto text-[11px] border border-gray-250 rounded-xl bg-white shadow-sm">
+                        <div className="overflow-x-auto text-[11px] border border-gray-200 rounded-xl bg-white shadow-sm">
                           <table className="w-full text-left border-collapse">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-amber-500 select-none text-[9.5px] font-extrabold tracking-wider uppercase">
@@ -5221,7 +5222,7 @@ export const Planning: React.FC = () => {
 
               return (
                 <div id="duplicate-warnings-banner" className="my-3 border border-amber-200 bg-amber-50/60 text-amber-955 p-4 rounded-xl shadow-none">
-                  <div className="flex items-center gap-2 pb-1.5 border-b border-amber-250 mb-2">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-amber-200 mb-2">
                     <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-none"></span>
                     <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
                       ℹ️ Agent affecté sur plusieurs postes
@@ -5347,7 +5348,7 @@ export const Planning: React.FC = () => {
                 <div id="boutefeu-warnings-banner" className="my-3 border border-amber-200 bg-amber-50/50 p-4 rounded-xl">
                   <div className="flex items-center gap-2 pb-1.5 border-b border-amber-200 mb-2">
                     <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-850 flex items-center gap-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1">
                       💣 CONFORMITÉ LOGISTIQUE BOUTEFEUS
                     </span>
                   </div>
@@ -5500,7 +5501,7 @@ export const Planning: React.FC = () => {
                   disabled={saveStatus === 'saving' || isLockedByNiveau2 || isMonthClosedForPlanning}
                   className={`w-full md:w-auto py-2.5 px-6 font-extrabold uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-md active:translate-y-px flex items-center justify-center gap-1.5 ${
                     isLockedByNiveau2 || isMonthClosedForPlanning
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60 border border-gray-250 shadow-none' 
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60 border border-gray-200 shadow-none' 
                       : 'bg-[#00BFFF] hover:bg-sky-500 text-white cursor-pointer hover:shadow-lg'
                   }`}
                 >
@@ -5540,7 +5541,7 @@ export const Planning: React.FC = () => {
               onClick={() => setActiveHistoryTab('deletions')}
               className={`px-4 py-2 rounded-lg font-extrabold text-[10px] uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
                 activeHistoryTab === 'deletions'
-                  ? 'bg-red-50 text-red-650 shadow-sm border border-red-200'
+                  ? 'bg-red-50 text-red-600 shadow-sm border border-red-200'
                   : 'text-gray-500 hover:text-gray-900'
               }`}
             >
@@ -5568,7 +5569,7 @@ export const Planning: React.FC = () => {
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-150 text-[11px]">
+                  <tbody className="divide-y divide-gray-100 text-[11px]">
                     {planningsHistory.map((record) => (
                       <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-5 py-3 font-mono font-bold text-slate-800">{record.date}</td>
@@ -5578,7 +5579,7 @@ export const Planning: React.FC = () => {
                         <td className="px-5 py-3 text-red-605 font-extrabold">
                           {record.minageRows ? record.minageRows.length : 0} chantiers tirs
                         </td>
-                        <td className="px-5 py-3 font-extrabold text-blue-650">
+                        <td className="px-5 py-3 font-extrabold text-blue-600">
                           {record.minageRows ? record.minageRows
                             .filter((r: any) => !(r.remarks && r.remarks.includes('(Volée')))
                             .reduce((acc: number, r: any) => acc + (r.meterage || 0), 0).toFixed(1) : '0.0'} m
@@ -5592,12 +5593,12 @@ export const Planning: React.FC = () => {
                               <CheckCircle className="w-3 h-3 text-green-600" /> Planifié
                             </div>
                             {productionDates.has(record.date) ? (
-                              <div className="inline-flex items-center gap-1 w-max px-2 py-0.5 bg-emerald-50 border border-emerald-250 text-emerald-800 font-extrabold uppercase text-[8px] rounded">
+                              <div className="inline-flex items-center gap-1 w-max px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-extrabold uppercase text-[8px] rounded">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                 Réalisé saisi
                               </div>
                             ) : (
-                              <div className="inline-flex items-center gap-1 w-max px-2 py-0.5 bg-amber-50 border border-amber-250 text-amber-800 font-extrabold uppercase text-[8px] rounded">
+                              <div className="inline-flex items-center gap-1 w-max px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-800 font-extrabold uppercase text-[8px] rounded">
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                                 En attente de saisie
                               </div>
@@ -5657,7 +5658,7 @@ export const Planning: React.FC = () => {
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-150 text-[11px]">
+                  <tbody className="divide-y divide-gray-100 text-[11px]">
                     {deletedLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-red-50/10 transition-colors">
                         <td className="px-5 py-3 font-mono font-bold text-red-600">{log.date}</td>
@@ -5665,7 +5666,7 @@ export const Planning: React.FC = () => {
                           {log.deletedAt ? new Date(log.deletedAt).toLocaleString('fr-FR') : 'Inconnu'}
                         </td>
                         <td className="px-5 py-3">
-                          <span className="bg-amber-50 text-amber-800 border border-amber-250 px-2.5 py-0.5 font-extrabold uppercase rounded text-[9px]">
+                          <span className="bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 font-extrabold uppercase rounded text-[9px]">
                             {log.deletedBy.split('@')[0]}
                           </span>
                         </td>
@@ -5710,7 +5711,7 @@ export const Planning: React.FC = () => {
                 Êtes-vous absolument sûr de vouloir détruire définitivement la planification journalière complète du <strong className="text-red-600 font-black underline">{recordToDelete.date}</strong> ?
               </p>
 
-              <div className="bg-slate-50 border border-slate-150 p-3.5 rounded-xl space-y-2 text-[10.5px]">
+              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl space-y-2 text-[10.5px]">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400 font-bold uppercase text-[9px]">Scope de Blasting :</span>
                   <span className="text-slate-900 font-black uppercase">
@@ -5742,7 +5743,7 @@ export const Planning: React.FC = () => {
             </div>
 
             {/* Modal Controls */}
-            <div className="bg-gray-50 border-t border-gray-150 px-6 py-4 flex flex-col sm:flex-row gap-2 justify-end">
+            <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex flex-col sm:flex-row gap-2 justify-end">
               <button
                 onClick={() => {
                   setIsDeleteModalOpen(false);
@@ -5754,7 +5755,7 @@ export const Planning: React.FC = () => {
               </button>
               <button
                 onClick={confirmDeleteRecord}
-                className="order-1 sm:order-2 px-5 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-650 text-white font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                className="order-1 sm:order-2 px-5 py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-extrabold uppercase rounded-lg text-[9px] tracking-wider transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5"
               >
                 <Check className="w-3.5 h-3.5" /> Oui, Supprimer
               </button>
@@ -6008,12 +6009,12 @@ export const Planning: React.FC = () => {
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
                 <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-wider">🛠️ ESTIMATION DES CONSOMMABLES & RENDEMENT</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="border-r border-slate-250 pr-2">
+                  <div className="border-r border-slate-200 pr-2">
                     <p className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Metrage Avancement</p>
                     <p className="text-md font-black text-slate-800 mt-1">+{preSaveReport.summary.totalMeterageEstime.toFixed(1)} m</p>
                     <p className="text-[7.5px] text-slate-400 font-bold uppercase">Cumulé sur les tirs</p>
                   </div>
-                  <div className="border-r border-slate-250 pr-2">
+                  <div className="border-r border-slate-200 pr-2">
                     <p className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Explosif ANFO (Sacs)</p>
                     <p className="text-md font-black text-amber-700 mt-1">{preSaveReport.summary.totalAnfo.toFixed(0)} kg</p>
                     <p className="text-[7.5px] text-slate-400 font-bold uppercase">ANFO Estimé</p>

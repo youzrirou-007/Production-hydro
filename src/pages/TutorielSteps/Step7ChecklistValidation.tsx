@@ -89,8 +89,8 @@ export const Step7ChecklistValidation: React.FC<Step7Props> = ({
                 key={item.key}
                 className={`p-4 rounded-2xl border transition-all duration-300 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shadow-3xs ${
                   isConforme 
-                    ? 'bg-white border-slate-200 hover:border-slate-250' 
-                    : 'bg-rose-50/50 border-rose-350'
+                    ? 'bg-white border-slate-200 hover:border-slate-200' 
+                    : 'bg-rose-50/50 border-rose-300'
                 }`}
               >
                 <div>

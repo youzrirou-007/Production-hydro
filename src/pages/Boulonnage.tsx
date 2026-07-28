@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import { format, subDays, startOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import carteKpisImg from '../assets/images/cartes_kpis.webp';
 
 interface ExcelBoulonnage {
   sectorGroup?: string;
@@ -339,35 +341,41 @@ export const Boulonnage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 py-6 font-sans">
       
-      {/* Premium Excellence Gold Banner */}
-      <div className="bg-[#1e293b] text-white p-6 sm:p-8 rounded-3xl border border-amber-500/20 shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
-        {/* Background Subtle Shimmer */}
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-amber-500/5 animate-pulse" />
-        
-        <div className="flex items-center gap-5 z-10 text-center md:text-left flex-col md:flex-row">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-[#b8860b] flex items-center justify-center shadow-md animate-bounce-slow">
-            <Hammer className="w-8 h-8 text-slate-950" />
-          </div>
-          <div>
-            <div className="subtle-glow-line w-24 mb-1 mx-auto md:mx-0 opacity-80" />
-            <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase">
-              SUIVI DU BOULONNAGE S.M.I
-            </h1>
-            <div className="subtle-glow-line w-full mt-1.5 mb-2 opacity-80" />
-            <p className="text-[10px] sm:text-xs font-black uppercase text-amber-200 tracking-widest">
-              Analyses & Performances terrain du soutènement mécanique et d'encouragement
-            </p>
-          </div>
-        </div>
+      {/* Header Banner with Banner excellence image */}
+      <div 
+        id="boulonnage-header-banner" 
+        className="p-6 sm:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6"
+      >
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
 
-        {/* Global Quick KPI Badge */}
-        <div className="bg-slate-900/60 border border-amber-500/30 rounded-2xl p-4 flex flex-col items-center justify-center text-center z-10 w-full md:w-56">
-          <Award className="w-6 h-6 text-amber-400 mb-1" />
-          <span className="text-[10px] font-black uppercase text-amber-200 tracking-wider">Equivalent Encouragement</span>
-          <span className="text-xl font-mono font-black text-white mt-1 bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">
-            +{totalEncouragementMeters.toFixed(1)} m
-          </span>
-          <span className="text-[9px] font-extrabold text-slate-400 uppercase mt-0.5">(1.3m par boulon SPLIT)</span>
+        <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-5 text-center md:text-left flex-col md:flex-row">
+            <Hammer className="w-12 h-12 text-[#ffd700] drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] shrink-0" />
+            <div>
+              <div className="subtle-glow-line w-24 mb-1 mx-auto md:mx-0 opacity-80" />
+              <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                SUIVI DU BOULONNAGE S.M.I
+              </h1>
+              <div className="subtle-glow-line w-full mt-1.5 mb-2 opacity-80" />
+              <p className="text-[10px] sm:text-xs font-black uppercase text-amber-100 tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                Analyses & Performances terrain du soutènement mécanique et d'encouragement
+              </p>
+            </div>
+          </div>
+
+          {/* Global Quick KPI Badge */}
+          <div className="bg-slate-900/80 backdrop-blur-md border border-amber-400/40 rounded-2xl p-4 flex flex-col items-center justify-center text-center z-10 w-full md:w-56 shadow-lg">
+            <Award className="w-6 h-6 text-[#ffd700] mb-1" />
+            <span className="text-[10px] font-black uppercase text-amber-200 tracking-wider">Equivalent Encouragement</span>
+            <span className="text-xl font-mono font-black text-[#ffd700] mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              +{totalEncouragementMeters.toFixed(1)} m
+            </span>
+            <span className="text-[9px] font-extrabold text-amber-100/80 uppercase mt-0.5">(1.3m par boulon SPLIT)</span>
+          </div>
         </div>
       </div>
 
@@ -414,58 +422,74 @@ export const Boulonnage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* KPI 1: Boulons Réalisés */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4">
-          <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Boulons SPLIT Posés</span>
-            <span className="text-2xl font-mono font-black text-slate-900 block mt-1">{totalRealBolts}</span>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-0.5 block">
+        <div className="p-4 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center justify-between gap-4 group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10">
+            <span className="text-[10px] font-black text-amber-200 uppercase tracking-wider block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Boulons SPLIT Posés</span>
+            <span className="text-2xl font-mono font-black text-white block mt-1 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{totalRealBolts}</span>
+            <span className="text-[10px] font-bold text-amber-100 uppercase tracking-wide mt-0.5 block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Prévu: {totalPlannedBolts} • Taux: {totalPlannedBolts > 0 ? ((totalRealBolts / totalPlannedBolts) * 100).toFixed(0) : 0}%
             </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-amber-400/40 flex items-center justify-center text-[#ffd700] shadow-md">
             <Hammer className="w-6 h-6" />
           </div>
         </div>
 
         {/* KPI 2: Grillage Réalisé */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4">
-          <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Grillage Installé</span>
-            <span className="text-2xl font-mono font-black text-slate-900 block mt-1">{totalRealGrillage} <span className="text-xs text-slate-400 uppercase">m²</span></span>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-0.5 block">
+        <div className="p-4 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center justify-between gap-4 group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10">
+            <span className="text-[10px] font-black text-amber-200 uppercase tracking-wider block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Grillage Installé</span>
+            <span className="text-2xl font-mono font-black text-white block mt-1 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{totalRealGrillage} <span className="text-xs text-amber-200 uppercase">m²</span></span>
+            <span className="text-[10px] font-bold text-amber-100 uppercase tracking-wide mt-0.5 block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Prévu: {totalPlannedGrillage} • Taux: {totalPlannedGrillage > 0 ? ((totalRealGrillage / totalPlannedGrillage) * 100).toFixed(0) : 0}%
             </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600">
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-sky-400/40 flex items-center justify-center text-sky-400 shadow-md">
             <Layers className="w-6 h-6" />
           </div>
         </div>
 
         {/* KPI 3: Nombre d'équipes de soutènement engagées */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4">
-          <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Fiches Remplies</span>
-            <span className="text-2xl font-mono font-black text-slate-900 block mt-1">{allBoulonnageRows.length}</span>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-0.5 block">
+        <div className="p-4 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center justify-between gap-4 group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10">
+            <span className="text-[10px] font-black text-amber-200 uppercase tracking-wider block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Fiches Remplies</span>
+            <span className="text-2xl font-mono font-black text-white block mt-1 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{allBoulonnageRows.length}</span>
+            <span className="text-[10px] font-bold text-amber-100 uppercase tracking-wide mt-0.5 block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Soutènements de galerie
             </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600">
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-purple-400/40 flex items-center justify-center text-purple-300 shadow-md">
             <HardHat className="w-6 h-6" />
           </div>
         </div>
 
         {/* KPI 4: Equivalent encouragements */}
-        <div className="bg-gradient-to-br from-[#1e293b] to-slate-950 text-white rounded-2xl p-4 shadow-md flex items-center justify-between gap-4 border border-amber-500/20">
-          <div>
-            <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider block">Gain Équivalent Primes</span>
-            <span className="text-2xl font-mono font-black text-white block mt-1">+{totalEncouragementMeters.toFixed(1)} m</span>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-0.5 block">
-              Prime de rendement préservée
+        <div className="p-4 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center justify-between gap-4 group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10">
+            <span className="text-[10px] font-black text-[#ffd700] uppercase tracking-wider block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Gain Équivalent Primes</span>
+            <span className="text-2xl font-mono font-black text-white block mt-1 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">+{totalEncouragementMeters.toFixed(1)} m</span>
+            <span className="text-[10px] font-bold text-amber-100 uppercase tracking-wide mt-0.5 block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              Métrage équivalent converti
             </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-amber-400 flex items-center justify-center text-slate-950 font-black text-lg shadow-sm">
-            🚀
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-slate-900/80 backdrop-blur-md border border-amber-400/40 flex items-center justify-center text-[#ffd700] shadow-md">
+            <Award className="w-6 h-6" />
           </div>
         </div>
       </div>
@@ -479,7 +503,7 @@ export const Boulonnage: React.FC = () => {
             onClick={() => setActiveSubTab('chantier')}
             className={`px-4 py-2 rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all cursor-pointer ${
               activeSubTab === 'chantier'
-                ? 'bg-white text-slate-950 shadow-sm border border-gray-250/50'
+                ? 'bg-white text-slate-950 shadow-sm border border-gray-200/50'
                 : 'text-gray-500 hover:text-slate-800'
             }`}
           >
@@ -489,7 +513,7 @@ export const Boulonnage: React.FC = () => {
             onClick={() => setActiveSubTab('miner')}
             className={`px-4 py-2 rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all cursor-pointer ${
               activeSubTab === 'miner'
-                ? 'bg-white text-slate-950 shadow-sm border border-gray-250/50'
+                ? 'bg-white text-slate-950 shadow-sm border border-gray-200/50'
                 : 'text-gray-500 hover:text-slate-800'
             }`}
           >
@@ -499,7 +523,7 @@ export const Boulonnage: React.FC = () => {
             onClick={() => setActiveSubTab('assistant')}
             className={`px-4 py-2 rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all cursor-pointer ${
               activeSubTab === 'assistant'
-                ? 'bg-white text-slate-950 shadow-sm border border-gray-250/50'
+                ? 'bg-white text-slate-950 shadow-sm border border-gray-200/50'
                 : 'text-gray-500 hover:text-slate-800'
             }`}
           >
@@ -509,7 +533,7 @@ export const Boulonnage: React.FC = () => {
             onClick={() => setActiveSubTab('history')}
             className={`px-4 py-2 rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all cursor-pointer ${
               activeSubTab === 'history'
-                ? 'bg-white text-slate-950 shadow-sm border border-gray-250/50'
+                ? 'bg-white text-slate-950 shadow-sm border border-gray-200/50'
                 : 'text-gray-500 hover:text-slate-800'
             }`}
           >
@@ -543,7 +567,7 @@ export const Boulonnage: React.FC = () => {
                         <th className="p-3 text-center">Ratio Réalisation</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-150 text-[11px] font-bold text-slate-700">
+                    <tbody className="divide-y divide-gray-100 text-[11px] font-bold text-slate-700">
                       {chantierStats
                         .filter(item => item.chantierName.toLowerCase().includes(searchQuery.toLowerCase()))
                         .map((c) => {
@@ -607,7 +631,7 @@ export const Boulonnage: React.FC = () => {
                         <th className="p-3 text-center bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-amber-900">Encouragement Equivalent</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-150 text-[11px] font-bold text-slate-700">
+                    <tbody className="divide-y divide-gray-100 text-[11px] font-bold text-slate-700">
                       {minerStats
                         .filter(item => 
                           item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -664,7 +688,7 @@ export const Boulonnage: React.FC = () => {
                         <th className="p-3 text-center bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-amber-900">Encouragement Equivalent</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-150 text-[11px] font-bold text-slate-700">
+                    <tbody className="divide-y divide-gray-100 text-[11px] font-bold text-slate-700">
                       {assistantStats
                         .filter(item => 
                           item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -724,7 +748,7 @@ export const Boulonnage: React.FC = () => {
                         <th className="p-3">Remarques & Incidents</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-150 text-[11px] font-bold text-slate-700">
+                    <tbody className="divide-y divide-gray-100 text-[11px] font-bold text-slate-700">
                       {allBoulonnageRows
                         .filter(({ row }) => {
                           const nameSearch = (row.reel.minerName || '').toLowerCase() + (row.reel.assistantName || '').toLowerCase() + (chantiersMap[row.reel.chantierId] || '').toLowerCase();
@@ -881,7 +905,7 @@ export const Boulonnage: React.FC = () => {
                         <th className="p-2.5">Remarques & Incidents</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-150 text-[10.5px] font-bold text-slate-700">
+                    <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700">
                       {employeeReportData.list.map(({ date, poste, row }, index) => {
                         const chantierName = chantiersMap[row.reel.chantierId || row.plan.chantierId] || row.reel.chantierId || 'Non spécifié';
                         const teammateName = selectedEmployeeReport.role === 'miner'

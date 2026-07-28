@@ -54,7 +54,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import logoImg from '../assets/images/Excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
 
 interface ReadReceipt {
   userEmail: string;
@@ -729,20 +730,25 @@ export const Messages: React.FC = () => {
   return (
     <div className="space-y-6 font-sans select-none" id="messages_page_wrapper">
       
-      {/* 1. CORPORATE TITLE BANNER (Identical to ExplicationNonRealise & Admin pages) */}
+      {/* 1. CORPORATE TITLE BANNER with Banner excellence image */}
       <div 
-        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
-        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        className="p-6 md:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
         id="messages-header-banner"
       >
-        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-between gap-6">
           
           {/* Left Column: Logo */}
           <div className="flex-shrink-0 flex items-center justify-center self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="Excellence Logo" 
-              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
               referrerPolicy="no-referrer"
             />
           </div>
@@ -753,23 +759,20 @@ export const Messages: React.FC = () => {
             <div className="subtle-glow-line w-full opacity-80" />
             
             {/* Premium Gold Shimmer Title */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none flex items-center gap-3">
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none flex items-center gap-3 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               Directives & Communication Tactique
             </h1>
             
             {/* Lower Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
 
-            {/* Elegant Subtitle */}
-            <p 
-              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-slate-500"
-              style={{ letterSpacing: '0.2em' }}
-            >
+            {/* Subtitle directly on banner */}
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               SOCIÉTÉ METALLURGIQUE D'IMITER • Portail Haute Fidélité & Télémétrie SMI
             </p>
 
             {unreadCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-xl shadow-xs animate-bounce mt-1">
+              <span className="inline-flex items-center gap-1.5 bg-rose-600/90 backdrop-blur-md text-white border border-rose-300 text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-xl shadow-lg animate-bounce mt-1">
                 🚨 {unreadCount} Directive(s) non lue(s)
               </span>
             )}

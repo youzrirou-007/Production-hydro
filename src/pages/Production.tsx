@@ -39,7 +39,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
 import { getDocId } from '../lib/siteHelpers';
 import { format, subDays } from 'date-fns';
-import logoImg from '../assets/images/Excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
 
 // ----------------------------------------------------
 // DEFAULT SECTORS & FALLBACK DATA FOR INDUSTRIAL EDGE
@@ -1001,7 +1002,7 @@ export const Production: React.FC = () => {
     const deblayageSectors = ['Imiter 2', 'Imiter 1', 'Imiter Est'];
     const deblayage: ExcelRow<ExcelDeblayage>[] = [];
     deblayageSectors.forEach(sec => {
-      const count = sec === 'Imiter Est' ? 3 : sec === 'Imiter 2' ? 2 : 1;
+      const count = sec === 'Imiter Est' ? 3 : 1;
       for (let i = 0; i < count; i++) {
         deblayage.push({
           rowId: `deblayage_saisie_${sec}_${i}_${Math.random().toString(36).substr(2, 9)}`,
@@ -3180,17 +3181,17 @@ export const Production: React.FC = () => {
     }
 
     return (
-      <div className="overflow-x-auto rounded-xl border border-slate-250 bg-white shadow-xs">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
         <table className="w-full text-left border-collapse text-[11px]">
           <thead>
             <tr className="bg-slate-900 text-white select-none text-[9.5px] font-black tracking-wider uppercase sticky top-0 z-10">
               <th className="p-2 border-r border-slate-700/50 text-center w-10">#</th>
               <th className="p-2 border-r border-slate-700/50 text-center w-24">Actions</th>
-              <th className="p-2 border-r border-[#ffd700]/30 min-w-[130px] bg-slate-850/80 text-sky-200">Chantier</th>
+              <th className="p-2 border-r border-[#ffd700]/30 min-w-[130px] bg-slate-800/80 text-sky-200">Chantier</th>
               <th className="p-2 border-r border-slate-700/50 w-14 text-center">Type</th>
               <th className="p-2 border-r border-slate-700/50 min-w-[155px] text-[#ffd700]">Mineur (Matricule / Nom)</th>
               <th className="p-2 border-r border-slate-700/50 min-w-[155px] text-sky-200">Aide-Mineur / Assistant</th>
-              <th className="p-2 border-r border-slate-700/50 w-16 text-center text-rose-250">Section</th>
+              <th className="p-2 border-r border-slate-700/50 w-16 text-center text-rose-200">Section</th>
               <th className="p-2 border-r border-slate-700/50 w-16 text-center">Trous (u)</th>
               <th className="p-2 border-r border-slate-700/50 w-20 text-center text-[#ffd700]">Trous chargés</th>
               <th className="p-2 border-r border-slate-700/50 w-24 text-center">Trous vides</th>
@@ -3361,7 +3362,7 @@ export const Production: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => deleteMinageRow(postName, idx)}
-                                  className="p-1 text-slate-450 hover:text-red-600 transition-colors cursor-pointer select-none"
+                                  className="p-1 text-slate-400 hover:text-red-600 transition-colors cursor-pointer select-none"
                                   title="Supprimer ce chantier"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -3376,7 +3377,7 @@ export const Production: React.FC = () => {
                               <select
                                 value={row.chantierId}
                                 onChange={e => updateMinageCell(postName, idx, 'chantierId', e.target.value)}
-                                className="w-full text-xs font-black uppercase text-slate-850 border border-slate-200 rounded p-1 bg-transparent cursor-pointer focus:border-[#8B0000] focus:ring-0 outline-none"
+                                className="w-full text-xs font-black uppercase text-slate-800 border border-slate-200 rounded p-1 bg-transparent cursor-pointer focus:border-[#8B0000] focus:ring-0 outline-none"
                               >
                                 <option value="">(Choisir Chantier)</option>
                                 {(() => {
@@ -3477,17 +3478,17 @@ export const Production: React.FC = () => {
                           </td>
 
                           {/* Plan ANFO */}
-                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-450 select-none bg-slate-50/30">
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-400 select-none bg-slate-50/30">
                             {plan.anfo || 0}
                           </td>
 
                           {/* Plan Tovex */}
-                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-450 select-none bg-slate-50/30">
+                          <td className="p-1 text-center border-r border-slate-200 font-mono text-slate-400 select-none bg-slate-50/30">
                             {plan.tovex || 0}
                           </td>
 
                           {/* Plan Amorces */}
-                          <td className="p-1 text-center border-r border-slate-300 font-mono text-slate-450 select-none bg-slate-50/30">
+                          <td className="p-1 text-center border-r border-slate-300 font-mono text-slate-400 select-none bg-slate-50/30">
                             {plan.ammorces || 0}
                           </td>
 
@@ -3661,7 +3662,7 @@ export const Production: React.FC = () => {
                           </td>
 
                           {/* Real AMORCES input */}
-                          <td className="p-1 border-r border-slate-350 text-center w-14 bg-slate-50/10">
+                          <td className="p-1 border-r border-slate-300 text-center w-14 bg-slate-50/10">
                             <input
                               type="number"
                               value={row.ammorces === 0 || row.ammorces === undefined ? '' : row.ammorces}
@@ -3789,7 +3790,7 @@ export const Production: React.FC = () => {
                           <select
                             value={row.chantierId}
                             onChange={e => updateMinageCell(postName, idx, 'chantierId', e.target.value)}
-                            className="text-xs font-black uppercase text-slate-850 border-b border-dashed border-slate-300 focus:border-[#8B0000] focus:ring-0 outline-none pr-6 bg-transparent cursor-pointer"
+                            className="text-xs font-black uppercase text-slate-800 border-b border-dashed border-slate-300 focus:border-[#8B0000] focus:ring-0 outline-none pr-6 bg-transparent cursor-pointer"
                           >
                             <option value="">(Choisir Chantier)</option>
                             {(() => {
@@ -3809,7 +3810,7 @@ export const Production: React.FC = () => {
                           <span className="inline-block text-[8px] font-black uppercase tracking-wider text-[#8B0000] bg-red-50 border border-red-200/50 px-1.5 py-0.5 rounded">
                             {sectorName}
                           </span>
-                          <span className="inline-block text-[8px] font-black uppercase tracking-wider text-teal-850 bg-teal-50 border border-teal-200/50 px-1.5 py-0.5 rounded">
+                          <span className="inline-block text-[8px] font-black uppercase tracking-wider text-teal-800 bg-teal-50 border border-teal-200/50 px-1.5 py-0.5 rounded">
                             Section: {row.gallerySize || 12} m²
                           </span>
                           {hasMismatch && (
@@ -3870,7 +3871,7 @@ export const Production: React.FC = () => {
                         <span>Progression Chantier</span>
                         <span className="font-mono">{currentMeterage.toFixed(1)} / {plannedTotalMeterage.toFixed(1)} m ({progressPct.toFixed(0)}%)</span>
                       </div>
-                      <div className="w-full bg-slate-150 h-1.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                         <div className="bg-[#00BFFF] h-full transition-all duration-300" style={{ width: `${progressPct}%` }}></div>
                       </div>
                     </div>
@@ -3893,7 +3894,7 @@ export const Production: React.FC = () => {
                         <tbody>
                           {/* Plan Row */}
                           <tr className="bg-slate-105 text-slate-500 font-bold border-b border-slate-200">
-                            <td className="p-1.5 border-r border-slate-200 text-[8px] font-black uppercase text-center bg-slate-150 flex items-center justify-center gap-1 select-none">
+                            <td className="p-1.5 border-r border-slate-200 text-[8px] font-black uppercase text-center bg-slate-100 flex items-center justify-center gap-1 select-none">
                               <Lock className="w-2.5 h-2.5 text-slate-400" /> Plan
                             </td>
                             <td className="p-1 px-1.5 border-r border-slate-200 font-mono text-[9px]">{plan.minerMatricule || '(Aucun)'}</td>
@@ -4175,7 +4176,7 @@ export const Production: React.FC = () => {
                           <select
                             value={row.chantierId}
                             onChange={e => updateDeblayageCell(postName, idx, 'chantierId', e.target.value)}
-                            className="text-xs font-black uppercase text-slate-850 border-b border-dashed border-slate-300 focus:border-[#8B0000] focus:ring-0 outline-none pr-6 bg-transparent cursor-pointer"
+                            className="text-xs font-black uppercase text-slate-800 border-b border-dashed border-slate-300 focus:border-[#8B0000] focus:ring-0 outline-none pr-6 bg-transparent cursor-pointer"
                           >
                             <option value="">(Choisir Chantier)</option>
                             {(() => {
@@ -4192,11 +4193,11 @@ export const Production: React.FC = () => {
                           </select>
                         </div>
                         <div className="flex flex-wrap gap-1.5 pt-1">
-                          <span className="inline-block text-[8px] font-black uppercase tracking-wider text-[#00BFFF] bg-sky-50 border border-sky-250 px-1.5 py-0.5 rounded">
+                          <span className="inline-block text-[8px] font-black uppercase tracking-wider text-[#00BFFF] bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
                             {sectorName}
                           </span>
                           {chantierObj?.galleryType && (
-                            <span className="inline-block text-[8px] font-black uppercase tracking-wider text-teal-850 bg-teal-50 border border-teal-200/50 px-1.5 py-0.5 rounded">
+                            <span className="inline-block text-[8px] font-black uppercase tracking-wider text-teal-800 bg-teal-50 border border-teal-200/50 px-1.5 py-0.5 rounded">
                               Section: {chantierObj.galleryType === '9m2' ? '9m²' : '12m²'}
                             </span>
                           )}
@@ -4237,7 +4238,7 @@ export const Production: React.FC = () => {
                         <span>Progression Chantier</span>
                         <span className="font-mono">{currentMeterage.toFixed(1)} / {plannedTotalMeterage.toFixed(1)} m ({progressPct.toFixed(0)}%)</span>
                       </div>
-                      <div className="w-full bg-slate-150 h-1.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                         <div className="bg-[#00BFFF] h-full transition-all duration-300" style={{ width: `${progressPct}%` }}></div>
                       </div>
                     </div>
@@ -4264,7 +4265,7 @@ export const Production: React.FC = () => {
                         <tbody>
                           {/* Plan Row */}
                           <tr className="bg-slate-105 text-slate-500 font-bold border-b border-slate-200">
-                            <td className="p-1.5 border-r border-slate-200 text-[8px] font-black uppercase text-center bg-slate-150 flex items-center justify-center gap-1 select-none">
+                            <td className="p-1.5 border-r border-slate-200 text-[8px] font-black uppercase text-center bg-slate-100 flex items-center justify-center gap-1 select-none">
                               <Lock className="w-2.5 h-2.5 text-slate-400" /> Plan
                             </td>
                             <td className="p-1 px-1.5 border-r border-slate-200 font-mono text-[9px]" colSpan={2}>
@@ -4360,19 +4361,19 @@ export const Production: React.FC = () => {
                                 
                                 if (gap > 0) {
                                   return (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-850 border border-rose-200">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-800 border border-rose-200">
                                       ⚠️ +{gap.toFixed(1)}h dépassement
                                     </span>
                                   );
                                 } else if (gap === 0) {
                                   return (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-850 border border-emerald-200">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">
                                       ✓ Conforme
                                     </span>
                                   );
                                 } else {
                                   return (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-sky-50 text-sky-850 border border-sky-200">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-sky-50 text-sky-800 border border-sky-200">
                                       ✓ {gap.toFixed(1)}h
                                     </span>
                                   );
@@ -4437,7 +4438,7 @@ export const Production: React.FC = () => {
                     </div>
 
                     {/* Fait de rotation - remarks inline */}
-                    <div className="mt-2 bg-slate-50/50 p-1.5 rounded border border-slate-150 flex items-center gap-1">
+                    <div className="mt-2 bg-slate-50/50 p-1.5 rounded border border-slate-100 flex items-center gap-1">
                       <span className="text-[8px] font-black uppercase text-slate-500 select-none">Remarques :</span>
                       <input
                         type="text"
@@ -4779,7 +4780,7 @@ export const Production: React.FC = () => {
               })()}
 
               {/* Footer Buttons */}
-              <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-850">
+              <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-800">
                 {isReadOnly ? (
                   <button
                     type="button"
@@ -4793,7 +4794,7 @@ export const Production: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowChefChecklistModal(false)}
-                      className="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 font-black uppercase text-[10px] tracking-wider rounded-lg transition-all cursor-pointer"
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 font-black uppercase text-[10px] tracking-wider rounded-lg transition-all cursor-pointer"
                     >
                       Annuler
                     </button>
@@ -4808,7 +4809,7 @@ export const Production: React.FC = () => {
                       const isLieDetected = totalPlanned > 0 && totalRealised < 0.8 * totalPlanned && isAllConforme;
                       const isComplete = filledCount === 5;
 
-                      let btnStyle = "bg-slate-850 text-slate-500 cursor-not-allowed";
+                      let btnStyle = "bg-slate-800 text-slate-500 cursor-not-allowed";
                       let actionFn = undefined;
                       let labelText = "Renseigner tous les critères";
 
@@ -4848,19 +4849,24 @@ export const Production: React.FC = () => {
         </div>
       )}
       
-      {/* Unified Elegant Header Banner with Enlarged Logo and Centered Title - Style MATCHING Planning.tsx */}
+      {/* Unified Header Banner with Banner excellence image */}
       <div 
         id="unified-production-banner" 
-        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
-        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
       >
-        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
-          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          {/* Left Column: Logo */}
           <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="Excellence Logo" 
-              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
               referrerPolicy="no-referrer" 
             />
           </div>
@@ -4870,19 +4876,16 @@ export const Production: React.FC = () => {
             {/* Upper Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
             
-            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+            {/* Premium Gold Shimmer Title */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               REGISTRE JOURNALIER — SUIVI DU RÉEL
             </h1>
             
             {/* Lower Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
 
-            {/* Elegant Subtitle with precise spacing */}
-            <p 
-              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
-              style={{ color: '#64748b', letterSpacing: '0.2em' }}
-            >
+            {/* Subtitle directly on banner */}
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Rapport Journalier d'Exploitation • Validation physique et suivi de l'avancement d'exploitation
             </p>
 
@@ -4968,7 +4971,7 @@ export const Production: React.FC = () => {
             <div className="flex items-center gap-2 mt-auto">
               <div className="bg-amber-50/50 px-3.5 py-1.5 border border-amber-200/50 text-right shadow-xs rounded-xl">
                 <span className="text-[8px] font-black text-amber-800 uppercase block tracking-wider">Métrage Arraché</span>
-                <span className="text-sm font-black text-slate-850 mt-0.5 block font-mono">
+                <span className="text-sm font-black text-slate-800 mt-0.5 block font-mono">
                   {(
                     p1MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? (r.reel.realMeterage === undefined ? r.reel.meterage : r.reel.realMeterage) : 0), 0) +
                     p2MinageRows.reduce((acc, r) => acc + (r.reel?.chantierId ? (r.reel.realMeterage === undefined ? r.reel.meterage : r.reel.realMeterage) : 0), 0) +
@@ -4978,7 +4981,7 @@ export const Production: React.FC = () => {
               </div>
               <div className="bg-amber-50/50 px-3.5 py-1.5 border border-amber-200/50 text-right shadow-xs rounded-xl">
                 <span className="text-[8px] font-black text-amber-800 uppercase block tracking-wider">Total Wagons</span>
-                <span className="text-sm font-black text-slate-850 mt-0.5 block font-mono">
+                <span className="text-sm font-black text-slate-800 mt-0.5 block font-mono">
                   {p1ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
                    p2ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0) +
                    p3ExtractionRows.reduce((acc, r) => acc + (r.reel?.wagonsActual || 0), 0)} u
@@ -5126,7 +5129,7 @@ export const Production: React.FC = () => {
               </div>
 
               {bridgeSuccessDate && (
-                <div className="p-2 bg-emerald-50 border border-emerald-150 rounded-xl flex items-center gap-2 text-emerald-700 text-[9px] font-extrabold uppercase animate-fade-in">
+                <div className="p-2 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2 text-emerald-700 text-[9px] font-extrabold uppercase animate-fade-in">
                   <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Succès : Planification du {formatFrenchDate(bridgeSuccessDate)} synchronisée !</span>
                 </div>
@@ -5181,7 +5184,7 @@ export const Production: React.FC = () => {
           {exactPlanMissing && (
             <div className="bg-red-50/60 border-l-4 border-red-500 p-3 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs rounded-xl border border-red-200 mb-4 animate-fade-in" id="exact_plan_missing_alert">
               <div className="flex gap-2.5 items-center">
-                <AlertTriangle className="w-4 h-4 text-red-650 shrink-0 animate-pulse" />
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 animate-pulse" />
                 <div>
                   <h4 className="text-[11px] font-black uppercase text-red-955 tracking-wider">⚠️ Aucun plan de référence</h4>
                   <p className="text-[10px] text-red-900 font-bold mt-0.5">
@@ -5194,7 +5197,7 @@ export const Production: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setForceFreeEntryApproved(true)}
-                    className="bg-red-650 hover:bg-red-700 text-white font-extrabold uppercase text-[9px] tracking-wider px-3 py-1 rounded-lg transition-colors cursor-pointer shadow-xs"
+                    className="bg-red-600 hover:bg-red-700 text-white font-extrabold uppercase text-[9px] tracking-wider px-3 py-1 rounded-lg transition-colors cursor-pointer shadow-xs"
                     id="btn_confirm_free_entry"
                   >
                     Saisie libre sans plan
@@ -5209,7 +5212,7 @@ export const Production: React.FC = () => {
               <div className="absolute inset-x-0 top-0 bottom-0 bg-slate-900/30 backdrop-blur-xs rounded-2xl z-40 flex flex-col items-center justify-center p-4 text-center" id="free_entry_blocker_overlay" style={{ minHeight: '260px' }}>
                 <div className="bg-white p-5 rounded-2xl shadow-xl max-w-sm w-full border border-gray-100 flex flex-col items-center">
                   <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mb-3">
-                    <AlertTriangle className="w-5 h-5 text-red-650" />
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
                   </div>
                   <h3 className="text-xs font-black text-gray-950 uppercase tracking-wider mb-1.5">Aucun plan de référence</h3>
                   <p className="text-[11px] text-gray-600 font-bold mb-4 leading-relaxed">
@@ -5218,7 +5221,7 @@ export const Production: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setForceFreeEntryApproved(true)}
-                    className="w-full bg-red-650 hover:bg-red-750 text-white font-extrabold uppercase text-[10px] tracking-wider py-2 px-4 rounded-xl transition-colors cursor-pointer shadow-md"
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold uppercase text-[10px] tracking-wider py-2 px-4 rounded-xl transition-colors cursor-pointer shadow-md"
                     id="btn_confirm_free_entry_overlay"
                   >
                     Confirmer la saisie libre
@@ -5253,7 +5256,7 @@ export const Production: React.FC = () => {
               </div>
 
               {/* Mode d'Ajustement Structurel Optionnel */}
-              <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-1.5 border border-slate-150 rounded-xl shadow-xs self-start lg:self-auto">
+              <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-1.5 border border-slate-100 rounded-xl shadow-xs self-start lg:self-auto">
                 <span className="text-[10px] font-black uppercase text-slate-600 tracking-wider">Ajustements Exceptionnels :</span>
                 <label className="relative inline-flex items-center cursor-pointer select-none">
                   <input 
@@ -5273,7 +5276,7 @@ export const Production: React.FC = () => {
             <fieldset disabled={isReadOnly} className="contents">
 
             {/* ASSISTANTS DE SAISIE POUR LE SECRETARIAT */}
-            <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
               <div className="space-y-1">
                 <span className="text-[10px] uppercase font-black tracking-widest text-[#8B0000] flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[#00BFFF]" /> Assistants de Saisie (Secrétariat SMI)
@@ -5396,18 +5399,18 @@ export const Production: React.FC = () => {
                   </div>
                   
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse border border-slate-250">
+                    <table className="w-full text-left border-collapse border border-slate-200">
                       <thead>
                         <tr className="bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider">
-                          <th className="p-3 border border-slate-350">Poste / Shift</th>
-                          <th className="p-3 text-center border border-slate-350">Trous Forés (u)</th>
-                          <th className="p-3 text-center border border-slate-350">Volées Réalisées</th>
-                          <th className="p-3 text-center border border-slate-350 text-red-100 bg-red-900/30">Métrage Planifié</th>
-                          <th className="p-3 text-center border border-slate-350 text-emerald-100 bg-emerald-950/30">Métrage Arraché</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-700">ANFO (kg)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-700">TOVEX (kg)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-700">Amorces (u)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-amber-950/40">Arrachement (%)</th>
+                          <th className="p-3 border border-slate-300">Poste / Shift</th>
+                          <th className="p-3 text-center border border-slate-300">Trous Forés (u)</th>
+                          <th className="p-3 text-center border border-slate-300">Volées Réalisées</th>
+                          <th className="p-3 text-center border border-slate-300 text-red-100 bg-red-900/30">Métrage Planifié</th>
+                          <th className="p-3 text-center border border-slate-300 text-emerald-100 bg-emerald-950/30">Métrage Arraché</th>
+                          <th className="p-3 text-center border border-slate-300 bg-slate-700">ANFO (kg)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-slate-700">TOVEX (kg)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-slate-700">Amorces (u)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-amber-950/40">Arrachement (%)</th>
                         </tr>
                       </thead>
                       <tbody className="text-xs font-bold text-slate-700 divide-y divide-slate-200">
@@ -5483,12 +5486,12 @@ export const Production: React.FC = () => {
                                   <td className="p-3 text-center border border-slate-200 font-mono">{s.anfo} kg</td>
                                   <td className="p-3 text-center border border-slate-200 font-mono">{s.tovex} kg</td>
                                   <td className="p-3 text-center border border-slate-200 font-mono">{s.ammorces}</td>
-                                  <td className="p-3 text-center border border-slate-200 font-mono text-amber-750 bg-amber-50/40">{s.eff}%</td>
+                                  <td className="p-3 text-center border border-slate-200 font-mono text-amber-700 bg-amber-50/40">{s.eff}%</td>
                                 </tr>
                               ))}
                               
                               {/* Total row */}
-                              <tr className="bg-slate-100 text-[#8B0000] font-black border-t-2 border-slate-350">
+                              <tr className="bg-slate-100 text-[#8B0000] font-black border-t-2 border-slate-300">
                                 <td className="p-3 border border-slate-200 uppercase tracking-widest text-xs">Total de la Journée</td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalHoles} u.</td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalRounds} v.</td>
@@ -5603,17 +5606,17 @@ export const Production: React.FC = () => {
                   </div>
                   
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse border border-slate-250">
+                    <table className="w-full text-left border-collapse border border-slate-200">
                       <thead>
                         <tr className="bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider">
-                          <th className="p-3 border border-slate-350 bg-slate-900">Poste / Shift</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-900">Nombre Godets (u)</th>
-                          <th className="p-3 text-center border border-slate-350 text-emerald-100 bg-emerald-950/30">Volume Souterrain Estimé</th>
-                          <th className="p-3 text-center border border-slate-350 text-blue-105 bg-blue-950/30">Gasoil Pris (L)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-700">Lubrifiant 1 (L)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-700">Lubrifiant 2 (L)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-[#8B0000]/25 text-[#8B0000]">Ratio Conso (L/m³)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-teal-950/40 text-teal-100">Facteur Remplissage (m³/Godet)</th>
+                          <th className="p-3 border border-slate-300 bg-slate-900">Poste / Shift</th>
+                          <th className="p-3 text-center border border-slate-300 bg-slate-900">Nombre Godets (u)</th>
+                          <th className="p-3 text-center border border-slate-300 text-emerald-100 bg-emerald-950/30">Volume Souterrain Estimé</th>
+                          <th className="p-3 text-center border border-slate-300 text-blue-105 bg-blue-950/30">Gasoil Pris (L)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-slate-700">Lubrifiant 1 (L)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-slate-700">Lubrifiant 2 (L)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-[#8B0000]/25 text-[#8B0000]">Ratio Conso (L/m³)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-teal-950/40 text-teal-100">Facteur Remplissage (m³/Godet)</th>
                         </tr>
                       </thead>
                       <tbody className="text-xs font-bold text-slate-700 divide-y divide-slate-200">
@@ -5663,13 +5666,13 @@ export const Production: React.FC = () => {
                                   <td className="p-3 text-center border border-slate-200 font-mono text-blue-800 bg-blue-50/20">{s.gasoil} L</td>
                                   <td className="p-3 text-center border border-slate-200 font-mono">{s.lub1} L</td>
                                   <td className="p-3 text-center border border-slate-200 font-mono">{s.lub2} L</td>
-                                  <td className="p-3 text-center border border-slate-200 font-mono text-red-750 bg-red-50/25">{s.ratio}</td>
+                                  <td className="p-3 text-center border border-slate-200 font-mono text-red-700 bg-red-50/25">{s.ratio}</td>
                                   <td className="p-3 text-center border border-slate-200 font-mono text-teal-800 bg-teal-50/20">{s.fillFactor}</td>
                                 </tr>
                               ))}
                               
                               {/* Total row */}
-                              <tr className="bg-slate-100 text-[#00BFFF] font-black border-t-2 border-slate-350">
+                              <tr className="bg-slate-100 text-[#00BFFF] font-black border-t-2 border-slate-300">
                                 <td className="p-3 border border-slate-200 uppercase tracking-widest text-[#00BFFF] text-xs font-black">Total de la Journée</td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">
                                   <div className="text-[10px] text-slate-500 font-bold">P: {totalGodetsPlan}</div>
@@ -5764,7 +5767,7 @@ export const Production: React.FC = () => {
                               {structureEditMode && <th className="p-2 text-[10px] font-black uppercase text-center w-14 text-slate-700">Action</th>}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-150 text-[11px]">
+                          <tbody className="divide-y divide-slate-100 text-[11px]">
                             {boulonnageRows.map((rowWrapper, idx) => {
                               const row = rowWrapper.reel;
                               const plan = rowWrapper.plan || {} as ExcelBoulonnage;
@@ -6351,16 +6354,16 @@ export const Production: React.FC = () => {
                   </div>
                   
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse border border-slate-250">
+                    <table className="w-full text-left border-collapse border border-slate-200">
                       <thead>
                         <tr className="bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider">
-                          <th className="p-3 border border-slate-350 bg-slate-900">Poste / Shift</th>
-                          <th className="p-3 text-center border border-slate-350 text-emerald-100 bg-emerald-950/30">Wagons Chargés (u)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-700 font-bold">Objectif du Poste (u)</th>
-                          <th className="p-3 text-center border border-slate-350 text-amber-100 bg-amber-950/30 font-bold">Stérile Extrait (Wagons)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-slate-700">Total Wagons Transférés (u)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-blue-950/30 text-blue-100">Écart vs Objectif (%)</th>
-                          <th className="p-3 text-center border border-slate-350 bg-red-950/25 text-[#8B0000]">Ratio Stérile (%)</th>
+                          <th className="p-3 border border-slate-300 bg-slate-900">Poste / Shift</th>
+                          <th className="p-3 text-center border border-slate-300 text-emerald-100 bg-emerald-950/30">Wagons Chargés (u)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-slate-700 font-bold">Objectif du Poste (u)</th>
+                          <th className="p-3 text-center border border-slate-300 text-amber-100 bg-amber-950/30 font-bold">Stérile Extrait (Wagons)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-slate-700">Total Wagons Transférés (u)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-blue-950/30 text-blue-100">Écart vs Objectif (%)</th>
+                          <th className="p-3 text-center border border-slate-300 bg-red-950/25 text-[#8B0000]">Ratio Stérile (%)</th>
                         </tr>
                       </thead>
                       <tbody className="text-xs font-bold text-slate-700 divide-y divide-slate-200">
@@ -6404,26 +6407,26 @@ export const Production: React.FC = () => {
                                           PAS D'EXTRACTION PRÉVUE
                                         </span>
                                       ) : (
-                                        <span className="inline-flex px-1.5 py-0.5 border text-[10px] font-bold rounded bg-emerald-50 text-emerald-800 border-emerald-250">
+                                        <span className="inline-flex px-1.5 py-0.5 border text-[10px] font-bold rounded bg-emerald-50 text-emerald-800 border-emerald-200">
                                           +{s.wagons} Wg (EXTRACTION NON PLANIFIÉE)
                                         </span>
                                       )
                                     ) : (
                                       <span className={`inline-flex px-1.5 py-0.5 border text-[10px] font-bold rounded ${
                                         s.diffWagonsPct >= 0 
-                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-250' 
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
                                           : (s.diffWagonsPct >= -15 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-rose-50 text-rose-700 border-rose-200')
                                       }`}>
                                         {s.diffWagonsPct > 0 ? '+' : ''}{s.diffWagonsPct.toFixed(1)}%
                                       </span>
                                     )}
                                   </td>
-                                  <td className="p-3 text-center border border-slate-200 font-mono text-red-750 bg-red-50/25">{s.sterilePct}%</td>
+                                  <td className="p-3 text-center border border-slate-200 font-mono text-red-700 bg-red-50/25">{s.sterilePct}%</td>
                                 </tr>
                               ))}
                               
                               {/* Total row */}
-                              <tr className="bg-slate-100 text-[#8B0000] font-black border-t-2 border-slate-350">
+                              <tr className="bg-slate-100 text-[#8B0000] font-black border-t-2 border-slate-300">
                                 <td className="p-3 border border-slate-200 uppercase tracking-widest text-[#8B0000] text-xs font-black">Total de la Journée</td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-emerald-950 bg-emerald-100/30 text-xs">{totalWagons} Wagons</td>
                                 <td className="p-3 text-center border border-slate-200 font-mono text-black text-xs">{totalTarget}</td>
@@ -6436,14 +6439,14 @@ export const Production: React.FC = () => {
                                         PAS D'EXTRACTION PRÉVUE
                                       </span>
                                     ) : (
-                                      <span className="inline-flex px-1.5 py-0.5 border text-[10px] font-black rounded bg-emerald-50 text-emerald-800 border-emerald-250">
+                                      <span className="inline-flex px-1.5 py-0.5 border text-[10px] font-black rounded bg-emerald-50 text-emerald-800 border-emerald-200">
                                         +{totalWagons} Wg (EXTRACTION NON PLANIFIÉE)
                                       </span>
                                     )
                                   ) : (
                                     <span className={`inline-flex px-1.5 py-0.5 border text-[10px] font-black rounded ${
                                       totalDiffWagonsPct >= 0 
-                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-250' 
+                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
                                         : (totalDiffWagonsPct >= -15 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-rose-50 text-rose-700 border-rose-200')
                                     }`}>
                                       {totalDiffWagonsPct > 0 ? '+' : ''}{totalDiffWagonsPct.toFixed(1)}%
@@ -6521,7 +6524,7 @@ export const Production: React.FC = () => {
                               {structureEditMode && <th className="p-2 text-[10px] font-black uppercase text-center w-14 text-slate-700">Action</th>}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-150 text-[11px]">
+                          <tbody className="divide-y divide-slate-100 text-[11px]">
                             {maintenanceRows.map((rowWrapper, idx) => {
                               const row = rowWrapper.reel;
                               const plan = rowWrapper.plan || {} as ExcelMaintenance;
@@ -6730,7 +6733,7 @@ export const Production: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse bg-white">
               <thead>
-                <tr className="bg-slate-50 border-b border-gray-150 text-slate-700 text-[10px] uppercase font-black">
+                <tr className="bg-slate-50 border-b border-gray-100 text-slate-700 text-[10px] uppercase font-black">
                   <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-left align-middle font-black">Date du cahier</th>
                   <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-center align-middle font-black">Métrage Planifié</th>
                   <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-center align-middle font-black">Métrage Arraché</th>
@@ -6743,7 +6746,7 @@ export const Production: React.FC = () => {
                   <th rowSpan={2} className="px-4 py-3 border-r border-slate-200 text-left align-middle font-black">Dernier Enregistrement</th>
                   <th rowSpan={2} className="px-4 py-3 text-center align-middle font-black">Statut</th>
                 </tr>
-                <tr className="bg-slate-50 border-b border-gray-150 text-slate-700 text-[9px] uppercase font-black">
+                <tr className="bg-slate-50 border-b border-gray-100 text-slate-700 text-[9px] uppercase font-black">
                   <th className="px-2 py-1.5 border-r border-slate-200 text-center bg-amber-50/25 text-amber-800 font-black">ANFO</th>
                   <th className="px-2 py-1.5 border-r border-slate-200 text-center bg-amber-50/25 text-amber-800 font-black">TOVEX</th>
                   <th className="px-2 py-1.5 border-r border-slate-200 text-center bg-amber-50/25 text-amber-800 font-black">AMORCES</th>
@@ -6754,46 +6757,46 @@ export const Production: React.FC = () => {
                   const formattedDate = rec.date ? rec.date.split('-').reverse().join('/') : rec.id;
                   return (
                     <tr key={rec.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-4 py-3 font-mono font-black text-slate-900 border-r border-slate-150">{formattedDate}</td>
-                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-150">
+                      <td className="px-4 py-3 font-mono font-black text-slate-900 border-r border-slate-100">{formattedDate}</td>
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">
                         {rec.totalMeteragePlanned !== undefined ? `${rec.totalMeteragePlanned.toFixed(1)} m` : '--'}
                       </td>
-                      <td className="px-4 py-3 text-center font-mono font-black text-emerald-800 bg-emerald-50/15 border-r border-slate-150">
+                      <td className="px-4 py-3 text-center font-mono font-black text-emerald-800 bg-emerald-50/15 border-r border-slate-100">
                         {rec.totalMeterageRealised !== undefined ? `${rec.totalMeterageRealised.toFixed(1)} m` : (rec.totalMeterage !== undefined ? `${rec.totalMeterage.toFixed(1)} m` : '--')}
                       </td>
-                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-150">
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">
                         {rec.totalDeblayagePlanned !== undefined ? `${rec.totalDeblayagePlanned.toFixed(1)} m³` : '--'}
                       </td>
-                      <td className="px-4 py-3 text-center font-mono font-black text-blue-800 bg-blue-50/15 border-r border-slate-150">
+                      <td className="px-4 py-3 text-center font-mono font-black text-blue-800 bg-blue-50/15 border-r border-slate-100">
                         {rec.totalDeblayageRealised !== undefined ? `${rec.totalDeblayageRealised.toFixed(1)} m³` : '--'}
                       </td>
-                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-150">
+                      <td className="px-4 py-3 text-center font-mono text-slate-600 border-r border-slate-100">
                         {rec.totalWagonsPlanned !== undefined ? `${rec.totalWagonsPlanned} u` : '--'}
                       </td>
-                      <td className="px-4 py-3 text-center font-mono font-black text-sky-850 bg-sky-50/15 border-r border-slate-150">
+                      <td className="px-4 py-3 text-center font-mono font-black text-sky-800 bg-sky-50/15 border-r border-slate-100">
                         {rec.totalWagonsRealised !== undefined ? `${rec.totalWagonsRealised} u` : (rec.totalWagons !== undefined ? `${rec.totalWagons} u` : '--')}
                       </td>
-                      <td className="px-3 py-3 text-center font-mono text-amber-800 bg-amber-50/5 border-r border-slate-150">
+                      <td className="px-3 py-3 text-center font-mono text-amber-800 bg-amber-50/5 border-r border-slate-100">
                         {rec.totalAnfo !== undefined ? `${rec.totalAnfo.toFixed(0)} kg` : '--'}
                       </td>
-                      <td className="px-3 py-3 text-center font-mono text-amber-800 bg-amber-50/5 border-r border-slate-150">
+                      <td className="px-3 py-3 text-center font-mono text-amber-800 bg-amber-50/5 border-r border-slate-100">
                         {rec.totalTovex !== undefined ? `${rec.totalTovex.toFixed(1)} kg` : '--'}
                       </td>
-                      <td className="px-3 py-3 text-center font-mono text-amber-800 bg-amber-50/5 border-r border-slate-150">
+                      <td className="px-3 py-3 text-center font-mono text-amber-800 bg-amber-50/5 border-r border-slate-100">
                         {rec.totalAmorces !== undefined ? `${rec.totalAmorces} u` : '--'}
                       </td>
-                      <td className="px-4 py-3 text-slate-800 font-bold border-r border-slate-150">
+                      <td className="px-4 py-3 text-slate-800 font-bold border-r border-slate-100">
                         <span className="inline-flex items-center gap-1.5">
                           <User className="w-3.5 h-3.5 text-slate-400" />
                           {rec.secretary || 'Secrétaire'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-semibold text-slate-500 border-r border-slate-150">
+                      <td className="px-4 py-3 font-semibold text-slate-500 border-r border-slate-100">
                         {rec.lastUpdated ? format(new Date(rec.lastUpdated), 'dd/MM/yyyy HH:mm') : '--'}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-500/20 text-emerald-800 rounded-lg font-extrabold text-[9px] uppercase tracking-wider">
-                          <CheckCircle className="w-3.5 h-3.5 text-emerald-650" /> Scellé
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Scellé
                         </span>
                       </td>
                     </tr>
@@ -6844,7 +6847,7 @@ export const Production: React.FC = () => {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <p className="text-[10px] text-emerald-650 font-extrabold uppercase tracking-wider">
+                <p className="text-[10px] text-emerald-600 font-extrabold uppercase tracking-wider">
                   ✓ Enregistrement Confirmé
                 </p>
                 <p className="text-[11px] text-slate-700 font-bold leading-relaxed">

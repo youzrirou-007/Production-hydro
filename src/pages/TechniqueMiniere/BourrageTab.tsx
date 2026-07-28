@@ -334,7 +334,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
           </div>
 
           {/* DYNAMIC RESULTS BOARD */}
-          <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 space-y-4 text-xs">
+          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-4 text-xs">
             <div className="flex justify-between items-center py-1.5 border-b border-slate-200/50">
               <span className="text-slate-500 font-bold uppercase text-[9px]">Diamètre taillant</span>
               <span className="font-extrabold text-slate-800 font-mono">{HOLE_DIAMETER_MM} mm</span>
@@ -357,7 +357,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
         </div>
 
         {/* OUTPUT DIAGRAM PREVIEW & PHYSICAL GRAPH (7 Columns) */}
-        <div className="lg:col-span-7 bg-slate-950 rounded-2xl border border-slate-850 p-6 flex flex-col justify-between h-full min-h-[380px] relative overflow-hidden shadow-xl">
+        <div className="lg:col-span-7 bg-slate-950 rounded-2xl border border-slate-800 p-6 flex flex-col justify-between h-full min-h-[380px] relative overflow-hidden shadow-xl">
           
           <div className="absolute top-4 left-4 z-10">
             <span className="text-[9px] font-black uppercase text-amber-500 bg-amber-400/10 px-2 py-1 rounded">
@@ -459,7 +459,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           
-          <div className="p-4 bg-white border border-slate-150 rounded-xl">
+          <div className="p-4 bg-white border border-slate-100 rounded-xl">
             <span className="text-[17px] block mb-2">🪨</span>
             <h4 className="text-[11px] font-black uppercase text-slate-800 tracking-wide mb-1">
               Fragmentation Grossière
@@ -469,7 +469,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
             </p>
           </div>
 
-          <div className="p-4 bg-white border border-slate-150 rounded-xl">
+          <div className="p-4 bg-white border border-slate-100 rounded-xl">
             <span className="text-[17px] block mb-2">🚜</span>
             <h4 className="text-[11px] font-black uppercase text-slate-800 tracking-wide mb-1">
               Dégâts Matériels
@@ -479,7 +479,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
             </p>
           </div>
 
-          <div className="p-4 bg-white border border-slate-150 rounded-xl">
+          <div className="p-4 bg-white border border-slate-100 rounded-xl">
             <span className="text-[17px] block mb-2">💨</span>
             <h4 className="text-[11px] font-black uppercase text-slate-800 tracking-wide mb-1">
               Gaz Toxiques Abondants
@@ -489,7 +489,7 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
             </p>
           </div>
 
-          <div className="p-4 bg-white border border-slate-150 rounded-xl">
+          <div className="p-4 bg-white border border-slate-100 rounded-xl">
             <span className="text-[17px] block mb-2">📉</span>
             <h4 className="text-[11px] font-black uppercase text-slate-800 tracking-wide mb-1">
               Perte Financière Majeure

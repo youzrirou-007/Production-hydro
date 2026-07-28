@@ -950,7 +950,7 @@ export const SchemaTab: React.FC<SchemaTabProps> = ({ gabarit }) => {
         </div>
 
         {/* INTERACTIVE SVG STAGE */}
-        <div className="bg-slate-950 rounded-3xl border border-slate-850 p-6 relative shadow-2xl flex items-center justify-center overflow-hidden w-full">
+        <div className="bg-slate-950 rounded-3xl border border-slate-800 p-6 relative shadow-2xl flex items-center justify-center overflow-hidden w-full">
           
           {!view3D && (
             <>
@@ -3507,7 +3507,7 @@ const Iso3DView: React.FC<Iso3DViewProps> = ({
   };
 
   return (
-    <div className="w-full flex flex-col rounded-3xl overflow-hidden bg-slate-950 border border-slate-850 shadow-2xl relative">
+    <div className="w-full flex flex-col rounded-3xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl relative">
       
       {/* Header bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 bg-slate-900 border-b border-slate-800">

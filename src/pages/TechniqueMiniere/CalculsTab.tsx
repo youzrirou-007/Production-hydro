@@ -234,7 +234,7 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
         <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6">
           
           {/* OUTPUT CARD 1: EXPLO DOSES */}
-          <div className="bg-slate-50 rounded-2xl p-6 border border-slate-150 space-y-4">
+          <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
             <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider border-b border-slate-200/50 pb-2">
               Doses d'Explosifs Modélisées
             </h4>
@@ -404,7 +404,7 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
           
           {/* Left panel metrics (4 columns) */}
           <div className="md:col-span-4 space-y-4 text-xs">
-            <div className="bg-white border border-slate-150 p-4 rounded-xl space-y-3 shadow-xs">
+            <div className="bg-white border border-slate-100 p-4 rounded-xl space-y-3 shadow-xs">
               <div>
                 <p className="text-[9px] font-bold text-slate-400 uppercase">Avancement théorique :</p>
                 <p className="text-sm font-black text-slate-800">{drillDepth.toFixed(2)} mètres</p>
@@ -423,7 +423,7 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
           </div>
 
           {/* Dual bar chart graphic (8 columns) */}
-          <div className="md:col-span-8 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
+          <div className="md:col-span-8 bg-white border border-slate-100 p-4 rounded-xl shadow-xs">
             <svg viewBox="0 0 500 200" className="w-full h-auto">
               {/* Grid lines */}
               <line x1="50" y1="160" x2="450" y2="160" stroke="#cbd5e1" strokeWidth="2" />

@@ -6,6 +6,7 @@ const GlobalRankings = lazy(() => import('../components/GlobalRankings').then(m 
 const CausesChart = lazy(() => import('../components/CausesChart').then(m => ({ default: m.CausesChart })));
 const SmartAlertsCenter = lazy(() => import('../components/SmartAlertsCenter').then(m => ({ default: m.SmartAlertsCenter })));
 import { format } from 'date-fns';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
 import { calculateAssistantMinerStats } from '../lib/rhCalculations';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -1743,13 +1744,17 @@ export const EspaceDT: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white p-4 sm:p-6">
-      {/* Premium Hydromines Gold Banner */}
+      {/* Premium Hydromines Gold Banner with Banner excellence image */}
       <div 
-        className="bg-white p-6 sm:p-8 rounded-3xl border border-[#b8860b]/15 shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6 group"
-        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        className="p-6 sm:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6 group"
         onMouseMove={handleBannerMouseMove}
         onMouseLeave={handleBannerMouseLeave}
       >
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
         {/* Background Subtle Shimmer */}
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-amber-500/5 animate-pulse pointer-events-none" />
 
@@ -2016,11 +2021,11 @@ export const EspaceDT: React.FC = () => {
           </motion.div>
           <div>
             <div className="subtle-glow-line w-24 mb-1.5 mx-auto md:mx-0 opacity-80" />
-            <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase">
+            <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               ESPACE DIRECTEUR TECHNIQUE
             </h1>
             <div className="subtle-glow-line w-full mt-2 mb-2.5 opacity-80" />
-            <p className="text-[10px] sm:text-xs font-black uppercase text-slate-500 tracking-widest">
+            <p className="text-[10px] sm:text-xs font-black uppercase text-amber-100 tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               CHANTIER MINIER (X) — MR. LE DIRECTEUR TECHNIQUE • DIRECTION TECHNIQUE & COMMANDEMENT D'EXPLOITATION
             </p>
           </div>
@@ -2443,6 +2448,7 @@ export const EspaceDT: React.FC = () => {
                 <HistoryTrends
                   allProductionDocs={allProductionDocs}
                   allPlanningSheets={allPlanningSheets}
+                  chantiers={allChantiers}
                 />
               </Suspense>
             </div>

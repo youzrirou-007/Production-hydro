@@ -197,7 +197,7 @@ export const Step1Welcome: React.FC<Step1Props> = ({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex gap-4 items-start"
+            className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex gap-4 items-start"
           >
             <div className="p-3 bg-white rounded-xl border border-slate-200/60 shadow-2xs text-[#b8860b]">
               <ShieldCheck className="w-5 h-5" />
@@ -240,7 +240,7 @@ export const Step1Welcome: React.FC<Step1Props> = ({
                 className={`p-4 border rounded-2xl cursor-pointer transition-all duration-300 text-center relative overflow-hidden flex flex-col justify-between ${
                   isActive 
                     ? 'bg-amber-50/50 border-[#b8860b] ring-1 ring-[#b8860b]/20 shadow-xs' 
-                    : 'bg-white border-slate-200 hover:border-slate-350 hover:bg-slate-50/20'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/20'
                 }`}
               >
                 <div className="space-y-2">
@@ -271,7 +271,7 @@ export const Step1Welcome: React.FC<Step1Props> = ({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-50 border border-slate-150 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4"
+            className="bg-slate-50 border border-slate-100 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4"
           >
             <div className="md:col-span-2 space-y-1">
               <span className="text-[9px] font-black uppercase tracking-widest bg-slate-900 text-white px-2 py-0.5 rounded-md">

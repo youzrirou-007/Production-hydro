@@ -195,7 +195,7 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
   return (
     <div className="space-y-8">
       {/* EXPLANATORY CONSULTING BANNER (Mission 5 context) */}
-      <div className="bg-slate-50 border border-slate-150 rounded-3xl p-6 text-slate-800 space-y-3">
+      <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 text-slate-800 space-y-3">
         <h3 className="text-xs font-black uppercase text-slate-800 flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-[#b8860b]" /> VALEUR CONTEXTUELLE DES DOSSIERS RH PREMIUM
         </h3>
@@ -203,7 +203,7 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
           Ce module prépare l'intégration d'un <strong>passeport d'activité individuel</strong> pour l'ensemble du personnel SMI du fond de mine (Mineurs, Conducteurs, Chefs d'équipe, etc.). Il permet de croiser l'assiduité déclarative de la feuille de présence avec la productivité mécanique réelle issue des rapports de production journaliers.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-          <div className="bg-white p-4.5 rounded-xl border border-slate-150">
+          <div className="bg-white p-4.5 rounded-xl border border-slate-100">
             <span className="text-[8.5px] font-black text-emerald-700 uppercase tracking-wider block mb-1">💡 Bénéfices métiers clés :</span>
             <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-500 font-bold uppercase">
               <li>Classement objectif des primes de rendement sur des données inaltérables.</li>
@@ -211,7 +211,7 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
               <li>Fidélisation des meilleurs profils et amélioration du climat social.</li>
             </ul>
           </div>
-          <div className="bg-white p-4.5 rounded-xl border border-slate-150">
+          <div className="bg-white p-4.5 rounded-xl border border-slate-100">
             <span className="text-[8.5px] font-black text-rose-700 uppercase tracking-wider block mb-1">⚠️ Limites actuelles & données manquantes :</span>
             <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-500 font-bold uppercase">
               <li>Manque d'évaluation comportementale directe et de contrôles de sécurité.</li>
@@ -225,7 +225,7 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         
         {/* LEFT COLUMN: STAFF LIST & SEARCH */}
-        <div className="bg-white border border-gray-150 rounded-3xl p-5 shadow-xs space-y-4 xl:col-span-1">
+        <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-xs space-y-4 xl:col-span-1">
           <div className="space-y-1.5">
             <h4 className="text-xs font-black uppercase text-slate-800">Registre du Personnel Fond</h4>
             <p className="text-[10px] text-slate-400 font-bold">Sélectionner un collaborateur pour compiler son dossier</p>
@@ -238,7 +238,7 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
               placeholder="Rechercher nom, rôle ou matricule..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-150 text-[10.5px] font-black uppercase text-slate-800 rounded-xl pl-9 pr-4 py-2 outline-none focus:bg-white"
+              className="w-full bg-slate-50 border border-slate-100 text-[10.5px] font-black uppercase text-slate-800 rounded-xl pl-9 pr-4 py-2 outline-none focus:bg-white"
             />
           </div>
 
@@ -252,7 +252,7 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
                   className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
                     isSelected 
                       ? 'bg-slate-900 border-slate-950 text-white shadow-md' 
-                      : 'bg-slate-50 hover:bg-slate-100 border-slate-150 text-slate-800'
+                      : 'bg-slate-50 hover:bg-slate-100 border-slate-100 text-slate-800'
                   }`}
                 >
                   <div className="min-w-0">
@@ -321,7 +321,7 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
                 
                 {selectedEmployeeStats ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                    <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                       <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Shifts d'activité</span>
                       <span className="text-base font-mono font-black text-white">{selectedEmployeeStats.totalPresenceShifts} Shifts</span>
                     </div>
@@ -329,15 +329,15 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
                     {/* Mineur details */}
                     {selectedEmployeeStats.hasMiner && (
                       <>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Métrage Cumulé</span>
                           <span className="text-base font-mono font-black text-white">{selectedEmployeeStats.minerStats.totalMeters.toFixed(1)} m</span>
                         </div>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Rendement de Tir</span>
                           <span className="text-base font-mono font-black text-emerald-400">{selectedEmployeeStats.minerStats.avgYield.toFixed(2)} m/v</span>
                         </div>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Explosif spécifique</span>
                           <span className="text-base font-mono font-black text-rose-400">{selectedEmployeeStats.minerStats.specificExplosiveConsumption.toFixed(2)} kg/m</span>
                         </div>
@@ -347,19 +347,19 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
                     {/* Conducteur details */}
                     {selectedEmployeeStats.hasDriver && (
                       <>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Volume Déblayé</span>
                           <span className="text-base font-mono font-black text-white">{selectedEmployeeStats.driverStats.totalVolume.toFixed(0)} m³</span>
                         </div>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Volume/Godet</span>
                           <span className="text-base font-mono font-black text-sky-400">{selectedEmployeeStats.driverStats.avgVolumePerGodet.toFixed(2)} m³</span>
                         </div>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Gasoil Spécifique</span>
                           <span className="text-base font-mono font-black text-amber-400">{selectedEmployeeStats.driverStats.specificGasoilRatio.toFixed(2)} L/m³</span>
                         </div>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Gasoil Cumulé</span>
                           <span className="text-base font-mono font-black text-white">{selectedEmployeeStats.driverStats.totalGasoil} L</span>
                         </div>
@@ -369,15 +369,15 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
                     {/* Team chief details */}
                     {selectedEmployeeStats.hasChief && (
                       <>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Shifts Managés</span>
                           <span className="text-base font-mono font-black text-white">{selectedEmployeeStats.chiefStats.shiftsLed} Postes</span>
                         </div>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Score Management</span>
                           <span className="text-base font-mono font-black text-purple-400">{selectedEmployeeStats.chiefStats.averageGlobalScoreUnderManagement.toFixed(1)}%</span>
                         </div>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Mètres managés</span>
                           <span className="text-base font-mono font-black text-white">{selectedEmployeeStats.chiefStats.totalMetersUnderManagement.toFixed(0)} m</span>
                         </div>
@@ -387,11 +387,11 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
                     {/* Assistant miner details */}
                     {selectedEmployeeStats.hasAssistant && (
                       <>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Rondes Assistées</span>
                           <span className="text-base font-mono font-black text-white">{selectedEmployeeStats.assistantStats.roundsAssisted} Volées</span>
                         </div>
-                        <div className="bg-slate-800/60 border border-slate-750 rounded-xl p-3.5">
+                        <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-3.5">
                           <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Métrage assisté</span>
                           <span className="text-base font-mono font-black text-teal-400">{selectedEmployeeStats.assistantStats.totalMetersAssisted.toFixed(1)} m</span>
                         </div>
@@ -441,7 +441,7 @@ export const RHDossiersPremium: React.FC<RHDossiersPremiumProps> = ({
               </div>
             </div>
           ) : (
-            <div className="bg-white border border-gray-150 rounded-3xl p-8 text-center text-slate-400 uppercase font-black text-[10px]">
+            <div className="bg-white border border-gray-100 rounded-3xl p-8 text-center text-slate-400 uppercase font-black text-[10px]">
               Aucun collaborateur sélectionné pour l'affichage de son passeport premium
             </div>
           )}

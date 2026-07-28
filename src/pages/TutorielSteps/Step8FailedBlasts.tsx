@@ -68,7 +68,7 @@ export const Step8FailedBlasts: React.FC<Step8Props> = ({
                   <select
                     value={step8Form.sector}
                     onChange={(e) => setStep8Form(prev => ({ ...prev, sector: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
                   >
                     <option value="Imiter 1">Imiter 1</option>
                     <option value="Imiter 2">Imiter 2</option>
@@ -82,7 +82,7 @@ export const Step8FailedBlasts: React.FC<Step8Props> = ({
                   <select
                     value={step8Form.shift}
                     onChange={(e) => setStep8Form(prev => ({ ...prev, shift: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
                   >
                     <option value="Poste 1">Poste 1 (Matin)</option>
                     <option value="Poste 2">Poste 2 (Après-midi)</option>
@@ -119,7 +119,7 @@ export const Step8FailedBlasts: React.FC<Step8Props> = ({
                 <select
                   value={step8Form.cause}
                   onChange={(e) => setStep8Form(prev => ({ ...prev, cause: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20"
                 >
                   <option value="Taillant cassé">Taillant de forage cassé</option>
                   <option value="Coup soufflé (Bourrage)">Coup soufflé (Bourrage insuffisant)</option>
@@ -145,7 +145,7 @@ export const Step8FailedBlasts: React.FC<Step8Props> = ({
                   rows={4}
                   value={step8Form.comment}
                   onChange={(e) => setStep8Form(prev => ({ ...prev, comment: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 focus:bg-white transition-all resize-none font-sans font-medium text-slate-700"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#b8860b]/20 focus:bg-white transition-all resize-none font-sans font-medium text-slate-700"
                 />
               </div>
 

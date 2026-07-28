@@ -476,7 +476,7 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
       {!maturityTab ? (
         <>
           {/* SECTION 1: ROOT CAUSE DIAGNOSTICS (Mission 4) */}
-          <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-xs space-y-5">
+          <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-xs space-y-5">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-gray-100 pb-4 gap-2">
               <div>
                 <h3 className="text-sm font-black uppercase text-slate-800 flex items-center gap-2">
@@ -495,17 +495,17 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
                 const isMedium = diag.severity === 'medium';
                 const isLow = diag.severity === 'low';
                 
-                let cardColor = "border-slate-150 bg-slate-50/50";
+                let cardColor = "border-slate-100 bg-slate-50/50";
                 let iconColor = "text-slate-500 bg-slate-100 border-slate-200";
                 
                 if (isHigh) {
-                  cardColor = "border-rose-150 bg-rose-50/15";
+                  cardColor = "border-rose-100 bg-rose-50/15";
                   iconColor = "text-rose-600 bg-rose-50 border-rose-200";
                 } else if (isMedium) {
-                  cardColor = "border-amber-150 bg-amber-50/10";
+                  cardColor = "border-amber-100 bg-amber-50/10";
                   iconColor = "text-amber-600 bg-amber-50 border-amber-200";
                 } else if (isLow) {
-                  cardColor = "border-emerald-150 bg-emerald-50/15";
+                  cardColor = "border-emerald-100 bg-emerald-50/15";
                   iconColor = "text-emerald-600 bg-emerald-50 border-emerald-200";
                 }
 
@@ -564,7 +564,7 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             
             {/* Chantier Selector List */}
-            <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-xs space-y-4 xl:col-span-1 flex flex-col">
+            <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-xs space-y-4 xl:col-span-1 flex flex-col">
               <div>
                 <h3 className="text-xs font-black uppercase text-slate-800">Échéancier Prévisionnel</h3>
                 <p className="text-[10px] text-slate-400 font-bold">Sélectionner un chantier pour modéliser sa fin de vie opérationnelle</p>
@@ -608,7 +608,7 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
             </div>
 
             {/* Chantier Forecast Details (Mission 3) */}
-            <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-xs xl:col-span-2 space-y-6">
+            <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-xs xl:col-span-2 space-y-6">
               {selectedChantierPredictive ? (
                 <>
                   <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-gray-100 pb-4 gap-2">
@@ -624,15 +624,15 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="bg-slate-50 border border-slate-150 rounded-xl p-3.5">
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5">
                       <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Cible Planifiée Totale</span>
                       <span className="text-sm font-mono font-black text-slate-800">{selectedChantierPredictive.plannedTotalMeterage.toFixed(1)} m</span>
                     </div>
-                    <div className="bg-slate-50 border border-slate-150 rounded-xl p-3.5">
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5">
                       <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Avancement Actuel</span>
                       <span className="text-sm font-mono font-black text-slate-800">{selectedChantierPredictive.currentMeterage.toFixed(1)} m</span>
                     </div>
-                    <div className="bg-slate-50 border border-slate-150 rounded-xl p-3.5">
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5">
                       <span className="text-[8.5px] text-slate-400 uppercase font-bold block mb-1">Reste à Forer</span>
                       <span className="text-sm font-mono font-black text-slate-800">{selectedChantierPredictive.remainingMeters.toFixed(1)} m</span>
                     </div>
@@ -710,7 +710,7 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
           </div>
 
           {/* SECTION 3: FUTURE TRENDS 6-MONTH CHART FORECAST (Mission 3) */}
-          <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-xs space-y-4">
+          <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-xs space-y-4">
             <div>
               <h3 className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4 text-slate-700" /> TENDANCES DE PRODUCTION FUTURES À 6 MOIS (PROJECTION)
@@ -747,7 +747,7 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
               </div>
 
               {/* Chart projection */}
-              <div className="h-64 lg:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-150 font-mono text-[9px]">
+              <div className="h-64 lg:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-100 font-mono text-[9px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={monthlyTrendsForecast} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -767,8 +767,8 @@ export const PredictiveIntelligencePremium: React.FC<PredictiveIntelligencePremi
         </>
       ) : (
         /* MATURITY ANALYSIS (Mission 2) */
-        <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-xs space-y-6">
-          <div className="border-b border-gray-150 pb-4">
+        <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-xs space-y-6">
+          <div className="border-b border-gray-100 pb-4">
             <h3 className="text-sm font-black uppercase text-slate-800">📊 AUDIT DE MATURITÉ DU SYSTÈME D'INFORMATION</h3>
             <p className="text-[10px] text-slate-500 font-medium">Positionnement stratégique de la SMI sur l'échelle de valorisation des données industrielles</p>
           </div>

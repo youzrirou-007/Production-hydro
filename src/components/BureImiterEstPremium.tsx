@@ -18,11 +18,13 @@ import {
 interface BureImiterEstPremiumProps {
   allProductionDocs: any[];
   allPlanningSheets: any[];
+  chantiers?: any[];
 }
 
 export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
   allProductionDocs,
-  allPlanningSheets
+  allPlanningSheets,
+  chantiers = []
 }) => {
 
   const getPreviousDateStr = (dateStr: string) => {
@@ -38,6 +40,15 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
   const isBureSector = (sector: string) => {
     const s = (sector || '').trim().toLowerCase();
     return s === 'bure imiter est' || s === 'imiter est bure' || s === 'bure';
+  };
+
+  // Le sectorGroup d'une ligne ne connaît que 3 cases génériques (Imiter 1/2/Est) —
+  // seul le chantier référencé porte la vraie classification "Bure Imiter Est".
+  const isBureRow = (row: any, chantierId: string) => {
+    const rowSector = row?.sector || row?.sectorGroup || '';
+    if (isBureSector(rowSector)) return true;
+    const chantier = chantiers.find((c: any) => c.id === chantierId);
+    return isBureSector(chantier?.sector || '');
   };
 
   const stats = useMemo(() => {
@@ -73,8 +84,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
         // Real Minage
         (postObj.minage || []).forEach((row: any) => {
           const r = row.reel || row || {};
-          const sec = r.sector || r.sectorGroup || row.sectorGroup || '';
-          if (isBureSector(sec)) {
+          if (isBureRow(r, r.chantierId || row.chantierId)) {
             const meters = Number(r.realMeterage || 0);
             const rnds = Number(r.realRounds || 0);
             forageReal += meters;
@@ -87,8 +97,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
         // Real Deblayage
         (postObj.deblayage || []).forEach((row: any) => {
           const r = row.reel || row || {};
-          const sec = r.sector || r.sectorGroup || row.sectorGroup || '';
-          if (isBureSector(sec)) {
+          if (isBureRow(r, r.chantierId || row.chantierId)) {
             const vol = Number(r.volumeEstimated || 0);
             const gd = Number(r.godets || 0);
             deblayageReal += vol;
@@ -111,8 +120,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
           const planPostObj = sDoc.postes?.[pKey] || {};
 
           (planPostObj.minage || []).forEach((row: any) => {
-            const sec = row.sector || row.sectorGroup || '';
-            if (isBureSector(sec)) {
+            if (isBureRow(row, row.chantierId)) {
               const meters = Number(row.meterage || row.plannedRounds * 1.7 || 0);
               foragePlan += meters;
               shiftDetails[pNum].foragePlan += meters;
@@ -120,8 +128,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
           });
 
           (planPostObj.deblayage || []).forEach((row: any) => {
-            const sec = row.sector || row.sectorGroup || '';
-            if (isBureSector(sec)) {
+            if (isBureRow(row, row.chantierId)) {
               const vol = Number(row.volumeEstimated || 0);
               deblayagePlan += vol;
               shiftDetails[pNum].deblayagePlan += vol;
@@ -167,7 +174,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
 
         (pObj.minage || []).forEach((row: any) => {
           const r = row.reel || row;
-          if (isBureSector(r.sectorGroup || row.sectorGroup || r.sector)) {
+          if (isBureRow(r, r.chantierId || row.chantierId)) {
             const meters = Number(r.realMeterage || 0);
             if (isH1) forageRealH1 += meters;
             else forageRealH2 += meters;
@@ -176,7 +183,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
         });
         (pObj.deblayage || []).forEach((row: any) => {
           const r = row.reel || row;
-          if (isBureSector(r.sectorGroup || row.sectorGroup || r.sector)) {
+          if (isBureRow(r, r.chantierId || row.chantierId)) {
             const vol = Number(r.volumeEstimated || 0);
             if (isH1) deblayageRealH1 += vol;
             else deblayageRealH2 += vol;
@@ -286,7 +293,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
       extractionReal, extractionPlan, extractionRate, tonnageReal, extractionTrendIcon: getTrendIcon(extractionRealH1, extractionRealH2), extractionTrendText: getTrendText(extractionRealH1, extractionRealH2),
       bottleneckMsg, bottleneckAlertLevel, bottleneckDesc, fluidityScore, shiftDetails, shiftCalculations, bestShift, watchShift, dangerShift
     };
-  }, [allProductionDocs, allPlanningSheets]);
+  }, [allProductionDocs, allPlanningSheets, chantiers]);
 
   const getAlertBg = (level: 'success' | 'warning' | 'danger') => {
     if (level === 'danger') return 'bg-rose-50 border-rose-200 text-rose-900';
@@ -497,7 +504,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
         {/* Executive summary of roles */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           {/* Best Shift Callout */}
-          <div className="bg-emerald-50 border border-emerald-150 p-3.5 rounded-xl flex items-center justify-between gap-3">
+          <div className="bg-emerald-50 border border-emerald-100 p-3.5 rounded-xl flex items-center justify-between gap-3">
             <div>
               <span className="text-[8px] font-black uppercase text-emerald-600 block">Meilleur Poste du Bure 👑</span>
               <span className="text-xs font-black text-slate-800 block mt-0.5">
@@ -510,7 +517,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
           </div>
 
           {/* Watch Shift Callout */}
-          <div className="bg-amber-50 border border-amber-150 p-3.5 rounded-xl flex items-center justify-between gap-3">
+          <div className="bg-amber-50 border border-amber-100 p-3.5 rounded-xl flex items-center justify-between gap-3">
             <div>
               <span className="text-[8px] font-black uppercase text-amber-600 block">Poste du Bure à surveiller ⚠️</span>
               <span className="text-xs font-black text-slate-800 block mt-0.5">
@@ -523,7 +530,7 @@ export const BureImiterEstPremium: React.FC<BureImiterEstPremiumProps> = ({
           </div>
 
           {/* Danger Shift Callout */}
-          <div className="bg-rose-50 border border-rose-150 p-3.5 rounded-xl flex items-center justify-between gap-3">
+          <div className="bg-rose-50 border border-rose-100 p-3.5 rounded-xl flex items-center justify-between gap-3">
             <div>
               <span className="text-[8px] font-black uppercase text-rose-600 block">Poste du Bure en difficulté 🚨</span>
               <span className="text-xs font-black text-slate-800 block mt-0.5">

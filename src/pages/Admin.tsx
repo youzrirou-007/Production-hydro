@@ -24,7 +24,7 @@ import { collection, query, onSnapshot, addDoc, deleteDoc, doc, getDoc, getDocs,
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { SMI_SEED, SEED_EMPLOYEES } from '../config/siteSeed';
-import logoImg from '../assets/images/Excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.webp';
 
 interface Employee {
   id: string;
@@ -801,7 +801,7 @@ export const Admin: React.FC = () => {
               >
                 🔒 Demandes
                 {requests.filter(r => r.status === 'pending').length > 0 && (
-                  <span className="bg-red-650 text-white font-extrabold text-[8px] rounded-full px-1.5 py-0.5 animate-bounce">
+                  <span className="bg-red-600 text-white font-extrabold text-[8px] rounded-full px-1.5 py-0.5 animate-bounce">
                     {requests.filter(r => r.status === 'pending').length}
                   </span>
                 )}
@@ -915,7 +915,7 @@ export const Admin: React.FC = () => {
                     <th className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-150 text-[11px]">
+                <tbody className="divide-y divide-slate-100 text-[11px]">
                   {filteredEmployees.map((emp) => (
                     <tr key={emp.id} className="hover:bg-slate-50/55 transition-colors group">
                       {editingId === emp.id ? (
@@ -951,7 +951,7 @@ export const Admin: React.FC = () => {
                             <select
                               value={editForm.fonction}
                               onChange={e => setEditForm({ ...editForm, fonction: e.target.value })}
-                              className="bg-slate-50 border border-slate-300 px-2 py-1 font-bold text-[10.5px] uppercase text-slate-850 focus:border-[#8B0000] outline-none"
+                              className="bg-slate-50 border border-slate-300 px-2 py-1 font-bold text-[10.5px] uppercase text-slate-800 focus:border-[#8B0000] outline-none"
                             >
                               {ROLES.map(r => (
                                 <option key={r.id} value={r.id}>{r.label}</option>
@@ -962,7 +962,7 @@ export const Admin: React.FC = () => {
                             <select
                               value={editForm.sector}
                               onChange={e => setEditForm({ ...editForm, sector: e.target.value })}
-                              className="bg-slate-50 border border-slate-300 px-2 py-1 font-bold text-[10px] uppercase text-slate-850 focus:border-[#8B0000] outline-none"
+                              className="bg-slate-50 border border-slate-300 px-2 py-1 font-bold text-[10px] uppercase text-slate-800 focus:border-[#8B0000] outline-none"
                             >
                               {SECTORS.map(s => (
                                 <option key={s.id} value={s.id}>{s.label}</option>
@@ -973,7 +973,7 @@ export const Admin: React.FC = () => {
                             <select
                               value={editForm.currentPost}
                               onChange={e => setEditForm({ ...editForm, currentPost: e.target.value as any })}
-                              className="bg-slate-50 border border-slate-300 px-2 py-1 font-bold text-[10px] uppercase text-slate-850 focus:border-[#8B0000] outline-none"
+                              className="bg-slate-50 border border-slate-300 px-2 py-1 font-bold text-[10px] uppercase text-slate-800 focus:border-[#8B0000] outline-none"
                             >
                               <option value="Poste 1">Poste 1</option>
                               <option value="Poste 2">Poste 2</option>
@@ -984,7 +984,7 @@ export const Admin: React.FC = () => {
                             <select
                               value={editForm.status}
                               onChange={e => setEditForm({ ...editForm, status: e.target.value as any })}
-                              className="bg-slate-50 border border-slate-300 px-1 py-1 font-bold text-[10px] uppercase text-slate-850 outline-none"
+                              className="bg-slate-50 border border-slate-300 px-1 py-1 font-bold text-[10px] uppercase text-slate-800 outline-none"
                             >
                               <option value="actif">Actif</option>
                               <option value="inactif">Inactif</option>
@@ -1266,7 +1266,7 @@ export const Admin: React.FC = () => {
 
                   {/* UNDERNEATH: MINEURS, AIDES, ET TREUILLISTES SPÉCIFIQUEMENT */}
                   <div className="w-full space-y-1">
-                    <div className="text-[7.5px] font-bold text-center text-slate-450 uppercase tracking-wide mb-1 italic">Mineurs & Treuillistes</div>
+                    <div className="text-[7.5px] font-bold text-center text-slate-400 uppercase tracking-wide mb-1 italic">Mineurs & Treuillistes</div>
                     {getSecteurStaff('Imiter Est').length > 0 ? (
                       getSecteurStaff('Imiter Est').map(s => (
                         <div key={s.id} className="bg-white border border-slate-200 px-2 py-1 text-[9px] flex flex-col gap-0.5">
@@ -1402,7 +1402,7 @@ export const Admin: React.FC = () => {
                         bottomTechStaff.filter(e => e.fonction === 'OUVRIER' || e.fonction === 'POMPISTE').map(b => (
                           <div key={b.id} className="flex justify-between items-center text-white" style={{fontWeight: 900}}>
                             <span className="uppercase truncate">⚓ {b.nom}</span>
-                            <span className="font-mono text-slate-450 text-[7px] bg-white/5 px-1 truncate">({getRoleLabel(b.fonction).split(' ')[0]})</span>
+                            <span className="font-mono text-slate-400 text-[7px] bg-white/5 px-1 truncate">({getRoleLabel(b.fonction).split(' ')[0]})</span>
                           </div>
                         ))
                       ) : (
@@ -1426,7 +1426,7 @@ export const Admin: React.FC = () => {
       ) : activeAdminSubTab === 'parametres' ? (
         /* PARAMETERS PLATEFORME - EXTREMELY POLISHED SECTORS, ENGINES AND LUBRICANTS EDITOR */
         <div className="bg-white border border-slate-200 p-6 space-y-6 shadow-sm">
-          <div className="border-b border-slate-150 pb-3">
+          <div className="border-b border-slate-100 pb-3">
             <h3 className="text-sm font-black uppercase text-[#8B0000] tracking-wide">
               ⚙️ Paramètres Globaux de la Plateforme S.M.I
             </h3>
@@ -1617,7 +1617,7 @@ export const Admin: React.FC = () => {
           </div>
 
           {/* SECTION: CONFIGURATION DE LA CIBLE DE PRODUCTION & PLANS */}
-          <div className="border-t border-slate-150 pt-5 mt-4 space-y-2">
+          <div className="border-t border-slate-100 pt-5 mt-4 space-y-2">
             <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
               🚃 Objectif Cible de Production &amp; Volume Extraction
             </h4>
@@ -1652,7 +1652,7 @@ export const Admin: React.FC = () => {
           </div>
 
           {/* SECTION: PARAMÈTRES OPÉRATIONNELS */}
-          <div className="border-t border-slate-150 pt-5 mt-4 space-y-4">
+          <div className="border-t border-slate-100 pt-5 mt-4 space-y-4">
             <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
               ⚙️ Paramètres Opérationnels
             </h4>
@@ -1881,7 +1881,7 @@ export const Admin: React.FC = () => {
           </div>
 
           {profile?.role === 'admin' && (
-            <div className="border-t border-slate-150 pt-5 mt-4 space-y-4">
+            <div className="border-t border-slate-100 pt-5 mt-4 space-y-4">
               <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
                 🏔️ Gestion des Sites
               </h4>
@@ -1942,7 +1942,7 @@ export const Admin: React.FC = () => {
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs text-slate-450 italic">Aucun secteur configuré</span>
+                          <span className="text-xs text-slate-400 italic">Aucun secteur configuré</span>
                         )}
                       </div>
                     </div>
@@ -1956,7 +1956,7 @@ export const Admin: React.FC = () => {
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs text-slate-450 italic">Aucun type de galerie configuré</span>
+                          <span className="text-xs text-slate-400 italic">Aucun type de galerie configuré</span>
                         )}
                       </div>
                     </div>
@@ -1967,7 +1967,7 @@ export const Admin: React.FC = () => {
           )}
 
           {/* SECTION: CAPACITÉS DES ENGINS LHD */}
-          <div className="border-t border-slate-150 pt-5 mt-4 space-y-2">
+          <div className="border-t border-slate-100 pt-5 mt-4 space-y-2">
             <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
               <Tractor className="w-3.5 h-3.5 text-slate-700" /> Capacités des Godets LHD (en m³ foisonné)
             </h4>
@@ -2025,7 +2025,7 @@ export const Admin: React.FC = () => {
           </div>
 
           {/* SECTION: TABLEAU DES RÔLES ET PERMISSIONS DE LA PLATEFORME */}
-          <div className="border-t border-slate-150 pt-5 mt-4 space-y-3">
+          <div className="border-t border-slate-100 pt-5 mt-4 space-y-3">
             <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
               🛡️ Tableau d'Attribution des Rôles &amp; Permissions de la Plateforme (S.M.I)
             </h4>
@@ -2045,7 +2045,7 @@ export const Admin: React.FC = () => {
                     <th scope="col" className="px-4 py-3 text-center">Approbateur Dérogations</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 text-[11px] font-bold text-slate-750">
+                <tbody className="divide-y divide-slate-200 text-[11px] font-bold text-slate-700">
                   {Object.keys(rolePermissions).map((role) => {
                     const perm = rolePermissions[role] || {};
 
@@ -2078,7 +2078,7 @@ export const Admin: React.FC = () => {
                           <select
                             value={perm.planning || 'none'}
                             onChange={(e) => updatePerm('planning', e.target.value)}
-                            className="bg-white border border-slate-350 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
+                            className="bg-white border border-slate-300 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
                           >
                             <option value="full">Saisie totale &amp; Clones</option>
                             <option value="write">Saisie limitée (J)</option>
@@ -2091,7 +2091,7 @@ export const Admin: React.FC = () => {
                           <select
                             value={perm.production || 'none'}
                             onChange={(e) => updatePerm('production', e.target.value)}
-                            className="bg-white border border-slate-350 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
+                            className="bg-white border border-slate-300 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
                           >
                             <option value="full">Total (Consolidé + PDF)</option>
                             <option value="write">Saisie seulement</option>
@@ -2104,7 +2104,7 @@ export const Admin: React.FC = () => {
                           <select
                             value={perm.chantiers || 'none'}
                             onChange={(e) => updatePerm('chantiers', e.target.value)}
-                            className="bg-white border border-slate-350 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
+                            className="bg-white border border-slate-300 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
                           >
                             <option value="full">Administration complète</option>
                             <option value="read">Consultation seule</option>
@@ -2116,7 +2116,7 @@ export const Admin: React.FC = () => {
                           <select
                             value={perm.settings || 'none'}
                             onChange={(e) => updatePerm('settings', e.target.value)}
-                            className="bg-white border border-slate-350 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
+                            className="bg-white border border-slate-300 rounded px-2.5 py-1 text-[10px] uppercase font-black text-slate-800 outline-none focus:ring-1 focus:ring-[#8B0000]"
                           >
                             <option value="full">Accès Administrateur</option>
                             <option value="read">Lecture seule</option>
@@ -2141,7 +2141,7 @@ export const Admin: React.FC = () => {
           </div>
 
           {/* SECTION: CLÔTURE MENSUELLE DES ACTIVITÉS MINE */}
-          <div className="border-t border-slate-150 pt-5 mt-4 space-y-2">
+          <div className="border-t border-slate-100 pt-5 mt-4 space-y-2">
             <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-2">
               🔒 Clôture Mensuelle des Activités de Production &amp; Planning
             </h4>
@@ -2227,7 +2227,7 @@ export const Admin: React.FC = () => {
       ) : activeAdminSubTab === 'demandes' ? (
         /* DEMANDES DE MODIFICATION TAB PANEL */
         <div className="bg-white border border-slate-200 p-6 space-y-6 shadow-sm font-sans">
-          <div className="border-b border-slate-150 pb-3 flex justify-between items-center">
+          <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
             <div>
               <h3 className="text-sm font-black uppercase text-[#8B0000] tracking-wide">
                 🔒 Demandes de Déverrouillage Exceptionnel (Niveau 2)
@@ -2320,7 +2320,7 @@ export const Admin: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleRejectClick(req)}
-                            className="bg-red-50 hover:bg-red-100 text-red-750 font-black px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider transition-colors cursor-pointer border border-red-200"
+                            className="bg-red-50 hover:bg-red-100 text-red-700 font-black px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider transition-colors cursor-pointer border border-red-200"
                           >
                             Refuser
                           </button>
@@ -2409,7 +2409,7 @@ export const Admin: React.FC = () => {
                   <select 
                     value={formData.fonction} 
                     onChange={e => setFormData({...formData, fonction: e.target.value})} 
-                    className="w-full bg-slate-50 border border-slate-300 px-3 py-2 text-xs text-slate-850 outline-none focus:border-[#8B0000] font-bold"
+                    className="w-full bg-slate-50 border border-slate-300 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#8B0000] font-bold"
                   >
                     {ROLES.map(role => (
                       <option key={role.id} value={role.id}>{role.label}</option>
@@ -2423,7 +2423,7 @@ export const Admin: React.FC = () => {
                   <select 
                     value={formData.sector} 
                     onChange={e => setFormData({...formData, sector: e.target.value})} 
-                    className="w-full bg-slate-50 border border-slate-300 px-3 py-2 text-xs text-slate-850 outline-none focus:border-[#8B0000] font-bold"
+                    className="w-full bg-slate-50 border border-slate-300 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#8B0000] font-bold"
                   >
                     {SECTORS.map(sec => (
                       <option key={sec.id} value={sec.id}>{sec.label}</option>
@@ -2437,7 +2437,7 @@ export const Admin: React.FC = () => {
                   <select 
                     value={formData.currentPost} 
                     onChange={e => setFormData({...formData, currentPost: e.target.value as any})} 
-                    className="w-full bg-slate-50 border border-slate-300 px-3 py-2 text-xs text-slate-850 outline-none focus:border-[#8B0000] font-bold"
+                    className="w-full bg-slate-50 border border-slate-300 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#8B0000] font-bold"
                   >
                     <option value="Poste 1">Poste 1</option>
                     <option value="Poste 2">Poste 2</option>
@@ -2535,7 +2535,7 @@ export const Admin: React.FC = () => {
                   <button 
                     type="button"
                     onClick={rejectRequestConfirmed}
-                    className="flex-1 bg-[#8B0000] text-white font-black py-2 text-[10px] uppercase tracking-wider transition-colors hover:bg-red-850"
+                    className="flex-1 bg-[#8B0000] text-white font-black py-2 text-[10px] uppercase tracking-wider transition-colors hover:bg-red-800"
                   >
                     Confirmer le rejet
                   </button>

@@ -31,7 +31,9 @@ import { getDocId } from '../lib/siteHelpers';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { format, subDays } from 'date-fns';
 import { ExcelExportButton } from '../components/ExcelExportButton';
-import logoImg from '../assets/images/Excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import carteKpisImg from '../assets/images/cartes_kpis.webp';
 
 export const DailyReport: React.FC = () => {
   const { user } = useAuth();
@@ -369,14 +371,14 @@ export const DailyReport: React.FC = () => {
             <th className="p-2.5 border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200">Chantier / Galerie</th>
             <th className="p-2.5 border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700]">Mineur & Aide</th>
             <th className="p-2.5 border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 text-center">Trous Forés</th>
-            <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-gradient-to-b from-red-950/40 to-red-950/20 text-rose-250">Volées (u.)</th>
+            <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-gradient-to-b from-red-950/40 to-red-950/20 text-rose-200">Volées (u.)</th>
             <th className="p-2.5 border-r border-slate-700/50 text-center bg-gradient-to-b from-amber-950/15 to-transparent text-amber-200">Métrage (m)</th>
             <th className="p-2.5 border-r border-slate-700/50 text-center bg-gradient-to-b from-slate-900/60 to-transparent text-slate-300">Objectif (m)</th>
             <th className="p-2.5 border-r border-slate-700/50 text-center bg-slate-900/60 text-slate-300">KPI Rendement (m/v)</th>
             <th className="p-2.5 text-center bg-gradient-to-b from-red-950/15 to-transparent text-rose-220">Consommation Explosifs</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-150 text-[10.5px] font-bold text-slate-700 bg-white">
+        <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700 bg-white">
           {(() => {
             let displayIndex = 0;
             return rows.map((r: any, idx: number) => {
@@ -395,7 +397,7 @@ export const DailyReport: React.FC = () => {
               if (row.realRounds > 0) {
                 if (rYield >= kpiGoodThreshold) {
                   statusLabel = 'PERFORMANT';
-                  statusColor = 'bg-emerald-50 text-emerald-800 border-emerald-250';
+                  statusColor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
                 } else if (rYield >= kpiLowThreshold) {
                   statusLabel = 'MOYEN';
                   statusColor = 'bg-amber-50 text-amber-800 border-amber-200';
@@ -429,9 +431,9 @@ export const DailyReport: React.FC = () => {
                 </td>
                 <td className="p-3 text-center">
                   <div className="inline-grid grid-cols-3 gap-1 font-mono text-[9px] uppercase border border-gray-200/60 p-1 bg-gray-50/40 rounded">
-                    <span className="text-red-750 px-1 font-extrabold" title="ANFO kg">ANF: {row.anfo || 0}</span>
-                    <span className="text-amber-850 px-1 font-extrabold" title="Tovex kg">TOV: {(row.tovex || 0).toFixed(2)} kg</span>
-                    <span className="text-blue-850 px-1 font-extrabold" title="Amorces u.">AMO: {row.ammorces || 0}</span>
+                    <span className="text-red-700 px-1 font-extrabold" title="ANFO kg">ANF: {row.anfo || 0}</span>
+                    <span className="text-amber-800 px-1 font-extrabold" title="Tovex kg">TOV: {(row.tovex || 0).toFixed(2)} kg</span>
+                    <span className="text-blue-800 px-1 font-extrabold" title="Amorces u.">AMO: {row.ammorces || 0}</span>
                   </div>
                 </td>
               </tr>
@@ -461,7 +463,7 @@ export const DailyReport: React.FC = () => {
             <th className="p-2.5 text-center bg-gradient-to-b from-red-950/15 to-transparent text-rose-220">Lubrifiants Qty</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-150 text-[10.5px] font-bold text-slate-700 bg-white">
+        <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700 bg-white">
           {rows.map((r: any, idx: number) => {
             const row = r.reel || r;
             const plan = r.plan || {};
@@ -535,7 +537,7 @@ export const DailyReport: React.FC = () => {
             <th className="p-2.5 text-center bg-gradient-to-b from-red-950/15 to-transparent text-rose-220">Écart vs Objectif (%)</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-150 text-[10.5px] font-bold text-slate-700 bg-white">
+        <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700 bg-white">
           {rows.map((r: any, idx: number) => {
             const tReel = r.reel?.wagonsTarget !== undefined && r.reel?.wagonsTarget !== null ? Number(r.reel.wagonsTarget) : undefined;
             const tPlan = r.wagonsTarget !== undefined && r.wagonsTarget !== null ? Number(r.wagonsTarget) : undefined;
@@ -560,7 +562,7 @@ export const DailyReport: React.FC = () => {
               speedColor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
             } else if (diffWagonsPct >= -15) {
               speedLabel = 'CORRECT';
-              speedColor = 'bg-blue-50 text-blue-700 border-blue-250';
+              speedColor = 'bg-blue-50 text-blue-700 border-blue-200';
             }
 
             return (
@@ -601,10 +603,10 @@ export const DailyReport: React.FC = () => {
             <th className="p-2.5 border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700]">Matricule & Spécialiste</th>
             <th className="p-2.5 border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 text-center">Engin Affecté</th>
             <th className="p-2.5 border-r border-slate-700/50 bg-gradient-to-b from-amber-950/15 to-transparent text-[#b8860b] text-center font-bold">Heures Consacrées</th>
-            <th className="p-2.5 text-slate-350 bg-slate-900/60 font-semibold">Description Diagnostic / Tâches Planifiées Real</th>
+            <th className="p-2.5 text-slate-300 bg-slate-900/60 font-semibold">Description Diagnostic / Tâches Planifiées Real</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-150 text-[10.5px] font-bold text-slate-700 bg-white">
+        <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700 bg-white">
           {rows.map((r: any, idx: number) => {
             const row = r.reel || r;
             return (
@@ -622,7 +624,7 @@ export const DailyReport: React.FC = () => {
                 <td className="p-3 text-center border-r border-gray-200 font-mono text-[11px] text-amber-900 font-extrabold bg-amber-50/20">
                   {row.hoursSpent || 0} h
                 </td>
-                <td className="p-3 text-[10.5px] text-gray-650 font-normal leading-relaxed">{row.workDescription || '-'}</td>
+                <td className="p-3 text-[10.5px] text-gray-600 font-normal leading-relaxed">{row.workDescription || '-'}</td>
               </tr>
             );
           })}
@@ -704,7 +706,7 @@ export const DailyReport: React.FC = () => {
               <span className="text-[11px] text-amber-950 font-black uppercase block">
                 ⚠️ En attente de réalisé ({unfilledReports.length}) :
               </span>
-              <span className="text-[10px] text-amber-850 font-bold">
+              <span className="text-[10px] text-amber-800 font-bold">
                 Des journées programmées n'ont pas encore de rapport journalier de production associé.
               </span>
             </div>
@@ -717,7 +719,7 @@ export const DailyReport: React.FC = () => {
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent('navigate-to-tab', { detail: { tab: 'production', date: item.expectedProdDate } }));
                 }}
-                className="px-2.5 py-1.5 bg-white hover:bg-amber-100 text-amber-900 border border-amber-250 hover:border-amber-300 rounded-lg font-extrabold uppercase text-[9px] tracking-wider transition-all cursor-pointer shadow-2xs"
+                className="px-2.5 py-1.5 bg-white hover:bg-amber-100 text-amber-900 border border-amber-200 hover:border-amber-300 rounded-lg font-extrabold uppercase text-[9px] tracking-wider transition-all cursor-pointer shadow-2xs"
                 title={`Saisir le réalisé du ${format(new Date(item.expectedProdDate + "T12:00:00"), 'dd/MM/yyyy')} basé sur la planification du ${format(new Date(item.planDate + "T12:00:00"), 'dd/MM/yyyy')}`}
               >
                 📅 Ajouter Réalisé {format(new Date(item.expectedProdDate + "T12:00:00"), 'dd/MM/yyyy')}
@@ -732,41 +734,43 @@ export const DailyReport: React.FC = () => {
         </div>
       )}
       
-      {/* Title & Date Picker Action Ribbon */}
+      {/* Title & Date Picker Action Ribbon with Banner excellence image */}
       <div 
         id="daily-report-header-banner" 
-        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
-        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
       >
-        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
-          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          {/* Left Column: Logo */}
           <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="Excellence Logo" 
-              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
               referrerPolicy="no-referrer" 
             />
           </div>
 
           {/* Centered Column: Header Title on One Line, Subtitle, Info tags */}
-          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-22">
+          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
             {/* Upper Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
             
-            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+            {/* Premium Gold Shimmer Title */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               RAPPORT CONSOLIDÉ JOURNALIER
             </h1>
             
             {/* Lower Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
 
-            {/* Elegant Subtitle with precise spacing */}
-            <p 
-              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
-              style={{ color: '#64748b', letterSpacing: '0.2em' }}
-            >
+            {/* Subtitle directly on banner */}
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               SMI (Société Métallurgique d'Imiter) • Registre d'Exploitation Journalière
             </p>
           </div>
@@ -775,14 +779,14 @@ export const DailyReport: React.FC = () => {
           <div className="flex flex-col items-center lg:items-end justify-between gap-4 w-full lg:w-auto self-center lg:self-stretch min-h-[140px]">
              
             {/* Toggle Day vs Month */}
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/60 w-full max-w-xs md:max-w-none justify-between shadow-2xs">
+            <div className="inline-flex p-1 bg-slate-900/80 backdrop-blur-md rounded-xl border border-amber-400/40 w-full max-w-xs md:max-w-none justify-between shadow-md">
               <button
                 type="button"
                 onClick={() => setReportType('day')}
                 className={`flex-1 text-[10px] font-black uppercase py-1.5 px-3 rounded-lg transition-all cursor-pointer ${
                   reportType === 'day'
-                    ? 'bg-amber-600 text-white shadow-xs font-black'
-                    : 'text-gray-500 hover:text-gray-800 font-bold'
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm font-black'
+                    : 'text-amber-200 hover:text-white font-bold'
                 }`}
               >
                 📅 Quotidien
@@ -792,8 +796,8 @@ export const DailyReport: React.FC = () => {
                 onClick={() => setReportType('month')}
                 className={`flex-1 text-[10px] font-black uppercase py-1.5 px-3 rounded-lg transition-all cursor-pointer ${
                   reportType === 'month'
-                    ? 'bg-amber-600 text-white shadow-xs font-black'
-                    : 'text-gray-500 hover:text-gray-800 font-bold'
+                    ? 'bg-gradient-to-r from-[#b8860b] to-[#ffd700] text-slate-950 shadow-sm font-black'
+                    : 'text-amber-200 hover:text-white font-bold'
                 }`}
               >
                 📊 Mensuel
@@ -801,9 +805,9 @@ export const DailyReport: React.FC = () => {
             </div>
 
             {/* Conditional input selector */}
-            <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs w-full max-w-xs md:max-w-none justify-center">
-              <Calendar className="w-3.5 h-3.5 text-amber-600" />
-              <span className="text-[10px] font-black uppercase text-[#b8860b] tracking-wider">
+            <div className="inline-flex items-center gap-2 bg-slate-900/80 backdrop-blur-md border border-amber-400/40 px-3 py-1.5 rounded-xl shadow-md w-full max-w-xs md:max-w-none justify-center">
+              <Calendar className="w-3.5 h-3.5 text-[#ffd700]" />
+              <span className="text-[10px] font-black uppercase text-[#ffd700] tracking-wider">
                 {reportType === 'day' ? 'Date :' : 'Mois :'}
               </span>
               {reportType === 'day' ? (
@@ -811,14 +815,14 @@ export const DailyReport: React.FC = () => {
                   type="date" 
                   value={filterDate}
                   onChange={e => setFilterDate(e.target.value)}
-                  className="text-xs font-black uppercase text-slate-950 outline-none cursor-pointer bg-white hover:bg-amber-50/30 border border-amber-200 rounded-lg px-2.5 py-1 outline-[#b8860b]/30 focus:ring-1 focus:ring-[#b8860b]/30 transition-colors"
+                  className="text-xs font-black uppercase text-white bg-slate-950 border border-amber-500/30 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-amber-400"
                 />
               ) : (
                 <input 
                   type="month" 
                   value={filterMonth}
                   onChange={e => setFilterMonth(e.target.value)}
-                  className="text-xs font-black uppercase text-slate-950 outline-none cursor-pointer bg-white hover:bg-amber-50/30 border border-amber-200 rounded-lg px-2.5 py-1 outline-[#b8860b]/30 focus:ring-1 focus:ring-[#b8860b]/30 transition-colors"
+                  className="text-xs font-black uppercase text-white bg-slate-950 border border-amber-500/30 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-amber-400"
                 />
               )}
             </div>
@@ -1046,83 +1050,111 @@ export const DailyReport: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* KPI 1 : Minage */}
-            <div className={`p-4 bg-white border border-gray-150 rounded-2xl hover:shadow-md transition-all cursor-pointer ${activeTab === 'minage' ? 'ring-2 ring-[#b8860b]' : ''}`} onClick={() => setActiveTab('minage')}>
-              <div className="flex justify-between items-start">
-                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                  <Hammer className="w-3.5 h-3.5 text-[#b8860b]" /> Forage & Volée
+            <div 
+              className={`p-4 rounded-2xl shadow-lg border relative overflow-hidden transition-all cursor-pointer group ${activeTab === 'minage' ? 'border-[#ffd700] ring-2 ring-[#ffd700]' : 'border-amber-500/30'}`} 
+              onClick={() => setActiveTab('minage')}
+            >
+              <div 
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                style={{ backgroundImage: `url(${carteKpisImg})` }}
+              />
+              <div className="relative z-10 flex justify-between items-start">
+                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200 flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                  <Hammer className="w-3.5 h-3.5 text-[#ffd700]" /> Forage & Volée
                 </p>
-                <div className="bg-amber-50 p-1.5 rounded-lg border border-amber-100/50">
-                  <Bomb className="w-4 h-4 text-[#b8860b]" />
+                <div className="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-amber-400/40 shadow-md">
+                  <Bomb className="w-4 h-4 text-[#ffd700]" />
                 </div>
               </div>
-              <div className="mt-3">
-                <h4 className="text-2xl font-black text-gray-900">{sumMinageMeterage.toFixed(1)} m</h4>
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold mt-1">
+              <div className="relative z-10 mt-3">
+                <h4 className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{sumMinageMeterage.toFixed(1)} m</h4>
+                <div className="flex items-center gap-1.5 text-[10px] text-amber-100 font-bold mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   <span>{sumMinageAnfo} kg ANFO</span>
-                  <span className="text-gray-300">•</span>
-                  <span className="text-amber-800 font-extrabold">{globalMinageYield.toFixed(2)} m/v</span>
+                  <span className="text-amber-300">•</span>
+                  <span className="text-[#ffd700] font-extrabold">{globalMinageYield.toFixed(2)} m/v</span>
                 </div>
               </div>
             </div>
 
             {/* KPI 2 : Deblayage */}
-            <div className={`p-4 bg-white border border-gray-150 rounded-2xl hover:shadow-md transition-all cursor-pointer ${activeTab === 'deblayage' ? 'ring-2 ring-[#b8860b]' : ''}`} onClick={() => setActiveTab('deblayage')}>
-              <div className="flex justify-between items-start">
-                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                  <Tractor className="w-3.5 h-3.5 text-[#b8860b]" /> Charge & LHD
+            <div 
+              className={`p-4 rounded-2xl shadow-lg border relative overflow-hidden transition-all cursor-pointer group ${activeTab === 'deblayage' ? 'border-[#ffd700] ring-2 ring-[#ffd700]' : 'border-amber-500/30'}`} 
+              onClick={() => setActiveTab('deblayage')}
+            >
+              <div 
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                style={{ backgroundImage: `url(${carteKpisImg})` }}
+              />
+              <div className="relative z-10 flex justify-between items-start">
+                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200 flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                  <Tractor className="w-3.5 h-3.5 text-[#ffd700]" /> Charge & LHD
                 </p>
-                <div className="bg-amber-50 p-1.5 rounded-lg border border-amber-100/50">
-                  <Truck className="w-4 h-4 text-[#b8860b]" />
+                <div className="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-amber-400/40 shadow-md">
+                  <Truck className="w-4 h-4 text-[#ffd700]" />
                 </div>
               </div>
-              <div className="mt-3">
-                <h4 className="text-2xl font-black text-gray-900">{sumDeblayageVolume.toFixed(1)} m³</h4>
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold mt-1">
+              <div className="relative z-10 mt-3">
+                <h4 className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{sumDeblayageVolume.toFixed(1)} m³</h4>
+                <div className="flex items-center gap-1.5 text-[10px] text-amber-100 font-bold mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   <span>{sumDeblayageGodets} Godets</span>
-                  <span className="text-gray-300">•</span>
+                  <span className="text-amber-300">•</span>
                   <span>{sumDeblayageGasoil} L Gasoil</span>
                 </div>
               </div>
             </div>
 
             {/* KPI 3 : Extraction */}
-            <div className={`p-4 bg-white border border-gray-150 rounded-2xl hover:shadow-md transition-all cursor-pointer ${activeTab === 'extraction' ? 'ring-2 ring-[#b8860b]' : ''}`} onClick={() => setActiveTab('extraction')}>
-              <div className="flex justify-between items-start">
-                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                  <Train className="w-3.5 h-3.5 text-[#b8860b]" /> Treuil & Wagons
+            <div 
+              className={`p-4 rounded-2xl shadow-lg border relative overflow-hidden transition-all cursor-pointer group ${activeTab === 'extraction' ? 'border-[#ffd700] ring-2 ring-[#ffd700]' : 'border-amber-500/30'}`} 
+              onClick={() => setActiveTab('extraction')}
+            >
+              <div 
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                style={{ backgroundImage: `url(${carteKpisImg})` }}
+              />
+              <div className="relative z-10 flex justify-between items-start">
+                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200 flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                  <Train className="w-3.5 h-3.5 text-[#ffd700]" /> Treuil & Wagons
                 </p>
-                <div className="bg-amber-50 p-1.5 rounded-lg border border-amber-100/50">
-                  <Gauge className="w-4 h-4 text-[#b8860b]" />
+                <div className="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-amber-400/40 shadow-md">
+                  <Gauge className="w-4 h-4 text-[#ffd700]" />
                 </div>
               </div>
-              <div className="mt-3">
-                <h4 className="text-2xl font-black text-gray-900">{sumExtractionWagonsActual} Wagons</h4>
-                <div className="flex items-center gap-1.5 text-[10px] font-bold mt-1">
-                  <span className={`${globalExtractionDiffPct >= 0 ? "text-amber-800" : (globalExtractionDiffPct >= -15 ? "text-amber-700" : "text-rose-700")} font-extrabold`}>
+              <div className="relative z-10 mt-3">
+                <h4 className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{sumExtractionWagonsActual} Wagons</h4>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                  <span className={`${globalExtractionDiffPct >= 0 ? "text-[#ffd700]" : (globalExtractionDiffPct >= -15 ? "text-amber-200" : "text-rose-300")} font-extrabold`}>
                     {globalExtractionDiffPct > 0 ? '+' : ''}{globalExtractionDiffPct.toFixed(1)}% vs. Obj
                   </span>
-                  <span className="text-gray-300">•</span>
-                  <span className="text-gray-500">{sumExtractionSterile} Stérile</span>
+                  <span className="text-amber-300">•</span>
+                  <span className="text-amber-100">{sumExtractionSterile} Stérile</span>
                 </div>
               </div>
             </div>
 
             {/* KPI 4 : Maintenance */}
-            <div className={`p-4 bg-white border border-gray-150 rounded-2xl hover:shadow-md transition-all cursor-pointer ${activeTab === 'maintenance' ? 'ring-2 ring-[#b8860b]' : ''}`} onClick={() => setActiveTab('maintenance')}>
-              <div className="flex justify-between items-start">
-                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                  <Wrench className="w-3.5 h-3.5 text-[#b8860b]" /> Brigade Technique
+            <div 
+              className={`p-4 rounded-2xl shadow-lg border relative overflow-hidden transition-all cursor-pointer group ${activeTab === 'maintenance' ? 'border-[#ffd700] ring-2 ring-[#ffd700]' : 'border-amber-500/30'}`} 
+              onClick={() => setActiveTab('maintenance')}
+            >
+              <div 
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+                style={{ backgroundImage: `url(${carteKpisImg})` }}
+              />
+              <div className="relative z-10 flex justify-between items-start">
+                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200 flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                  <Wrench className="w-3.5 h-3.5 text-[#ffd700]" /> Brigade Technique
                 </p>
-                <div className="bg-amber-50 p-1.5 rounded-lg border border-amber-100/50">
-                  <Cpu className="w-4 h-4 text-[#b8860b]" />
+                <div className="bg-slate-900/80 backdrop-blur-md p-1.5 rounded-xl border border-amber-400/40 shadow-md">
+                  <Cpu className="w-4 h-4 text-[#ffd700]" />
                 </div>
               </div>
-              <div className="mt-3">
-                <h4 className="text-2xl font-black text-gray-900">{sumMaintenanceHours.toFixed(1)} h</h4>
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold mt-1">
+              <div className="relative z-10 mt-3">
+                <h4 className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{sumMaintenanceHours.toFixed(1)} h</h4>
+                <div className="flex items-center gap-1.5 text-[10px] text-amber-100 font-bold mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   <span>{countMaintenanceTasks} Interventions</span>
-                  <span className="text-gray-300">•</span>
-                  <span className="text-amber-800 font-extrabold">Active</span>
+                  <span className="text-amber-300">•</span>
+                  <span className="text-[#ffd700] font-extrabold">Active</span>
                 </div>
               </div>
             </div>
@@ -1204,7 +1236,7 @@ export const DailyReport: React.FC = () => {
               })();
 
               return (
-                <div key={shift.id} className="bg-white border border-gray-150 rounded-2xl shadow-xs overflow-hidden">
+                <div key={shift.id} className="bg-white border border-gray-100 rounded-2xl shadow-xs overflow-hidden">
                   
                   {/* Shift Subheader bar styled elegantly with center-aligned gold visual theme */}
                   <div className="bg-white p-5 flex flex-col items-center justify-center select-none border-b border-gray-100">

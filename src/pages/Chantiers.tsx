@@ -22,7 +22,9 @@ import {
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, orderBy, where } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useSite } from '../contexts/SiteContext';
-import logoImg from '../assets/images/Excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import carteKpisImg from '../assets/images/cartes_kpis.webp';
 
 interface Chantier {
   id: string;
@@ -380,7 +382,7 @@ export const Chantiers: React.FC = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                   </div>
                 ) : (
-                  <div className="h-44 bg-slate-50/70 border-b border-gray-150 flex flex-col items-center justify-center p-4 text-center">
+                  <div className="h-44 bg-slate-50/70 border-b border-gray-100 flex flex-col items-center justify-center p-4 text-center">
                     <img 
                       src={logoImg} 
                       alt="Excellence Logo Placeholder" 
@@ -521,7 +523,7 @@ export const Chantiers: React.FC = () => {
             }`}
           >
             {toast.type === 'success' ? (
-              <CheckCircle className="w-4 h-4 text-emerald-450 shrink-0" />
+              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
             ) : (
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             )}
@@ -530,19 +532,24 @@ export const Chantiers: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Unified Elegant Header Banner with Logo and Corporate Titles matching page planification */}
+      {/* Unified Header Banner with Banner excellence image */}
       <div 
         id="chantiers-header-banner" 
-        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
-        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
       >
-        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
-          {/* Left Column: 30% larger, borderless & clean logo with responsive scaling */}
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-between gap-6">
+          {/* Left Column: Logo */}
           <div className="flex-shrink-0 flex items-center justify-center animate-fade-in self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="Excellence Logo" 
-              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
+              className="h-28 w-28 sm:h-32 sm:w-32 md:h-36 md:w-36 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
               referrerPolicy="no-referrer" 
             />
           </div>
@@ -552,26 +559,23 @@ export const Chantiers: React.FC = () => {
             {/* Upper Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
             
-            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+            {/* Premium Gold Shimmer Title */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               RÉPERTOIRE TECHNIQUE DES CHANTIERS
             </h1>
             
             {/* Lower Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
 
-            {/* Elegant Subtitle with precise spacing */}
-            <p 
-              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
-              style={{ color: '#64748b', letterSpacing: '0.2em' }}
-            >
+            {/* Subtitle directly on banner */}
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Suivi d'avancement des projets • Excellence
             </p>
 
             {/* Centered information/shift capsule */}
             <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
-              <div className="inline-flex items-center gap-2 bg-amber-50/80 border border-amber-200/80 px-3 py-1.5 rounded-xl shadow-xs">
-                <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
+              <div className="inline-flex items-center gap-2 bg-slate-900/80 backdrop-blur-md border border-amber-400/40 px-3 py-1.5 rounded-xl shadow-md">
+                <span className="text-[10px] font-black uppercase text-[#ffd700] tracking-wider">
                   🚧 Ordonnancement Trié • Bure Imiter Est en Priorité Majeure Semencière
                 </span>
               </div>
@@ -602,66 +606,82 @@ export const Chantiers: React.FC = () => {
       {/* KPI Stats Summary Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Imiter Est */}
-        <div className="bg-slate-50/40 hover:bg-slate-50/80 border border-slate-200/60 rounded-2xl p-4.5 shadow-xs flex items-center justify-between transition-all">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Imiter Est</span>
+        <div className="p-4.5 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center justify-between transition-all group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 space-y-1">
+            <span className="text-[10px] font-black text-amber-200 uppercase tracking-widest block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Imiter Est</span>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-slate-850">{imiterEstOnlyActiveCount}</span>
-              <span className="text-xs font-bold text-slate-600">Actifs</span>
-              <span className="text-[10px] text-slate-400">/ {imiterEstOnlyCount} total</span>
+              <span className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{imiterEstOnlyActiveCount}</span>
+              <span className="text-xs font-bold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Actifs</span>
+              <span className="text-[10px] text-amber-200/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">/ {imiterEstOnlyCount} total</span>
             </div>
-            <span className="text-[9px] font-bold text-sky-600 uppercase tracking-wide block">Zone Est + Bure Inclus</span>
+            <span className="text-[9px] font-bold text-[#ffd700] uppercase tracking-wide block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Zone Est + Bure Inclus</span>
           </div>
-          <div className="bg-sky-50 p-2.5 rounded-xl border border-sky-100/50 flex-shrink-0">
-            <Target className="w-5 h-5 text-sky-500" />
+          <div className="relative z-10 bg-slate-900/80 backdrop-blur-md p-2.5 rounded-xl border border-sky-400/40 flex-shrink-0 shadow-md">
+            <Target className="w-5 h-5 text-sky-400" />
           </div>
         </div>
 
         {/* Card 2: Bure Imiter Est */}
-        <div className="bg-rose-50/30 hover:bg-rose-50/70 border border-rose-100 rounded-2xl p-4.5 shadow-xs flex items-center justify-between transition-all animate-fade-in">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-rose-500/80 uppercase tracking-widest block">Bure Imiter Est</span>
+        <div className="p-4.5 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center justify-between transition-all group animate-fade-in">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 space-y-1">
+            <span className="text-[10px] font-black text-rose-300 uppercase tracking-widest block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Bure Imiter Est</span>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-rose-800">{bureActiveCount}</span>
-              <span className="text-xs font-bold text-rose-500">Actifs</span>
-              <span className="text-[10px] text-rose-450">/ {bureCount} total</span>
+              <span className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{bureActiveCount}</span>
+              <span className="text-xs font-bold text-rose-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Actifs</span>
+              <span className="text-[10px] text-rose-300/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">/ {bureCount} total</span>
             </div>
-            <span className="text-[9.5px] font-black text-rose-600 uppercase tracking-wide block">2 engins actifs</span>
+            <span className="text-[9.5px] font-black text-rose-300 uppercase tracking-wide block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">2 engins actifs</span>
           </div>
-          <div className="bg-rose-50 p-2.5 rounded-xl border border-rose-100/70 flex-shrink-0">
-            <Activity className="w-5 h-5 text-rose-500" />
+          <div className="relative z-10 bg-slate-900/80 backdrop-blur-md p-2.5 rounded-xl border border-rose-400/40 flex-shrink-0 shadow-md">
+            <Activity className="w-5 h-5 text-rose-400" />
           </div>
         </div>
 
         {/* Card 3: Imiter 2 */}
-        <div className="bg-amber-50/20 hover:bg-amber-50/50 border border-amber-100 rounded-2xl p-4.5 shadow-xs flex items-center justify-between transition-all">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest block">Imiter 2</span>
+        <div className="p-4.5 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center justify-between transition-all group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 space-y-1">
+            <span className="text-[10px] font-black text-amber-200 uppercase tracking-widest block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Imiter 2</span>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-amber-800">{imiter2ActiveCount}</span>
-              <span className="text-xs font-bold text-amber-650">Actifs</span>
-              <span className="text-[10px] text-amber-450">/ {imiter2Count} total</span>
+              <span className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{imiter2ActiveCount}</span>
+              <span className="text-xs font-bold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Actifs</span>
+              <span className="text-[10px] text-amber-200/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">/ {imiter2Count} total</span>
             </div>
-            <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wide block">Zone Médiane II</span>
+            <span className="text-[9px] font-bold text-[#ffd700] uppercase tracking-wide block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Zone Médiane II</span>
           </div>
-          <div className="bg-amber-50 p-2.5 rounded-xl border border-amber-100/70 flex-shrink-0">
-            <BarChart className="w-5 h-5 text-amber-500" />
+          <div className="relative z-10 bg-slate-900/80 backdrop-blur-md p-2.5 rounded-xl border border-amber-400/40 flex-shrink-0 shadow-md">
+            <BarChart className="w-5 h-5 text-[#ffd700]" />
           </div>
         </div>
 
         {/* Card 4: Imiter 1 */}
-        <div className="bg-slate-50/65 hover:bg-slate-100/40 border border-slate-200/70 rounded-2xl p-4.5 shadow-xs flex items-center justify-between transition-all">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Imiter 1</span>
+        <div className="p-4.5 rounded-2xl shadow-lg border border-amber-500/30 relative overflow-hidden flex items-center justify-between transition-all group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 space-y-1">
+            <span className="text-[10px] font-black text-amber-200 uppercase tracking-widest block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Imiter 1</span>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-slate-800">{imiter1ActiveCount}</span>
-              <span className="text-xs font-bold text-slate-650">Actifs</span>
-              <span className="text-[10px] text-slate-450">/ {imiter1Count} total</span>
+              <span className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{imiter1ActiveCount}</span>
+              <span className="text-xs font-bold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Actifs</span>
+              <span className="text-[10px] text-amber-200/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">/ {imiter1Count} total</span>
             </div>
-            <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wide block">Zone Supérieure I</span>
+            <span className="text-[9px] font-bold text-slate-200 uppercase tracking-wide block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Zone Supérieure I</span>
           </div>
-          <div className="bg-slate-100 p-2.5 rounded-xl border border-slate-200/50 flex-shrink-0">
-            <Layers className="w-5 h-5 text-slate-500" />
+          <div className="relative z-10 bg-slate-900/80 backdrop-blur-md p-2.5 rounded-xl border border-slate-400/40 flex-shrink-0 shadow-md">
+            <Layers className="w-5 h-5 text-slate-300" />
           </div>
         </div>
       </div>
@@ -673,7 +693,7 @@ export const Chantiers: React.FC = () => {
       ) : (
         <div className="space-y-10">
           {/* Search & Filtration Bar */}
-          <div className="bg-slate-50 border border-gray-150/80 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="bg-slate-50 border border-gray-100/80 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="relative w-full md:w-80">
               <Search className="w-4 h-4 text-slate-405 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input 
@@ -868,7 +888,7 @@ export const Chantiers: React.FC = () => {
                 {/* Optional Front Profile Image upload with rich feedback */}
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Croquis Technique de Coupe (Optionnel)</label>
-                  <div className="relative border border-dashed border-gray-250 p-6 text-center hover:border-[#00BFFF] rounded-xl transition-all cursor-pointer bg-slate-50/50 hover:bg-slate-100/40 group">
+                  <div className="relative border border-dashed border-gray-200 p-6 text-center hover:border-[#00BFFF] rounded-xl transition-all cursor-pointer bg-slate-50/50 hover:bg-slate-100/40 group">
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -1059,7 +1079,7 @@ export const Chantiers: React.FC = () => {
                 <button 
                   type="button"
                   onClick={() => setEditingChantier(null)}
-                  className="w-1/3 border border-slate-250 hover:bg-slate-50 hover:border-slate-350 text-slate-650 py-3 rounded-xl font-bold uppercase tracking-wider transition-all text-[10px] cursor-pointer"
+                  className="w-1/3 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-600 py-3 rounded-xl font-bold uppercase tracking-wider transition-all text-[10px] cursor-pointer"
                 >
                   Annuler
                 </button>

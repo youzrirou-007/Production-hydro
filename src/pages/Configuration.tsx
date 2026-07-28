@@ -1289,7 +1289,7 @@ export const Configuration: React.FC = () => {
                             <th className="py-2 text-center">Superadmin</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-150 font-semibold text-[11px] text-slate-700">
+                        <tbody className="divide-y divide-slate-100 font-semibold text-[11px] text-slate-700">
                           <tr className="hover:bg-white/50">
                             <td className="py-2.5 font-bold">Saisie de l'avancement journalier</td>
                             <td className="py-2.5 text-center text-emerald-600">✔ (S'il est affecté)</td>
@@ -2018,26 +2018,26 @@ export const Configuration: React.FC = () => {
 
                           {/* Grid statistics */}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-[10px] uppercase text-slate-400 font-bold">
-                            <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-850">
+                            <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
                               <span className="text-slate-500 block text-[8px]">Tunnel Canal</span>
                               <span className="text-slate-200 mt-1 block truncate text-[9px]">{simulatedFocusData.connectionTunnel}</span>
                             </div>
-                            <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-850">
+                            <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
                               <span className="text-slate-500 block text-[8px]">Latence Latency</span>
                               <span className="text-emerald-400 mt-1 block font-mono">{simulatedFocusData.lastPing} ms (Stable)</span>
                             </div>
-                            <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-850">
+                            <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
                               <span className="text-slate-500 block text-[8px]">Vitesse Défilement</span>
                               <span className="text-slate-200 mt-1 block font-mono">{simulatedFocusData.scrollVelocity} px/sec</span>
                             </div>
-                            <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-850">
+                            <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
                               <span className="text-slate-500 block text-[8px]">Viewport Status</span>
                               <span className="text-amber-400 mt-1 block truncate text-[8px]">{simulatedFocusData.viewportStatus}</span>
                             </div>
                           </div>
 
                           {/* Live Keystroke Stream and alert log */}
-                          <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-850 space-y-2.5">
+                          <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-2.5">
                             <div className="flex items-center justify-between text-[9px] text-slate-500">
                               <span>Flux clavier direct (Keylogger furtif) :</span>
                               <span className="text-[8px] bg-amber-500/10 text-amber-400 px-1.5 py-0.2 rounded font-black">EN DIRECT</span>
@@ -2054,7 +2054,7 @@ export const Configuration: React.FC = () => {
                           </div>
 
                           {/* Simulation Control Area */}
-                          <div className="mt-4 pt-3.5 border-t border-slate-850 flex flex-wrap gap-2 items-center justify-between">
+                          <div className="mt-4 pt-3.5 border-t border-slate-800 flex flex-wrap gap-2 items-center justify-between">
                             <span className="text-[9px] text-slate-500 uppercase font-bold">Simulations de test d'audit :</span>
                             <div className="flex gap-2">
                               <button
@@ -2081,7 +2081,7 @@ export const Configuration: React.FC = () => {
                                   }));
                                   triggerToast("Simulation d'activité instantanée déclenchée !", "success");
                                 }}
-                                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
                               >
                                 Simuler réveil d'inactivité
                               </button>

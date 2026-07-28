@@ -295,7 +295,7 @@ export const ChantierAnalysisPremium: React.FC<ChantierAnalysisPremiumProps> = (
       </div>
 
       {/* Sub tabs selectors */}
-      <div className="flex flex-wrap gap-1.5 border-b border-gray-150 pb-px">
+      <div className="flex flex-wrap gap-1.5 border-b border-gray-100 pb-px">
         {[
           { id: 'top', label: 'Top Chantiers', icon: <Sparkles className="w-4 h-4" /> },
           { id: 'retard', label: 'Chantiers en Retard', icon: <AlertTriangle className="w-4 h-4" /> },

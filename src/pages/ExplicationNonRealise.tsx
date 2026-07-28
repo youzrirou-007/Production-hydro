@@ -20,7 +20,9 @@ import { collection, query, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
-import logoImg from '../assets/images/Excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.webp';
+import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import carteKpisImg from '../assets/images/cartes_kpis.webp';
 
 // Types inside the page
 interface Chantier {
@@ -493,7 +495,7 @@ export const ExplicationNonRealise: React.FC = () => {
             }`}
           >
             {toast.type === 'success' ? (
-              <CheckCircle className="w-4 h-4 text-emerald-450 shrink-0" />
+              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
             ) : (
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             )}
@@ -502,38 +504,46 @@ export const ExplicationNonRealise: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Corporate Title Banner */}
+      {/* Corporate Title Banner with Banner excellence image */}
       <div 
-        className="bg-white p-6 md:p-8 border border-slate-200/80 rounded-[16px] w-full shadow-sm"
-        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        id="explication-header-banner" 
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
       >
-        <div className="flex flex-col lg:flex-row items-stretch justify-between gap-6">
+        {/* Banner Image Background (100% original, untouched) */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+
+        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-between gap-6">
           <div className="flex-shrink-0 flex items-center justify-center self-center lg:self-stretch">
             <img 
               src={logoImg} 
               alt="Excellence Logo" 
-              className="h-24 w-24 sm:h-28 sm:w-28 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none" 
+              className="h-24 w-24 sm:h-28 sm:w-28 object-contain hover:scale-105 transition-transform duration-300 ease-out select-none drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]" 
               referrerPolicy="no-referrer"
             />
           </div>
 
-          <div className="flex-1 flex flex-col justify-center text-center lg:text-left">
-            <span className="text-[10px] font-black tracking-[0.3em] text-[#b8860b] uppercase mb-1">
+          <div className="flex-1 flex flex-col justify-center text-center items-center lg:items-start">
+            <div className="subtle-glow-line w-full opacity-80 mb-1" />
+            <span className="text-[10px] font-black tracking-[0.3em] text-amber-200 uppercase mb-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               SOCIÉTÉ METALLURGIQUE D'IMITER
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-slate-900 font-display">
-              Explication de Non-Réalisation
+            <h1 className="gold-title text-2xl sm:text-3xl font-extrabold uppercase tracking-tight leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+              EXPLICATION DE NON-RÉALISATION
             </h1>
-            <p className="text-xs font-semibold text-slate-500 mt-1">
+            <div className="subtle-glow-line w-full opacity-80 my-1.5" />
+            <p className="text-xs font-semibold text-amber-100 uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Plateforme d'analyse prédictive et de justification des écarts de production
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 self-center">
             {/* Month Filter */}
-            <div className="flex flex-col">
-              <label className="text-[8.5px] font-black uppercase tracking-[0.1em] text-slate-400 mb-1 flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-[#b8860b]" /> Période d'analyse
+            <div className="flex flex-col bg-slate-900/80 backdrop-blur-md p-3 rounded-2xl border border-amber-400/40 shadow-md">
+              <label className="text-[8.5px] font-black uppercase tracking-[0.1em] text-[#ffd700] mb-1 flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-[#ffd700]" /> Période d'analyse
               </label>
               <input
                 type="month"
@@ -542,7 +552,7 @@ export const ExplicationNonRealise: React.FC = () => {
                   setFilterMonth(e.target.value);
                   handleCancelEdit();
                 }}
-                className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#b8860b] focus:border-[#b8860b]"
+                className="bg-slate-950 border border-amber-500/30 p-2 rounded-lg text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
               />
             </div>
           </div>
@@ -552,12 +562,14 @@ export const ExplicationNonRealise: React.FC = () => {
       {/* Stats Summary Panel */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Pending Badge Card */}
-        <div 
-          className="bg-white p-5 border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-xs relative overflow-hidden group"
-        >
-          <div className="space-y-1">
-            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Écarts à justifier</span>
-            <p className="text-2xl font-black text-slate-800 flex items-center gap-1.5">
+        <div className="p-5 border border-amber-500/30 rounded-2xl flex items-center justify-between shadow-lg relative overflow-hidden group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 space-y-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Écarts à justifier</span>
+            <p className="text-2xl font-black text-white flex items-center gap-1.5 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               {stats.pending}
               {stats.pending > 0 && (
                 <span className="relative flex h-2.5 w-2.5">
@@ -567,43 +579,55 @@ export const ExplicationNonRealise: React.FC = () => {
               )}
             </p>
           </div>
-          <div className={`p-3 rounded-full ${stats.pending > 0 ? 'bg-rose-50 text-rose-600 animate-pulse' : 'bg-slate-50 text-slate-400'}`}>
+          <div className={`relative z-10 p-3 rounded-xl border backdrop-blur-md shadow-md ${stats.pending > 0 ? 'bg-slate-900/80 border-rose-400/40 text-rose-400 animate-pulse' : 'bg-slate-900/80 border-amber-400/40 text-amber-200'}`}>
             <AlertTriangle className="w-5 h-5" />
           </div>
         </div>
 
         {/* Explained Card */}
-        <div className="bg-white p-5 border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-xs">
-          <div className="space-y-1">
-            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Écarts expliqués</span>
-            <p className="text-2xl font-black text-slate-800">{stats.explained}</p>
+        <div className="p-5 border border-amber-500/30 rounded-2xl flex items-center justify-between shadow-lg relative overflow-hidden group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 space-y-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Écarts expliqués</span>
+            <p className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{stats.explained}</p>
           </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-full">
+          <div className="relative z-10 p-3 bg-slate-900/80 backdrop-blur-md border border-emerald-400/40 text-emerald-400 rounded-xl shadow-md">
             <CheckCircle className="w-5 h-5" />
           </div>
         </div>
 
         {/* Unjustified Card */}
-        <div className="bg-white p-5 border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-xs">
-          <div className="space-y-1">
-            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Non identifiés</span>
-            <p className="text-2xl font-black text-slate-800">{stats.unjustified}</p>
+        <div className="p-5 border border-amber-500/30 rounded-2xl flex items-center justify-between shadow-lg relative overflow-hidden group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 space-y-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-amber-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Non identifiés</span>
+            <p className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">{stats.unjustified}</p>
           </div>
-          <div className="p-3 bg-slate-100 text-slate-500 rounded-full">
+          <div className="relative z-10 p-3 bg-slate-900/80 backdrop-blur-md border border-slate-400/40 text-slate-300 rounded-xl shadow-md">
             <Ban className="w-5 h-5" />
           </div>
         </div>
 
         {/* Volées Ratées Card */}
-        <div className="bg-rose-50 p-5 border border-rose-300 rounded-2xl flex items-center justify-between shadow-xs">
-          <div className="space-y-1">
-            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-rose-700">🔴 Volées Ratées</span>
-            <p className="text-2xl font-black text-rose-700">
+        <div className="p-5 border border-amber-500/30 rounded-2xl flex items-center justify-between shadow-lg relative overflow-hidden group">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none transition-transform duration-500 group-hover:scale-105"
+            style={{ backgroundImage: `url(${carteKpisImg})` }}
+          />
+          <div className="relative z-10 space-y-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-rose-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">🔴 Volées Ratées</span>
+            <p className="text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
               {detectedGaps.filter(g => g.voleeRatee === true).length}
             </p>
           </div>
-          <div className="p-3 bg-rose-150 text-rose-700 rounded-full">
-            <AlertTriangle className="w-5 h-5 animate-pulse text-rose-700" />
+          <div className="relative z-10 p-3 bg-slate-900/80 backdrop-blur-md border border-rose-400/40 text-rose-400 rounded-xl shadow-md">
+            <AlertTriangle className="w-5 h-5 animate-pulse" />
           </div>
         </div>
       </div>
@@ -850,7 +874,7 @@ export const ExplicationNonRealise: React.FC = () => {
                             ✅ Expliqué
                           </span>
                         ) : gap.status === 'unjustified' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-slate-100 text-slate-550 border border-slate-200">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase bg-slate-100 text-slate-500 border border-slate-200">
                             ⏸️ Non justifié
                           </span>
                         ) : (
