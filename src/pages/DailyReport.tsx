@@ -31,9 +31,9 @@ import { getDocId } from '../lib/siteHelpers';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { format, subDays } from 'date-fns';
 import { ExcelExportButton } from '../components/ExcelExportButton';
-import logoImg from '../assets/images/excellence_logo.webp';
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
-import carteKpisImg from '../assets/images/cartes_kpis.webp';
+import logoImg from '../assets/images/excellence_logo.png';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
+import carteKpisImg from '../assets/images/cartes_kpis.jpg';
 
 export const DailyReport: React.FC = () => {
   const { user } = useAuth();

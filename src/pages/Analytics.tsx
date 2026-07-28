@@ -8,9 +8,9 @@ import {
   limit, 
   doc 
 } from 'firebase/firestore';
-import logoImg from '../assets/images/excellence_logo.webp';
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
-import carteKpisImg from '../assets/images/cartes_kpis.webp';
+import logoImg from '../assets/images/excellence_logo.png';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
+import carteKpisImg from '../assets/images/cartes_kpis.jpg';
 import { ResponsiveContainer, ComposedChart, BarChart, Bar, Line, Cell, XAxis, YAxis, Tooltip, Legend, RadialBarChart, RadialBar } from 'recharts';
 
 export const Analytics: React.FC = () => {

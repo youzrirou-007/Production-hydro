@@ -45,8 +45,8 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, collectionGroup, query, where, onSnapshot, updateDoc, orderBy } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { getUpcomingSaturday } from '../lib/rotation';
-import logoImg from '../assets/images/excellence_logo.webp';
-import loginBgImg from '../assets/images/login_background_smi.webp';
+import logoImg from '../assets/images/excellence_logo.png';
+import loginBgImg from '../assets/images/login_background_smi.jpg';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -604,8 +604,8 @@ export const Layout: React.FC<{
             <p className="text-xs md:text-sm font-extrabold text-[#ffd700] tracking-wider uppercase drop-shadow-md">
               Système de Commandement Minier de Haute Précision
             </p>
-            <p className="text-[10px] text-slate-200 font-medium tracking-wider mt-1 max-w-2xl drop-shadow-md uppercase whitespace-nowrap">
-              ABATTAGE & TECHNIQUE MINIÈRE & PLANIFICATIONS & ANALYSES ... ETC
+            <p className="text-[10px] md:text-[11px] text-slate-200 font-medium tracking-wider mt-1 whitespace-nowrap drop-shadow-md uppercase">
+              ABATTAGE & TECHNIQUE MINIERE & PLANIFICATIONS & ANALYSES ... ETC
             </p>
           </div>
         </motion.div>
@@ -727,23 +727,19 @@ export const Layout: React.FC<{
                   >
                     <svg className="star-svg" width={pos.size} height={pos.size} viewBox="0 0 24 24" fill="none">
                       <defs>
-                        <linearGradient id={`goldStarGrad-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                        <linearGradient id={`gold-star-grad-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
                           <stop offset="0%" stopColor="#FFF2A1" />
                           <stop offset="30%" stopColor="#FFD700" />
-                          <stop offset="70%" stopColor="#F59E0B" />
-                          <stop offset="100%" stopColor="#B8860B" />
+                          <stop offset="70%" stopColor="#D4AF37" />
+                          <stop offset="100%" stopColor="#996515" />
                         </linearGradient>
-                        <filter id={`goldGlow-${i}`} x="-30%" y="-30%" width="160%" height="160%">
-                          <feDropShadow dx="0" dy="1" stdDeviation="2.5" floodColor="#D97706" floodOpacity="0.85" />
-                        </filter>
                       </defs>
                       <path
                         d="M12 1.5L14.7 9.3L23 9.8L16.5 15.2L18.8 23L12 18.8L5.2 23L7.5 15.2L1 9.8L9.3 9.3L12 1.5Z"
-                        fill={`url(#goldStarGrad-${i})`}
-                        stroke="#B8860B"
-                        strokeWidth="0.8"
+                        fill={`url(#gold-star-grad-${i})`}
+                        stroke="#FFEAA7"
+                        strokeWidth="0.6"
                         strokeLinejoin="round"
-                        filter={`url(#goldGlow-${i})`}
                       />
                     </svg>
                   </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileSpreadsheet } from 'lucide-react';
-import logoImg from '../assets/images/excellence_logo.webp';
+import logoImg from '../assets/images/excellence_logo.png';
 
 interface ExcelMinage {
   chantierId: string;

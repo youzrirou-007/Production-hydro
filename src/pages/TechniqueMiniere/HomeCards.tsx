@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Crown, ArrowRight } from 'lucide-react';
-import logoImg from '../../assets/images/excellence_logo.webp';
-import bannerExcellenceImg from '../../assets/images/banner_excellence.webp';
+import logoImg from '../../assets/images/excellence_logo.png';
+import bannerExcellenceImg from '../../assets/images/Banner excellence.jpg';
 import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL, HOLES_DATA_9_INTL } from './data';
 import { GabaritType } from './types';
 import { getExplosifsData } from './explosifsCalc';

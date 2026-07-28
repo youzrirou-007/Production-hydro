@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { t } from '../data/mineurParfaitTranslations';
 import { IllustrationPurge, IllustrationForage, IllustrationSoufflage, IllustrationPortanole } from '../components/Illustrations';
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ChevronDown, 

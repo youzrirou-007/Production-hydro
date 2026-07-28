@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SiteProvider } from './contexts/SiteContext';
 import { Layout } from './components/Layout';
 import { Factory, ShieldCheck, Mail, LogIn, HardHat } from 'lucide-react';
-import logoImg from './assets/images/excellence_logo.webp';
+import logoImg from './assets/images/excellence_logo.png';
 
 const Production = lazy(() =>
   import('./pages/Production').then(m => ({ default: m.Production })));

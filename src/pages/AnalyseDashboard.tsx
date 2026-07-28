@@ -46,8 +46,8 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import logoImg from '../assets/images/excellence_logo.webp';
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import logoImg from '../assets/images/excellence_logo.png';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 
 const SectorsCompare = lazy(() => import('../components/SectorsCompare').then(m => ({ default: m.SectorsCompare })));
 const GlobalRankings = lazy(() => import('../components/GlobalRankings').then(m => ({ default: m.GlobalRankings })));

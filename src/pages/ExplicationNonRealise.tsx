@@ -20,9 +20,9 @@ import { collection, query, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
-import logoImg from '../assets/images/excellence_logo.webp';
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
-import carteKpisImg from '../assets/images/cartes_kpis.webp';
+import logoImg from '../assets/images/excellence_logo.png';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
+import carteKpisImg from '../assets/images/cartes_kpis.jpg';
 
 // Types inside the page
 interface Chantier {

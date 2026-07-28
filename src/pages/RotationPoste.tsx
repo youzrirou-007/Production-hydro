@@ -136,9 +136,9 @@ function replaceModernColors(str: string): string {
 
   return result;
 }
-import logoImg from '../assets/images/excellence_logo.webp';
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
-import carteKpisImg from '../assets/images/cartes_kpis.webp';
+import logoImg from '../assets/images/excellence_logo.png';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
+import carteKpisImg from '../assets/images/cartes_kpis.jpg';
 import { logPlanningAction } from '../components/AuditLogsDrawer';
 import { 
   RefreshCw, 

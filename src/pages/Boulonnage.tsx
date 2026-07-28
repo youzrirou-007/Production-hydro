@@ -27,8 +27,8 @@ import {
 } from 'lucide-react';
 import { format, subDays, startOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
-import carteKpisImg from '../assets/images/cartes_kpis.webp';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
+import carteKpisImg from '../assets/images/cartes_kpis.jpg';
 
 interface ExcelBoulonnage {
   sectorGroup?: string;

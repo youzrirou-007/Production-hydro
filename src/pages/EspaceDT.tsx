@@ -6,7 +6,7 @@ const GlobalRankings = lazy(() => import('../components/GlobalRankings').then(m 
 const CausesChart = lazy(() => import('../components/CausesChart').then(m => ({ default: m.CausesChart })));
 const SmartAlertsCenter = lazy(() => import('../components/SmartAlertsCenter').then(m => ({ default: m.SmartAlertsCenter })));
 import { format } from 'date-fns';
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 import { calculateAssistantMinerStats } from '../lib/rhCalculations';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';

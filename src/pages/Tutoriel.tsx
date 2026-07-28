@@ -24,7 +24,7 @@ import { Step7ChecklistValidation } from './TutorielSteps/Step7ChecklistValidati
 import { Step8FailedBlasts } from './TutorielSteps/Step8FailedBlasts';
 import { Step9FinalExam } from './TutorielSteps/Step9FinalExam';
 
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 
 // Persistence interface
 interface TutorialProgress {

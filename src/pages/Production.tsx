@@ -39,8 +39,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
 import { getDocId } from '../lib/siteHelpers';
 import { format, subDays } from 'date-fns';
-import logoImg from '../assets/images/excellence_logo.webp';
-import bannerExcellenceImg from '../assets/images/banner_excellence.webp';
+import logoImg from '../assets/images/excellence_logo.png';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 
 // ----------------------------------------------------
 // DEFAULT SECTORS & FALLBACK DATA FOR INDUSTRIAL EDGE
