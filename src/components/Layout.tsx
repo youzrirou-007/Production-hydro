@@ -605,7 +605,7 @@ export const Layout: React.FC<{
               Système de Commandement Minier de Haute Précision
             </p>
             <p className="text-[10px] text-slate-200 font-medium tracking-wider mt-1 max-w-sm drop-shadow-md uppercase">
-              Abattage, géologie & chantiers actifs CHANTIER MINIER (X).
+              ABATTAGE & TECHNIQUE MINIÈRE & PLANIFICATIONS & ANALYSES ... ETC
             </p>
           </div>
         </motion.div>
@@ -726,7 +726,25 @@ export const Layout: React.FC<{
                     }}
                   >
                     <svg className="star-svg" width={pos.size} height={pos.size} viewBox="0 0 24 24" fill="none">
-                      <path d="M12 1.5L14.7 9.3L23 9.8L16.5 15.2L18.8 23L12 18.8L5.2 23L7.5 15.2L1 9.8L9.3 9.3L12 1.5Z" fill="white" stroke="rgba(2,132,199,0.2)" strokeWidth="0.5" strokeLinejoin="round"/>
+                      <defs>
+                        <linearGradient id={`goldStarGrad-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#FFF2A1" />
+                          <stop offset="30%" stopColor="#FFD700" />
+                          <stop offset="70%" stopColor="#F59E0B" />
+                          <stop offset="100%" stopColor="#B8860B" />
+                        </linearGradient>
+                        <filter id={`goldGlow-${i}`} x="-30%" y="-30%" width="160%" height="160%">
+                          <feDropShadow dx="0" dy="1" stdDeviation="2.5" floodColor="#D97706" floodOpacity="0.85" />
+                        </filter>
+                      </defs>
+                      <path
+                        d="M12 1.5L14.7 9.3L23 9.8L16.5 15.2L18.8 23L12 18.8L5.2 23L7.5 15.2L1 9.8L9.3 9.3L12 1.5Z"
+                        fill={`url(#goldStarGrad-${i})`}
+                        stroke="#B8860B"
+                        strokeWidth="0.8"
+                        strokeLinejoin="round"
+                        filter={`url(#goldGlow-${i})`}
+                      />
                     </svg>
                   </div>
                 ))}
