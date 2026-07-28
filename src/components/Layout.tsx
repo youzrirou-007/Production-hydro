@@ -604,7 +604,7 @@ export const Layout: React.FC<{
             <p className="text-xs md:text-sm font-extrabold text-[#ffd700] tracking-wider uppercase drop-shadow-md">
               Système de Commandement Minier de Haute Précision
             </p>
-            <p className="text-[10px] text-slate-200 font-medium tracking-wider mt-1 max-w-sm drop-shadow-md uppercase">
+            <p className="text-[10px] text-slate-200 font-medium tracking-wider mt-1 max-w-2xl drop-shadow-md uppercase whitespace-nowrap">
               ABATTAGE & TECHNIQUE MINIÈRE & PLANIFICATIONS & ANALYSES ... ETC
             </p>
           </div>
