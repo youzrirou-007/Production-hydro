@@ -47,6 +47,8 @@ import { format } from 'date-fns';
 import { getUpcomingSaturday } from '../lib/rotation';
 import logoImg from '../assets/images/excellence_logo.png';
 import loginBgImg from '../assets/images/login_background_smi.jpg';
+import loginBgImg2 from '../assets/images/login-background-2.jpg';
+import loginBgImg3 from '../assets/images/login-background-3.jpg';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -230,6 +232,16 @@ export const Layout: React.FC<{
   }, [user]);
 
   const [bgLoaded, setBgLoaded] = React.useState(false);
+  const loginBgImages = [loginBgImg, loginBgImg2, loginBgImg3];
+  const [bgIndex, setBgIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setBgIndex(prev => (prev + 1) % loginBgImages.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
   const [mousePos, setMousePos] = React.useState({ x: 0, y: 0 });
   const [ripple, setRipple] = React.useState({ x: 0, y: 0 });
   const lastRippleTime = React.useRef(0);
@@ -253,11 +265,17 @@ export const Layout: React.FC<{
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Preload background image
-      const img = new Image();
-      img.src = loginBgImg;
-      img.onload = () => setBgLoaded(true);
-      img.onerror = () => setBgLoaded(true);
+      let loadedCount = 0;
+      const onOneLoaded = () => {
+        loadedCount++;
+        if (loadedCount >= loginBgImages.length) setBgLoaded(true);
+      };
+      loginBgImages.forEach(src => {
+        const img = new Image();
+        img.onload = onOneLoaded;
+        img.onerror = onOneLoaded;
+        img.src = src;
+      });
 
       // Preload HydroMines Logo image
       const logo = new Image();
@@ -550,17 +568,51 @@ export const Layout: React.FC<{
       >
         {/* Full-screen Background with Golden Hour Atmosphere & Dust Particles */}
         <motion.div
-          initial={{ opacity: 0, scale: 1.05 }}
+          initial={{ opacity: 0 }}
           animate={{ 
             opacity: (bgLoaded && (introPhase === 'reveal' || introPhase === 'text' || introPhase === 'done')) ? 1 : 0,
             x: mousePos.x * -15,
             y: mousePos.y * -15,
-            scale: 1.05
           }}
           transition={{ duration: 1.4, ease: 'easeOut' }}
-          className="fixed inset-0 w-full h-full z-0 bg-cover bg-center overflow-hidden"
-          style={{ backgroundImage: `url(${loginBgImg})` }}
+          className="fixed inset-0 w-full h-full z-0 overflow-hidden"
         >
+          {/* Pile des 3 photos — fondu croisé discret entre elles, une seule visible à la fois */}
+          {loginBgImages.map((src, i) => (
+            <motion.div
+              key={src}
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${src})` }}
+              initial={false}
+              animate={{
+                opacity: i === bgIndex ? 1 : 0,
+                scale: i === bgIndex ? 1.02 : 1,
+              }}
+              transition={{ opacity: { duration: 0.5, ease: 'easeInOut' }, scale: { duration: 6, ease: 'easeOut' } }}
+            />
+          ))}
+
+          {/* Balayage lumineux au moment de la transition — rejoue à chaque changement de bgIndex */}
+          <motion.div
+            key={`sweep-${bgIndex}`}
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'linear-gradient(115deg, transparent 40%, rgba(255,235,180,0.35) 50%, transparent 60%)',
+            }}
+            initial={{ x: '-120%', opacity: 0 }}
+            animate={{ x: '120%', opacity: [0, 1, 1, 0] }}
+            transition={{ duration: 0.9, ease: 'easeInOut', times: [0, 0.15, 0.7, 1] }}
+          />
+
+          {/* Assombrissement furtif au moment de la transition */}
+          <motion.div
+            key={`dim-${bgIndex}`}
+            className="absolute inset-0 pointer-events-none bg-black"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.18, 0] }}
+            transition={{ duration: 0.5, ease: 'easeInOut' }}
+          />
+
           {/* Professional Camera High-Definition Adjustment & Sun-drenched Luminous Tint */}
           <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/5 via-transparent to-white/10 backdrop-brightness-[1.28] backdrop-contrast-[1.12] backdrop-saturate-[1.3]" />
           
@@ -662,14 +714,23 @@ export const Layout: React.FC<{
                 onClick={signIn}
                 className="group relative w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#b8860b] via-[#ffd700] to-[#b8860b] hover:from-[#d97706] hover:via-[#ffe066] hover:to-[#d97706] text-slate-950 font-black uppercase text-xs tracking-wider py-4 px-6 rounded-2xl transition-[transform,shadow,border-color,opacity] duration-300 cursor-pointer overflow-hidden border border-[#ffd700]/50 shadow-[0_4px_20px_rgba(184,134,11,0.25)]"
               >
-                {/* Micro-shimmer sweep line on hover */}
+                {/* Reflet métallique — déclenché uniquement au survol, pas en boucle continue */}
                 <div 
-                  className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none"
+                  className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   style={{
                     transform: 'translateX(-200%) skewX(-25deg)',
-                    animation: 'shimmer-fast 1.6s infinite linear'
                   }}
-                />
+                >
+                  <style>{`
+                    .group:hover .absolute[style*="skewX"] {
+                      animation: shimmer-sweep-once 0.6s ease-out;
+                    }
+                    @keyframes shimmer-sweep-once {
+                      from { transform: translateX(-200%) skewX(-25deg); }
+                      to { transform: translateX(200%) skewX(-25deg); }
+                    }
+                  `}</style>
+                </div>
                 
                 {/* Discrete gold border glow */}
                 <div className="absolute inset-0 border border-amber-300/40 rounded-2xl pointer-events-none" />
