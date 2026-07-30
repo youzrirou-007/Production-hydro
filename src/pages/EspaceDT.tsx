@@ -1743,7 +1743,7 @@ export const EspaceDT: React.FC = () => {
     : null;
 
   return (
-    <div className="min-h-screen bg-white p-4 sm:p-6">
+    <div className="min-h-screen bg-white p-2.5 sm:p-4 md:p-6 max-w-full overflow-x-hidden">
       {/* Premium Hydromines Gold Banner with Banner excellence image */}
       <div 
         className="p-6 sm:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-6 group"
@@ -2054,7 +2054,7 @@ export const EspaceDT: React.FC = () => {
       </div>
 
       {/* Tab Selector Buttons using Premium Gold & Amber accents with smooth sliding pill layout transitions */}
-      <div className="flex justify-start sm:justify-center gap-2 mb-6 overflow-x-auto pb-1.5 scrollbar-thin">
+      <div className="flex justify-start sm:justify-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-thin px-1 w-full max-w-full">
         {tabs.map(tab => {
           const isActive = activeTab === tab.id;
           return (
@@ -2113,7 +2113,7 @@ export const EspaceDT: React.FC = () => {
             })()}
 
             {/* PANNEAU DE BIENVENUE */}
-            <div className="mb-8 flex items-start justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+            <div className="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b8860b] mb-1">
                   {new Date().getHours() < 12 ? 'Bonjour' : new Date().getHours() < 18 ? 'Bon après-midi' : 'Bonsoir'}
@@ -2264,7 +2264,7 @@ export const EspaceDT: React.FC = () => {
             </div>
 
             {/* GRILLE DES 4 KPI CARDS */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
               {[
                 {
                   label: 'Métrage du jour',
@@ -2352,7 +2352,7 @@ export const EspaceDT: React.FC = () => {
 
             {/* FOCUS BURE IMITER EST */}
             <div className="bg-[#f4f5f7] border border-[#dcdfe4] rounded-2xl p-6 mb-8">
-              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-black uppercase tracking-wide text-slate-800">Focus Bure Imiter Est</span>
                   <span className="text-[10px] text-slate-400 font-semibold">(2 engins — ST2G 1 / ST2G 3)</span>
@@ -2376,7 +2376,8 @@ export const EspaceDT: React.FC = () => {
                 Métrage arraché — chantiers du Bure Imiter Est — <span className="font-bold text-slate-700">{bureFocusData.meterage.toFixed(1)} m</span>
               </p>
 
-              <table className="w-full text-[12px] mb-4">
+              <div className="overflow-x-auto scrollbar-thin overscroll-x-contain">
+                <table className="w-full text-[12px] mb-4 min-w-[280px]">
                 <thead>
                   <tr>
                     <td className="pb-2 text-[9px] uppercase tracking-wide text-slate-400 border-b border-[#b8860b]/20">Engin</td>
@@ -2392,6 +2393,7 @@ export const EspaceDT: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 mb-6">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Extraction (équipe dédiée)</span>
@@ -2765,7 +2767,7 @@ export const EspaceDT: React.FC = () => {
 
         {activeTab === 'journal' && (
           <div className="space-y-6">
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row xl:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
               <div className="flex flex-wrap items-center gap-3">
                 <input
                   type="date"
@@ -3037,7 +3039,7 @@ export const EspaceDT: React.FC = () => {
                   <h3 className="text-[#b8860b] text-xs font-black uppercase tracking-widest mb-4">
                     Bilan de la Journée
                   </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
                     <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-center">
                       <span className="text-slate-400 text-[9px] uppercase font-bold tracking-wider">Avancement Forage</span>
                       <div className="text-sky-600 text-lg font-black mt-1">
@@ -3103,7 +3105,7 @@ export const EspaceDT: React.FC = () => {
                     </span>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                     {[1, 2, 3].map(n => {
                       const shiftKey = `poste${n}`;
                       const posteData = journalProduction?.postes?.[shiftKey];
@@ -3360,8 +3362,8 @@ export const EspaceDT: React.FC = () => {
             </div>
 
             {saisieMode && (
-              <div className="fixed inset-0 z-50 bg-[#0a0f1a]/80 backdrop-blur-md overflow-y-auto p-6 flex items-center justify-center">
-                <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-2xl">
+              <div className="fixed inset-0 z-50 bg-[#0a0f1a]/80 backdrop-blur-md overflow-y-auto p-3 sm:p-6 flex items-center justify-center">
+                <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-4 sm:p-6 shadow-2xl my-auto">
                   <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
                     <div>
                       <h2 className="text-[#b8860b] font-black text-lg uppercase tracking-wider">
@@ -3381,7 +3383,7 @@ export const EspaceDT: React.FC = () => {
 
                   <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-2">
                     {saisieData.map((c, idx) => (
-                      <div key={idx} className="grid grid-cols-[1fr_120px_80px_140px] gap-3 items-center py-3 border-b border-slate-100">
+                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_120px_80px_140px] gap-2 sm:gap-3 items-start sm:items-center py-3 border-b border-slate-100">
                         <div>
                           <div className="text-slate-800 text-[11px] font-black uppercase">
                             {c.chantierName}
@@ -3413,7 +3415,7 @@ export const EspaceDT: React.FC = () => {
                     ))}
                   </div>
 
-                  <div className="flex justify-between items-center border-t border-slate-100 pt-4 mt-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-t border-slate-100 pt-4 mt-4">
                     <div className="text-[#b8860b] text-xl font-black">
                       TOTAL GÉOMÈTRES : {saisieData.reduce((s, c) => s + c.metrageGeometre, 0).toFixed(1)} m
                     </div>
@@ -3652,8 +3654,8 @@ export const EspaceDT: React.FC = () => {
                 )}
 
                 <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mb-6 shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                  <div className="overflow-x-auto scrollbar-thin overscroll-x-contain">
+                    <table className="w-full text-left border-collapse min-w-[640px]">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 text-[9px] font-black tracking-wider uppercase text-slate-500">
                           <th className="p-3">Chantier</th>
@@ -3966,8 +3968,8 @@ export const EspaceDT: React.FC = () => {
                   Détail de la Consommation Journalière
                 </h3>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto scrollbar-thin overscroll-x-contain">
+                <table className="w-full text-left border-collapse min-w-[540px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-[9px] font-black tracking-wider uppercase text-slate-500">
                       <th className="p-3">Date</th>
@@ -4962,8 +4964,8 @@ export const EspaceDT: React.FC = () => {
                 </h3>
                 <span className="text-[9px] font-bold uppercase text-slate-400 font-mono">Confidentialité SMI</span>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto scrollbar-thin overscroll-x-contain">
+                <table className="w-full text-left border-collapse min-w-[720px]">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/50 text-[9px] font-black uppercase tracking-widest text-slate-500">
                       <th className="px-6 py-3">Mois d'exploitation</th>

@@ -3462,7 +3462,7 @@ export const Planning: React.FC = () => {
       {/* Unified Header Banner with Banner excellence image */}
       <div 
         id="unified-planning-banner" 
-        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
+        className="p-3 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-6"
       >
         {/* Banner Image Background (100% original, untouched) */}
         <div 
@@ -3705,7 +3705,7 @@ export const Planning: React.FC = () => {
             {/* Sheet Tabs */}
             <div className="relative pb-6">
               <div className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-amber-400 to-[#00BFFF]/75 rounded-2xl shadow-[0_4px_24px_rgba(148,163,184,0.06)] backdrop-blur-md">
-                <div className="flex flex-wrap items-center justify-center bg-white/95 rounded-[14.5px] p-2.5 gap-1.5 select-none">
+                <div className="flex overflow-x-auto sm:flex-wrap items-center justify-start sm:justify-center bg-white/95 rounded-[14.5px] p-1.5 sm:p-2.5 gap-1.5 select-none scrollbar-thin">
                   {[
                     { 
                       id: 'minage', 
@@ -3813,7 +3813,7 @@ export const Planning: React.FC = () => {
                           <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-[#b8860b]/35 to-transparent mt-1.5" />
                           
                           {/* Option B: Max right Add Bolting Station Dropdown */}
-                          <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          <div className="relative sm:absolute right-0 sm:top-1/2 sm:-translate-y-1/2 flex items-center gap-2 mt-2 sm:mt-0">
                             <span className="text-[9.5px] font-black text-gray-400 uppercase tracking-wider hidden md:inline">🛡️ AJOUTER BOULONNAGE :</span>
                             <select
                               value=""
@@ -3833,8 +3833,8 @@ export const Planning: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="overflow-x-auto rounded-lg border border-gray-200">
-                          <table className="w-full text-left border-collapse text-[11px]">
+                        <div className="overflow-x-auto scrollbar-thin overscroll-x-contain rounded-lg border border-gray-200">
+                          <table className="w-full text-left border-collapse text-[11px] min-w-[780px]">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase sticky top-0 z-10">
                                 <th className="p-2.5 border-r border-slate-700/50 text-center w-8 select-none bg-slate-900 text-[#ffd700] font-black">#</th>
@@ -4331,8 +4331,8 @@ export const Planning: React.FC = () => {
                           <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-[#b8860b]/35 to-transparent mt-1.5" />
                         </div>
 
-                        <div className="overflow-x-auto rounded-lg border border-gray-200">
-                          <table className="w-full text-left border-collapse text-[11px]">
+                        <div className="overflow-x-auto scrollbar-thin overscroll-x-contain rounded-lg border border-gray-200">
+                          <table className="w-full text-left border-collapse text-[11px] min-w-[720px]">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase sticky top-0 z-10">
                                 <th className="p-2.5 border-r border-slate-700/50 text-center w-8 select-none bg-slate-900 text-[#ffd700] font-black">#</th>
@@ -4858,8 +4858,8 @@ export const Planning: React.FC = () => {
                           <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-[#b8860b]/35 to-transparent mt-1.5" />
                         </div>
 
-                        <div className="overflow-x-auto text-[11px] border border-gray-200 rounded-xl bg-white shadow-sm">
-                          <table className="w-full text-left border-collapse">
+                        <div className="overflow-x-auto scrollbar-thin overscroll-x-contain text-[11px] border border-gray-200 rounded-xl bg-white shadow-sm">
+                          <table className="w-full text-left border-collapse min-w-[700px]">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase">
                                 <th className="p-2.5 text-center w-8 bg-slate-900 border-r border-slate-700/50 text-[#ffd700] font-black">Row</th>
@@ -4999,8 +4999,8 @@ export const Planning: React.FC = () => {
                           <div className="w-16 h-[1.5px] bg-gradient-to-r from-transparent via-amber-500/35 to-transparent mt-1.5" />
                         </div>
 
-                        <div className="overflow-x-auto text-[11px] border border-gray-200 rounded-xl bg-white shadow-sm">
-                          <table className="w-full text-left border-collapse">
+                        <div className="overflow-x-auto scrollbar-thin overscroll-x-contain text-[11px] border border-gray-200 rounded-xl bg-white shadow-sm">
+                          <table className="w-full text-left border-collapse min-w-[720px]">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-amber-500 select-none text-[9.5px] font-extrabold tracking-wider uppercase">
                                 <th className="p-2.5 text-center w-8 bg-slate-900 border-r border-slate-700/50 text-[#ffd700] font-black">Row</th>

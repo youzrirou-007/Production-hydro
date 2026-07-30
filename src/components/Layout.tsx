@@ -189,6 +189,17 @@ export const Layout: React.FC<{
   const { activeSiteId, siteConfig } = useSite();
 
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const [rotationPending, setRotationPending] = React.useState(false);
   const [hasPendingRequests, setHasPendingRequests] = React.useState(false);
   const [unexplainedCount, setUnexplainedCount] = React.useState(0);
@@ -1173,14 +1184,30 @@ export const Layout: React.FC<{
         transition={{ duration: 0.4, ease: 'easeOut' }}
         className="flex-1 flex min-w-0 h-full w-full"
       >
+        {/* Mobile Sidebar Overlay Backdrop */}
+        <AnimatePresence>
+          {isOpen && isMobile && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 lg:hidden cursor-pointer"
+            />
+          )}
+        </AnimatePresence>
+
         {/* Sidebar */}
       <motion.aside 
         initial={false}
         animate={{ 
-          width: isOpen ? 260 : 72,
-          borderRightWidth: 1
+          width: isMobile ? (isOpen ? 260 : 0) : (isOpen ? 260 : 72),
+          borderRightWidth: isMobile && !isOpen ? 0 : 1
         }}
-        className="bg-white border-[#141414]/10 flex flex-col z-50 overflow-hidden relative shadow-[4px_0_30px_rgba(255,255,255,1)]"
+        className={cn(
+          "bg-white border-[#141414]/10 flex flex-col z-50 overflow-hidden relative shadow-[4px_0_30px_rgba(255,255,255,1)]",
+          "fixed inset-y-0 left-0 lg:relative"
+        )}
       >
         <div className={cn(
           "border-b border-[#141414]/10 flex items-center justify-between gap-2.5",
@@ -1238,6 +1265,9 @@ export const Layout: React.FC<{
                       key={item.id}
                       onClick={() => {
                         setActiveTab(item.id);
+                        if (isMobile) {
+                          setIsOpen(false);
+                        }
                       }}
                       onMouseEnter={(e) => {
                         prefetchPage(item.id);
@@ -1375,28 +1405,28 @@ export const Layout: React.FC<{
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 bg-white">
-        <header className="h-16 border-b border-[#141414]/10 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 sticky top-0 z-40">
-          <div className="flex items-center gap-4">
+        <header className="h-16 border-b border-[#141414]/10 bg-white/80 backdrop-blur-md flex items-center justify-between px-3 sm:px-4 lg:px-8 sticky top-0 z-40 gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 hover:bg-slate-50 text-[#141414] hover:text-[#00BFFF] transition-all duration-300 flex items-center justify-center rounded-lg mr-1 border border-slate-200 hover:border-[#00BFFF]/20 shadow-sm active:scale-95"
+              className="p-2 hover:bg-slate-50 text-[#141414] hover:text-[#00BFFF] transition-all duration-300 flex items-center justify-center rounded-lg border border-slate-200 hover:border-[#00BFFF]/20 shadow-sm active:scale-95 shrink-0"
               title="Menu principal"
               id="sidebar_toggle_button"
             >
               <Menu className="w-5 h-5 text-[#00BFFF]" />
             </button>
-            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-[#141414]/40">
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-[0.1em] sm:tracking-[0.2em] text-[#141414]/60 truncate max-w-[120px] sm:max-w-xs lg:max-w-none">
               {NAV_ITEMS.find(n => n.id === activeTab)?.label}
             </h2>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="bg-slate-800 border border-slate-700 text-[#ffd700] text-[11px] font-black uppercase tracking-wider rounded-lg px-3 py-1.5">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <div className="bg-slate-800 border border-slate-700 text-[#ffd700] text-[9px] sm:text-[11px] font-black uppercase tracking-wider rounded-lg px-2 py-1 sm:px-3 sm:py-1.5 truncate max-w-[120px] sm:max-w-none">
               🏔️ {siteConfig?.name || 'CHANTIER MINIER (X)'}
             </div>
 
-            <div className="h-6 w-px bg-slate-200" />
+            <div className="hidden sm:block h-6 w-px bg-slate-200" />
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden md:flex flex-col text-right">
                 <span className="text-xs font-black text-slate-800 uppercase tracking-tight leading-none">
                   {profile?.name || user?.displayName || 'Agent Excellence'}
@@ -1410,11 +1440,11 @@ export const Layout: React.FC<{
                 <img
                   src={user.photoURL}
                   alt={user.displayName || 'Avatar'}
-                  className="w-8 h-8 rounded-full border border-slate-200 object-cover"
+                  className="w-8 h-8 rounded-full border border-slate-200 object-cover shrink-0"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-[#1a5276]/10 border border-[#1a5276]/20 flex items-center justify-center text-xs font-black text-[#1a5276] uppercase">
+                <div className="w-8 h-8 rounded-full bg-[#1a5276]/10 border border-[#1a5276]/20 flex items-center justify-center text-xs font-black text-[#1a5276] uppercase shrink-0">
                   {(profile?.name || user?.email || 'H').substring(0, 2).toUpperCase()}
                 </div>
               )}
@@ -1438,7 +1468,7 @@ export const Layout: React.FC<{
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="p-4 md:p-6 max-w-7xl mx-auto w-full"
+              className="p-2.5 sm:p-4 md:p-6 max-w-7xl mx-auto w-full"
             >
               {children}
             </motion.div>

@@ -4616,8 +4616,8 @@ export const Production: React.FC = () => {
         )}
 
         {showChefChecklistModal && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in" id="chef-checklist-modal">
-            <div className="bg-[#141414] border border-slate-800 rounded-2xl max-w-xl w-full p-6 text-slate-100 shadow-2xl relative flex flex-col my-8">
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 z-50 overflow-y-auto animate-fade-in" id="chef-checklist-modal">
+            <div className="bg-[#141414] border border-slate-800 rounded-2xl max-w-xl w-full p-4 sm:p-6 text-slate-100 shadow-2xl relative flex flex-col my-auto max-h-[92vh]">
               {/* Close Button */}
               <button 
                 type="button"

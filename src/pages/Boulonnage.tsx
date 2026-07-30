@@ -553,8 +553,8 @@ export const Boulonnage: React.FC = () => {
             {/* SUB-TAB 1: CHANTIER */}
             {activeSubTab === 'chantier' && (
               <div className="space-y-4">
-                <div className="overflow-x-auto rounded-xl border border-gray-200">
-                  <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto scrollbar-thin overscroll-x-contain rounded-xl border border-gray-200">
+                  <table className="w-full text-left border-collapse min-w-[680px]">
                     <thead>
                       <tr className="bg-slate-900 text-[#ffd700] uppercase text-[10px] tracking-wider font-extrabold select-none border-b border-slate-700">
                         <th className="p-3">Nom du Chantier</th>
@@ -618,8 +618,8 @@ export const Boulonnage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border border-gray-200">
-                  <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto scrollbar-thin overscroll-x-contain rounded-xl border border-gray-200">
+                  <table className="w-full text-left border-collapse min-w-[640px]">
                     <thead>
                       <tr className="bg-slate-900 text-[#ffd700] uppercase text-[10px] tracking-wider font-extrabold select-none border-b border-slate-700">
                         <th className="p-3">Matricule</th>
@@ -675,8 +675,8 @@ export const Boulonnage: React.FC = () => {
             {/* SUB-TAB 3: AIDE-MINEURS */}
             {activeSubTab === 'assistant' && (
               <div className="space-y-4">
-                <div className="overflow-x-auto rounded-xl border border-gray-200">
-                  <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto scrollbar-thin overscroll-x-contain rounded-xl border border-gray-200">
+                  <table className="w-full text-left border-collapse min-w-[640px]">
                     <thead>
                       <tr className="bg-slate-900 text-[#ffd700] uppercase text-[10px] tracking-wider font-extrabold select-none border-b border-slate-700">
                         <th className="p-3">Matricule</th>
@@ -732,8 +732,8 @@ export const Boulonnage: React.FC = () => {
             {/* SUB-TAB 4: HISTORY */}
             {activeSubTab === 'history' && (
               <div className="space-y-4">
-                <div className="overflow-x-auto rounded-xl border border-gray-200">
-                  <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto scrollbar-thin overscroll-x-contain rounded-xl border border-gray-200">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead>
                       <tr className="bg-slate-900 text-[#ffd700] uppercase text-[10px] tracking-wider font-extrabold select-none border-b border-slate-700">
                         <th className="p-3 w-40">Date</th>
@@ -809,8 +809,8 @@ export const Boulonnage: React.FC = () => {
 
       {/* DETAILED EMPLOYEE REPORT MODAL */}
       {selectedEmployeeReport && employeeReportData && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in font-sans">
-          <div className="bg-white rounded-3xl border border-amber-300 shadow-2xl max-w-4xl w-full overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-xs p-2.5 sm:p-4 animate-fade-in font-sans">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-amber-300 shadow-2xl max-w-4xl w-full overflow-hidden transform transition-all flex flex-col max-h-[92vh] my-auto">
             
             {/* Header */}
             <div className="bg-slate-900 p-5 text-white flex items-center justify-between border-b border-amber-500 select-none">
