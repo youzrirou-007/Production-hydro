@@ -3837,8 +3837,8 @@ export const Planning: React.FC = () => {
                           <table className="w-full text-left border-collapse text-[11px] min-w-[780px]">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase sticky top-0 z-10">
-                                <th className="p-2.5 border-r border-slate-700/50 text-center w-8 select-none bg-slate-900 text-[#ffd700] font-black">#</th>
-                                <th className="p-2.5 min-w-[124px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider">Chantier</th>
+                                <th className="p-2.5 border-r border-slate-700/50 text-center w-8 select-none bg-slate-900 text-[#ffd700] font-black sticky top-0 left-0 z-30">#</th>
+                                <th className="p-2.5 min-w-[124px] border-r border-slate-700/50 bg-[#0f172a] bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider sticky top-0 left-8 z-30 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">Chantier</th>
                                 <th className="p-2.5 min-w-[144px] border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700] font-bold tracking-wider">Mineur (Matricule / Nom)</th>
                                 <th className="p-2.5 min-w-[144px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 font-bold tracking-wider">Aide-Mineur</th>
                                 <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-gradient-to-b from-red-950/40 to-red-950/20 text-rose-200 font-bold">Section</th>
@@ -3981,7 +3981,7 @@ export const Planning: React.FC = () => {
                                           className="border-b border-gray-200 hover:bg-sky-50/20 transition-colors"
                                         >
                                           {/* Line Index & Delete Action */}
-                                          <td className="p-1 px-1.5 border-r border-gray-200 text-center text-[10.5px] text-gray-500 font-mono w-8 select-none relative group bg-gray-50/50">
+                                          <td className="p-1 px-1.5 border-r border-gray-200 text-center text-[10.5px] text-gray-500 font-mono w-8 select-none relative group bg-gray-50 sticky left-0 z-20">
                                             <span className="group-hover:opacity-0 transition-opacity">{flatIdx + 1}</span>
                                             {isMinageRowRemovable(p, flatIdx) && (
                                               <button
@@ -3996,7 +3996,7 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Chantier dropdown selection */}
-                                          <td data-row={globalIdx} data-col={0} className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
+                                          <td data-row={globalIdx} data-col={0} className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40 sticky left-8 z-20 bg-white shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">
                                             <select
                                               value={row.chantierId}
                                               onChange={e => updateMinageCell(p, flatIdx, 'chantierId', e.target.value)}
@@ -4335,8 +4335,8 @@ export const Planning: React.FC = () => {
                           <table className="w-full text-left border-collapse text-[11px] min-w-[720px]">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase sticky top-0 z-10">
-                                <th className="p-2.5 border-r border-slate-700/50 text-center w-8 select-none bg-slate-900 text-[#ffd700] font-black">#</th>
-                                <th className="p-2.5 min-w-[124px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider">Chantier de nettoyage</th>
+                                <th className="p-2.5 border-r border-slate-700/50 text-center w-8 select-none bg-slate-900 text-[#ffd700] font-black sticky top-0 left-0 z-30">#</th>
+                                <th className="p-2.5 min-w-[124px] border-r border-slate-700/50 bg-[#0f172a] bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider sticky top-0 left-8 z-30 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">Chantier de nettoyage</th>
                                 <th className="p-2.5 min-w-[160px] border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700] font-bold tracking-wider">Conducteur engin (Matricule / Nom)</th>
                                 <th className="p-2.5 border-r border-slate-700/50 min-w-[140px] bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 font-bold tracking-wider">Machine / Engin</th>
                                 <th className="p-2.5 border-r border-slate-700/50 w-20 text-center bg-slate-900/60 text-slate-300 font-bold">Godets planifiés</th>
@@ -4407,7 +4407,7 @@ export const Planning: React.FC = () => {
                                           className="border-b border-gray-200 hover:bg-sky-50/20 transition-colors"
                                         >
                                           {/* Line Index & Trash */}
-                                          <td className="p-1 px-1.5 border-r border-gray-200 text-center text-[10.5px] text-gray-500 font-mono w-8 select-none relative group bg-gray-50/50">
+                                          <td className="p-1 px-1.5 border-r border-gray-200 text-center text-[10.5px] text-gray-500 font-mono w-8 select-none relative group bg-gray-50 sticky left-0 z-20">
                                             <span className="group-hover:opacity-0 transition-opacity">{flatIdx + 1}</span>
                                             {isDeblayageRowRemovable(p, flatIdx) && (
                                               <button
@@ -4422,7 +4422,7 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Chantier dropdown selection */}
-                                          <td data-row={globalIdx} data-col={0} className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40">
+                                          <td data-row={globalIdx} data-col={0} className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-[#00BFFF]/50 focus-within:ring-inset focus-within:bg-sky-50/40 sticky left-8 z-20 bg-white shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">
                                             {row.chantierId?.startsWith('stock_') ? (
                                               <div className="flex items-center gap-1.5 w-full">
                                                 <button
@@ -4862,8 +4862,8 @@ export const Planning: React.FC = () => {
                           <table className="w-full text-left border-collapse min-w-[700px]">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-[#b8860b] select-none text-[9.5px] font-extrabold tracking-wider uppercase">
-                                <th className="p-2.5 text-center w-8 bg-slate-900 border-r border-slate-700/50 text-[#ffd700] font-black">Row</th>
-                                <th className="p-2.5 w-40 border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider">Rôle Fixe SMI</th>
+                                <th className="p-2.5 text-center w-8 bg-slate-900 border-r border-slate-700/50 text-[#ffd700] font-black sticky top-0 left-0 z-30">Row</th>
+                                <th className="p-2.5 w-40 border-r border-slate-700/50 bg-[#0f172a] bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider sticky top-0 left-8 z-30 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">Rôle Fixe SMI</th>
                                 <th className="p-2.5 w-28 border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700] font-bold tracking-wider">Matr. Spécialiste</th>
                                 <th className="p-2.5 w-44 border-r border-slate-700/50 bg-gradient-to-b from-amber-950/35 to-amber-950/15 text-[#ffd700] font-bold tracking-wider">Nom Spécialiste</th>
                                 <th className="p-2.5 w-52 border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/15 to-[#00BFFF]/5 text-sky-200 font-bold tracking-wider">Machine d'Intervention</th>
@@ -4878,8 +4878,8 @@ export const Planning: React.FC = () => {
 
                                 return (
                                   <tr key={idx} className="border-b border-gray-200 hover:bg-purple-50/10 transition-colors">
-                                    <td className="p-2 px-3 text-[10px] font-mono text-gray-400 text-center bg-gray-50/40 border-r border-gray-200">{idx + 1}</td>
-                                    <td className="p-2 px-3 border-r border-gray-200 font-extrabold uppercase text-purple-700 bg-purple-50/30 text-[10.5px]">
+                                    <td className="p-2 px-3 text-[10px] font-mono text-gray-400 text-center bg-gray-50 border-r border-gray-200 sticky left-0 z-20">{idx + 1}</td>
+                                    <td className="p-2 px-3 border-r border-gray-200 font-extrabold uppercase text-purple-700 bg-purple-50/90 text-[10.5px] sticky left-8 z-20 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">
                                       {row.roleLabel}
                                     </td>
                                     <td className="p-2 px-2.5 border-r border-gray-200 min-w-[110px] focus-within:ring-2 focus-within:ring-purple-200 focus-within:bg-purple-50/10">
@@ -5003,8 +5003,8 @@ export const Planning: React.FC = () => {
                           <table className="w-full text-left border-collapse min-w-[720px]">
                             <thead>
                               <tr className="bg-[#0f172a] text-white border-b-2 border-amber-500 select-none text-[9.5px] font-extrabold tracking-wider uppercase">
-                                <th className="p-2.5 text-center w-8 bg-slate-900 border-r border-slate-700/50 text-[#ffd700] font-black">Row</th>
-                                <th className="p-2.5 min-w-[140px] border-r border-slate-700/50 bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider">Chantier</th>
+                                <th className="p-2.5 text-center w-8 bg-slate-900 border-r border-slate-700/50 text-[#ffd700] font-black sticky top-0 left-0 z-30">Row</th>
+                                <th className="p-2.5 min-w-[140px] border-r border-slate-700/50 bg-[#0f172a] bg-gradient-to-b from-[#00BFFF]/20 to-[#00BFFF]/10 text-sky-200 font-bold tracking-wider sticky top-0 left-8 z-30 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">Chantier</th>
                                 <th className="p-2.5 min-w-[180px] border-r border-slate-700/50 bg-gradient-to-b from-amber-950/45 to-amber-950/25 text-[#ffd700] font-bold tracking-wider">Mineur</th>
                                 <th className="p-2.5 min-w-[180px] border-r border-slate-700/50 bg-gradient-to-b from-amber-950/35 to-amber-950/15 text-[#ffd700] font-bold tracking-wider">Aide-Mineur</th>
                                 <th className="p-2.5 w-36 border-r border-slate-700/50 text-center bg-slate-900/60 text-slate-300 font-bold">Type</th>
@@ -5067,7 +5067,7 @@ export const Planning: React.FC = () => {
                                           className="border-b border-gray-200 hover:bg-amber-50/10 transition-colors"
                                         >
                                           {/* Line Index & Delete Action */}
-                                          <td className="p-1 px-1.5 border-r border-gray-200 text-center text-[10.5px] text-gray-500 font-mono w-8 select-none relative group bg-gray-50/50">
+                                          <td className="p-1 px-1.5 border-r border-gray-200 text-center text-[10.5px] text-gray-500 font-mono w-8 select-none relative group bg-gray-50 sticky left-0 z-20">
                                             <span className="group-hover:opacity-0 transition-opacity">{flatIdx + 1}</span>
                                             {isBoulonnageRowRemovable(p, flatIdx) && (
                                               <button
@@ -5082,7 +5082,7 @@ export const Planning: React.FC = () => {
                                           </td>
 
                                           {/* Chantier dropdown selection */}
-                                          <td className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-amber-300 focus-within:ring-inset focus-within:bg-amber-50/10">
+                                          <td className="p-1 border-r border-gray-200 min-w-[124px] focus-within:ring-2 focus-within:ring-amber-300 focus-within:ring-inset focus-within:bg-amber-50/10 sticky left-8 z-20 bg-white shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">
                                             <select
                                               value={row.chantierId}
                                               onChange={e => updateBoulonnageCell(p, flatIdx, 'chantierId', e.target.value)}

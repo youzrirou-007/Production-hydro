@@ -3184,9 +3184,9 @@ export const Production: React.FC = () => {
         <table className="w-full text-left border-collapse text-[11px]">
           <thead>
             <tr className="bg-slate-900 text-white select-none text-[9.5px] font-black tracking-wider uppercase sticky top-0 z-10">
-              <th className="p-2 border-r border-slate-700/50 text-center w-10">#</th>
-              <th className="p-2 border-r border-slate-700/50 text-center w-24">Actions</th>
-              <th className="p-2 border-r border-[#ffd700]/30 min-w-[130px] bg-slate-800/80 text-sky-200">Chantier</th>
+              <th className="p-2 border-r border-slate-700/50 text-center w-10 sticky top-0 left-0 z-30 bg-slate-900">#</th>
+              <th className="p-2 border-r border-slate-700/50 text-center w-24 sticky top-0 left-10 z-30 bg-slate-900">Actions</th>
+              <th className="p-2 border-r border-[#ffd700]/30 min-w-[130px] bg-slate-800 text-sky-200 sticky top-0 left-[136px] z-30 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">Chantier</th>
               <th className="p-2 border-r border-slate-700/50 w-14 text-center">Type</th>
               <th className="p-2 border-r border-slate-700/50 min-w-[155px] text-[#ffd700]">Mineur (Matricule / Nom)</th>
               <th className="p-2 border-r border-slate-700/50 min-w-[155px] text-sky-200">Aide-Mineur / Assistant</th>
@@ -3342,12 +3342,12 @@ export const Production: React.FC = () => {
                         {/* FIRST ROW: Plan Values + spanned columns */}
                         <tr className={`bg-slate-50/55 text-slate-500 font-bold border-t border-slate-200 transition-opacity duration-200 ${isVoleeRatee ? 'opacity-50 bg-rose-50/30' : ''}`}>
                           {/* # (Spanned over 2 rows: Plan + Real) */}
-                          <td rowSpan={2} className="p-2 border-r border-slate-200 text-center font-black uppercase select-none align-middle bg-slate-50 text-slate-707">
+                          <td rowSpan={2} className="p-2 border-r border-slate-200 text-center font-black uppercase select-none align-middle bg-slate-50 text-slate-707 sticky left-0 z-20">
                             #{idx + 1}
                           </td>
 
                           {/* Actions (Spanned over 2 rows: Plan + Real) */}
-                          <td rowSpan={2} className="p-2 border-r border-slate-200 text-center align-middle bg-slate-50">
+                          <td rowSpan={2} className="p-2 border-r border-slate-200 text-center align-middle bg-slate-50 sticky left-10 z-20">
                             <div className="flex flex-col gap-1 items-center justify-center">
                               <button
                                 type="button"
@@ -3371,7 +3371,7 @@ export const Production: React.FC = () => {
                           </td>
 
                           {/* Chantier (Spanned over 2 rows: Plan + Real) */}
-                          <td rowSpan={2} className="p-2 border-r border-slate-300 min-w-[130px] align-middle font-bold bg-white">
+                          <td rowSpan={2} className="p-2 border-r border-slate-300 min-w-[130px] align-middle font-bold bg-white sticky left-[136px] z-20 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">
                             <div className="space-y-1.5">
                               <select
                                 value={row.chantierId}
@@ -5743,8 +5743,8 @@ export const Production: React.FC = () => {
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-extrabold uppercase text-[10px] tracking-wider">
-                              <th className="p-2 text-[10px] font-black uppercase text-center w-12 border-r border-slate-200 text-slate-500 bg-slate-50">#</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Chantier</th>
+                              <th className="p-2 text-[10px] font-black uppercase text-center w-12 border-r border-slate-200 text-slate-500 bg-slate-50 sticky top-0 left-0 z-30">#</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700 bg-slate-100 sticky top-0 left-12 z-30 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">Chantier</th>
                               <th className="p-2 text-[10px] font-black uppercase w-44 border-r border-slate-200 text-slate-700">Type de Soutènement</th>
                               <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Mineur (Perforateur)</th>
                               <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Aide-Mineur</th>
@@ -5765,10 +5765,10 @@ export const Production: React.FC = () => {
 
                               return (
                                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                  <td className="p-2 font-mono text-slate-400 bg-slate-50/50 text-center font-bold border-r border-slate-200">{idx + 1}</td>
+                                  <td className="p-2 font-mono text-slate-400 bg-slate-50 text-center font-bold border-r border-slate-200 sticky left-0 z-20">{idx + 1}</td>
                                   
                                   {/* Chantier */}
-                                  <td className="p-2 border-r border-slate-200">
+                                  <td className="p-2 border-r border-slate-200 sticky left-12 z-20 bg-white shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">
                                     <select
                                       value={row.chantierId || ''}
                                       onChange={e => updateBoulonnageCell(shiftName, idx, 'chantierId', e.target.value)}
@@ -6503,8 +6503,8 @@ export const Production: React.FC = () => {
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-extrabold uppercase text-[10px] tracking-wider">
-                              <th className="p-2 text-[10px] font-black uppercase text-center w-12 border-r border-slate-200 text-slate-500 bg-slate-50">#</th>
-                              <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Rôle Prévu Souterrain</th>
+                              <th className="p-2 text-[10px] font-black uppercase text-center w-12 border-r border-slate-200 text-slate-500 bg-slate-50 sticky top-0 left-0 z-30">#</th>
+                              <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700 bg-slate-100 sticky top-0 left-12 z-30 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">Rôle Prévu Souterrain</th>
                               <th className="p-2 text-[10px] font-black uppercase w-32 border-r border-slate-200 text-slate-700">Matricule Spécialiste</th>
                               <th className="p-2 text-[10px] font-black uppercase w-44 border-r border-slate-200 text-slate-700">Nom Spécialiste</th>
                               <th className="p-2 text-[10px] font-black uppercase w-48 border-r border-slate-200 text-slate-700">Machine Clé de l'Intervention</th>
@@ -6521,8 +6521,8 @@ export const Production: React.FC = () => {
 
                               return (
                                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                  <td className="p-2 font-mono text-slate-400 bg-slate-50/50 text-center font-bold border-r border-slate-200">{idx + 1}</td>
-                                  <td className="p-2 border-r border-slate-200 bg-purple-50/20">
+                                  <td className="p-2 font-mono text-slate-400 bg-slate-50 text-center font-bold border-r border-slate-200 sticky left-0 z-20">{idx + 1}</td>
+                                  <td className="p-2 border-r border-slate-200 bg-[#faf5ff] sticky left-12 z-20 shadow-[4px_0_6px_-2px_rgba(0,0,0,0.15)] lg:shadow-none">
                                     <select
                                       value={row.roleLabel || ''}
                                       onChange={e => updateMaintenanceCell(shiftName, idx, 'roleLabel', e.target.value)}
