@@ -21,7 +21,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
-import carteKpisImg from '../assets/images/cartes_kpis.jpg';
+import carteKpisImg from '../assets/images/excellence_cartes.webp';
 
 // Types inside the page
 interface Chantier {
@@ -517,14 +517,14 @@ export const ExplicationNonRealise: React.FC = () => {
         <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-center gap-6">
           <div className="flex-1 flex flex-col justify-center text-center items-center">
             <div className="subtle-glow-line w-full opacity-80 mb-1" />
-            <span className="text-[10px] font-black tracking-[0.3em] text-amber-200 uppercase mb-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <span className="text-[10px] font-black tracking-[0.3em] text-amber-200 uppercase mb-1">
               SOCIÉTÉ METALLURGIQUE D'IMITER
             </span>
-            <h1 className="gold-title text-2xl sm:text-3xl font-extrabold uppercase tracking-tight leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            <h1 className="gold-title text-2xl sm:text-3xl font-extrabold uppercase tracking-tight leading-none">
               EXPLICATION DE NON-RÉALISATION
             </h1>
             <div className="subtle-glow-line w-full opacity-80 my-1.5" />
-            <p className="text-xs font-semibold text-amber-100 uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <p className="text-xs font-semibold text-amber-100 uppercase tracking-wider">
               Plateforme d'analyse prédictive et de justification des écarts de production
             </p>
           </div>

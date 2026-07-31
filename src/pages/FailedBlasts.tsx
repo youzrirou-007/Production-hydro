@@ -36,7 +36,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
 import { format } from 'date-fns';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
-import carteKpisImg from '../assets/images/cartes_kpis.jpg';
+import carteKpisImg from '../assets/images/excellence_cartes.webp';
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -877,11 +877,11 @@ export const FailedBlasts: React.FC = () => {
 
           <div className="flex-1 flex flex-col items-center text-center space-y-2.5 w-full">
             <div className="subtle-glow-line w-full opacity-80" />
-            <h1 className="gold-title text-base sm:text-lg md:text-xl lg:text-2xl tracking-[0.06em] font-black leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            <h1 className="gold-title text-base sm:text-lg md:text-xl lg:text-2xl tracking-[0.06em] font-black leading-none">
               SUIVI & QUALIFICATION DES VOLÉES RATÉES
             </h1>
             <div className="subtle-glow-line w-full opacity-80" />
-            <p className="uppercase tracking-[0.18em] text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <p className="uppercase tracking-[0.18em] text-[9px] md:text-[10px] font-extrabold text-amber-100">
               Analyse rigoureuse des écarts de production • Concept validé par le Comité de Direction SMI
             </p>
           </div>

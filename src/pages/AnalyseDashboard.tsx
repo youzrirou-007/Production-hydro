@@ -1386,11 +1386,11 @@ export const AnalyseDashboard: React.FC<AnalyseDashboardProps> = ({ pillar }) =>
 
           <div className="flex-1 flex flex-col items-center text-center space-y-2 w-full">
             <div className="subtle-glow-line w-2/3 opacity-60" />
-            <h1 className="gold-title text-base sm:text-lg md:text-xl tracking-[0.08em] font-black leading-none py-1 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            <h1 className="gold-title text-base sm:text-lg md:text-xl tracking-[0.08em] font-black leading-none py-1">
               CENTRE DE PILOTAGE DIRECTION GÉNÉRALE
             </h1>
             <div className="subtle-glow-line w-2/3 opacity-60" />
-            <p className="uppercase tracking-[0.15em] text-[8.5px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <p className="uppercase tracking-[0.15em] text-[8.5px] font-extrabold text-amber-100">
               SMI Excellence • Analyse des données d'exploitation : {renderPeriodLabel()}
             </p>
           </div>

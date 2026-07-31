@@ -62,7 +62,7 @@ export const TechniqueMiniere: React.FC = () => {
           >
             {/* NAVIGATION / HEADER BAR */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mx-auto md:mx-0 text-center md:text-left">
                 <button
                   onClick={handleBackToSelection}
                   className="p-2.5 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors text-slate-800 flex items-center justify-center cursor-pointer group"
@@ -70,9 +70,9 @@ export const TechniqueMiniere: React.FC = () => {
                 >
                   <ChevronLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
                 </button>
-                <div>
+                <div className="text-center md:text-left">
                   <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest block">Galerie active : {gabarit === '9m2' ? '9 m² — Traçage' : gabarit === '12m2_intl' ? '12 m² — Standard International' : '12 m² — Gabarit SMI'}</span>
-                  <h1 className="text-lg md:text-xl font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                  <h1 className="text-lg md:text-xl font-black uppercase tracking-wider text-slate-900 flex items-center justify-center md:justify-start gap-2">
                     <Wrench className="w-5 h-5 text-amber-500 shrink-0" />
                     DOSSIER DE TIR & INGENIERIE DE VOLÉE
                   </h1>
@@ -80,7 +80,7 @@ export const TechniqueMiniere: React.FC = () => {
               </div>
 
               {/* Accès Badge */}
-              <div>
+              <div className="mx-auto md:mx-0">
                 <span className="inline-flex items-center gap-1.5 bg-slate-900 text-[#ffd700] text-[9px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg border border-[#ffd700]/30 shadow-sm">
                   <Crown className="w-3.5 h-3.5" />
                   CHANTIER MINIER (X) — Bureau d'études

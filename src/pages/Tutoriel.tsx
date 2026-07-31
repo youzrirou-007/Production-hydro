@@ -457,7 +457,7 @@ export const Tutoriel: React.FC = () => {
       <div className="max-w-6xl mx-auto relative z-10">
         
         {/* Header Block Banner with Banner excellence image */}
-        <div className="mb-10 p-6 md:p-10 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="mb-10 p-6 md:p-10 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col items-center justify-center text-center gap-5">
           {/* Banner Image Background (100% original, untouched) */}
           <div 
             className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
@@ -465,21 +465,21 @@ export const Tutoriel: React.FC = () => {
           />
 
           {/* Banner Text Content directly on the image */}
-          <div className="space-y-1.5 relative z-10 max-w-2xl">
-            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#ffd700] flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+          <div className="space-y-2 relative z-10 max-w-3xl text-center mx-auto flex flex-col items-center">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#ffd700] flex items-center justify-center gap-1.5">
               <GraduationCap className="w-4 h-4 text-[#ffd700]" />
               Académie de Formation SCM • Excellence
             </span>
-            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            <h1 className="gold-title my-1 select-none text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight leading-tight">
               Module d'Habilitation Secrétaire de Chantier
             </h1>
-            <p className="text-xs text-amber-100 font-bold uppercase tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <p className="text-xs text-amber-100 font-bold uppercase tracking-wider text-center">
               Devenez un maillon essentiel de la traçabilité et de la performance minière de la SMI
             </p>
           </div>
 
           {/* Header Action Buttons directly on banner */}
-          <div className="flex gap-2.5 items-center shrink-0 relative z-10">
+          <div className="flex flex-wrap gap-2.5 items-center justify-center shrink-0 relative z-10 mt-1">
             {certificateEarned && (
               <span className="bg-amber-500 text-slate-950 font-black uppercase tracking-widest text-[10px] px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg border border-amber-300">
                 <Trophy className="w-4 h-4" /> Habilité SMI

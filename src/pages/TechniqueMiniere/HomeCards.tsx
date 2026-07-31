@@ -44,22 +44,22 @@ export const HomeCards: React.FC<HomeCardsProps> = ({ onSelect }) => {
           style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
         />
 
-        <div className="relative z-10 w-full flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div>
-              <span className="text-[10px] font-black uppercase text-amber-200 tracking-widest block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">CHANTIER MINIER (X)</span>
-              <h1 className="gold-title text-xl md:text-2xl font-black uppercase tracking-widest drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
-                TECHNIQUE MINIÈRE
-              </h1>
-              <p className="text-xs text-amber-100 font-bold uppercase tracking-wider mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                Optimisation du forage & tir contrôlé souterrain
-              </p>
-            </div>
+        <div className="relative z-10 w-full flex flex-col items-center justify-center text-center gap-6">
+          <div className="flex flex-col items-center justify-center text-center space-y-2 w-full max-w-3xl mx-auto">
+            <div className="subtle-glow-line w-full opacity-80" />
+            <span className="text-[10px] font-black uppercase text-amber-200 tracking-widest block text-center">CHANTIER MINIER (X)</span>
+            <h1 className="gold-title text-xl md:text-2xl font-black uppercase tracking-widest my-1 text-center select-none">
+              TECHNIQUE MINIÈRE
+            </h1>
+            <div className="subtle-glow-line w-full opacity-80" />
+            <p className="text-xs text-amber-100 font-bold uppercase tracking-wider text-center">
+              Optimisation du forage & tir contrôlé souterrain
+            </p>
           </div>
-          <div>
+          <div className="flex justify-center w-full">
             <span className="inline-flex items-center gap-2 bg-slate-900/80 backdrop-blur-md text-[#ffd700] text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl border border-[#ffd700]/40 shadow-lg">
-              <Crown className="w-4 h-4 text-[#ffd700]" />
-              Accès réservé — Chefs de poste & Ingénieurs
+              <Crown className="w-4 h-4" />
+              SMI • Bureau d'études & Ingénierie
             </span>
           </div>
         </div>

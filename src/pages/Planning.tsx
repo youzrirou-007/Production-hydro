@@ -3462,7 +3462,7 @@ export const Planning: React.FC = () => {
       {/* Unified Header Banner with Banner excellence image */}
       <div 
         id="unified-planning-banner" 
-        className="p-3 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-6"
+        className="p-3 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col items-center justify-center text-center gap-6"
       >
         {/* Banner Image Background (100% original, untouched) */}
         <div 
@@ -3470,14 +3470,14 @@ export const Planning: React.FC = () => {
           style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
         />
 
-        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-center gap-6">
+        <div className="relative z-10 w-full flex flex-col items-center justify-center text-center gap-6">
           {/* Centered Column: Header Title on One Line, Subtitle, Date & Shift controls */}
-          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+          <div className="flex flex-col justify-center items-center text-center space-y-3.5 max-w-3xl px-2 pl-6 sm:pl-12 lg:pl-16 mx-auto w-full">
             {/* Upper Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
             
-            {/* Premium Gold Shimmer Title */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-xl lg:text-[23px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            {/* Premium Gold Shimmer Title - Pushed slightly right to avoid hiding the raw gold in the banner image */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-xl lg:text-[23px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none text-center">
               PLANIFICATION — ORDONNANCEMENT SMI
             </h1>
             
@@ -3485,53 +3485,53 @@ export const Planning: React.FC = () => {
             <div className="subtle-glow-line w-full opacity-80" />
 
             {/* Subtitle directly on banner */}
-            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 text-center">
               Cahier de chargement théorique • Exploitation Minière Souterraine Imiter
             </p>
 
-              {/* Centered shift and date options paired inside harmonized Amber/Gold capsules */}
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
-                <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs">
-                  <span className="text-[10px] font-black uppercase text-[#b8860b] tracking-wider flex items-center gap-1">
-                    📅 Plan théorique du :
-                  </span>
-                  <input 
-                    type="date"
-                    value={selectedDate}
-                    onChange={e => setSelectedDate(e.target.value)}
-                    className="bg-white hover:bg-amber-50/30 text-gray-950 font-extrabold text-[12px] uppercase border border-amber-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#b8860b]/30 cursor-pointer transition-colors"
-                  />
-                </div>
-
-                {(activeSheetTab === 'minage' || activeSheetTab === 'deblayage') ? (
-                  <div className="inline-flex items-center gap-2 bg-amber-50/80 border border-amber-200/80 px-3 py-1.5 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
-                      📚 3 postes synchronisés en continu
-                    </span>
-                  </div>
-                ) : (
-                  <div className="inline-flex items-center gap-2 bg-amber-50/50 border border-amber-200 px-3 py-1 rounded-xl shadow-xs">
-                    <span className="text-[10px] font-extrabold uppercase text-amber-800 tracking-wider">
-                      Poste actif :
-                    </span>
-                    <select 
-                      value={selectedPost}
-                      onChange={e => setSelectedPost(e.target.value as any)}
-                      className="bg-white text-gray-950 font-extrabold text-[11px] uppercase border border-amber-200 rounded-lg px-2 py-0.5 outline-none cursor-pointer focus:ring-1 focus:ring-[#b8860b]/30 transition-colors"
-                    >
-                      <option value="Poste 1">POSTE 1 (MATIN)</option>
-                      <option value="Poste 2">POSTE 2 (MIDI)</option>
-                      <option value="Poste 3">POSTE 3 (NUIT)</option>
-                    </select>
-                  </div>
-                )}
+            {/* Centered shift and date options paired inside harmonized Amber/Gold capsules */}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5 w-full">
+              <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs">
+                <span className="text-[10px] font-black uppercase text-[#b8860b] tracking-wider flex items-center gap-1">
+                  📅 Plan théorique du :
+                </span>
+                <input 
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="bg-white hover:bg-amber-50/30 text-gray-950 font-extrabold text-[12px] uppercase border border-amber-200 rounded-lg px-2.5 py-1 outline-none focus:ring-1 focus:ring-[#b8860b]/30 cursor-pointer transition-colors"
+                />
               </div>
-            </div>
 
-            {/* Right Column: View toggles at top & Quick action items at bottom */}
-            <div className="flex flex-col items-center lg:items-end justify-between gap-4 w-full lg:w-auto self-center lg:self-stretch min-h-[140px]">
-              {/* Top view switcher buttons - Premium Amber styling */}
-              <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full max-w-xs md:max-w-none border border-slate-200 shadow-xs">
+              {(activeSheetTab === 'minage' || activeSheetTab === 'deblayage') ? (
+                <div className="inline-flex items-center gap-2 bg-amber-50/80 border border-amber-200/80 px-3 py-1.5 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider">
+                    📚 3 postes synchronisés en continu
+                  </span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 bg-amber-50/50 border border-amber-200 px-3 py-1 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-extrabold uppercase text-amber-800 tracking-wider">
+                    Poste actif :
+                  </span>
+                  <select 
+                    value={selectedPost}
+                    onChange={e => setSelectedPost(e.target.value as any)}
+                    className="bg-white text-gray-950 font-extrabold text-[11px] uppercase border border-amber-200 rounded-lg px-2 py-0.5 outline-none cursor-pointer focus:ring-1 focus:ring-[#b8860b]/30 transition-colors"
+                  >
+                    <option value="Poste 1">POSTE 1 (MATIN)</option>
+                    <option value="Poste 2">POSTE 2 (MIDI)</option>
+                    <option value="Poste 3">POSTE 3 (NUIT)</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Centered Controls Row: View toggles & Quick action items */}
+          <div className="flex flex-wrap items-center justify-center gap-4 w-full mx-auto">
+            {/* Top view switcher buttons - Premium Amber styling */}
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full max-w-xs border border-slate-200 shadow-xs justify-center">
                 <button 
                   onClick={() => setViewMode('sheet')}
                   className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${

@@ -28,7 +28,7 @@ import {
 import { format, subDays, startOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
-import carteKpisImg from '../assets/images/cartes_kpis.jpg';
+import carteKpisImg from '../assets/images/excellence_cartes.webp';
 
 interface ExcelBoulonnage {
   sectorGroup?: string;
@@ -353,15 +353,15 @@ export const Boulonnage: React.FC = () => {
         />
 
         <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-5 text-center md:text-left flex-col md:flex-row">
-            <Hammer className="w-12 h-12 text-[#ffd700] drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] shrink-0" />
-            <div>
-              <div className="subtle-glow-line w-24 mb-1 mx-auto md:mx-0 opacity-80" />
-              <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+          <div className="flex items-center gap-5 text-center flex-col md:flex-row mx-auto">
+            <Hammer className="w-12 h-12 text-[#ffd700] shrink-0" />
+            <div className="text-center">
+              <div className="subtle-glow-line w-24 mb-1 mx-auto opacity-80" />
+              <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase">
                 SUIVI DU BOULONNAGE S.M.I
               </h1>
-              <div className="subtle-glow-line w-full mt-1.5 mb-2 opacity-80" />
-              <p className="text-[10px] sm:text-xs font-black uppercase text-amber-100 tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              <div className="subtle-glow-line w-full mt-1.5 mb-2 mx-auto opacity-80" />
+              <p className="text-[10px] sm:text-xs font-black uppercase text-amber-100 tracking-widest">
                 Analyses & Performances terrain du soutènement mécanique et d'encouragement
               </p>
             </div>

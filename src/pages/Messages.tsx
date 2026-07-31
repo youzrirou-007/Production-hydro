@@ -748,7 +748,7 @@ export const Messages: React.FC = () => {
             <div className="subtle-glow-line w-full opacity-80" />
             
             {/* Premium Gold Shimmer Title */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none flex items-center gap-3 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none flex items-center gap-3">
               Directives & Communication Tactique
             </h1>
             
@@ -756,7 +756,7 @@ export const Messages: React.FC = () => {
             <div className="subtle-glow-line w-full opacity-80" />
 
             {/* Subtitle directly on banner */}
-            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100">
               SOCIÉTÉ METALLURGIQUE D'IMITER • Portail Haute Fidélité & Télémétrie SMI
             </p>
 

@@ -24,7 +24,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useSite } from '../contexts/SiteContext';
 import logoImg from '../assets/images/excellence_logo.png';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
-import carteKpisImg from '../assets/images/cartes_kpis.jpg';
+import carteKpisImg from '../assets/images/excellence_cartes.webp';
 
 interface Chantier {
   id: string;
@@ -550,7 +550,7 @@ export const Chantiers: React.FC = () => {
             <div className="subtle-glow-line w-full opacity-80" />
             
             {/* Premium Gold Shimmer Title */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
               RÉPERTOIRE TECHNIQUE DES CHANTIERS
             </h1>
             
@@ -558,7 +558,7 @@ export const Chantiers: React.FC = () => {
             <div className="subtle-glow-line w-full opacity-80" />
 
             {/* Subtitle directly on banner */}
-            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100">
               Suivi d'avancement des projets • Excellence
             </p>
 

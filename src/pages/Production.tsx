@@ -33,7 +33,7 @@ import {
   Lock,
   Pencil
 } from 'lucide-react';
-import { collection, query, onSnapshot, setDoc, doc, arrayUnion, orderBy, where, getDocs, getDoc, addDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, setDoc, doc, arrayUnion, orderBy, where, getDocs, getDoc, addDoc, runTransaction } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSite } from '../contexts/SiteContext';
@@ -68,11 +68,13 @@ const DEFAULT_ENGINES = [
 
 function calculateDuration(startTime: string, endTime: string): number {
   if (!startTime || !endTime) return 0;
+  const s = startTime.trim();
+  const e = endTime.trim();
   const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-  if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) return 0;
+  if (!timeRegex.test(s) || !timeRegex.test(e)) return 0;
   
-  const [startH, startM] = startTime.split(':').map(Number);
-  const [endH, endM] = endTime.split(':').map(Number);
+  const [startH, startM] = s.split(':').map(Number);
+  const [endH, endM] = e.split(':').map(Number);
   
   if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return 0;
   
@@ -1189,22 +1191,22 @@ export const Production: React.FC = () => {
     
     const handler = setTimeout(() => {
       const draftPayload = {
-        p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
+        p1MinageRows, p1DeblayageRows, p1BoulonnageRows, p1ExtractionRows, p1MaintenanceRows,
         p1ChiefMatricule, p1ChiefName, p1SecondChiefMatricule, p1SecondChiefName,
         p1SectorChefs,
-        p2MinageRows, p2DeblayageRows, p2ExtractionRows, p2MaintenanceRows,
+        p2MinageRows, p2DeblayageRows, p2BoulonnageRows, p2ExtractionRows, p2MaintenanceRows,
         p2ChiefMatricule, p2ChiefName, p2SecondChiefMatricule, p2SecondChiefName,
         p2SectorChefs,
-        p3MinageRows, p3DeblayageRows, p3ExtractionRows, p3MaintenanceRows,
+        p3MinageRows, p3DeblayageRows, p3BoulonnageRows, p3ExtractionRows, p3MaintenanceRows,
         p3ChiefMatricule, p3ChiefName, p3SecondChiefMatricule, p3SecondChiefName,
         p3SectorChefs,
       };
       
       // Check if there is some modified rows to justify saving a draft
       const hasData = [
-        p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
-        p2MinageRows, p2DeblayageRows, p2ExtractionRows, p2MaintenanceRows,
-        p3MinageRows, p3DeblayageRows, p3ExtractionRows, p3MaintenanceRows
+        p1MinageRows, p1DeblayageRows, p1BoulonnageRows, p1ExtractionRows, p1MaintenanceRows,
+        p2MinageRows, p2DeblayageRows, p2BoulonnageRows, p2ExtractionRows, p2MaintenanceRows,
+        p3MinageRows, p3DeblayageRows, p3BoulonnageRows, p3ExtractionRows, p3MaintenanceRows
       ].some(arr => arr && arr.length > 0);
       
       if (hasData) {
@@ -1215,13 +1217,13 @@ export const Production: React.FC = () => {
     return () => clearTimeout(handler);
   }, [
     selectedDate, loading,
-    p1MinageRows, p1DeblayageRows, p1ExtractionRows, p1MaintenanceRows,
+    p1MinageRows, p1DeblayageRows, p1BoulonnageRows, p1ExtractionRows, p1MaintenanceRows,
     p1ChiefMatricule, p1ChiefName, p1SecondChiefMatricule, p1SecondChiefName,
     p1SectorChefs,
-    p2MinageRows, p2DeblayageRows, p2ExtractionRows, p2MaintenanceRows,
+    p2MinageRows, p2DeblayageRows, p2BoulonnageRows, p2ExtractionRows, p2MaintenanceRows,
     p2ChiefMatricule, p2ChiefName, p2SecondChiefMatricule, p2SecondChiefName,
     p2SectorChefs,
-    p3MinageRows, p3DeblayageRows, p3ExtractionRows, p3MaintenanceRows,
+    p3MinageRows, p3DeblayageRows, p3BoulonnageRows, p3ExtractionRows, p3MaintenanceRows,
     p3ChiefMatricule, p3ChiefName, p3SecondChiefMatricule, p3SecondChiefName,
     p3SectorChefs,
   ]);
@@ -1245,30 +1247,33 @@ export const Production: React.FC = () => {
     if (savedDraft) {
       try {
         const d = JSON.parse(savedDraft);
-        if (d.p1MinageRows) setP1MinageRows(d.p1MinageRows);
-        if (d.p1DeblayageRows) setP1DeblayageRows(d.p1DeblayageRows);
-        if (d.p1ExtractionRows) setP1ExtractionRows(d.p1ExtractionRows);
-        if (d.p1MaintenanceRows) setP1MaintenanceRows(d.p1MaintenanceRows);
+        if (Array.isArray(d.p1MinageRows)) setP1MinageRows(d.p1MinageRows);
+        if (Array.isArray(d.p1DeblayageRows)) setP1DeblayageRows(d.p1DeblayageRows);
+        if (Array.isArray(d.p1BoulonnageRows)) setP1BoulonnageRows(d.p1BoulonnageRows);
+        if (Array.isArray(d.p1ExtractionRows)) setP1ExtractionRows(d.p1ExtractionRows);
+        if (Array.isArray(d.p1MaintenanceRows)) setP1MaintenanceRows(d.p1MaintenanceRows);
         if (d.p1ChiefMatricule !== undefined) setP1ChiefMatricule(d.p1ChiefMatricule);
         if (d.p1ChiefName !== undefined) setP1ChiefName(d.p1ChiefName);
         if (d.p1SecondChiefMatricule !== undefined) setP1SecondChiefMatricule(d.p1SecondChiefMatricule);
         if (d.p1SecondChiefName !== undefined) setP1SecondChiefName(d.p1SecondChiefName);
         if (d.p1SectorChefs) setP1SectorChefs(d.p1SectorChefs);
 
-        if (d.p2MinageRows) setP2MinageRows(d.p2MinageRows);
-        if (d.p2DeblayageRows) setP2DeblayageRows(d.p2DeblayageRows);
-        if (d.p2ExtractionRows) setP2ExtractionRows(d.p2ExtractionRows);
-        if (d.p2MaintenanceRows) setP2MaintenanceRows(d.p2MaintenanceRows);
+        if (Array.isArray(d.p2MinageRows)) setP2MinageRows(d.p2MinageRows);
+        if (Array.isArray(d.p2DeblayageRows)) setP2DeblayageRows(d.p2DeblayageRows);
+        if (Array.isArray(d.p2BoulonnageRows)) setP2BoulonnageRows(d.p2BoulonnageRows);
+        if (Array.isArray(d.p2ExtractionRows)) setP2ExtractionRows(d.p2ExtractionRows);
+        if (Array.isArray(d.p2MaintenanceRows)) setP2MaintenanceRows(d.p2MaintenanceRows);
         if (d.p2ChiefMatricule !== undefined) setP2ChiefMatricule(d.p2ChiefMatricule);
         if (d.p2ChiefName !== undefined) setP2ChiefName(d.p2ChiefName);
         if (d.p2SecondChiefMatricule !== undefined) setP2SecondChiefMatricule(d.p2SecondChiefMatricule);
         if (d.p2SecondChiefName !== undefined) setP2SecondChiefName(d.p2SecondChiefName);
         if (d.p2SectorChefs) setP2SectorChefs(d.p2SectorChefs);
 
-        if (d.p3MinageRows) setP3MinageRows(d.p3MinageRows);
-        if (d.p3DeblayageRows) setP3DeblayageRows(d.p3DeblayageRows);
-        if (d.p3ExtractionRows) setP3ExtractionRows(d.p3ExtractionRows);
-        if (d.p3MaintenanceRows) setP3MaintenanceRows(d.p3MaintenanceRows);
+        if (Array.isArray(d.p3MinageRows)) setP3MinageRows(d.p3MinageRows);
+        if (Array.isArray(d.p3DeblayageRows)) setP3DeblayageRows(d.p3DeblayageRows);
+        if (Array.isArray(d.p3BoulonnageRows)) setP3BoulonnageRows(d.p3BoulonnageRows);
+        if (Array.isArray(d.p3ExtractionRows)) setP3ExtractionRows(d.p3ExtractionRows);
+        if (Array.isArray(d.p3MaintenanceRows)) setP3MaintenanceRows(d.p3MaintenanceRows);
         if (d.p3ChiefMatricule !== undefined) setP3ChiefMatricule(d.p3ChiefMatricule);
         if (d.p3ChiefName !== undefined) setP3ChiefName(d.p3ChiefName);
         if (d.p3SecondChiefMatricule !== undefined) setP3SecondChiefMatricule(d.p3SecondChiefMatricule);
@@ -1280,6 +1285,7 @@ export const Production: React.FC = () => {
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (e) {
         console.error("Error parsing draft", e);
+        safeAlert("Impossible de restaurer ce brouillon. Les données sauvegardées semblent corrompues.", "Brouillon corrompu", "error");
       }
     }
   };
@@ -2219,6 +2225,11 @@ export const Production: React.FC = () => {
     const rowWrapper = clone[index];
     const updatedReel = { ...rowWrapper.reel, [field]: value };
     
+    // If volée is marked as failed/ratée, force quantities to zero for production metrics
+    if (updatedReel.volee_ratee && ['anfo', 'tovex', 'ammorces', 'realHoles', 'realRounds', 'realMeterage', 'meterage'].includes(field as string)) {
+      (updatedReel as any)[field] = 0;
+    }
+
     if (field === 'minerMatricule') {
       const emp = activeEmployees.find(e => e.matricule?.toUpperCase() === String(value).trim().toUpperCase());
       updatedReel.minerName = emp ? `${emp.nom} ${emp.prenom}` : 'Inconnu';
@@ -2230,7 +2241,7 @@ export const Production: React.FC = () => {
     if (field === 'realRounds') {
       const is24m = rowWrapper.plan?.barType === '2.4m' || rowWrapper.reel?.barType === '2.4m';
       const advanceFactor = is24m ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
-      const computed = Number(value) * advanceFactor;
+      const computed = updatedReel.volee_ratee ? 0 : Number(value) * advanceFactor;
       updatedReel.meterage = computed;
       updatedReel.realMeterage = computed;
     }
@@ -2271,6 +2282,7 @@ export const Production: React.FC = () => {
 
     if (!isCurrentlyRatee) {
       updatedReel.volee_ratee = true;
+      updatedReel.meterage = 0;
       updatedReel.realMeterage = 0;
       updatedReel.realRounds = 0;
       updatedReel.realHoles = 0;
@@ -2487,10 +2499,103 @@ export const Production: React.FC = () => {
     return { totalPlanned: totalMeteragePlanned, totalRealised: totalMeterageRealised };
   };
 
+  const validateEnteredMatricules = (): boolean => {
+    if (!employees || employees.length === 0) return true;
+    const activeAndRhMats = new Set(employees.map(e => (e.matricule || '').toUpperCase().trim()).filter(Boolean));
+    const invalidSet = new Set<string>();
+
+    const checkMat = (mat?: string) => {
+      if (!mat) return;
+      const clean = mat.toUpperCase().trim();
+      if (clean && clean !== 'INCONNU' && !activeAndRhMats.has(clean)) {
+        invalidSet.add(clean);
+      }
+    };
+
+    const postsListCheck = ['Poste 1', 'Poste 2', 'Poste 3'];
+    for (const pName of postsListCheck) {
+      const {
+        minageRows, deblayageRows, boulonnageRows, extractionRows, maintenanceRows,
+        chiefMatricule, secondChiefMatricule, sectorChefs
+      } = getPostState(pName);
+
+      checkMat(chiefMatricule);
+      checkMat(secondChiefMatricule);
+
+      if (sectorChefs) {
+        Object.values(sectorChefs).forEach((sc: any) => {
+          checkMat(sc?.chiefMatricule);
+          checkMat(sc?.secondChiefMatricule);
+        });
+      }
+
+      if (Array.isArray(minageRows)) {
+        minageRows.forEach(r => {
+          if (r.reel?.chantierId || r.reel?.minerMatricule || r.reel?.assistantMatricule) {
+            checkMat(r.reel?.minerMatricule);
+            checkMat(r.reel?.assistantMatricule);
+          }
+        });
+      }
+
+      if (Array.isArray(deblayageRows)) {
+        deblayageRows.forEach(r => {
+          if (r.reel?.engineId || r.reel?.driverMatricule || r.reel?.godets) {
+            checkMat(r.reel?.driverMatricule);
+          }
+        });
+      }
+
+      if (Array.isArray(boulonnageRows)) {
+        boulonnageRows.forEach(r => {
+          if (r.reel?.chantierId || r.reel?.minerMatricule || r.reel?.assistantMatricule) {
+            checkMat(r.reel?.minerMatricule);
+            checkMat(r.reel?.assistantMatricule);
+          }
+        });
+      }
+
+      if (Array.isArray(extractionRows)) {
+        extractionRows.forEach(r => {
+          if (r.reel?.treuilliste || r.reel?.equipier1 || r.reel?.wagonsActual) {
+            checkMat(r.reel?.treuilliste);
+            checkMat(r.reel?.equipier1);
+            checkMat(r.reel?.equipier2);
+            checkMat(r.reel?.equipier3);
+            checkMat(r.reel?.equipier4);
+          }
+        });
+      }
+
+      if (Array.isArray(maintenanceRows)) {
+        maintenanceRows.forEach(r => {
+          if (r.reel?.agentMatricule || r.reel?.engineId) {
+            checkMat(r.reel?.agentMatricule);
+          }
+        });
+      }
+    }
+
+    if (invalidSet.size > 0) {
+      const listStr = Array.from(invalidSet).join(', ');
+      safeAlert(
+        `❌ Validation RH Impossible :\nLe(s) matricule(s) suivant(s) ne correspondent à aucun employé enregistré dans la base RH :\n- ${listStr}\n\nVeuillez vérifier la saisie ou sélectionner un employé valide avant de sceller le registre.`,
+        "Matricule Inconnu",
+        "error"
+      );
+      return false;
+    }
+    return true;
+  };
+
   // Save Workbook (Opens Checklist Modal first for Module 2)
   const saveWorkbook = async () => {
     if (isMonthClosed) {
       safeAlert("⚠️ ERREUR : Ce mois est clôturé et verrouillé. Aucune modification n'est permise.", "Mois Clôturé", "error");
+      return;
+    }
+
+    if (!validateEnteredMatricules()) {
       return;
     }
 
@@ -2657,26 +2762,38 @@ export const Production: React.FC = () => {
           }
         };
 
-        // Save to production under a single daily document with merging enabled
-        await setDoc(doc(db, 'production', getDocId(activeSiteId, selectedDate)), payload, { merge: true });
+        const prodDocRef = doc(db, 'production', getDocId(activeSiteId, selectedDate));
+        const closuresDocRef = doc(db, 'settings', 'closures');
+        const histRef = doc(db, 'production_history', getDocId(activeSiteId, selectedDate));
 
-        // Save a single daily consolidated record to production_history
-        const histId = getDocId(activeSiteId, selectedDate);
-        await setDoc(doc(db, 'production_history', histId), {
-          date: selectedDate,
-          siteId: activeSiteId,
-          totalMeteragePlanned: Number(totalMeteragePlanned) || 0,
-          totalMeterageRealised: Number(totalMeterageRealised) || 0,
-          totalDeblayagePlanned: Number(totalDeblayagePlanned) || 0,
-          totalDeblayageRealised: Number(totalDeblayageRealised) || 0,
-          totalWagonsPlanned: Number(totalWagonsPlanned) || 0,
-          totalWagonsRealised: Number(totalWagonsRealised) || 0,
-          totalAnfo: Number(totalAnfo) || 0,
-          totalTovex: Number(totalTovex) || 0,
-          totalAmorces: Number(totalAmorces) || 0,
-          secretary: profile?.name || user?.displayName || user?.email?.split('@')[0] || 'Secrétaire',
-          lastUpdated: new Date().toISOString()
-        }, { merge: true });
+        await runTransaction(db, async (transaction) => {
+          const closureSnap = await transaction.get(closuresDocRef);
+          if (closureSnap.exists()) {
+            const closureData = closureSnap.data();
+            const monthStr = selectedDate.substring(0, 7);
+            if (closureData[monthStr]) {
+              throw new Error("CE_MOIS_EST_CLOTURE");
+            }
+          }
+
+          transaction.set(prodDocRef, payload, { merge: true });
+
+          transaction.set(histRef, {
+            date: selectedDate,
+            siteId: activeSiteId,
+            totalMeteragePlanned: Number(totalMeteragePlanned) || 0,
+            totalMeterageRealised: Number(totalMeterageRealised) || 0,
+            totalDeblayagePlanned: Number(totalDeblayagePlanned) || 0,
+            totalDeblayageRealised: Number(totalDeblayageRealised) || 0,
+            totalWagonsPlanned: Number(totalWagonsPlanned) || 0,
+            totalWagonsRealised: Number(totalWagonsRealised) || 0,
+            totalAnfo: Number(totalAnfo) || 0,
+            totalTovex: Number(totalTovex) || 0,
+            totalAmorces: Number(totalAmorces) || 0,
+            secretary: profile?.name || user?.displayName || user?.email?.split('@')[0] || 'Secrétaire',
+            lastUpdated: new Date().toISOString()
+          }, { merge: true });
+        });
 
         // Clear draft on successful save
         localStorage.removeItem(`draft_production_${selectedDate}`);
@@ -2692,9 +2809,14 @@ export const Production: React.FC = () => {
         setShowSuccessToast(true);
 
         setTimeout(() => setSaveStatus('idle'), 2500);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error saving workbook: ", err);
         setSaveStatus('error');
+        if (err?.message === "CE_MOIS_EST_CLOTURE") {
+          safeAlert("❌ Ce mois est actuellement clôturé. Les modifications ne peuvent pas être enregistrées.", "Mois Clôturé", "error");
+        } else {
+          safeAlert("❌ Une erreur est survenue lors de l'enregistrement. Veuillez réessayer.", "Erreur d'Enregistrement", "error");
+        }
       }
     };
 
@@ -2728,12 +2850,24 @@ export const Production: React.FC = () => {
         setSaveStatus('saving');
         try {
           const docRef = doc(db, 'production', getDocId(activeSiteId, selectedDate));
-          const docSnap = await getDoc(docRef);
+          const closuresDocRef = doc(db, 'settings', 'closures');
           
-          if (docSnap.exists()) {
+          await runTransaction(db, async (transaction) => {
+            const closureSnap = await transaction.get(closuresDocRef);
+            if (closureSnap.exists()) {
+              const closureData = closureSnap.data();
+              const monthStr = selectedDate.substring(0, 7);
+              if (closureData[monthStr]) {
+                throw new Error("CE_MOIS_EST_CLOTURE");
+              }
+            }
+
+            const docSnap = await transaction.get(docRef);
+            if (!docSnap.exists()) {
+              throw new Error("REGISTRE_INTROUVABLE");
+            }
+
             const currentData = docSnap.data();
-            
-            // Revert status to 'brouillon' or empty so it is no longer 'scelle'
             const updatedPayload: any = {
               ...currentData,
               siteId: activeSiteId,
@@ -2742,7 +2876,6 @@ export const Production: React.FC = () => {
               unsealedBy: user?.email || profile?.name || 'Secrétaire'
             };
 
-            // Also, update the status field of each post in the document for completeness
             if (updatedPayload.postes) {
               for (const postKey of Object.keys(updatedPayload.postes)) {
                 if (updatedPayload.postes[postKey]) {
@@ -2751,27 +2884,31 @@ export const Production: React.FC = () => {
               }
             }
 
-            await setDoc(docRef, updatedPayload);
-            
-            // Add to audit trail/logs
-            await setDoc(doc(db, 'audit_logs', `${selectedDate}_unseal_${Date.now()}`), {
+            transaction.set(docRef, updatedPayload);
+
+            const auditRef = doc(db, 'audit_logs', `${selectedDate}_unseal_${Date.now()}`);
+            transaction.set(auditRef, {
               date: selectedDate,
               action: 'DESCELLAGE',
               actor: user?.email || profile?.name || 'Secrétaire',
               timestamp: new Date().toISOString()
             });
+          });
 
-            setSaveStatus('saved');
-            setSuccessToastMsg(`Le registre journalier du ${formatFrenchDate(selectedDate)} a été déscellé avec succès. Vous pouvez maintenant le modifier.`);
-            setShowSuccessToast(true);
-            setTimeout(() => setSaveStatus('idle'), 2500);
-          } else {
-            safeAlert("❌ Aucun document enregistré trouvé pour cette date.", "Erreur", "error");
-            setSaveStatus('idle');
-          }
-        } catch (err) {
+          setSaveStatus('saved');
+          setSuccessToastMsg(`Le registre journalier du ${formatFrenchDate(selectedDate)} a été déscellé avec succès. Vous pouvez maintenant le modifier.`);
+          setShowSuccessToast(true);
+          setTimeout(() => setSaveStatus('idle'), 2500);
+        } catch (err: any) {
           console.error("Error unsealing workbook: ", err);
           setSaveStatus('error');
+          if (err?.message === "CE_MOIS_EST_CLOTURE") {
+            safeAlert("❌ Ce mois est clôturé. Aucun déscellement n'est autorisé.", "Mois Clôturé", "error");
+          } else if (err?.message === "REGISTRE_INTROUVABLE") {
+            safeAlert("❌ Aucun document enregistré trouvé pour cette date.", "Erreur", "error");
+          } else {
+            safeAlert("❌ Erreur lors du déscellement du registre.", "Erreur", "error");
+          }
         }
       }
     );
@@ -4501,13 +4638,19 @@ export const Production: React.FC = () => {
     .sort((a, b) => b.expectedProdDate.localeCompare(a.expectedProdDate));
 
   const formatFrenchDate = (dateStr: string) => {
+    if (!dateStr || typeof dateStr !== 'string') return '';
     try {
-      const [year, month, day] = dateStr.split('-');
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      const [year, month, day] = parts;
       const months = [
         'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
         'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
       ];
-      return `${parseInt(day, 10)} ${months[parseInt(month, 10) - 1]}`;
+      const mIdx = parseInt(month, 10) - 1;
+      const dNum = parseInt(day, 10);
+      if (isNaN(mIdx) || isNaN(dNum) || mIdx < 0 || mIdx > 11) return dateStr;
+      return `${dNum} ${months[mIdx]}`;
     } catch (e) {
       return dateStr;
     }
@@ -4851,7 +4994,7 @@ export const Production: React.FC = () => {
       {/* Unified Header Banner with Banner excellence image */}
       <div 
         id="unified-production-banner" 
-        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6"
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col items-center justify-center text-center gap-6"
       >
         {/* Banner Image Background (100% original, untouched) */}
         <div 
@@ -4859,14 +5002,14 @@ export const Production: React.FC = () => {
           style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
         />
 
-        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-center gap-6">
+        <div className="relative z-10 w-full flex flex-col items-center justify-center text-center gap-6">
           {/* Centered Column: Header Title on One Line, Subtitle, Date selectors */}
-          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+          <div className="flex flex-col justify-center items-center text-center space-y-3.5 max-w-3xl px-2 mx-auto w-full">
             {/* Upper Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
             
             {/* Premium Gold Shimmer Title */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none text-center">
               REGISTRE JOURNALIER — SUIVI DU RÉEL
             </h1>
             
@@ -4874,12 +5017,12 @@ export const Production: React.FC = () => {
             <div className="subtle-glow-line w-full opacity-80" />
 
             {/* Subtitle directly on banner */}
-            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 text-center">
               Rapport Journalier d'Exploitation • Validation physique et suivi de l'avancement d'exploitation
             </p>
 
             {/* Date selection and state badges */}
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5 w-full">
               <div className="inline-flex items-center gap-2 bg-amber-50/60 border border-amber-100/80 px-3 py-1.5 rounded-xl shadow-xs">
                 <span className="text-[10px] font-black uppercase text-[#b8860b] tracking-wider">
                   📅 Registre du :
@@ -4930,10 +5073,10 @@ export const Production: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Real-time Status counters and view toggle pills */}
-          <div className="flex flex-col items-center lg:items-end justify-between gap-4 w-full lg:w-auto self-center lg:self-stretch min-h-[140px]">
+          {/* Centered Controls Row: Real-time Status counters and view toggle pills */}
+          <div className="flex flex-wrap items-center justify-center gap-4 w-full mx-auto">
             {/* S Mode vs Archive Mode tabs as PILLED selectors */}
-            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full max-w-xs md:max-w-none border border-slate-200 shadow-xs">
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-full max-w-xs border border-slate-200 shadow-xs justify-center">
               <button 
                 onClick={() => setViewMode('sheet')}
                 className={`flex-1 px-4 py-1.5 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all text-center cursor-pointer ${
@@ -5429,14 +5572,16 @@ export const Production: React.FC = () => {
                             // Let's compute a PERFECT rate of blast pull (taux d'arrachement):
                             // Arrachement % = (Real meterage / Theoretical length of drilled holes) * 100
                             const totalExpectedAdvanceForRealRounds = activeRows.reduce((sum, r) => {
+                              if (r.reel?.volee_ratee) return sum;
                               const is24m = r.plan?.barType === '2.4m' || r.reel?.barType === '2.4m';
                               const advanceFactor = is24m ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
-                              return sum + ((r.reel?.realRounds || 0) * advanceFactor);
+                              return sum + ((Number(r.reel?.realRounds) || 0) * advanceFactor);
                             }, 0);
                             
-                            const eff = totalExpectedAdvanceForRealRounds > 0 
-                              ? ((real / totalExpectedAdvanceForRealRounds) * 100).toFixed(1)
-                              : (planned > 0 ? ((real / planned) * 100).toFixed(1) : '0.0');
+                            const rawEff = totalExpectedAdvanceForRealRounds > 0 
+                              ? (real / totalExpectedAdvanceForRealRounds) * 100
+                              : (planned > 0 ? (real / planned) * 100 : 0);
+                            const eff = isFinite(rawEff) ? rawEff.toFixed(1) : '0.0';
 
                             return { name: s.name, holes, rounds, planned, real, anfo, tovex, ammorces, eff };
                           });
@@ -5451,17 +5596,18 @@ export const Production: React.FC = () => {
 
                           // To get the average total arrachement % perfectly:
                           const totalTheoreticalExpectedAdvance = shiftsList.reduce((sumSh, s) => {
-                            const activeRows = s.rows.filter(r => r.reel?.chantierId);
+                            const activeRows = s.rows.filter(r => r.reel?.chantierId && !r.reel?.volee_ratee);
                             return sumSh + activeRows.reduce((sumR, r) => {
                               const is24m = r.plan?.barType === '2.4m' || r.reel?.barType === '2.4m';
                               const advanceFactor = is24m ? (platformSettings?.advance_24m ?? 2.3) : (platformSettings?.advance_18m ?? 1.7);
-                              return sumR + ((r.reel?.realRounds || 0) * advanceFactor);
+                              return sumR + ((Number(r.reel?.realRounds) || 0) * advanceFactor);
                             }, 0);
                           }, 0);
 
-                          const totalEff = totalTheoreticalExpectedAdvance > 0
-                            ? ((totalReal / totalTheoreticalExpectedAdvance) * 100).toFixed(1)
-                            : (totalPlanned > 0 ? ((totalReal / totalPlanned) * 100).toFixed(1) : '0.0');
+                          const rawTotalEff = totalTheoreticalExpectedAdvance > 0
+                            ? (totalReal / totalTheoreticalExpectedAdvance) * 100
+                            : (totalPlanned > 0 ? (totalReal / totalPlanned) * 100 : 0);
+                          const totalEff = isFinite(rawTotalEff) ? rawTotalEff.toFixed(1) : '0.0';
 
                           return (
                             <>
@@ -5624,8 +5770,10 @@ export const Production: React.FC = () => {
                             const gasoil = s.rows.reduce((sum, r) => sum + (Number(r.gasoil || r.reel?.gasoil || 0)), 0);
                             const lub1 = s.rows.reduce((sum, r) => sum + (Number(r.lubrifiant1Qty || r.reel?.lubrifiant1Qty || 0)), 0);
                             const lub2 = s.rows.reduce((sum, r) => sum + (Number(r.lubrifiant2Qty || r.reel?.lubrifiant2Qty || 0)), 0);
-                            const ratio = volume > 0 ? (gasoil / volume).toFixed(3) : '0';
-                            const fillFactor = godets > 0 ? (volume / godets).toFixed(2) : '1.50';
+                            const rawRatio = volume > 0 ? (gasoil / volume) : 0;
+                            const ratio = isFinite(rawRatio) ? rawRatio.toFixed(3) : '0.000';
+                            const rawFillFactor = godets > 0 ? (volume / godets) : 0;
+                            const fillFactor = isFinite(rawFillFactor) ? rawFillFactor.toFixed(2) : '0.00';
                             return { name: s.name, godets, godetsPlan, volume, volumePlan, gasoil, lub1, lub2, ratio, fillFactor };
                           });
 
@@ -5636,8 +5784,10 @@ export const Production: React.FC = () => {
                           const totalGasoil = stats.reduce((sum, d) => sum + d.gasoil, 0);
                           const totalLub1 = stats.reduce((sum, d) => sum + d.lub1, 0);
                           const totalLub2 = stats.reduce((sum, d) => sum + d.lub2, 0);
-                          const totalRatio = totalVolume > 0 ? (totalGasoil / totalVolume).toFixed(3) : '0';
-                          const totalFillFactor = totalGodets > 0 ? (totalVolume / totalGodets).toFixed(2) : '1.50';
+                          const rawTotalRatio = totalVolume > 0 ? (totalGasoil / totalVolume) : 0;
+                          const totalRatio = isFinite(rawTotalRatio) ? rawTotalRatio.toFixed(3) : '0.000';
+                          const rawTotalFillFactor = totalGodets > 0 ? (totalVolume / totalGodets) : 0;
+                          const totalFillFactor = isFinite(rawTotalFillFactor) ? rawTotalFillFactor.toFixed(2) : '0.00';
 
                           return (
                             <>
@@ -6368,8 +6518,10 @@ export const Production: React.FC = () => {
                             const target = s.rows.reduce((sum, r) => sum + (r.reel.wagonsTarget !== undefined && r.reel.wagonsTarget !== null ? Number(r.reel.wagonsTarget) : 48), 0);
                             const sterile = s.rows.reduce((sum, r) => sum + (Number(r.reel.sterileBureImiterEst) || 0), 0);
                             const totalWag = wagons + sterile;
-                            const diffWagonsPct = target > 0 ? ((wagons - target) / target) * 100 : 0;
-                            const sterilePct = totalWag > 0 ? ((sterile / totalWag) * 100).toFixed(1) : '0';
+                            const rawDiffWagonsPct = target > 0 ? ((wagons - target) / target) * 100 : 0;
+                            const diffWagonsPct = isFinite(rawDiffWagonsPct) ? rawDiffWagonsPct : 0;
+                            const rawSterilePct = totalWag > 0 ? ((sterile / totalWag) * 100) : 0;
+                            const sterilePct = isFinite(rawSterilePct) ? rawSterilePct.toFixed(1) : '0.0';
                             return { name: s.name, wagons, target, sterile, totalWag, diffWagonsPct, sterilePct };
                           });
 
@@ -6377,8 +6529,10 @@ export const Production: React.FC = () => {
                           const totalTarget = stats.reduce((sum, e) => sum + e.target, 0);
                           const totalSterile = stats.reduce((sum, e) => sum + e.sterile, 0);
                           const totalTransferred = totalWagons + totalSterile;
-                          const totalDiffWagonsPct = totalTarget > 0 ? ((totalWagons - totalTarget) / totalTarget) * 100 : 0;
-                          const totalSterilePct = totalTransferred > 0 ? ((totalSterile / totalTransferred) * 100).toFixed(1) : '0';
+                          const rawTotalDiffWagonsPct = totalTarget > 0 ? ((totalWagons - totalTarget) / totalTarget) * 100 : 0;
+                          const totalDiffWagonsPct = isFinite(rawTotalDiffWagonsPct) ? rawTotalDiffWagonsPct : 0;
+                          const rawTotalSterilePct = totalTransferred > 0 ? ((totalSterile / totalTransferred) * 100) : 0;
+                          const totalSterilePct = isFinite(rawTotalSterilePct) ? rawTotalSterilePct.toFixed(1) : '0.0';
 
                           return (
                             <>
@@ -6781,7 +6935,7 @@ export const Production: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 font-semibold text-slate-500 border-r border-slate-100">
-                        {rec.lastUpdated ? format(new Date(rec.lastUpdated), 'dd/MM/yyyy HH:mm') : '--'}
+                        {rec.lastUpdated && !isNaN(new Date(rec.lastUpdated).getTime()) ? format(new Date(rec.lastUpdated), 'dd/MM/yyyy HH:mm') : '--'}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-500/20 text-emerald-800 rounded-lg font-extrabold text-[9px] uppercase tracking-wider">

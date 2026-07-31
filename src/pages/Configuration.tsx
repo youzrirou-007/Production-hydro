@@ -1101,15 +1101,15 @@ export const Configuration: React.FC = () => {
       </AnimatePresence>
 
       {/* Main Header */}
-      <div className="max-w-7xl mx-auto mb-8">
+      <div className="max-w-7xl mx-auto mb-8 text-center">
         <span className="text-[10px] font-black uppercase tracking-widest text-[#b8860b]">
           Panneau d'Administration & Sécurité SMI
         </span>
-        <h1 className="text-3xl font-black uppercase tracking-wider text-slate-900 mt-1 flex items-center gap-3">
+        <h1 className="text-3xl font-black uppercase tracking-wider text-slate-900 mt-1 flex items-center justify-center gap-3">
           <Settings className="w-8 h-8 text-[#b8860b]" />
           Configuration du Système
         </h1>
-        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 border-b border-slate-100 pb-4">
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1.5 border-b border-slate-100 pb-4 text-center">
           Contrôlez les privilèges d'accès, administrez les comptes d'utilisateurs et standardisez les options de saisie automatique.
         </p>
       </div>

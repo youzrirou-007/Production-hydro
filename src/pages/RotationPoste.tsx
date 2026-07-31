@@ -138,7 +138,7 @@ function replaceModernColors(str: string): string {
 }
 import logoImg from '../assets/images/excellence_logo.png';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
-import carteKpisImg from '../assets/images/cartes_kpis.jpg';
+import carteKpisImg from '../assets/images/excellence_cartes.webp';
 import { logPlanningAction } from '../components/AuditLogsDrawer';
 import { 
   RefreshCw, 
@@ -1178,14 +1178,14 @@ export const RotationPoste: React.FC = () => {
           style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
         />
 
-        <div className="relative z-10 w-full flex flex-col lg:flex-row items-stretch justify-center gap-6">
+        <div className="relative z-10 w-full flex flex-col items-center justify-center text-center gap-6">
           {/* Centered Column: Header Title on One Line, Subtitle, Date & Shift controls */}
-          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+          <div className="flex flex-col justify-center items-center text-center space-y-3.5 max-w-3xl px-2 mx-auto w-full">
             {/* Upper Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
             
             {/* Premium Gold Shimmer Title */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none text-center">
               CHANGEMENT DE POSTE HEBDOMADAIRE
             </h1>
             
@@ -1193,12 +1193,12 @@ export const RotationPoste: React.FC = () => {
             <div className="subtle-glow-line w-full opacity-80" />
 
             {/* Subtitle directly on banner */}
-            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 text-center">
               Excellence (SMI) • Équipes Tournantes & Alignement des Ordres d'Exploitation
             </p>
 
             {/* Centered information/shift capsule */}
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5">
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1.5 w-full">
               <div className="inline-flex items-center gap-2 bg-slate-900/80 backdrop-blur-md border border-amber-400/40 px-3 py-1.5 rounded-xl shadow-md">
                 <CalendarDays className="w-4 h-4 text-[#ffd700]" />
                 <span className="text-[10px] font-black uppercase text-[#ffd700] tracking-wider">
@@ -1214,8 +1214,8 @@ export const RotationPoste: React.FC = () => {
             </div>
           </div>
 
-          {/* Validation actions zone */}
-          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-end gap-3 self-center lg:self-stretch min-h-[100px]">
+          {/* Validation actions zone centered below */}
+          <div className="flex flex-wrap items-center justify-center gap-3 w-full mx-auto">
             {/* Save Draft Button */}
             <button
               onClick={saveDraftToCloud}

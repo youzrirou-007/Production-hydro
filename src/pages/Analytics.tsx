@@ -9,7 +9,7 @@ import {
   doc 
 } from 'firebase/firestore';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
-import carteKpisImg from '../assets/images/cartes_kpis.jpg';
+import carteKpisImg from '../assets/images/excellence_cartes.webp';
 import { ResponsiveContainer, ComposedChart, BarChart, Bar, Line, Cell, XAxis, YAxis, Tooltip, Legend, RadialBarChart, RadialBar } from 'recharts';
 
 export const Analytics: React.FC = () => {
@@ -700,16 +700,16 @@ export const Analytics: React.FC = () => {
           style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
         />
 
-        <div className="relative z-10 w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <h1 className="gold-title text-xl md:text-2xl font-black uppercase tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">📊 ANALYTIQUE CHANTIER MINIER (X)</h1>
+        <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4 mx-auto text-center">
+            <div className="space-y-1 text-center">
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <h1 className="gold-title text-xl md:text-2xl font-black uppercase tracking-tight">📊 ANALYTIQUE CHANTIER MINIER (X)</h1>
                 <span className="bg-[#ffd700] text-slate-950 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shadow-md animate-pulse">
                   GOD LEVEL ANALYTICS
                 </span>
               </div>
-              <p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Tableaux de bord opérationnels et réglementaires</p>
+              <p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest text-center">Tableaux de bord opérationnels et réglementaires</p>
             </div>
           </div>
 

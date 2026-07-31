@@ -354,13 +354,13 @@ export const MineurParfait: React.FC = () => {
                 </defs>
               </svg>
             </div>
-            <div>
-              <div className={`subtle-glow-line w-24 mb-1.5 ${lang === 'ar' ? 'mr-0' : 'ml-0'} mx-auto md:mx-0 opacity-80`} />
-              <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+            <div className="text-center">
+              <div className="subtle-glow-line w-24 mb-1.5 mx-auto opacity-80" />
+              <h1 className="gold-title text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none uppercase">
                 {t[lang].title}
               </h1>
-              <div className="subtle-glow-line w-full mt-2 mb-2.5 opacity-80" />
-              <p className="text-[10px] sm:text-xs font-black uppercase text-amber-100 tracking-widest drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              <div className="subtle-glow-line w-full mt-2 mb-2.5 mx-auto opacity-80" />
+              <p className="text-[10px] sm:text-xs font-black uppercase text-amber-100 tracking-widest text-center">
                 {t[lang].subtitle}
               </p>
             </div>

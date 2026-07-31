@@ -24,6 +24,7 @@ import { collection, query, onSnapshot, addDoc, deleteDoc, doc, getDoc, getDocs,
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { SMI_SEED, SEED_EMPLOYEES } from '../config/siteSeed';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 
 interface Employee {
   id: string;
