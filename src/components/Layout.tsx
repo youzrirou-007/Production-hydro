@@ -91,6 +91,7 @@ const NAV_ITEMS: NavItem[] = [
   
   // INGÉNIERIE & RÈGLEMENTS
   { id: 'technique', label: 'Technique Minière', icon: <Wrench className="w-5 h-5" />, category: 'ingenierie' },
+  { id: 'formations', label: 'Formations', icon: <GraduationCap className="w-5 h-5" />, category: 'ingenierie' },
   {
     id: 'mineur_parfait',
     label: 'Le Mineur Parfait',

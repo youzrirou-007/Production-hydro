@@ -718,40 +718,42 @@ export const Admin: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Executive Page Header - Styled to match Planning.tsx */}
+      {/* Executive Page Header - Banner Excellence image background */}
       <div 
         id="admin-header-banner" 
-        className="bg-white p-6 md:p-8 border border-[#e2e8f0] rounded-[16px] w-full shadow-sm"
-        style={{ boxShadow: '0 4px 20px -2px rgba(184, 134, 11, 0.04), 0 1px 3px rgba(0,0,0,0.05)' }}
+        className="p-6 md:p-8 rounded-3xl shadow-xl border border-amber-500/30 relative overflow-hidden flex flex-col items-center justify-center text-center gap-6"
       >
-        <div className="flex flex-col lg:flex-row items-stretch justify-center gap-6">
+        {/* Banner Image Background */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
 
-          {/* Centered Column: Header Title on One Line, Subtitle, Info tags */}
-          <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3.5 max-w-2xl px-2">
+        <div className="relative z-10 w-full flex flex-col items-center justify-center text-center gap-6">
+
+          {/* Centered Column: Header Title on One Line, Subtitle */}
+          <div className="flex flex-col justify-center items-center text-center space-y-3.5 max-w-3xl px-2 mx-auto w-full">
             {/* Upper Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
             
-            {/* Premium Gold Shimmer Title - Sized precisely to cover one line */}
-            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none">
+            {/* Premium Gold Shimmer Title */}
+            <h1 className="gold-title my-1 select-none text-[15px] sm:text-lg md:text-[20px] lg:text-[22px] tracking-[0.06em] whitespace-normal sm:whitespace-nowrap leading-none text-center">
               RECONSTITUTION DES RESSOURCES HUMAINES
             </h1>
             
             {/* Lower Decorative Gold Line */}
             <div className="subtle-glow-line w-full opacity-80" />
 
-            {/* Elegant Subtitle with precise spacing */}
-            <p 
-              className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold"
-              style={{ color: '#64748b', letterSpacing: '0.2em' }}
-            >
+            {/* Elegant Subtitle directly on banner */}
+            <p className="uppercase tracking-[0.2em] my-1.5 block text-[9px] md:text-[10px] font-extrabold text-amber-100 text-center">
               Classification, affectation territoriale et registre d'effectifs • Excellence
             </p>
           </div>
 
-          {/* Tab controls structured as beautifully designed pilled selectors and button */}
-          <div className="flex flex-col gap-3 md:gap-4 items-center lg:items-end justify-between w-full lg:w-auto self-center lg:self-stretch min-h-[140px]">
+          {/* Centered Controls: Tab controls & Seed/Add buttons */}
+          <div className="flex flex-col items-center justify-center gap-4 w-full mx-auto">
             {/* Main Tab Controls styled as premium pills */}
-            <div className="flex flex-wrap gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-xs max-w-full justify-center">
+            <div className="flex flex-wrap gap-1 p-1 bg-slate-100/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-xs max-w-full justify-center">
               <button
                 onClick={() => setActiveAdminSubTab('effectifs')}
                 className={`px-3 py-1.5 font-black text-[10px] uppercase tracking-wider transition-all rounded-lg cursor-pointer ${
@@ -800,11 +802,11 @@ export const Admin: React.FC = () => {
             </div>
 
             {/* Seed and Add buttons container */}
-            <div className="flex flex-wrap items-center gap-2 mt-auto">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <button 
                 onClick={handleSeedCompleteWorkforce}
                 disabled={seeding}
-                className="px-4 py-2.5 rounded-xl text-slate-700 font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 border border-slate-300 shadow-xs cursor-pointer hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className="px-4 py-2.5 rounded-xl text-slate-900 font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 border border-amber-300 shadow-xs cursor-pointer bg-white/90 hover:bg-white transition-colors disabled:opacity-50"
               >
                 {seeding ? '⚡ Initialisation...' : '⚡ Initialiser l\'Effectif (35)'}
               </button>

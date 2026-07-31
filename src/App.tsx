@@ -52,6 +52,7 @@ const FailedBlasts = lazy(() => import('./pages/FailedBlasts'));
 const Configuration = lazy(() => import('./pages/Configuration'));
 
 const Tutoriel = lazy(() => import('./pages/Tutoriel'));
+const Formations = lazy(() => import('./pages/Formations'));
 
 // Declarative route helper support
 export const Route: React.FC<{ path: string; element: React.ReactNode }> = () => null;
@@ -136,6 +137,7 @@ const AppContent: React.FC = () => {
       case 'explication_non_realise':
       case 'explications': return <ExplicationNonRealise />;
       case 'technique': return <TechniqueMiniere />;
+      case 'formations': return <Formations />;
       case 'espace_dt': return <EspaceDT />;
       case 'boulonnage': return <Boulonnage />;
       case 'mineur_parfait': return <MineurParfait />;
