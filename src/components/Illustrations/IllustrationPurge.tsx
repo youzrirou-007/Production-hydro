@@ -181,7 +181,7 @@ export const IllustrationPurge: React.FC<{ className?: string }> = ({ className 
       <text x="217.5" y="80" fill="#cbd5e1" fontSize="6.5" fontWeight="black" textAnchor="middle" fontFamily="sans-serif">DALLE INSTABLE</text>
       
       <rect x="55" y="125" width="85" height="15" rx="3" fill="#1e293b" opacity="0.85" />
-      <text x="97.5" y="135" fill="#38bdf8" fontSize="6.5" fontWeight="black" textAnchor="middle" fontFamily="sans-serif">PINCE À PURGER (SMI)</text>
+      <text x="97.5" y="135" fill="#38bdf8" fontSize="6.5" fontWeight="black" textAnchor="middle" fontFamily="sans-serif">PINCE À PURGER (EXCELLENCE)</text>
 
       {/* MANDATORY EXCELLENCE BRANDING */}
       {/* Top horizontal band (height 4px) */}

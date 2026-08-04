@@ -46,8 +46,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               await setDoc(doc(db, 'users', user.uid), {
                 role: 'admin'
               }, { merge: true });
+              setProfile({ ...data, role: 'admin' });
             } catch (err) {
               console.error("Failed to upgrade existing profile to admin", err);
+              setProfile(data);
+            } finally {
+              setLoading(false);
             }
           } else {
             setProfile(data);

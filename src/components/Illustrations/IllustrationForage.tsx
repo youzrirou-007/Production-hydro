@@ -166,7 +166,7 @@ export const IllustrationForage: React.FC<{ className?: string }> = ({ className
       {/* TECHNICAL LABELS & TITLE BADGE */}
       <rect x="75" y="15" width="165" height="28" rx="4" fill="#1e293b" opacity="0.9" />
       <text x="157.5" y="27" fill="#10b981" fontSize="8" fontWeight="black" textAnchor="middle" fontFamily="sans-serif">MONTABERT T23</text>
-      <text x="157.5" y="38" fill="#94a3b8" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">Jackleg Perforateur / Pneumatique SMI</text>
+      <text x="157.5" y="38" fill="#94a3b8" fontSize="6.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">Jackleg Perforateur / Pneumatique EXCELLENCE</text>
 
       {/* Hose tag labels */}
       <text x="315" y="55" fill="#fbbf24" fontSize="7" fontWeight="black" fontFamily="sans-serif">AIR COMPRIMÉ</text>

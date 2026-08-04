@@ -110,11 +110,50 @@ const SLIDES_12M2: Slide[] = [
   },
 ];
 
+const SLIDES_9M2: Slide[] = SLIDES_12M2.map(slide => {
+  if (slide.highlightStep === 'g4') {
+    return {
+      kicker: 'SECTION 9M² — PAS DE GROUPE 4',
+      title: 'Optimisation de la section 9m²',
+      body: "Contrairement aux galeries 12m², le traçage 9m² n'a besoin que de 3 groupes d'expansion (G1, G2, G3). La section réduite permet d'atteindre directement les parements et la voûte.",
+      highlightStep: 'g3' as FormationBlastStep,
+      showSchema: true,
+    };
+  }
+  if (slide.title === 'Galerie 12m² SMI') {
+    return { ...slide, title: 'Traçage 9m² SMI' };
+  }
+  if (slide.title === 'Le gabarit dans son ensemble') {
+    return { ...slide, body: '28 trous au total — 3 vides de dégagement et 25 trous chargés. Section plus étroite parfaitement adaptée au traçage rapide.' };
+  }
+  return slide;
+});
+
+const SLIDES_12M2_INTL: Slide[] = SLIDES_12M2.map(slide => {
+  if (slide.title === 'Galerie 12m² SMI') {
+    return { ...slide, title: 'Galerie 12m² International' };
+  }
+  if (slide.title === 'Le gabarit dans son ensemble') {
+    return { ...slide, body: 'Gabarit 12m² conforme à la méthode internationale Langefors-Kihlström — distribution optimisée de la charge explosive.' };
+  }
+  return slide;
+});
+
+const SLIDES_9M2_INTL: Slide[] = SLIDES_9M2.map(slide => {
+  if (slide.title === 'Traçage 9m² SMI') {
+    return { ...slide, title: 'Traçage 9m² International' };
+  }
+  if (slide.title === 'Le gabarit dans son ensemble') {
+    return { ...slide, body: '30 trous au total — variante internationale avec maillage resserré pour roches très fracturées.' };
+  }
+  return slide;
+});
+
 const SLIDES_BY_GABARIT: Record<GabaritType, Slide[]> = {
   '12m2': SLIDES_12M2,
-  '12m2_intl': SLIDES_12M2,
-  '9m2': SLIDES_12M2,
-  '9m2_intl': SLIDES_12M2,
+  '12m2_intl': SLIDES_12M2_INTL,
+  '9m2': SLIDES_9M2,
+  '9m2_intl': SLIDES_9M2_INTL,
 };
 
 export const FormationSlideDeck: React.FC<{ gabarit: GabaritType; onClose: () => void }> = ({ gabarit, onClose }) => {

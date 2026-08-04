@@ -69,7 +69,7 @@ export const IllustrationPortanole: React.FC<{ className?: string }> = ({ classN
         
         {/* Brand Text / Label on Vessel */}
         <rect x="15" y="60" width="35" height="11" rx="1" fill="#1e293b" stroke="#ca8a04" strokeWidth="0.5" />
-        <text x="32.5" y="68" fill="#eab308" fontSize="5.5" fontWeight="black" textAnchor="middle" fontFamily="monospace" letterSpacing="0.5">SMI-ANFO</text>
+        <text x="32.5" y="68" fill="#eab308" fontSize="5.5" fontWeight="black" textAnchor="middle" fontFamily="monospace" letterSpacing="0.5">EXCELLENCE-ANFO</text>
 
         {/* Wide Charging Funnel (Entonnoir de chargement) on top */}
         <path d="M 12,50 L 53,50 L 48,34 L 17,34 Z" fill="url(#brushed-steel)" stroke="#475569" strokeWidth="1" />

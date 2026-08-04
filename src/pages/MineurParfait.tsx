@@ -1031,7 +1031,7 @@ export const MineurParfait: React.FC = () => {
 
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60">
                       <div className="font-black text-slate-700 text-[10px] uppercase tracking-wider mb-2">
-                        {t[lang].step8QuantitiesTitle.replace('{gabarit}', gabarit === '9m2' ? (lang === 'ar' ? '9م²' : '9m²') : gabarit === '12m2' ? (lang === 'ar' ? '12م² SMI' : '12m² SMI') : (lang === 'ar' ? '12م² الدولي' : '12m² Intl'))}
+                        {t[lang].step8QuantitiesTitle.replace('{gabarit}', gabarit === '9m2' ? (lang === 'ar' ? '9م²' : '9m²') : gabarit === '12m2' ? (lang === 'ar' ? '12م² EXCELLENCE' : '12m² EXCELLENCE') : (lang === 'ar' ? '12م² الدولي' : '12m² Intl'))}
                       </div>
                       {gabarit === '9m2' ? (
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">

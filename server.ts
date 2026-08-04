@@ -43,7 +43,8 @@ async function generateWithRetry(modelName: string, prompt: string, schema: any,
           responseSchema: schema
         }
       });
-      return JSON.parse(sanitizeBannedWords(response.text));
+      const text = response.text || "{}";
+      return JSON.parse(sanitizeBannedWords(text));
     } catch (error: any) {
       const isUnavailable = error.message?.includes("503") || error.message?.includes("UNAVAILABLE");
       if (i === retries) throw error;
