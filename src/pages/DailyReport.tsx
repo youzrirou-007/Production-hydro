@@ -91,16 +91,23 @@ export const DailyReport: React.FC = () => {
     if (!rec) return '';
     const row = rec.reel || rec;
     const plan = rec.plan || {};
-    const sector = row.sector || plan.sector || rec.sector || rec.sectorGroup || rec.reel?.sectorGroup || rec.plan?.sectorGroup || plan.sectorGroup || '';
-    if (sector) return sector;
+    let sector = row.sector || plan.sector || rec.sector || rec.sectorGroup || rec.reel?.sectorGroup || rec.plan?.sectorGroup || plan.sectorGroup || '';
     
     // Fallback to chantier lookup
-    const chantierId = row.chantierId || rec.chantierId || plan.chantierId;
-    if (chantierId) {
-      const matched = chantiers.find(c => c.id === chantierId);
-      if (matched && matched.sector) return matched.sector;
+    if (!sector) {
+      const chantierId = row.chantierId || rec.chantierId || plan.chantierId;
+      if (chantierId) {
+        const matched = chantiers.find(c => c.id === chantierId || c.id === (row.chantierId || '').toLowerCase());
+        if (matched && matched.sector) sector = matched.sector;
+      }
     }
-    return '';
+
+    const trimmed = (sector || '').trim().toLowerCase();
+    if (trimmed === 'imiter 2' || trimmed === 'imiter2') return 'Imiter 2';
+    if (trimmed === 'imiter 1' || trimmed === 'imiter1') return 'Imiter 1';
+    if (trimmed === 'imiter est' || trimmed === 'imiterest' || trimmed.includes('imiter est') || trimmed.includes('bure')) return 'Imiter Est';
+    
+    return sector;
   };
 
   const isTargetSector = (sector: string) => {
@@ -232,7 +239,8 @@ export const DailyReport: React.FC = () => {
 
   const getPersonnelName = (matricule: string) => {
     if (!matricule) return '';
-    const match = employees.find(e => e.matricule?.toUpperCase() === matricule.toUpperCase());
+    const clean = matricule.trim().toUpperCase();
+    const match = employees.find(e => (e.matricule || '').trim().toUpperCase() === clean || (e.id || '').trim().toUpperCase() === clean);
     return match ? `${match.nom} ${match.prenom}` : matricule;
   };
 
@@ -300,29 +308,66 @@ export const DailyReport: React.FC = () => {
     'Poste 3': dayProduction?.postes?.poste3?.sectorBoutefeuTasks || {},
   };
 
+  // Helper functions for extracting records metrics safely
+  const getRecordExplosive = (r: any, field: 'anfo' | 'tovex' | 'ammorces') => {
+    if (!r) return 0;
+    const reel = r.reel || r;
+    if (reel && reel[field] !== undefined && reel[field] !== null) return Number(reel[field]) || 0;
+    if (r[field] !== undefined && r[field] !== null) return Number(r[field]) || 0;
+    if (r.plan && r.plan[field] !== undefined && r.plan[field] !== null) return Number(r.plan[field]) || 0;
+    return 0;
+  };
+
+  const getExtractionWagonsActual = (r: any) => {
+    if (!r) return 0;
+    if (r.reel?.wagonsActual !== undefined && r.reel?.wagonsActual !== null) return Number(r.reel.wagonsActual) || 0;
+    if (r.wagonsActual !== undefined && r.wagonsActual !== null) return Number(r.wagonsActual) || 0;
+    return 0;
+  };
+
+  const getExtractionWagonsTarget = (r: any) => {
+    if (!r) return 48;
+    const tReel = r.reel?.wagonsTarget !== undefined && r.reel?.wagonsTarget !== null ? Number(r.reel.wagonsTarget) : undefined;
+    const tPlan = r.wagonsTarget !== undefined && r.wagonsTarget !== null ? Number(r.wagonsTarget) : undefined;
+    if (tReel !== undefined && !isNaN(tReel)) return tReel;
+    if (tPlan !== undefined && !isNaN(tPlan)) return tPlan;
+    return 48;
+  };
+
+  const getExtractionSterile = (r: any) => {
+    if (!r) return 0;
+    if (r.reel?.sterileBureImiterEst !== undefined && r.reel?.sterileBureImiterEst !== null) return Number(r.reel.sterileBureImiterEst) || 0;
+    if (r.sterileBureImiterEst !== undefined && r.sterileBureImiterEst !== null) return Number(r.sterileBureImiterEst) || 0;
+    return 0;
+  };
+
+  const getRecordGasoil = (r: any) => {
+    if (!r) return 0;
+    const reel = r.reel || r;
+    if (reel && reel.gasoil !== undefined && reel.gasoil !== null) return Number(reel.gasoil) || 0;
+    if (r.gasoil !== undefined && r.gasoil !== null) return Number(r.gasoil) || 0;
+    if (r.plan && r.plan.gasoil !== undefined && r.plan.gasoil !== null) return Number(r.plan.gasoil) || 0;
+    return 0;
+  };
+
   // Calculations for KPI Cards using filtered/target sectors
   // Sheet 1 - Minage Totals
   const sumMinageMeterage = [...targetMinageP1, ...targetMinageP2, ...targetMinageP3].reduce((acc, r) => acc + (Number(r.reel?.realMeterage || r.realMeterage) || 0), 0);
-  const sumMinageAnfo = [...targetMinageP1, ...targetMinageP2, ...targetMinageP3].reduce((acc, r) => acc + (Number(r.reel?.anfo || r.anfo) || 0), 0);
-  const sumMinageTovex = [...targetMinageP1, ...targetMinageP2, ...targetMinageP3].reduce((acc, r) => acc + (Number(r.reel?.tovex || r.tovex) || 0), 0);
-  const sumMinageAmorces = [...targetMinageP1, ...targetMinageP2, ...targetMinageP3].reduce((acc, r) => acc + (Number(r.reel?.ammorces || r.ammorces) || 0), 0);
+  const sumMinageAnfo = [...targetMinageP1, ...targetMinageP2, ...targetMinageP3].reduce((acc, r) => acc + getRecordExplosive(r, 'anfo'), 0);
+  const sumMinageTovex = [...targetMinageP1, ...targetMinageP2, ...targetMinageP3].reduce((acc, r) => acc + getRecordExplosive(r, 'tovex'), 0);
+  const sumMinageAmorces = [...targetMinageP1, ...targetMinageP2, ...targetMinageP3].reduce((acc, r) => acc + getRecordExplosive(r, 'ammorces'), 0);
   const sumMinageRounds = [...targetMinageP1, ...targetMinageP2, ...targetMinageP3].reduce((acc, r) => acc + (Number(r.reel?.realRounds || r.realRounds) || 0), 0);
   const globalMinageYield = sumMinageRounds > 0 ? (sumMinageMeterage / sumMinageRounds) : 0;
 
   // Sheet 2 - Deblayage Totals
   const sumDeblayageGodets = [...targetDeblayageP1, ...targetDeblayageP2, ...targetDeblayageP3].reduce((acc, r) => acc + (Number(r.reel?.godets || r.godets) || 0), 0);
   const sumDeblayageVolume = [...targetDeblayageP1, ...targetDeblayageP2, ...targetDeblayageP3].reduce((acc, r) => acc + (Number(r.reel?.volumeEstimated || r.volumeEstimated) || 0), 0);
-  const sumDeblayageGasoil = [...targetDeblayageP1, ...targetDeblayageP2, ...targetDeblayageP3].reduce((acc, r) => acc + (Number(r.reel?.gasoil || r.gasoil) || 0), 0);
+  const sumDeblayageGasoil = [...targetDeblayageP1, ...targetDeblayageP2, ...targetDeblayageP3].reduce((acc, r) => acc + getRecordGasoil(r), 0);
 
   // Sheet 3 - Extraction Totals
-  const sumExtractionWagonsActual = [...targetExtractionP1, ...targetExtractionP2, ...targetExtractionP3].reduce((acc, r) => acc + (Number(r.reel?.wagonsActual) || Number(r.wagonsActual) || 0), 0);
-  const sumExtractionWagonsTarget = [...targetExtractionP1, ...targetExtractionP2, ...targetExtractionP3].reduce((acc, r) => {
-    const tReel = r.reel?.wagonsTarget !== undefined && r.reel?.wagonsTarget !== null ? Number(r.reel.wagonsTarget) : undefined;
-    const tPlan = r.wagonsTarget !== undefined && r.wagonsTarget !== null ? Number(r.wagonsTarget) : undefined;
-    const target = tReel !== undefined ? tReel : (tPlan !== undefined ? tPlan : 48);
-    return acc + target;
-  }, 0);
-  const sumExtractionSterile = [...extractionData.poste1, ...extractionData.poste2, ...extractionData.poste3].reduce((acc, r) => acc + (Number(r.reel?.sterileBureImiterEst) || Number(r.sterileBureImiterEst) || 0), 0);
+  const sumExtractionWagonsActual = [...targetExtractionP1, ...targetExtractionP2, ...targetExtractionP3].reduce((acc, r) => acc + getExtractionWagonsActual(r), 0);
+  const sumExtractionWagonsTarget = [...targetExtractionP1, ...targetExtractionP2, ...targetExtractionP3].reduce((acc, r) => acc + getExtractionWagonsTarget(r), 0);
+  const sumExtractionSterile = [...targetExtractionP1, ...targetExtractionP2, ...targetExtractionP3].reduce((acc, r) => acc + getExtractionSterile(r), 0);
   const globalExtractionPct = sumExtractionWagonsTarget > 0 ? (sumExtractionWagonsActual / sumExtractionWagonsTarget) * 100 : 0;
   const globalExtractionDiffPct = sumExtractionWagonsTarget > 0 ? ((sumExtractionWagonsActual - sumExtractionWagonsTarget) / sumExtractionWagonsTarget) * 100 : 0;
 
@@ -430,9 +475,9 @@ export const DailyReport: React.FC = () => {
                 </td>
                 <td className="p-3 text-center">
                   <div className="inline-grid grid-cols-3 gap-1 font-mono text-[9px] uppercase border border-gray-200/60 p-1 bg-gray-50/40 rounded">
-                    <span className="text-red-700 px-1 font-extrabold" title="ANFO kg">ANF: {row.anfo || 0}</span>
-                    <span className="text-amber-800 px-1 font-extrabold" title="Tovex kg">TOV: {(row.tovex || 0).toFixed(2)} kg</span>
-                    <span className="text-blue-800 px-1 font-extrabold" title="Amorces u.">AMO: {row.ammorces || 0}</span>
+                    <span className="text-red-700 px-1 font-extrabold" title="ANFO kg">ANF: {getRecordExplosive(r, 'anfo')}</span>
+                    <span className="text-amber-800 px-1 font-extrabold" title="Tovex kg">TOV: {getRecordExplosive(r, 'tovex').toFixed(2)} kg</span>
+                    <span className="text-blue-800 px-1 font-extrabold" title="Amorces u.">AMO: {getRecordExplosive(r, 'ammorces')}</span>
                   </div>
                 </td>
               </tr>
@@ -500,7 +545,7 @@ export const DailyReport: React.FC = () => {
                     {targetVol === 0 ? (realVol === 0 ? "CONFORME" : `+${realVol.toFixed(1)} m³ (HORS-PLAN)`) : `${diffVolAbs >= 0 ? '+' : ''}${diffVolAbs.toFixed(1)} m³ (${diffVolPct >= 0 ? '+' : ''}${diffVolPct.toFixed(1)}%)`}
                   </span>
                 </td>
-                <td className="p-3 text-center border-r border-gray-200 font-mono text-[#b8860b] font-bold">{row.gasoil || 0} L</td>
+                <td className="p-3 text-center border-r border-gray-200 font-mono text-[#b8860b] font-bold">{getRecordGasoil(r)} L</td>
                 <td className="p-3 text-center">
                   <div className="flex flex-col gap-0.5 font-mono text-[8.5px] text-gray-500">
                     {row.lubrifiant1Qty > 0 && (
@@ -538,11 +583,9 @@ export const DailyReport: React.FC = () => {
         </thead>
         <tbody className="divide-y divide-gray-100 text-[10.5px] font-bold text-slate-700 bg-white">
           {rows.map((r: any, idx: number) => {
-            const tReel = r.reel?.wagonsTarget !== undefined && r.reel?.wagonsTarget !== null ? Number(r.reel.wagonsTarget) : undefined;
-            const tPlan = r.wagonsTarget !== undefined && r.wagonsTarget !== null ? Number(r.wagonsTarget) : undefined;
-            const target = tReel !== undefined ? tReel : (tPlan !== undefined ? tPlan : 48);
-            const actual = Number(r.reel?.wagonsActual || r.wagonsActual || 0);
-            const sterile = Number(r.reel?.sterileBureImiterEst || r.sterileBureImiterEst || 0);
+            const target = getExtractionWagonsTarget(r);
+            const actual = getExtractionWagonsActual(r);
+            const sterile = getExtractionSterile(r);
             const total = actual + sterile;
             const diffWagonsPct = target > 0 ? ((actual - target) / target) * 100 : 0;
 
@@ -564,14 +607,18 @@ export const DailyReport: React.FC = () => {
               speedColor = 'bg-blue-50 text-blue-700 border-blue-200';
             }
 
+            const row = r.reel || r;
+            const treuillisteMat = row.treuilliste || r.treuilliste;
+            const installationLabel = row.installationName || row.chantierName || r.installationName || r.chantierName || 'Bure Imiter Est';
+
             return (
               <tr key={idx} className="hover:bg-slate-50/50 transition-colors border-b border-gray-200">
                 <td className="p-3 text-center text-gray-400 font-mono text-[9px] bg-slate-50/20 border-r border-gray-205">{idx + 1}</td>
-                <td className="p-3 font-extrabold text-[#b8860b] uppercase border-r border-gray-205">{r.installationName || r.chantierName || 'Bure'}</td>
+                <td className="p-3 font-extrabold text-[#b8860b] uppercase border-r border-gray-205">{installationLabel}</td>
                 <td className="p-3 border-r border-gray-205">
-                  <div className="text-gray-900 uppercase font-bold">Treuilliste : {getPersonnelName(r.treuilliste)}</div>
+                  <div className="text-gray-900 uppercase font-bold">Treuilliste : {getPersonnelName(treuillisteMat)}</div>
                   <div className="text-[8.5px] text-gray-455 uppercase mt-0.5 leading-tight font-semibold">
-                    Équipiers : {[r.equipier1, r.equipier2, r.equipier3, r.equipier4].filter(Boolean).map(getPersonnelName).join(' / ') || 'N/A'}
+                    Équipiers : {[row.equipier1 || r.equipier1, row.equipier2 || r.equipier2, row.equipier3 || r.equipier3, row.equipier4 || r.equipier4].filter(Boolean).map(getPersonnelName).join(' / ') || 'N/A'}
                   </div>
                 </td>
                 <td className="p-3 text-center font-mono text-[11px] text-gray-400 border-r border-gray-205 bg-slate-50/5">{target}</td>

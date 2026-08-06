@@ -214,8 +214,8 @@ export const Step3PrecisionForage: React.FC<Step3Props> = ({
             <rect width="1000" height="700" fill="url(#step3-grid)" />
 
             {/* Inner Rock Tunnel Overlay */}
-            <path d="M 125 570 L 125 330 A 375 375 0 0 1 875 330 L 875 570 Z" fill="none" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="6" />
-            <path d="M 125 570 L 125 330 A 375 375 0 0 1 875 330 L 875 570 Z" fill="none" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="1.5" strokeDasharray="6,4" />
+            <path d="M 125 635 L 125 330 A 375 375 0 0 1 875 330 L 875 635 Z" fill="none" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="6" />
+            <path d="M 125 635 L 125 330 A 375 375 0 0 1 875 330 L 875 635 Z" fill="none" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="1.5" strokeDasharray="6,4" />
 
             {/* Guide markers on exercise targets */}
             {step3Ex1 !== 'success' && (

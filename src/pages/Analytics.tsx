@@ -277,9 +277,10 @@ export const Analytics: React.FC = () => {
           if (!row || !row.minerMatricule) return;
           const key = row.minerMatricule;
           if (!minerStats[key]) {
+            const cleanKey = key.trim().toUpperCase();
             minerStats[key] = {
               matricule: key,
-              name: (() => { const e = employees.find(emp => emp.matricule === key); return e ? `${e.nom} ${e.prenom}` : key; })(),
+              name: (() => { const e = employees.find(emp => (emp.matricule || '').trim().toUpperCase() === cleanKey || (emp.id || '').trim().toUpperCase() === cleanKey); return e ? `${e.nom} ${e.prenom}` : key; })(),
               totalMeterage: 0,
               totalRounds: 0,
               totalAnfo: 0,
@@ -291,7 +292,7 @@ export const Analytics: React.FC = () => {
           }
           minerStats[key].totalMeterage += Number(row.realMeterage || 0);
           minerStats[key].totalRounds += Number(row.realRounds || 0);
-          minerStats[key].totalAnfo += Number(row.anfo || row.reel?.anfo || 0);
+          minerStats[key].totalAnfo += Number(row.anfo || row.reel?.anfo || r.anfo || r.plan?.anfo || 0);
           minerStats[key].days++;
         });
       });
@@ -380,12 +381,16 @@ export const Analytics: React.FC = () => {
       'Imiter Est': { name: 'Imiter Est', totalMeterage: 0, totalPlannedMeterage: 0, totalRounds: 0, totalWagons: 0, totalAnfo: 0, days: new Set(), avgYield: 0, tauxRealisation: 0, chantiers: new Set() }
     };
 
-    const normalizeSector = (s: string): string => {
+    const normalizeSector = (s: string, chantierId?: string): string => {
+      if (!s && chantierId) {
+        const found = chantiers.find(c => c.id === chantierId || c.id === chantierId.toLowerCase());
+        if (found && found.sector) s = found.sector;
+      }
       if (!s) return 'Imiter 1';
       const sl = s.toLowerCase();
-      if (sl.includes('1')) return 'Imiter 1';
       if (sl.includes('2')) return 'Imiter 2';
-      if (sl.includes('est')) return 'Imiter Est';
+      if (sl.includes('est') || sl.includes('bure')) return 'Imiter Est';
+      if (sl.includes('1')) return 'Imiter 1';
       return 'Imiter 1';
     };
 
@@ -393,11 +398,12 @@ export const Analytics: React.FC = () => {
       const docId = doc.id;
       const postes = doc.postes || {};
       ['poste1', 'poste2', 'poste3'].forEach(pKey => {
-        const minage = postes[pKey]?.minage || [];
+        const pData = postes[pKey] || {};
+        const minage = pData.minage || [];
         minage.forEach((r: any) => {
           const row = r.reel || r;
           if (!row) return;
-          const sec = normalizeSector(row.sectorGroup || row.sector || '');
+          const sec = normalizeSector(row.sectorGroup || row.sector || r.sector || '', row.chantierId || r.chantierId);
           if (!stats[sec]) return;
 
           const rMet = row.realMeterage !== undefined && row.realMeterage !== null
@@ -407,9 +413,18 @@ export const Analytics: React.FC = () => {
           stats[sec].totalMeterage += Number(rMet || 0);
           stats[sec].totalPlannedMeterage += Number(r.plan?.meterage || 0);
           stats[sec].totalRounds += Number(row.realRounds || 0);
-          stats[sec].totalAnfo += Number(row.anfo || 0);
+          stats[sec].totalAnfo += Number(row.anfo || row.reel?.anfo || r.anfo || r.plan?.anfo || 0);
           stats[sec].days.add(docId);
           if (row.chantierId) stats[sec].chantiers.add(row.chantierId);
+        });
+
+        const extraction = pData.extraction || [];
+        extraction.forEach((r: any) => {
+          const row = r.reel || r;
+          if (!row) return;
+          const wActual = Number(row.wagonsActual !== undefined ? row.wagonsActual : (r.wagonsActual !== undefined ? r.wagonsActual : 0));
+          stats['Imiter Est'].totalWagons += wActual;
+          stats['Imiter Est'].days.add(docId);
         });
       });
     });
@@ -1646,9 +1661,21 @@ export const Analytics: React.FC = () => {
                 const row = r.reel || r;
                 if (!row) return;
 
-                explosifStats.totalAnfo += Number(row.anfo || 0);
-                explosifStats.totalTovex += Number(row.tovex || 0);
-                explosifStats.totalAmorces += Number(row.ammorces || 0);
+                const getExplosiveVal = (field: 'anfo' | 'tovex' | 'ammorces') => {
+                  if (row && row[field] !== undefined && row[field] !== null) return Number(row[field]) || 0;
+                  if (r && r[field] !== undefined && r[field] !== null) return Number(r[field]) || 0;
+                  if (r && r.reel && r.reel[field] !== undefined && r.reel[field] !== null) return Number(r.reel[field]) || 0;
+                  if (r && r.plan && r.plan[field] !== undefined && r.plan[field] !== null) return Number(r.plan[field]) || 0;
+                  return 0;
+                };
+
+                const itemAnfo = getExplosiveVal('anfo');
+                const itemTovex = getExplosiveVal('tovex');
+                const itemAmorces = getExplosiveVal('ammorces');
+
+                explosifStats.totalAnfo += itemAnfo;
+                explosifStats.totalTovex += itemTovex;
+                explosifStats.totalAmorces += itemAmorces;
                 explosifStats.totalMeterage += Number(row.realMeterage || 0);
                 explosifStats.totalRounds += Number(row.realRounds || 0);
 
@@ -1662,7 +1689,7 @@ export const Analytics: React.FC = () => {
                 if (!explosifStats.byMiner[key]) {
                   explosifStats.byMiner[key] = {
                     code: key,
-                    name: (() => { const e = employees.find(emp => emp.matricule?.toUpperCase() === key || emp.id?.toUpperCase() === key); return e ? `${e.nom} ${e.prenom}` : key; })(),
+                    name: (() => { const e = employees.find(emp => (emp.matricule || '').trim().toUpperCase() === key || (emp.id || '').trim().toUpperCase() === key); return e ? `${e.nom} ${e.prenom}` : key; })(),
                     anfo: 0,
                     tovex: 0,
                     amorces: 0,
@@ -1675,17 +1702,17 @@ export const Analytics: React.FC = () => {
                 }
 
                 const miner = explosifStats.byMiner[key];
-                miner.anfo += Number(row.anfo || 0);
-                miner.tovex += Number(row.tovex || 0);
-                miner.amorces += Number(row.ammorces || 0);
+                miner.anfo += itemAnfo;
+                miner.tovex += itemTovex;
+                miner.amorces += itemAmorces;
                 miner.meterage += Number(row.realMeterage || 0);
                 miner.rounds += Number(row.realRounds || 0);
 
                 const gSize = Number(row.gallerySize);
                 if (gSize === 9 || gSize === 12) {
                   miner.gallerySizes[gSize] = (miner.gallerySizes[gSize] || 0) + 1;
-                  explosifStats.byGallerySize[gSize].anfo += Number(row.anfo || 0);
-                  explosifStats.byGallerySize[gSize].tovex += Number(row.tovex || 0);
+                  explosifStats.byGallerySize[gSize].anfo += itemAnfo;
+                  explosifStats.byGallerySize[gSize].tovex += itemTovex;
                   explosifStats.byGallerySize[gSize].rounds += Number(row.realRounds || 0);
                   explosifStats.byGallerySize[gSize].meterage += Number(row.realMeterage || 0);
                 }

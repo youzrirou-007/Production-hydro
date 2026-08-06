@@ -124,22 +124,22 @@ export const Step2StandardGabarit: React.FC<Step2Props> = ({
               {/* Architectural Dimensions indicators */}
               <g stroke="rgba(59, 130, 246, 0.4)" strokeWidth="1.5">
                 {/* Horizontal width line (4.00 m) */}
-                <line x1="125" y1="620" x2="875" y2="620" />
-                <path d="M 125 615 L 125 625 M 875 615 L 875 625" />
+                <line x1="125" y1="660" x2="875" y2="660" />
+                <path d="M 125 655 L 125 665 M 875 655 L 875 665" />
                 {/* Vertical height line (3.00 m) */}
-                <line x1="80" y1="200" x2="80" y2="570" />
-                <path d="M 75 200 L 85 200 M 75 570 L 85 570" />
+                <line x1="80" y1="200" x2="80" y2="635" />
+                <path d="M 75 200 L 85 200 M 75 635 L 85 635" />
               </g>
-              <text x="500" y="610" textAnchor="middle" fill="#60a5fa" className="text-[12px] font-mono font-bold uppercase tracking-widest">
+              <text x="500" y="652" textAnchor="middle" fill="#60a5fa" className="text-[12px] font-mono font-bold uppercase tracking-widest">
                 Largeur nominale : 4.00 m (± 10cm)
               </text>
-              <text x="95" y="380" textAnchor="middle" fill="#60a5fa" className="text-[12px] font-mono font-bold uppercase tracking-widest" transform="rotate(-90, 95, 380)">
+              <text x="95" y="415" textAnchor="middle" fill="#60a5fa" className="text-[12px] font-mono font-bold uppercase tracking-widest" transform="rotate(-90, 95, 415)">
                 Hauteur : 3.00 m
               </text>
 
               {/* Tunnel outer path */}
-              <path d="M 125 570 L 125 330 A 375 375 0 0 1 875 330 L 875 570 Z" fill="none" stroke="rgba(59, 130, 246, 0.25)" strokeWidth="8" />
-              <path d="M 125 570 L 125 330 A 375 375 0 0 1 875 330 L 875 570 Z" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeDasharray="10,5" />
+              <path d="M 125 635 L 125 330 A 375 375 0 0 1 875 330 L 875 635 Z" fill="none" stroke="rgba(59, 130, 246, 0.25)" strokeWidth="8" />
+              <path d="M 125 635 L 125 330 A 375 375 0 0 1 875 330 L 875 635 Z" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeDasharray="10,5" />
 
               {/* Center point crosshair */}
               <path d="M 490 430 L 510 430 M 500 420 L 500 440" stroke="#f59e0b" strokeWidth="2" />

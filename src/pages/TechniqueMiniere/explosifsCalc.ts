@@ -39,9 +39,13 @@ export const getExplosifsData = (
   const anfoKgPerHole = parseFloat((anfoColumnM * anfoPerMeterKg).toFixed(3));
   const anfoKgTotal = parseFloat((anfoKgPerHole * loadedHoles).toFixed(1));
 
-  const tovexCartouches = loadedHoles;
+  // Bouchon loaded holes receive 2 TOVEX cartouches (200g total), other loaded holes receive 1 (100g total)
+  const bouchonLoadedHoles = gabarit === '12m2' ? 6 : gabarit === '12m2_intl' ? 3 : 4;
+  const otherLoadedHoles = Math.max(0, loadedHoles - bouchonLoadedHoles);
+  const tovexCartouches = (bouchonLoadedHoles * 2) + (otherLoadedHoles * 1);
   const tovexKgTotal = parseFloat((tovexCartouches * TOVEX_CARTOUCHE_KG).toFixed(2));
 
+  // 1 amorce (détonateur) per loaded hole
   const amorces = loadedHoles;
 
   return {

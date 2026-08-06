@@ -1040,11 +1040,11 @@ export const MineurParfait: React.FC = () => {
                             <div className="text-[8px] text-slate-500">{t[lang].qAnfoTotal}</div>
                           </div>
                           <div className="bg-white p-2 rounded-lg border border-slate-200/60">
-                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "4 خراطيش" : "4 cartouches"}</div>
+                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "31 وحدة (3.1 كجم)" : "31 unités (3,1 kg)"}</div>
                             <div className="text-[8px] text-slate-500">{t[lang].qTovex100g}</div>
                           </div>
                           <div className="bg-white p-2 rounded-lg border border-slate-200/60">
-                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "28 وحدة" : "28 unités"}</div>
+                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "27 وحدة" : "27 unités"}</div>
                             <div className="text-[8px] text-slate-500">{t[lang].qAmorces}</div>
                           </div>
                           <div className="bg-white p-2 rounded-lg border border-slate-200/60">
@@ -1061,13 +1061,17 @@ export const MineurParfait: React.FC = () => {
                           <div className="bg-white p-2 rounded-lg border border-slate-200/60">
                             <div className="font-bold text-[#b8860b]">
                               {lang === 'ar' 
-                                ? (gabarit === '12m2' ? "6 خراطيش" : "3 خراطيش") 
-                                : `${gabarit === '12m2' ? '6' : '3'} cartouches`}
+                                ? (gabarit === '12m2' ? "41 وحدة (4.1 كجم)" : "35 وحدة (3.5 كجم)") 
+                                : `${gabarit === '12m2' ? '41 unités (4,1 kg)' : '35 unités (3,5 kg)'}`}
                             </div>
                             <div className="text-[8px] text-slate-500">{t[lang].qTovex100g}</div>
                           </div>
                           <div className="bg-white p-2 rounded-lg border border-slate-200/60">
-                            <div className="font-bold text-[#b8860b]">{lang === 'ar' ? "38 وحدة" : "38 unités"}</div>
+                            <div className="font-bold text-[#b8860b]">
+                              {lang === 'ar' 
+                                ? (gabarit === '12m2' ? "35 وحدة" : "32 وحدة") 
+                                : `${gabarit === '12m2' ? '35' : '32'} unités`}
+                            </div>
                             <div className="text-[8px] text-slate-500">{t[lang].qAmorces}</div>
                           </div>
                           <div className="bg-white p-2 rounded-lg border border-slate-200/60">
