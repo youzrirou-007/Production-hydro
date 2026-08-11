@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { HOLES_DATA, HOLES_DATA_9, HOLES_DATA_12_INTL, HOLES_DATA_9_INTL } from './data';
 import { HoleInfo, GabaritType } from './types';
+import bannerExcellenceImg from '../../assets/images/Banner excellence.jpg';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
@@ -1597,41 +1598,45 @@ export const Vue3DSchemaTab: React.FC<Vue3DSchemaTabProps> = ({ gabarit }) => {
   return (
     <div className="space-y-6 w-full">
       {/* REALITY OVERVIEW BANNER */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden shadow-xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="p-6 md:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-6 text-white">
+        {/* Banner Image Background */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
         <div className="space-y-2 relative z-10">
-          <span className="inline-flex items-center gap-1.5 bg-amber-500/10 text-[#ffd700] text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-amber-500/20">
+          <span className="inline-flex items-center gap-1.5 bg-amber-500/10 text-[#ffd700] text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-amber-500/30 backdrop-blur-xs">
             <Sparkles className="w-3.5 h-3.5 animate-pulse" />
             SIMULATION RÉALISTE À 100%
           </span>
-          <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight">
+          <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight drop-shadow-sm">
             VUE SCHÉMA 3D DE LA GALERIE
           </h2>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed max-w-2xl">
+          <p className="text-amber-100 text-xs font-bold uppercase tracking-widest leading-relaxed max-w-2xl drop-shadow-xs">
             Modélisation géotechnique tridimensionnelle interactive du front de taille. Analysez la disposition spatiale des cibles de forage, les lignes de cisaillement et le soutènement physique en conditions souterraines réelles.
           </p>
         </div>
 
         {/* Dynamic Telemetry Metric Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 shrink-0">
-          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-center">
-            <span className="text-slate-500 text-[8px] font-black uppercase tracking-wider block">Métrage Arraché</span>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 shrink-0 relative z-10">
+          <div className="bg-slate-900/85 backdrop-blur-md border border-amber-500/30 rounded-2xl p-4 text-center shadow-lg">
+            <span className="text-amber-200/80 text-[8px] font-black uppercase tracking-wider block">Métrage Arraché</span>
             <span className="text-white text-xl font-black font-mono">{getFootage().toFixed(1)} m</span>
-            <span className="text-amber-500 text-[9px] font-bold block mt-0.5">{currentPercentage}% volée</span>
+            <span className="text-amber-400 text-[9px] font-bold block mt-0.5">{currentPercentage}% volée</span>
           </div>
-          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-center">
-            <span className="text-slate-500 text-[8px] font-black uppercase tracking-wider block">Détonateurs Actifs</span>
-            <span className="text-amber-400 text-xl font-black font-mono">
+          <div className="bg-slate-900/85 backdrop-blur-md border border-amber-500/30 rounded-2xl p-4 text-center shadow-lg">
+            <span className="text-amber-200/80 text-[8px] font-black uppercase tracking-wider block">Détonateurs Actifs</span>
+            <span className="text-amber-300 text-xl font-black font-mono">
               {holesToRender.filter(h => getBlastStepForHole(h, gabarit) === activeStep).length} / {holesToRender.length}
             </span>
-            <span className="text-slate-400 text-[9px] font-bold block mt-0.5">Trous de forage</span>
+            <span className="text-slate-300 text-[9px] font-bold block mt-0.5">Trous de forage</span>
           </div>
-          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-center col-span-2 md:col-span-1">
-            <span className="text-slate-500 text-[8px] font-black uppercase tracking-wider block">Moteur Graphique</span>
+          <div className="bg-slate-900/85 backdrop-blur-md border border-amber-500/30 rounded-2xl p-4 text-center col-span-2 md:col-span-1 shadow-lg">
+            <span className="text-amber-200/80 text-[8px] font-black uppercase tracking-wider block">Moteur Graphique</span>
             <span className="text-emerald-400 text-xl font-black flex items-center justify-center gap-1.5 font-mono">
               <Zap className="w-4 h-4 text-emerald-400" /> GPU
             </span>
-            <span className="text-slate-400 text-[9px] font-bold block mt-0.5">WebGL 60 FPS</span>
+            <span className="text-slate-300 text-[9px] font-bold block mt-0.5">WebGL 60 FPS</span>
           </div>
         </div>
       </div>

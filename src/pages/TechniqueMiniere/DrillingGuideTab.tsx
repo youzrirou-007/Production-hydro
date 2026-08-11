@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { HOLES_DATA, getHolesData } from './data';
 import { HoleInfo, GabaritType } from './types';
+import bannerExcellenceImg from '../../assets/images/Banner excellence.jpg';
 
 // Helper to retrieve color, gradient and label properties for each specific hole type
 export const getHoleVisuals = (type: string) => {
@@ -981,29 +982,34 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
   return (
     <div className="space-y-6 text-slate-900" id="drilling-guide-tab">
       
-      {/* EXPLANATORY HEADER BANNER */}
-      <div className="bg-gradient-to-r from-slate-950 to-slate-900 text-white rounded-2xl p-6 border border-slate-800 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-2">
+      {/* EXPLANATORY HEADER BANNER WITH BANNER EXCELLENCE IMAGE */}
+      <div className="p-6 md:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 text-white">
+        {/* Banner Image Background */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+        <div className="space-y-2 relative z-10">
           <div className="flex items-center gap-2">
-            <span className="bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border border-amber-400/20">
+            <span className="bg-amber-500/10 text-[#ffd700] text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border border-amber-400/30 backdrop-blur-xs">
               MODULE EXCELLENCE
             </span>
-            <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border border-emerald-400/20">
+            <span className="bg-emerald-500/10 text-emerald-300 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border border-emerald-400/30 backdrop-blur-xs">
               SIMULATEUR MONTABERT T23
             </span>
           </div>
-          <h2 className="text-xl md:text-2xl font-black uppercase tracking-wide text-slate-100 font-sans">
+          <h2 className="text-xl md:text-2xl font-black uppercase tracking-wide text-white font-sans drop-shadow-sm">
             Guide de Forage & Implantation d'Arche ({is9m2 ? '9 m²' : '12 m²'})
           </h2>
-          <p className="text-xs text-slate-400 max-w-3xl leading-relaxed">
-            Pour la mine souterraine de <strong className="text-slate-200">CHANTIER MINIER (X) (Maroc)</strong>, la régularité spatiale est le premier facteur d'arrachement. 
+          <p className="text-xs text-amber-100 max-w-3xl leading-relaxed drop-shadow-xs">
+            Pour la mine souterraine de <strong className="text-white">CHANTIER MINIER (X) (Maroc)</strong>, la régularité spatiale est le premier facteur d'arrachement. 
             Ce guide interactif instruit pas-à-pas sur la séquence de perforation, les distances inter-trous critiques et la géométrie des semelles, parements et voûtes.
           </p>
         </div>
 
         {/* Stem (Tige) Switcher */}
-        <div className="bg-slate-900 p-1.5 rounded-xl border border-slate-800 flex items-center gap-2 shrink-0">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2">
+        <div className="bg-slate-900/85 backdrop-blur-md p-2 rounded-xl border border-amber-500/30 flex items-center gap-2 shrink-0 relative z-10 shadow-lg">
+          <span className="text-[10px] font-black text-amber-200 uppercase tracking-wider px-2">
             Longueur Tige :
           </span>
           <button
@@ -1011,7 +1017,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
             className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
               tige === '1.8m'
                 ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
-                : 'text-slate-400 hover:text-white'
+                : 'text-slate-300 hover:text-white'
             }`}
           >
             1.8 m (Volée 1.7m)
@@ -1021,7 +1027,7 @@ export const DrillingGuideTab: React.FC<DrillingGuideTabProps> = ({ gabarit = '1
             className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
               tige === '2.4m'
                 ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
-                : 'text-slate-400 hover:text-white'
+                : 'text-slate-300 hover:text-white'
             }`}
           >
             2.4 m (Volée 2.3m)

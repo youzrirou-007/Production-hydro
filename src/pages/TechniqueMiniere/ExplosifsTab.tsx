@@ -4,6 +4,7 @@ import { Flame, ShieldAlert, Zap, Layers } from 'lucide-react';
 
 import { GabaritType } from './types';
 import { getExplosifsData } from './explosifsCalc';
+import bannerExcellenceImg from '../../assets/images/Banner excellence.jpg';
 
 interface ExplosifsTabProps {
   gabarit: GabaritType;
@@ -256,31 +257,36 @@ export const ExplosifsTab: React.FC<ExplosifsTabProps> = ({ gabarit }) => {
 
       </div>
 
-      {/* STORAGE & SAFETY STATS */}
-      <div className="bg-slate-900 text-white rounded-2xl p-6 space-y-4">
-        <h3 className="text-sm font-black uppercase text-[#ffd700] tracking-widest flex items-center gap-2">
-          <ShieldAlert className="w-5 h-5" />
+      {/* STORAGE & SAFETY STATS WITH BANNER EXCELLENCE IMAGE */}
+      <div className="p-6 sm:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden text-white space-y-4">
+        {/* Banner Image Background */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
+        <h3 className="text-sm font-black uppercase text-[#ffd700] tracking-widest flex items-center gap-2 relative z-10 drop-shadow-sm">
+          <ShieldAlert className="w-5 h-5 text-amber-400" />
           Règles strictes de gestion et stockage CHANTIER MINIER (X)
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-300 font-medium">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-amber-100 font-medium relative z-10 drop-shadow-xs">
           <div className="space-y-2 leading-relaxed">
             <p className="flex items-start gap-2">
               <span className="text-[#ffd700] text-lg mt-0.5">•</span>
-              <span><strong>Séparation absolue :</strong> Il est strictement interdit de stocker ou de transporter les détonateurs (amorces) et les explosifs (ANFO, Tovex) dans le même véhicule ou compartiment de dépôt.</span>
+              <span><strong className="text-white">Séparation absolue :</strong> Il est strictement interdit de stocker ou de transporter les détonateurs (amorces) et les explosifs (ANFO, Tovex) dans le même véhicule ou compartiment de dépôt.</span>
             </p>
             <p className="flex items-start gap-2">
               <span className="text-[#ffd700] text-lg mt-0.5">•</span>
-              <span><strong>Registre d'émargement :</strong> Toute sortie de substance explosive souterraine doit faire l'objet d'un double émargement systématique par le chef de poste boutefeu et le responsable de la poudrière SMI.</span>
+              <span><strong className="text-white">Registre d'émargement :</strong> Toute sortie de substance explosive souterraine doit faire l'objet d'un double émargement systématique par le chef de poste boutefeu et le responsable de la poudrière SMI.</span>
             </p>
           </div>
           <div className="space-y-2 leading-relaxed">
             <p className="flex items-start gap-2">
               <span className="text-[#ffd700] text-lg mt-0.5">•</span>
-              <span><strong>Gestion des invendus :</strong> Les cartouches de Tovex non amorcées et les sacs d'ANFO restants à la fin d'une volée doivent être remontés immédiatement au dépôt principal. Aucun explosif ne doit dormir sur un chantier actif.</span>
+              <span><strong className="text-white">Gestion des invendus :</strong> Les cartouches de Tovex non amorcées et les sacs d'ANFO restants à la fin d'une volée doivent être remontés immédiatement au dépôt principal. Aucun explosif ne doit dormir sur un chantier actif.</span>
             </p>
             <p className="flex items-start gap-2">
               <span className="text-[#ffd700] text-lg mt-0.5">•</span>
-              <span><strong>Procédure de ratés :</strong> En cas de raté de tir (absence de détonation), interdiction stricte de pénétrer sur le front avant un délai d'attente obligatoire de 30 minutes. Le front doit être rincé à l'eau claire pour dissoudre l'ANFO restant.</span>
+              <span><strong className="text-white">Procédure de ratés :</strong> En cas de raté de tir (absence de détonation), interdiction stricte de pénétrer sur le front avant un délai d'attente obligatoire de 30 minutes. Le front doit être rincé à l'eau claire pour dissoudre l'ANFO restant.</span>
             </p>
           </div>
         </div>

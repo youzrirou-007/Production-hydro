@@ -5,6 +5,7 @@ import { Activity, Info, Award, ShieldAlert, TrendingUp } from 'lucide-react';
 import { GabaritType } from './types';
 import { getExplosifsData } from './explosifsCalc';
 import { useAuth } from '../../contexts/AuthContext';
+import bannerExcellenceImg from '../../assets/images/Banner excellence.jpg';
 
 interface CalculsTabProps {
   gabarit: GabaritType;
@@ -467,13 +468,20 @@ export const CalculsTab: React.FC<CalculsTabProps> = ({ gabarit }) => {
       </div>
 
       <div className="space-y-6 pt-6 border-t border-slate-100">
-        <div className="bg-slate-900 text-white rounded-2xl p-6">
-          <h3 className="text-sm font-black uppercase tracking-wider text-white">
-            📐 Simulateur de Divergence de Forage
-          </h3>
-          <p className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider mt-0.5">
-            Impact de l'angle de déviation sur le métrage arraché
-          </p>
+        <div className="p-6 md:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden text-white">
+          {/* Banner Image Background */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+            style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+          />
+          <div className="relative z-10">
+            <h3 className="text-sm md:text-base font-black uppercase tracking-wider text-white drop-shadow-sm">
+              📐 Simulateur de Divergence de Forage
+            </h3>
+            <p className="text-[10px] text-amber-200 font-semibold uppercase tracking-wider mt-0.5 drop-shadow-xs">
+              Impact de l'angle de déviation sur le métrage arraché
+            </p>
+          </div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5">

@@ -21,6 +21,7 @@ import { BourrageTab } from './TechniqueMiniere/BourrageTab';
 import { CalculsTab } from './TechniqueMiniere/CalculsTab';
 import { IngenierieTab } from './TechniqueMiniere/IngenierieTab';
 import { GabaritType, TabType } from './TechniqueMiniere/types';
+import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 
 export const TechniqueMiniere: React.FC = () => {
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
@@ -60,28 +61,32 @@ export const TechniqueMiniere: React.FC = () => {
             exit={{ opacity: 0, y: -15 }}
             className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-6"
           >
-            {/* NAVIGATION / HEADER BAR */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3 mx-auto md:mx-0 text-center md:text-left">
+            {/* NAVIGATION / HEADER BANNER WITH BANNER EXCELLENCE IMAGE */}
+            <div className="p-6 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div 
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+                style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+              />
+              <div className="relative z-10 flex items-center gap-3.5 mx-auto md:mx-0 text-center md:text-left">
                 <button
                   onClick={handleBackToSelection}
-                  className="p-2.5 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors text-slate-800 flex items-center justify-center cursor-pointer group"
+                  className="p-2.5 bg-slate-900/80 hover:bg-slate-900 rounded-xl border border-amber-400/40 transition-colors text-amber-300 flex items-center justify-center cursor-pointer group shadow-md"
                   title="Retour à la sélection des galeries"
                 >
                   <ChevronLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
                 </button>
                 <div className="text-center md:text-left">
-                  <span className="text-[10px] font-black uppercase text-amber-600 tracking-widest block">Galerie active : {gabarit === '9m2' ? '9 m² — Traçage' : gabarit === '12m2_intl' ? '12 m² — Standard International' : '12 m² — Gabarit SMI'}</span>
-                  <h1 className="text-lg md:text-xl font-black uppercase tracking-wider text-slate-900 flex items-center justify-center md:justify-start gap-2">
-                    <Wrench className="w-5 h-5 text-amber-500 shrink-0" />
+                  <span className="text-[10px] font-black uppercase text-amber-200 tracking-widest block">Galerie active : {gabarit === '9m2' ? '9 m² — Traçage' : gabarit === '12m2_intl' ? '12 m² — Standard International' : '12 m² — Gabarit SMI'}</span>
+                  <h1 className="text-lg md:text-xl font-black uppercase tracking-wider text-white flex items-center justify-center md:justify-start gap-2 drop-shadow-sm">
+                    <Wrench className="w-5 h-5 text-amber-400 shrink-0" />
                     DOSSIER DE TIR & INGENIERIE DE VOLÉE
                   </h1>
                 </div>
               </div>
 
               {/* Accès Badge */}
-              <div className="mx-auto md:mx-0">
-                <span className="inline-flex items-center gap-1.5 bg-slate-900 text-[#ffd700] text-[9px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg border border-[#ffd700]/30 shadow-sm">
+              <div className="relative z-10 mx-auto md:mx-0">
+                <span className="inline-flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md text-[#ffd700] text-[9px] font-black uppercase tracking-wider px-3.5 py-2 rounded-xl border border-[#ffd700]/40 shadow-lg">
                   <Crown className="w-3.5 h-3.5" />
                   CHANTIER MINIER (X) — Bureau d'études
                 </span>

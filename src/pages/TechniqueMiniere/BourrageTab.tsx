@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ShieldAlert, Info, HelpCircle, Activity, CheckCircle2, AlertTriangle, TrendingDown, ArrowRight, Zap } from 'lucide-react';
 
 import { GabaritType } from './types';
+import bannerExcellenceImg from '../../assets/images/Banner excellence.jpg';
 
 interface BourrageTabProps {
   gabarit: GabaritType;
@@ -356,11 +357,16 @@ export const BourrageTab: React.FC<BourrageTabProps> = ({ gabarit }) => {
           </div>
         </div>
 
-        {/* OUTPUT DIAGRAM PREVIEW & PHYSICAL GRAPH (7 Columns) */}
-        <div className="lg:col-span-7 bg-slate-950 rounded-2xl border border-slate-800 p-6 flex flex-col justify-between h-full min-h-[380px] relative overflow-hidden shadow-xl">
+        {/* OUTPUT DIAGRAM PREVIEW & PHYSICAL GRAPH (7 Columns) WITH BANNER EXCELLENCE IMAGE */}
+        <div className="lg:col-span-7 rounded-2xl border border-amber-500/30 p-6 flex flex-col justify-between h-full min-h-[380px] relative overflow-hidden shadow-xl text-white">
+          {/* Banner Image Background */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+            style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+          />
           
           <div className="absolute top-4 left-4 z-10">
-            <span className="text-[9px] font-black uppercase text-amber-500 bg-amber-400/10 px-2 py-1 rounded">
+            <span className="text-[9px] font-black uppercase text-[#ffd700] bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded-md border border-amber-500/30 shadow-md">
               Graphe de Performance & Rendement Opérationnel du Tir
             </span>
           </div>

@@ -715,11 +715,15 @@ export const FormationSlideDeck: React.FC<FormationSlideDeckProps> = ({ gabarit,
   return (
     <div className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col justify-between overflow-hidden font-sans select-none">
       
-      {/* Top Presentation Header Bar */}
-      <div className="bg-slate-900 border-b border-amber-500/30 px-6 py-3.5 flex items-center justify-between shadow-2xl relative z-20">
+      {/* Top Presentation Header Bar WITH BANNER EXCELLENCE IMAGE */}
+      <div className="border-b border-amber-500/30 px-6 py-3.5 flex items-center justify-between shadow-2xl relative z-20 overflow-hidden text-white">
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+        />
         
         {/* Left: SMI Logo & Course Title */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 relative z-10">
           <div className="flex items-center gap-2 bg-slate-950 p-1.5 px-3 rounded-xl border border-amber-500/40">
             <img 
               src={excellenceLogoImg} 

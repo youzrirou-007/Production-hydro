@@ -5,6 +5,7 @@ import { QUIZ_DATA } from './data';
 
 import { GabaritType } from './types';
 import { getExplosifsData } from './explosifsCalc';
+import bannerExcellenceImg from '../../assets/images/Banner excellence.jpg';
 
 interface IngenierieTabProps {
   gabarit: GabaritType;
@@ -201,23 +202,28 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
                   </div>
                 </div>
 
-                {/* NET GAIN DISPLAY */}
-                <div className="bg-slate-900 text-white p-6 rounded-2xl space-y-4 flex flex-col justify-between">
-                  <div className="space-y-1">
-                    <span className="text-[9px] font-black uppercase text-[#ffd700]">Gain Net de Rendement</span>
-                    <h4 className="text-sm font-black uppercase text-white">ÉCART MENSUEL CRÉÉ</h4>
+                {/* NET GAIN DISPLAY WITH BANNER EXCELLENCE IMAGE */}
+                <div className="p-6 rounded-2xl border border-amber-500/30 shadow-xl relative overflow-hidden text-white space-y-4 flex flex-col justify-between">
+                  {/* Banner Image Background */}
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+                    style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+                  />
+                  <div className="space-y-1 relative z-10">
+                    <span className="text-[9px] font-black uppercase text-[#ffd700] drop-shadow-sm">Gain Net de Rendement</span>
+                    <h4 className="text-sm font-black uppercase text-white drop-shadow-sm">ÉCART MENSUEL CRÉÉ</h4>
                   </div>
-                  <div className="space-y-2 text-xs">
+                  <div className="space-y-2 text-xs relative z-10">
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Avancement en plus :</span>
+                      <span className="text-amber-100">Avancement en plus :</span>
                       <span className="font-extrabold text-[#ffd700]">+{(longRodProgress - shortRodProgress).toFixed(1)} mètres</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Gain de prime / mineur :</span>
+                      <span className="text-amber-100">Gain de prime / mineur :</span>
                       <span className="font-black text-[#ffd700] text-base">+{(longRodPayout - shortRodPayout).toFixed(0)} MAD / mois</span>
                     </div>
                   </div>
-                  <div className="bg-slate-800 p-3 rounded-lg border border-slate-800 text-[10px] text-slate-300 font-semibold leading-relaxed uppercase">
+                  <div className="bg-slate-900/85 backdrop-blur-md p-3 rounded-lg border border-amber-500/30 text-[10px] text-amber-200 font-semibold leading-relaxed uppercase relative z-10 shadow-md">
                     🚀 Augmentez de 35% votre rendement sans forer plus de trous par front !
                   </div>
                 </div>
@@ -313,22 +319,27 @@ export const IngenierieTab: React.FC<IngenierieTabProps> = ({ gabarit }) => {
               className="space-y-8"
             >
               
-              {/* DESCRIPTION ACADEMY */}
-              <div className="bg-slate-900 text-white rounded-2xl p-6 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-1.5 max-w-2xl">
-                  <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest block">
+              {/* DESCRIPTION ACADEMY WITH BANNER EXCELLENCE IMAGE */}
+              <div className="p-6 md:p-8 rounded-3xl border border-amber-500/30 shadow-xl relative overflow-hidden text-white flex flex-col md:flex-row md:items-center justify-between gap-6">
+                {/* Banner Image Background */}
+                <div 
+                  className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+                  style={{ backgroundImage: `url(${bannerExcellenceImg})` }}
+                />
+                <div className="space-y-1.5 max-w-2xl relative z-10">
+                  <span className="text-[10px] font-black text-[#ffd700] uppercase tracking-widest block drop-shadow-sm">
                     Validation des connaissances de forage & tir
                   </span>
-                  <h3 className="text-base font-black uppercase text-white tracking-tight">
+                  <h3 className="text-base font-black uppercase text-white tracking-tight drop-shadow-sm">
                     Examen d'Aptitude de Chef de Poste CHANTIER MINIER (X)
                   </h3>
-                  <p className="text-[11px] font-semibold text-slate-300 leading-relaxed">
-                    Cet examen évalue vos aptitudes sur la physique des explosifs, l'alignement géométrique, le bourrage des trous et les retards de séquence. Répondez correctement aux 5 questions techniques pour obtenir votre <strong>Brevet d'Aptitude d'Ingénierie de Volée SMI</strong>.
+                  <p className="text-[11px] font-semibold text-amber-100 leading-relaxed drop-shadow-xs">
+                    Cet examen évalue vos aptitudes sur la physique des explosifs, l'alignement géométrique, le bourrage des trous et les retards de séquence. Répondez correctement aux 5 questions techniques pour obtenir votre <strong className="text-white">Brevet d'Aptitude d'Ingénierie de Volée SMI</strong>.
                   </p>
                 </div>
-                <div className="bg-slate-800 px-4 py-3 rounded-xl border border-slate-800 text-center shrink-0">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase">Aptitude minimale</p>
-                  <p className="text-lg font-black text-amber-500">5 / 5 Correct</p>
+                <div className="bg-slate-900/85 backdrop-blur-md px-4 py-3 rounded-2xl border border-amber-500/30 text-center shrink-0 relative z-10 shadow-lg">
+                  <p className="text-[9px] font-bold text-amber-200/80 uppercase">Aptitude minimale</p>
+                  <p className="text-lg font-black text-amber-400">5 / 5 Correct</p>
                 </div>
               </div>
 
