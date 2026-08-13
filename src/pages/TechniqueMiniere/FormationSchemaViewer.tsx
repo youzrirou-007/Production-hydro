@@ -11,6 +11,18 @@ interface FormationSchemaViewerProps {
 }
 
 // Reproduit exactement la logique de SchemaTab.tsx — source de vérité identique, sans dupliquer le composant complet
+// Palette officielle par groupe de délai — alignée sur Step5DetonationSequence.tsx
+export const STEP_COLORS: Record<FormationBlastStep, string> = {
+  tous: '#64748b',
+  bouchon: '#facc15',
+  g1: '#3b82f6',
+  g2: '#ef4444',
+  g3: '#06b6d4',
+  g4: '#f97316',
+  radier_parements: '#8b5cf6',
+  voute: '#ffd700',
+};
+
 const getStepGroup = (hole: HoleInfo, gab: GabaritType): FormationBlastStep => {
   if (hole.type === 'vide') return 'tous';
   const is9 = gab.startsWith('9m2');
@@ -32,13 +44,6 @@ export const FormationSchemaViewer: React.FC<FormationSchemaViewerProps> = ({ ga
 
   return (
     <svg viewBox="0 0 1000 800" className={className || 'w-full h-full'}>
-      <defs>
-        <radialGradient id="formationGoldGlow" cx="50%" cy="50%" r="60%">
-          <stop offset="0%" stopColor="#ffd700" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#ffd700" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
       {holes.map(hole => {
         const isVide = hole.type === 'vide';
         const stepGroup = getStepGroup(hole, gabarit);
@@ -51,13 +56,14 @@ export const FormationSchemaViewer: React.FC<FormationSchemaViewerProps> = ({ ga
         })();
 
         const opacity = isVide ? 0.25 : isActive ? 1 : isDone ? 0.35 : 0.12;
-        const fill = isVide ? '#94a3b8' : isActive ? '#ffd700' : '#64748b';
+        const stepColor = STEP_COLORS[stepGroup] || STEP_COLORS.tous;
+        const fill = isVide ? '#94a3b8' : isActive ? stepColor : '#64748b';
         const radius = isVide ? 7 : 9;
 
         return (
           <g key={hole.id} opacity={opacity} style={{ transition: 'opacity 0.5s ease' }}>
             {isActive && !isVide && (
-              <circle cx={hole.x} cy={hole.y} r={22} fill="url(#formationGoldGlow)" />
+              <circle cx={hole.x} cy={hole.y} r={22} fill={stepColor} opacity={0.35} />
             )}
             <circle
               cx={hole.x}

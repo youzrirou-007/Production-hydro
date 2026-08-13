@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import bannerExcellenceImg from '../assets/images/Banner excellence.jpg';
 import { FormationSchemaViewer } from './TechniqueMiniere/FormationSchemaViewer';
-import { FormationSlideDeck, ExtendedModuleType } from './TechniqueMiniere/FormationSlideDeck';
+import { FormationSlideDeck, ExtendedModuleType, SLIDE_DECKS } from './TechniqueMiniere/FormationSlideDeck';
 import { 
   Crown, GraduationCap, Search, Sparkles, Clock, ShieldCheck, 
   ArrowRight, BookOpen, Flame, ShieldAlert, BarChart3, CheckCircle2, 
@@ -36,14 +36,14 @@ const MODULES_DATA: FormationModuleCard[] = [
     subtitle: 'Gabarit de référence 3.8m × 3.5m',
     duration: '25 min',
     level: 'Intermédiaire',
-    slidesCount: 15,
+    slidesCount: 14,
     hasQuiz: true,
     holes: '38 trous',
     schemaType: '12m2',
     objectives: [
       'Implémentation rigoureuse du bouchon à 3 vides centraux',
       'Maîtrise des 7 étages de micro-retards (D0 à D5)',
-      'Découpe doux de voûte pour éliminer l\'écaillag'
+      'Découpe douce de voûte pour éliminer l\'écaillage'
     ]
   },
   {
@@ -56,7 +56,7 @@ const MODULES_DATA: FormationModuleCard[] = [
     subtitle: 'Standard Langefors-Kihlström 1963',
     duration: '20 min',
     level: 'Expert',
-    slidesCount: 12,
+    slidesCount: 14,
     hasQuiz: true,
     holes: '38 trous',
     schemaType: '12m2_intl',
@@ -72,11 +72,11 @@ const MODULES_DATA: FormationModuleCard[] = [
     categoryLabel: 'TRAÇAGE ÉTROIT',
     badgeBg: 'bg-emerald-700',
     badgeText: 'text-white',
-    title: 'Traçage 9m² SMI & International',
+    title: 'Traçage 9m² SMI',
     subtitle: 'Profil compact 3.0m × 3.0m',
     duration: '15 min',
     level: 'Débutant',
-    slidesCount: 10,
+    slidesCount: 14,
     hasQuiz: true,
     holes: '28 trous',
     schemaType: '9m2',
@@ -84,6 +84,26 @@ const MODULES_DATA: FormationModuleCard[] = [
       'Optimisation avec suppression du Groupe 4',
       'Bouchon cylindrique simple (1 vide / 4 chargés)',
       'Maintien d\'un rendement d\'avancement ≥ 95%'
+    ]
+  },
+  {
+    id: '9m2_intl',
+    category: 'schema',
+    categoryLabel: 'TRAÇAGE ÉTROIT INTERNATIONAL',
+    badgeBg: 'bg-emerald-800',
+    badgeText: 'text-white',
+    title: 'Traçage 9m² International',
+    subtitle: 'Standard Langefors compact 3.0m × 3.0m',
+    duration: '15 min',
+    level: 'Intermédiaire',
+    slidesCount: 14,
+    hasQuiz: true,
+    holes: '30 trous',
+    schemaType: '9m2_intl',
+    objectives: [
+      'Bouchon cylindrique Langefors à 3 trous vides centraux',
+      'Optimisation de l\'expansion sans Groupe 4 (G4 supprimé)',
+      'Déconfinement fiabilisé en roche très dure (> 150 MPa)'
     ]
   },
   {
@@ -96,7 +116,7 @@ const MODULES_DATA: FormationModuleCard[] = [
     subtitle: 'Synergie ANFO / TOVEX & Confinement',
     duration: '20 min',
     level: 'Intermédiaire',
-    slidesCount: 12,
+    slidesCount: 14,
     hasQuiz: true,
     objectives: [
       'Propriétés physico-chimiques ANFO vs TOVEX (VOD & Densité)',
@@ -132,7 +152,7 @@ const MODULES_DATA: FormationModuleCard[] = [
     subtitle: 'Analyse du Tas, Fragmentation & Overbreak',
     duration: '20 min',
     level: 'Intermédiaire',
-    slidesCount: 11,
+    slidesCount: 14,
     hasQuiz: true,
     objectives: [
       'Lecture visuelle de la forme du tas de minerai (Muckpile)',
@@ -209,8 +229,8 @@ export const Formations: React.FC = () => {
             {/* Category Filter Pills */}
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               {[
-                { id: 'all', label: '🎓 Tous les modules (6)' },
-                { id: 'schema', label: '🎯 Schémas de Forage (3)' },
+                { id: 'all', label: '🎓 Tous les modules (7)' },
+                { id: 'schema', label: '🎯 Schémas de Forage (4)' },
                 { id: 'explosifs', label: '💣 Explosifs & Tir (1)' },
                 { id: 'securite', label: '🛡️ Sécurité & Purge (1)' },
                 { id: 'diagnostic', label: '📊 Diagnostic Volée (1)' },
@@ -313,7 +333,7 @@ export const Formations: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1.5 bg-slate-50 p-2 rounded-xl">
                     <BookOpen className="w-3.5 h-3.5 text-amber-500" />
-                    <span>{mod.slidesCount} Slides + Quiz</span>
+                    <span>{SLIDE_DECKS[mod.id]?.length ?? mod.slidesCount} Slides + Quiz</span>
                   </div>
                 </div>
 
