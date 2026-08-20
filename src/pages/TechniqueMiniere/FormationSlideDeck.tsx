@@ -333,15 +333,15 @@ const SLIDES_12M2_INTL: Slide[] = [
     title: 'Calcul du Burden Maximal (Bmax) & Diamètre Équivalent',
     expertTag: '🎓 Concepteur & Expert Explosifs',
     body: [
-      "Le burden pratique du premier carré d'expansion selon Langefors est directement proportionnel au diamètre équivalent des trous vides :",
+      "Le burden pratique du premier carré d'expansion selon Langefors dépend du diamètre équivalent des trous vides, de la densité de chargement et de la constante de roche c définie plus haut :",
       "• Diamètre équivalent de 6 trous Ø 38 mm : De = 38 × √6 ≈ 93 mm.",
-      "• Burden maximal de première étape : B1 = 1,5 × De = 1,5 × 93 mm ≈ 0,14 m.",
-      "• Les ouvertures successives s'élargissent géométriquement par un facteur 1,5 à chaque carré d'expansion (B1 -> B2 -> B3 -> B4)."
+      "• Ce diamètre équivalent sert de base au calcul du burden maximal admissible pour le premier carré d'expansion, à valider sur site selon la résistance réelle de la roche rencontrée.",
+      "• Les ouvertures successives s'élargissent progressivement à chaque carré d'expansion (du bouchon vers G1, G2, G3, G4)."
     ],
     metrics: [
       { label: 'Diamètre Équivalent (De)', value: '93', unit: 'mm' },
-      { label: 'Burden B1 Initial', value: '14', unit: 'cm' },
-      { label: 'Facteur Progression', value: '1.5', subtext: 'Multiplicateur carré' }
+      { label: 'Constante de Roche (c)', value: '0.40', unit: 'kg/m³' },
+      { label: 'Résistance Roche', value: '> 180', unit: 'MPa' }
     ]
   },
   {
@@ -735,10 +735,10 @@ const SLIDES_9M2_INTL: Slide[] = [
       "Le bouchon cylindrique Langefors aligne 3 trous vides (Ø 38 mm) pour créer un diamètre équivalent De = 38 × √3 ≈ 65,8 mm.",
       "Cette géométrie triple la surface libre initiale par rapport au trou vide unique du SMI, éliminant tout risque de 'bouchon soudé' et réduisant les vibrations."
     ],
-    ruleOfArt: "Règle de Langefors Compact : La distance entre un trou chargé du bouchon et les trous vides alignés ne doit pas dépasser 1.5 × De (soit ~10 cm).",
+    ruleOfArt: "Règle de Langefors Compact : La distance entre un trou chargé du bouchon et les trous vides alignés doit rester proportionnelle au diamètre équivalent De, à valider sur site selon la dureté réelle de la roche.",
     metrics: [
       { label: 'Diamètre Équivalent (De)', value: '65.8', unit: 'mm' },
-      { label: 'Burden B1 Bouchon', value: '10', unit: 'cm' },
+      { label: 'Trous Vides Bouchon', value: '3', unit: 'Ø 38mm' },
       { label: 'Gain Volume Libre', value: '+200', unit: '%' }
     ]
   },
@@ -776,7 +776,7 @@ const SLIDES_9M2_INTL: Slide[] = [
     title: 'Le Bouchon Cylindrique Langefors (3 Vides Centraux)',
     expertTag: '⚡ Expert Forage & Abattage',
     body: [
-      "Au cœur du front, 3 trous vides de Ø 38 mm sont forés côte à côte horizontalement sur une largeur de 40 mm d'entraxe.",
+      "Au cœur du front, 3 trous vides de Ø 38 mm sont forés côte à côte horizontalement avec un entraxe de l'ordre de 65 à 70 mm entre chaque trou, pour préserver une paroi rocheuse suffisante entre les perforations.",
       "4 trous chargés au TOVEX encadrent ce prisme rectangulaire : 1 en haut, 1 en bas, 1 à gauche, 1 à droite.",
       "Lors de la détonation instantanée à 0 ms (D0), la roche est cisaillée de manière isotrope vers la fente centrale formée par les 3 vides, créant une cavité rectangulaire parfaite."
     ],
@@ -823,15 +823,15 @@ const SLIDES_9M2_INTL: Slide[] = [
     body: [
       "Comme dans le standard SMI 9m², le Groupe 3 (+75 ms) assure le raccordement direct avec le contour (radier, parements, voûte).",
       "Le Groupe 4 est totalement supprimé, ce qui fait économiser 10 trous par rapport à un schéma non optimisé.",
-      "Résultat : Temps de forage réduit de 35 minutes par volée et économie de 11 kg d'explosifs."
+      "Résultat : Temps de forage réduit de 35 minutes par volée et économie d'environ 5,95 kg d'explosifs par rapport au schéma 12m² International."
     ],
     showSchema: true,
     highlightStep: 'g3',
     schemaType: '9m2_intl',
     metrics: [
-      { label: 'Suppression G4', value: '-10', unit: 'trous' },
-      { label: 'Temps Gagné / Volée', value: '-35', unit: 'min' },
-      { label: 'Rendement Avancement', value: '> 95', unit: '%' }
+      { label: 'Total Trous en Moins', value: '-10', unit: 'trous (vs 12m² Intl)' },
+      { label: 'Gain Explosif Volée', value: '-5.95', unit: 'kg d\'explosifs (vs 12m² Intl)' },
+      { label: 'Temps Gagné / Volée', value: '-35', unit: 'min' }
     ]
   },
   {
@@ -944,7 +944,7 @@ const SLIDES_EXPLOSIFS: Slide[] = [
     title: 'Complémentarité physique entre ANFO & TOVEX',
     expertTag: '💣 Expert Explosifs',
     body: [
-      "• ANFO (94% Nitrate d'Ammonium + 6% Fioul) : Explosif vrac à forte production de gaz poussants. Densité 0.85 g/cm³. VOD de 3 200 m/s. Nécessite une onde de choc initiale puissante pour s'amorcer.",
+      "• ANFO (94% Nitrate d'Ammonium + 6% Fioul) : Explosif vrac à forte production de gaz poussants. Densité vrac 0,80 g/cm³. VOD de 3 200 m/s. Nécessite une onde de choc initiale puissante pour s'amorcer.",
       "• TOVEX (Hydrogel sensibilisé) : Explosif moléculaire à haute vitesse de détonation (4 800 m/s), insensible à l'eau. Utilisé en cartouche d'amorce au fond du trou pour initier l'ANFO et casser le fond dur.",
       "Sensibilité à l'eau : L'ANFO se dissout instantanément au contact de l'eau stagnant dans les trous forés ! En trou mouillé, utilisez une gaine plastique étanche ou du TOVEX continu."
     ],
@@ -974,7 +974,7 @@ const SLIDES_EXPLOSIFS: Slide[] = [
     body: [
       "La confection de la cartouche amorce est l'acte le plus délicat de la préparation du tir :",
       "• Perforation de la Cartouche : Utiliser exclusivement un poinçon en bois ou en plastique rigide (anti-étincelle) pour percer le TOVEX.",
-      "• Insertion du Détonateur : Insérer le détonateur électrique/pyrotechnique à retard (délai ±2-5ms) dans l'axe de la cartouche.",
+      "• Insertion du Détonateur : Insérer le détonateur pyrotechnique à amorçage électrique, à retard (délai ±2-5ms), dans l'axe de la cartouche.",
       "• Verrouillage : Réaliser une demi-clé avec les fils ou le tube Signal Tube autour de la cartouche pour éviter l'arrachage lors du poussage au fond du trou.",
       "Orientation : L'œillet d'amorçage du détonateur doit être orienté vers la colonne d'ANFO (vers l'embouchure)."
     ],
@@ -991,7 +991,7 @@ const SLIDES_EXPLOSIFS: Slide[] = [
       "3. Solution TOVEX Continu : Pour les trous du radier très humides, remplacer la colonne d'ANFO par du TOVEX en cartouches continues bout à bout."
     ],
     metrics: [
-      { label: 'Perte Énergie ANFO + Eau', value: '100', unit: '%' },
+      { label: 'Risque Raté ANFO Mouillé', value: 'TRÈS ÉLEVÉ', subtext: 'Dissolution rapide du nitrate' },
       { label: 'Épaisseur Gaine', value: '150', unit: 'µm' },
       { label: 'Pression Purge Air', value: '6', unit: 'bar' }
     ]
@@ -1191,7 +1191,7 @@ const SLIDES_SECURITE: Slide[] = [
     ],
     metrics: [
       { label: 'Autonomie Lampe', value: '12', unit: 'heures' },
-      { label: 'Efficacité Autosafe', value: '60', unit: 'min' },
+      { label: 'Efficacité Autosafe', value: '30-60', unit: 'min' },
       { label: 'Seuil Alarme CO', value: '20', unit: 'ppm' }
     ]
   },
@@ -1215,7 +1215,7 @@ const SLIDES_SECURITE: Slide[] = [
     body: [
       "Un culot de trou est le fond d'un trou de mine restant visible sur le front après le tir.",
       "DANGER EXTRÊME : Le culot peut abriter une cartouche de TOVEX non explosée ou un détonateur intact masqué sous la poussière.",
-      "1. INTERDICTION STRICTE DE FORER DANS UN CULOT EXISTANT OU D'Y INTRODUIRE UN OUTIL MÉTALLIQUE !",
+      "1. Interdiction stricte de forer dans un culot existant ou d'y introduire un outil métallique !",
       "2. Repérez et marquez TOUS les culots visibles à la peinture ROUGE FLUO.",
       "3. Tout nouveau trou foré doit respecter une distance minimale de 20 cm parallèles par rapport au culot.",
       "4. Traitement d'un raté : Seul le chef de tir habilité peut rincer le trou à l'eau sans pression ou ré-amorcer après évacuation du chantier."
@@ -1309,7 +1309,7 @@ const SLIDES_SECURITE: Slide[] = [
       "• SONORISATION : Son clair = roche saine | Son mat/sourd = écaille instable à faire tomber",
       "• CULOTS DE TROU : Interdiction de forer dedans | Marquage rouge fluo | Distance ≥ 20 cm",
       "• MISFIRE / RATÉ : Attente 30 min | Inspection exclusive par chef de tir | Rinçage eau douce",
-      "• PÉRIMÈTRE : Évacuation 150 m | Barrages physiques + 3 coups de sirène",
+      "• PÉRIMÈTRE : Évacuation 150 m | Barrages physiques | Postes de garde aux intersections | 3 coups de sirène",
       "• EPI OBLIGATOIRES : Casque jugulaire, bottes coquées, auto-sauveteur à la ceinture, détecteur multigaz"
     ]
   }
@@ -1408,8 +1408,8 @@ const SLIDES_DIAGNOSTIC: Slide[] = [
       "• Banquettes en Sole : Présence de dalles non cisaillées au radier dues à un piqué insuffisant des trous de sole."
     ],
     metrics: [
-      { label: 'Longueur Culot Idéale', value: '< 10', unit: 'cm' },
-      { label: 'Culot Critique', value: '> 20', unit: 'cm' },
+      { label: 'Longueur Culot Résiduel Idéale', value: '< 10', unit: 'cm' },
+      { label: 'Culot Résiduel Critique', value: '> 20', unit: 'cm', subtext: 'longueur de trou non abattu, ≠ distance de sécurité au forage' },
       { label: 'Piqué Sole Requis', value: '3-5', unit: '°' }
     ]
   },
@@ -1465,7 +1465,7 @@ const SLIDES_DIAGNOSTIC: Slide[] = [
       "L'impact d'une volée réussie sur la rentabilité globale du chantier est considérable :",
       "• Gain d'Avancement : Passer de 85% à 97% d'arrachement sur une tige 2,4m apporte +0,28 m par volée.",
       "• Gain Mensuel : Sur 30 volées par mois, cela représente +8,4 mètres de galerie créée sans aucun trou foré supplémentaire !",
-      "• Valeur Financière : Représente un gain net de plus de 45 000 MAD par mois et par chantier."
+      "• Estimation Financière : En valorisant le mètre de galerie créée au coût moyen de forage-tir-soutènement évité, ce gain représente un ordre de grandeur de plus de 45 000 MAD par mois et par chantier — à affiner selon le coût réel du mètre linéaire de chaque site."
     ],
     metrics: [
       { label: 'Gain Mensuel Avancement', value: '+8.4', unit: 'm / mois' },
